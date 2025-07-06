@@ -63,39 +63,39 @@ const ALL_NAVIGATION_ITEMS = [...NAVIGATION_ITEMS, ...ADMIN_ITEMS]
 
 // Helper function to get verification status info
 const getVerificationStatus = () => {
-  switch (USER_VERIFICATION_STATUS) {
-    case "verified":
-      return {
-        icon: CheckCircle2,
-        color: "text-green-600",
-        bgColor: "bg-green-100",
-        text: "Verified",
-        description: "Identity verified"
-      }
-    case "pending":
-      return {
-        icon: AlertCircle,
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-100",
-        text: "Pending",
-        description: "Verification in progress"
-      }
-    case "rejected":
-      return {
-        icon: AlertCircle,
-        color: "text-red-600",
-        bgColor: "bg-red-100",
-        text: "Rejected",
-        description: "Verification rejected"
-      }
-    default:
-      return {
-        icon: UserCheck,
-        color: "text-gray-600",
-        bgColor: "bg-gray-100",
-        text: "Unverified",
-        description: "Identity not verified"
-      }
+  if (USER_VERIFICATION_STATUS === "verified") {
+    return {
+      icon: CheckCircle2,
+      color: "text-green-600",
+      bgColor: "bg-green-100",
+      text: "Verified",
+      description: "Identity verified"
+    }
+  }
+  if (USER_VERIFICATION_STATUS === "pending") {
+    return {
+      icon: AlertCircle,
+      color: "text-yellow-600",
+      bgColor: "bg-yellow-100",
+      text: "Pending",
+      description: "Verification in progress"
+    }
+  }
+  if (USER_VERIFICATION_STATUS === "rejected") {
+    return {
+      icon: AlertCircle,
+      color: "text-red-600",
+      bgColor: "bg-red-100",
+      text: "Rejected",
+      description: "Verification rejected"
+    }
+  }
+  return {
+    icon: UserCheck,
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+    text: "Unverified",
+    description: "Identity not verified"
   }
 }
 

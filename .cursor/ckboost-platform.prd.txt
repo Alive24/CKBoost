@@ -1,0 +1,350 @@
+<context>
+# Overview
+
+CKBoost is a gamified community engagement platform designed to drive participation and growth in the CKB ecosystem. The platform addresses the critical need for structured community building by providing a comprehensive reward system that incentivizes valuable contributions across content creation, development, community engagement, and educational activities.
+
+The platform serves as the digital backbone for the Nervos Community Catalyst's CKBoost initiative, transforming the traditional approach to community engagement from ad-hoc activities to a structured, measurable, and rewarding experience. It solves the problem of community members not knowing how to contribute meaningfully to the ecosystem while ensuring fair reward distribution and preventing sybil attacks.
+
+CKBoost is valuable because it creates a sustainable ecosystem where community members can build their reputation, earn tangible rewards, and contribute to the long-term success of the CKB network. It provides clear pathways for participation regardless of technical expertise, from simple social media engagement to complex development tasks.
+
+# Core Features
+
+## Campaign & Quest System
+- **Campaign Management**: Sponsors can create comprehensive campaigns with multiple quests targeting specific objectives (ecosystem growth, education, development, etc.)
+- **Quest Creation**: Granular task definition with subtasks, proof requirements, difficulty levels, and reward structures
+- **Progress Tracking**: Real-time progress monitoring with visual indicators and completion status
+- **Proof Submission**: Flexible proof submission system supporting files, links, and text-based evidence
+- **Review & Approval**: Automated and manual review processes with campaign admin oversight
+
+## Gamified Reward System
+- **Points & Badges**: Hierarchical progression system with badges (Newcomer, Beginner, Intermediate, Advanced, Expert, Legend)
+- **Multi-Token Rewards**: Support for CKB, SPORE, and other ecosystem tokens as quest rewards
+- **Dynamic Leaderboards**: Real-time ranking system with monthly and quarterly reward pools
+- **Streak Bonuses**: Additional rewards for consistent participation and consecutive day streaks
+- **Difficulty Multipliers**: Bonus rewards based on quest complexity and completion rates
+
+## Community Tipping System
+- **Tip Proposals**: Community-driven proposal system for recognizing valuable contributions
+- **Approval Workflow**: Democratic approval process requiring community consensus (5 approvals)
+- **Treasury Integration**: Automated distribution from community treasury for approved tips
+- **Personal Tipping**: Individual tipping capabilities with social features
+- **Contribution Recognition**: Permanent record of community-recognized contributions
+
+## Identity Verification & Anti-Sybil
+- **Multi-Method Verification**: Telegram, KYC, DID, and manual review options
+- **Privacy-Preserving**: Minimal data storage with encrypted verification status
+- **Flexible Requirements**: Campaign-specific verification requirements
+- **Verification Benefits**: Enhanced rewards and exclusive campaign access for verified users
+
+## Administrative Controls
+- **Campaign Administration**: Comprehensive tools for campaign creators to manage quests, review submissions, and distribute rewards
+- **Platform Administration**: System-wide oversight including user management, campaign approval, and platform health monitoring
+- **Analytics & Reporting**: Detailed metrics on participation, completion rates, and community engagement
+- **Staff Management**: Role-based access control for campaign reviewers and administrators
+
+# User Experience
+
+## User Personas
+
+### Primary Users
+- **Community Contributors**: Active CKB community members seeking structured ways to contribute and earn rewards
+- **Content Creators**: Bloggers, video creators, and educators wanting to monetize their CKB-focused content
+- **Developers**: Blockchain developers looking to build on CKB while earning rewards for contributions
+- **Campaign Sponsors**: Organizations and foundations wanting to drive specific ecosystem outcomes
+
+### Secondary Users
+- **Platform Administrators**: Nervos Community Catalyst team managing overall platform operations
+- **Campaign Administrators**: Trusted community members managing specific campaigns and quest reviews
+- **Casual Participants**: Newcomers to CKB seeking entry-level engagement opportunities
+
+## Key User Flows
+
+### New User Onboarding
+1. Connect CKB wallet and create profile
+2. Complete basic verification (Telegram)
+3. Browse available campaigns and understand reward system
+4. Start with beginner-friendly quests
+5. Submit first proof and receive feedback
+6. Earn first rewards and see leaderboard position
+
+### Quest Participation Flow
+1. Browse campaigns by category, difficulty, or reward
+2. Check verification requirements and campaign rules
+3. Start quest and review subtask requirements
+4. Complete subtasks and gather proof materials
+5. Submit proof through appropriate channels
+6. Receive admin review and feedback
+7. Claim rewards upon approval
+
+### Campaign Creation Flow
+1. Apply for campaign sponsor status
+2. Define campaign objectives and success metrics
+3. Create individual quests with detailed requirements
+4. Set reward pools and verification requirements
+5. Submit campaign for platform admin approval
+6. Launch campaign and monitor participation
+7. Review submissions and distribute rewards
+
+## UI/UX Considerations
+
+### Design Principles
+- **Gamification-First**: Visual progress indicators, achievement badges, and celebration of milestones
+- **Accessibility**: Multiple verification methods and difficulty levels to accommodate diverse users
+- **Transparency**: Clear reward structures, leaderboard visibility, and open community voting
+- **Trust & Safety**: Robust verification systems and clear community guidelines
+
+### Mobile Responsiveness
+- Touch-optimized interface for mobile quest completion
+- Responsive design supporting various screen sizes
+- Mobile-friendly proof submission (camera integration)
+- Push notifications for quest deadlines and rewards
+
+### Interaction Design
+- Clear visual hierarchy with campaign > quest > subtask structure
+- Progress bars and completion indicators throughout
+- Social features integrated into quest completion
+- Real-time updates on leaderboard positions and rewards
+</context>
+<PRD>
+# Technical Architecture
+
+## System Components
+
+### Frontend Architecture
+- **Next.js React Application**: Static site generation for fully decentralized hosting
+- **Responsive Design**: Mobile-first approach with desktop optimization
+- **Component Library**: Reusable UI components with consistent design system
+- **State Management**: Context API for user authentication and blockchain state
+- **Wallet Integration**: CCC (Common Chain Connector) for universal wallet support
+
+### Smart Contract Architecture (Primary Data Layer)
+- **Campaign Management Contracts**: Immutable campaign creation, quest definition, and lifecycle management
+- **Reward Distribution Contracts**: Automated token distribution with transparent allocation rules
+- **Verification Contracts**: On-chain verification status and anti-sybil mechanisms
+- **Treasury Contracts**: Multi-signature community treasury with transparent governance
+- **Governance Contracts**: Decentralized voting and proposal management
+- **Leaderboard Contracts**: On-chain ranking calculation and badge assignment
+
+### Data Architecture (CKB Celldata-First)
+- **Primary Storage**: All governance and proof data stored in CKB Celldata structures
+- **User Profiles**: Wallet addresses, verification status, achievement history in Cells
+- **Campaign Data**: Quest definitions, reward pools, completion records in structured Cells
+- **Proof Storage**: IPFS hashes and verification status stored on-chain
+- **Intermediate Cache**: Neon serverless database for performance optimization only
+- **Data Consolidation**: Periodic consolidation of cache data to on-chain permanent storage
+
+### External Integrations
+- **Telegram Bot**: Automated verification and notifications
+- **KYC Providers**: Third-party identity verification services
+- **DID Infrastructure**: Decentralized identity verification protocols
+- **Social Media APIs**: Integration with X (Twitter) for social quest verification
+
+## APIs and Integrations
+
+### Serverless API Functions (Open Source & Stateless)
+- **Campaign Read Functions**: Query campaign and quest data from CKB Celldata
+- **User Profile Functions**: Aggregate user data from on-chain sources
+- **Proof Validation Functions**: Validate submissions and trigger smart contract updates
+- **Leaderboard Computation**: Calculate rankings from on-chain achievement data
+- **Notification Functions**: Trigger notifications for quest updates and rewards
+- **Cache Synchronization**: Manage temporary data consolidation to blockchain
+
+### Blockchain Infrastructure
+- **CKB Mainnet**: Primary blockchain for production deployments
+- **CKB Testnet**: Development and testing environment
+- **Indexer Services**: Transaction monitoring and event processing
+- **RPC Providers**: Reliable blockchain connectivity
+
+### Serverless Functions (Stateless & Open Source)
+- **Netlify Functions**: Open-source, stateless API endpoints for quest validation and proof processing
+- **Cloudflare Workers**: Periodic on-chain data consolidation and cache management
+- **Notification Services**: Decentralized notification delivery without data persistence
+- **Blockchain Indexing**: Real-time CKB Celldata indexing and query optimization
+
+## Infrastructure Requirements
+
+### Frontend Hosting
+- **Netlify/Vercel**: Static site hosting with automatic deployments
+- **CDN Distribution**: Global content delivery for optimal performance
+- **Custom Domain**: Professional branding with SSL certificates
+- **Environment Management**: Separate staging and production environments
+
+### Data Storage (Decentralized-First)
+- **CKB Celldata**: Primary storage for all governance, proof, and user achievement data
+- **IPFS**: Decentralized storage for quest proofs, media, and large file attachments
+- **Neon Serverless Database**: Temporary intermediate cache for performance optimization only
+- **Local Storage**: Browser-based storage for user preferences and session data
+- **Data Sovereignty**: All critical data consolidated on-chain with transparent access
+
+### Monitoring & Analytics
+- **Error Tracking**: Real-time error monitoring and alerting
+- **Performance Monitoring**: Application performance and user experience metrics
+- **Usage Analytics**: User behavior tracking and engagement metrics
+- **Security Monitoring**: Suspicious activity detection and prevention
+
+# Development Roadmap
+
+## Phase 1: Foundation & Core Features (MVP)
+- **User Authentication**: Wallet connection and basic profile management
+- **Campaign System**: Basic campaign creation and quest definition
+- **Quest Participation**: Simple quest completion with manual review
+- **Reward Distribution**: Basic point system and token rewards
+- **Leaderboard**: Simple ranking system with basic badges
+- **Admin Dashboard**: Essential campaign management tools
+
+## Phase 2: Enhanced Engagement & Verification
+- **Advanced Verification**: Multiple verification methods (Telegram, KYC, DID)
+- **Gamification Enhancement**: Streak bonuses, difficulty multipliers, achievement system
+- **Social Features**: User profiles, activity feeds, social interactions
+- **Tipping System**: Community-driven tipping with approval workflow
+- **Mobile Optimization**: Responsive design and mobile-specific features
+- **Analytics Dashboard**: Comprehensive metrics and reporting
+
+## Phase 3: Advanced Features & Scaling
+- **Advanced Quest Types**: Complex multi-step quests with conditional logic
+- **Automated Verification**: Smart contract-based verification for certain quest types
+- **API Ecosystem**: Third-party integrations and developer tools
+- **Advanced Analytics**: AI-driven insights and recommendation engine
+- **Multi-Language Support**: Internationalization for global community
+- **Enterprise Features**: White-label solutions for other blockchain projects
+
+# Logical Dependency Chain
+
+## Foundation Layer (Must Complete First)
+1. **Core Infrastructure Setup**
+   - Next.js application scaffold with TypeScript and static generation
+   - CCC wallet integration and blockchain authentication
+   - Basic UI component library and design system
+   - Smart contract architecture and CKB Celldata schemas
+
+2. **User Management System**
+   - User registration and profile creation
+   - Wallet connection and verification
+   - Basic role-based access control
+   - Session management and security
+
+3. **Campaign & Quest Framework**
+   - Smart contract-based campaign management
+   - On-chain quest definition and lifecycle contracts
+   - Immutable reward distribution mechanisms
+   - Decentralized admin controls through smart contracts
+
+## Engagement Layer (Build Upon Foundation)
+4. **Quest Participation System**
+   - Quest browsing and filtering
+   - Proof submission and file handling
+   - Progress tracking and status management
+   - Basic review and approval workflow
+
+5. **Reward & Recognition System**
+   - Point calculation and badge assignment
+   - Token distribution mechanisms
+   - Leaderboard generation and ranking
+   - Achievement tracking and display
+
+6. **Verification & Anti-Sybil**
+   - Multiple verification method implementation
+   - Verification status management
+   - Campaign-specific verification requirements
+   - Anti-sybil protection mechanisms
+
+## Advanced Features Layer (Final Implementation)
+7. **Community Features**
+   - Tipping system with approval workflow
+   - Social interactions and activity feeds
+   - Community governance features
+   - Advanced analytics and reporting
+
+8. **Platform Administration**
+   - Comprehensive admin dashboards
+   - Platform-wide management tools
+   - Analytics and monitoring systems
+   - Automated processes and notifications
+
+# Risks and Mitigations
+
+## Technical Challenges
+
+### Smart Contract Security
+- **Risk**: Vulnerabilities in reward distribution and verification contracts
+- **Mitigation**: Comprehensive security audits, formal verification, and gradual rollout with limited initial funds
+
+### Scalability Concerns
+- **Risk**: High gas costs and transaction bottlenecks during peak activity
+- **Mitigation**: Batch processing, efficient CKB Cell design, and strategic use of Neon cache for read operations
+
+### Decentralization Complexity
+- **Risk**: Complex coordination between on-chain data and temporary cache systems
+- **Mitigation**: Clear data consolidation protocols, automated cache-to-chain sync, and transparent data sovereignty principles
+
+## MVP Strategy
+
+### Core Value Proposition
+- **Focus**: Deliver essential campaign and quest functionality with manual verification
+- **Scope**: Basic reward distribution and leaderboard features
+- **Timeline**: Rapid development with iterative improvements
+
+### User Acquisition Strategy
+- **Launch**: Soft launch with existing CKB community members
+- **Growth**: Gradual expansion through successful campaign case studies
+- **Retention**: Focus on user experience and meaningful rewards
+
+### Resource Optimization
+- **Development**: Prioritize features with highest user impact
+- **Infrastructure**: Start with cost-effective solutions and scale as needed
+- **Community**: Leverage existing community resources and volunteers
+
+## Business & Community Risks
+
+### Community Adoption
+- **Risk**: Low initial participation and engagement
+- **Mitigation**: Strong launch campaigns, influencer partnerships, and compelling initial rewards
+
+### Reward Sustainability
+- **Risk**: Insufficient funding for long-term reward distribution
+- **Mitigation**: Diverse funding sources, sustainable reward economics, and gradual transition to community funding
+
+### Governance Challenges
+- **Risk**: Difficulty in maintaining platform quality and preventing abuse
+- **Mitigation**: Clear community guidelines, robust moderation tools, and graduated enforcement mechanisms
+
+# Appendix
+
+## Research Findings
+
+### Community Feedback Analysis
+- High demand for structured contribution opportunities
+- Preference for flexible participation levels
+- Strong interest in skill-based recognition and rewards
+- Need for clear progression pathways
+
+### Competitive Analysis
+- Limited existing solutions for blockchain community engagement
+- Opportunity to lead in gamified contribution platforms
+- Potential for cross-ecosystem expansion
+
+### Technical Feasibility Assessment
+- CKB infrastructure capable of supporting required functionality
+- Existing tooling and libraries available for rapid development
+- Strong developer community for technical support
+
+## Technical Specifications
+
+### Performance Requirements
+- **Page Load Time**: <3 seconds for campaign browsing
+- **Quest Submission**: <10 seconds for proof upload
+- **Leaderboard Updates**: Real-time with <30 second delay
+- **Mobile Performance**: Optimized for 3G+ networks
+
+### Security Requirements
+- **Data Encryption**: End-to-end encryption for sensitive user data
+- **Access Control**: Role-based permissions with audit trails
+- **Anti-Fraud**: Multi-layer verification and anomaly detection
+- **Privacy**: GDPR compliance and minimal data collection
+
+### Integration Specifications
+- **Wallet Support**: CCC for all.
+- **Blockchain**: CKB mainnet and testnet compatibility
+- **Storage**: IPFS integration for decentralized proof storage
+- **Notifications**: Email, push, and in-app notification systems
+</PRD> 

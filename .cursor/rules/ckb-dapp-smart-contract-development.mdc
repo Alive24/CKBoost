@@ -109,7 +109,7 @@ table UDTPausableData {
 - Document the purpose and validation rules for each field
 
 ### Contract Development Best Practices
-- Start with Transaction Skeleton design and validation logic
+- Start with Transaction Skeleton and cell data structure design and validation logic
 - Use AI to validate business flow and permission logic
 - Implement comprehensive error handling and edge cases
 - Test thoroughly on testnet before mainnet deployment
