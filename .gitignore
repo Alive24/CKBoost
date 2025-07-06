@@ -1,0 +1,5 @@
+.DS_Store
+.cursor/mcp.json
+.shrimp/WebGUI.md
+node_modules/
+dapp/.next/

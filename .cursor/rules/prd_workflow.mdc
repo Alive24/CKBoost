@@ -1,0 +1,202 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Guidelines for product design discussions and PRD consolidation using the standardized template format
+globs: docs/*.txt, docs/*.md, *.prd.txt, templates/*.txt
+alwaysApply: true
+---
+
+- **PRD-First Development Mandate**
+  - **PRD is Always the Foundation**: No development work begins without a completed, high-quality PRD
+  - **PRD-Driven Discussions**: All technical discussions, feature planning, and implementation decisions must reference the PRD
+  - **Quality Gate**: PRD completion and approval is the mandatory first milestone before any coding begins
+  - **Single Source of Truth**: The PRD serves as the definitive reference for project scope, features, and technical approach
+
+- **PRD Template Structure**
+  - PRD files should be store at docs/project-name.prd.txt
+  - Always use the standardized template format shown below
+  - Maintain strict separation between `<context>` and `<PRD>` sections
+  - Follow the exact section order and formatting specified
+
+- **Complete PRD Template**
+  ```
+  <context>
+  # Overview  
+  [Provide a high-level overview of your product here. Explain what problem it solves, who it's for, and why it's valuable.]
+
+  # Core Features  
+  [List and describe the main features of your product. For each feature, include:
+  - What it does
+  - Why it's important
+  - How it works at a high level]
+
+  # User Experience  
+  [Describe the user journey and experience. Include:
+  - User personas
+  - Key user flows
+  - UI/UX considerations]
+  </context>
+  <PRD>
+  # Technical Architecture  
+  [Outline the technical implementation details:
+  - System components
+  - Data models
+  - APIs and integrations
+  - Infrastructure requirements]
+
+  # Development Roadmap  
+  [Break down the development process into phases:
+  - MVP requirements
+  - Future enhancements
+  - Do not think about timelines whatsoever -- all that matters is scope and detailing exactly what needs to be build in each phase so it can later be cut up into tasks]
+
+  # Logical Dependency Chain
+  [Define the logical order of development:
+  - Which features need to be built first (foundation)
+  - Getting as quickly as possible to something usable/visible front end that works
+  - Properly pacing and scoping each feature so it is atomic but can also be built upon and improved as development approaches]
+
+  # Risks and Mitigations  
+  [Identify potential risks and how they'll be addressed:
+  - Technical challenges
+  - Figuring out the MVP that we can build upon
+  - Resource constraints]
+
+  # Appendix  
+  [Include any additional information:
+  - Research findings
+  - Technical specifications]
+  </PRD>
+  ```
+
+- **Mandatory PRD Development Workflow**
+  - **Step 1: Product Design Discussion** - Collaborative exploration and vision refinement
+  - **Step 2: PRD Consolidation** - Create comprehensive PRD using template above
+  - **Step 3: PRD Quality Review** - Validate completeness and quality against checklist
+  - **Step 4: PRD Approval** - Formal sign-off before any development begins
+  - **Step 5: PRD-Driven Development** - All subsequent work references and builds upon the PRD
+
+- **PRD Quality Requirements**
+  - **High-Quality Standard**: PRD must be comprehensive, detailed, and complete before development
+  - **No Shortcuts**: Never begin development with incomplete or draft PRDs
+  - **Stakeholder Alignment**: PRD must represent shared understanding among all project stakeholders
+  - **Technical Clarity**: Architecture and implementation approach must be clearly defined
+  - **Actionable Detail**: Features must be detailed enough to generate specific development tasks
+
+- **Product Design Discussion Phase**
+  - **Start with Context Building**: Begin all product discussions by exploring the Overview, Core Features, and User Experience sections
+  - **Collaborative Exploration**: Engage in iterative discussions to refine product vision before technical planning
+  - **Key Discussion Areas**:
+    - Problem definition and target audience identification
+    - Feature prioritization and value proposition
+    - User journey mapping and experience design
+    - Market research and competitive analysis
+  - **Documentation Practice**: Take detailed notes during discussions but avoid premature PRD creation
+  - **Completion Criteria**: Discussion phase is complete only when all stakeholders have shared understanding
+
+- **PRD Consolidation Requirements**
+  - **Template Adherence**: Use the exact template format shown above
+  - **Context Section (User-Facing)**:
+    - `# Overview`: Clear problem statement, target audience, and value proposition
+    - `# Core Features`: Detailed feature descriptions with importance and high-level functionality
+    - `# User Experience`: User personas, key flows, and UI/UX considerations
+  - **PRD Section (Implementation-Focused)**:
+    - `# Technical Architecture`: System components, data models, APIs, infrastructure
+    - `# Development Roadmap`: Phase-based breakdown focused on scope, not timelines
+    - `# Logical Dependency Chain`: Foundation-first approach with atomic, buildable features
+    - `# Risks and Mitigations`: Technical challenges, MVP strategy, resource planning
+    - `# Appendix`: Research findings and technical specifications
+
+- **Development Roadmap Guidelines**
+  - **Scope-Focused Planning**: Emphasize feature scope and requirements over timeline estimates
+  - **No Timeline Estimates**: As stated in template - "Do not think about timelines whatsoever"
+  - **MVP-First Approach**: Define minimum viable product that delivers core value
+  - **Atomic Feature Design**: Each feature should be complete, testable, and buildable in isolation
+  - **Task-Ready Breakdown**: Detail features to the level where they can be converted into development tasks
+
+- **Logical Dependency Chain Requirements**
+  - **Foundation-First**: Identify and prioritize infrastructure and core system components
+  - **Rapid Feedback Loop**: Prioritize getting a usable frontend working as quickly as possible
+  - **Atomic Development**: Ensure each feature can be built independently while supporting future enhancements
+  - **Build-Upon Strategy**: Design features to be incrementally improved as development progresses
+  - **Dependency Visualization**: Clearly identify which features must be completed before others can begin
+
+- **PRD-Driven Development Enforcement**
+  - **All Code References PRD**: Every development decision should trace back to PRD specifications
+  - **Feature Scope Control**: No features outside PRD scope without formal PRD updates
+  - **Change Management**: PRD modifications require formal review and re-approval
+  - **Progress Tracking**: Development progress measured against PRD milestones and dependency chain
+  - **Documentation Alignment**: All technical documentation must align with PRD specifications
+
+- **File Organization Standards**
+  - **Naming Convention**: Use descriptive names like `user-authentication.prd.txt` or `dashboard-analytics.prd.txt`
+  - **Location**: Store PRDs in a dedicated `docs/` directory or similar documentation folder
+  - **Version Control**: Include PRDs in version control for collaborative editing and history tracking
+  - **Accessibility**: PRD must be easily accessible to all team members throughout development
+
+- **Quality Assurance Checklist**
+  ```markdown
+  ✅ Context section completed with all three required subsections
+  ✅ PRD section includes all six required subsections  
+  ✅ Development roadmap focuses on scope over timelines
+  ✅ Logical dependency chain prioritizes foundation and rapid frontend
+  ✅ Technical architecture aligns with identified features
+  ✅ Risks and mitigations address MVP strategy
+  ✅ Format exactly matches template above
+  ✅ Features are broken down to task-convertible level
+  ✅ All stakeholders have reviewed and approved PRD
+  ✅ PRD provides sufficient detail for development team
+  ```
+
+- **PRD Completion Gates**
+  - **Completeness Gate**: All nine sections must be fully populated with substantive content
+  - **Quality Gate**: Content must meet high standard for clarity, detail, and actionability
+  - **Stakeholder Gate**: All relevant stakeholders must review and approve PRD
+  - **Technical Gate**: Development team must confirm PRD provides sufficient technical guidance
+  - **Ready Gate**: PRD must enable immediate task extraction and development planning
+
+- **Cross-Tool Compatibility**
+  - **Tool-Agnostic Format**: PRDs should be readable and usable by any project management system
+  - **Plain Text Structure**: Use markdown-compatible formatting for maximum compatibility
+  - **Task Extraction Ready**: Write features at a granularity that allows any tool to convert them into actionable tasks
+  - **Documentation Standards**: Follow consistent formatting that works across different development workflows
+
+- **Mandatory Workflow Pattern**
+  ```markdown
+  1. **Product Design Discussion Phase** (REQUIRED FIRST)
+     - Collaborative brainstorming and vision refinement
+     - User research and competitive analysis
+     - Feature prioritization and value mapping
+     - Complete stakeholder alignment
+  
+  2. **PRD Consolidation Phase** (REQUIRED SECOND)
+     - Use template format above exactly
+     - Complete all required sections with high quality
+     - Focus on scope and atomic features
+     - Pass all quality gates
+  
+  3. **PRD Approval Phase** (REQUIRED THIRD)
+     - Formal review by all stakeholders
+     - Technical validation by development team
+     - Final approval before any coding begins
+  
+  4. **PRD-Driven Development Phase** (ONLY AFTER PRD COMPLETE)
+     - Extract tasks from completed PRD
+     - Set up project tracking referencing PRD
+     - Begin implementation following dependency chain
+     - All decisions reference PRD as source of truth
+  ```
+
+- **Anti-Patterns to Avoid**
+  - ❌ Starting any development work before PRD completion and approval
+  - ❌ Creating PRDs without the product design discussion phase
+  - ❌ Accepting incomplete or low-quality PRDs as "good enough"
+  - ❌ Making feature decisions that aren't grounded in the PRD
+  - ❌ Modifying scope without formal PRD updates
+  - ❌ Including timeline estimates in the development roadmap
+  - ❌ Skipping the logical dependency chain analysis
+  - ❌ Creating features that cannot be built atomically
+  - ❌ Proceeding with unclear or ambiguous PRD sections

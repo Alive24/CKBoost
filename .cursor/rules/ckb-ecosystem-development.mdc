@@ -1,0 +1,238 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# CKB Ecosystem Development Rules
+
+## GAIO (Generative AI Optimization) Principles
+
+### Core Philosophy
+GAIO is like SEO but for Large Language Models (LLMs). It focuses on optimizing how AI tools discover, understand, and recommend your project content.
+
+- Build AI-friendly ecosystems that optimize for both human and machine understanding
+- Focus on "brand being mentioned" frequency and context in AI interactions (not just link quantity like traditional SEO)
+- Make AI a "first-class citizen" in development workflows and community collaboration
+- Emphasize content visibility in AI assistants and conversational search interfaces
+- Optimize project structure, knowledge organization, and collaboration for AI participation
+
+### GAIO vs Traditional SEO
+- **Traditional SEO**: External links, keyword density, search engine rankings  
+- **GAIO**: AI mention frequency, context quality, conversational discoverability, structured knowledge representation
+
+### Knowledge Aggregation Strategy
+- Maintain and regularly update Context7 and DeepWiki integrations
+- Trigger context refreshes for critical updates, requirement changes, and documentation updates
+- Use Awesome CKB aggregation features to consolidate multi-repository knowledge
+- Integrate Issue discussions into knowledge bases for complete project context
+
+## Documentation and Content Strategy
+
+### AI-Optimized Documentation
+- Write comprehensive inline comments and module-level documentation
+- Use AI assistance to generate documentation, but always review for technical accuracy
+- Provide extensive, runnable examples and use cases to supplement AI-generated content
+- Implement SSR (Server-Side Rendering) for documentation sites to ensure AI accessibility
+
+### llms.txt Implementation
+- Create and maintain `/llms.txt` routes for direct AI access to project information
+- Include structured content: API specs, module descriptions, use cases, FAQs, code examples
+- Embed OpenAPI Specifications, Molecule Schemas, and other structured formats
+- Update llms.txt using semi-automated processes during key development milestones
+
+### Multi-Language and Accessibility
+- Use AI Humanizer MCP for improving documentation readability
+- Provide clear, descriptive naming for variables, functions, and files
+- Support multiple languages where appropriate for global accessibility
+- Ensure content is accessible to both human developers and AI tools
+
+## Knowledge Management and Aggregation
+
+### Context7 and DeepWiki Maintenance
+- Regularly trigger updates to Context7 and DeepWiki when code or documentation changes
+- Monitor aggregation quality and completeness across multiple repositories
+- **Awesome CKB RAG Setup**: Use Awesome CKB's aggregation features to consolidate multi-repository knowledge:
+  - Filter by tags (dApp, Script, Recommended, etc.) to select relevant resources
+  - Use preset aggregate links or create custom aggregations
+  - Include GitHub Issues in aggregation for community knowledge
+  - Add aggregate URLs to AI tools via Settings -> Indexing & Docs
+- Coordinate with other ecosystem projects for cross-repository knowledge sharing
+
+### Issue-Driven Knowledge Building
+- Convert valuable discussions from Telegram, Discord, and forums into GitHub Issues
+- Close converted Issues immediately after documentation to maintain clean project state
+- Include real user problems and community solutions in knowledge base
+- Use Awesome CKB's Issue aggregation to maintain cross-project problem/solution database
+
+### Memory Systems Integration
+Memory systems are crucial for maintaining AI conversation continuity and context across development sessions.
+
+**Local Memory Systems**:
+- Store conversation history in JSON format locally with full user control
+- Raycast AI offers the best local memory experience with cloud backup support
+- Use MCP official memory service for other platforms
+- Benefits: Complete data ownership, privacy, offline access
+
+**Cloud Memory Systems**:
+- OpenMemory: Cloud-based memory with API integration
+- Neo4j: Self-deployed graph database for complex relationship tracking
+- Use mcp-neo4j-memory for connecting Neo4j to MCP clients
+- Benefits: Cross-device synchronization, advanced relationship modeling
+
+**Memory System Goals**:
+- Maintain conversation continuity across sessions
+- Store user preferences and development patterns  
+- Build accumulated knowledge base for project context
+- Provide personalized AI interaction experience
+
+## Community and Collaboration
+
+### Issue Management for AI Context
+- Document every significant technical discussion as a GitHub Issue
+- Include problem context, solution approaches, and resolution details
+- Tag Issues appropriately for easy categorization and retrieval
+- Maintain Issue quality to support effective AI-assisted problem solving
+
+### Cross-Platform Knowledge Consolidation
+- Aggregate knowledge from multiple communication channels into centralized repositories
+- Ensure consistent information across different platforms and tools
+- Create bridges between informal discussions and formal documentation
+- Maintain version control for community-contributed knowledge
+
+### Open Source and Licensing Compliance
+- Ensure all AI-generated code complies with open-source licenses
+- Document AI assistance in commit messages where appropriate
+- Review AI-generated content for security and correctness before publishing
+- Maintain clear attribution for community contributions and AI assistance
+
+## Technical Infrastructure
+
+### AI Tool Selection Criteria
+When choosing AI development tools, prioritize these key capabilities:
+
+**MCP (Model Context Protocol) Support**: Essential for extending AI capabilities beyond training data
+- Enables external resource access and enhanced generation processes
+- Adds Sequential Thinking and Deep Research capabilities
+- Allows direct code execution and external operations
+
+**RAG (Retrieval-Augmented Generation) Capabilities**: 
+- Access to custom knowledge bases with CKB-specific documentation
+- Quick retrieval of relevant context from community discussions
+- Integration with real-time updated resources and best practices
+
+**Multi-Model Access**: 
+- Support for multiple AI models without subscription limitations
+- Ability to use local models when needed
+- Decoupled tools and interfaces for better user experience
+
+### Repository Structure for AI Optimization
+- Organize code with clear separation of concerns for better AI understanding
+- Use consistent directory structures across ecosystem projects
+- Implement proper dependency management with clear version specifications
+- Create comprehensive README files with setup, usage, and contribution guidelines
+
+### API and Integration Design
+- Design APIs with AI consumption in mind (clear endpoints, comprehensive schemas)
+- Provide OpenAPI specifications for all public APIs
+- Include example requests and responses in API documentation
+- Support both human and machine-readable formats for all integrations
+
+### Testing and Quality Assurance
+- Use AI to generate comprehensive test suites covering edge cases
+- Implement automated testing for documentation accuracy and completeness
+- Create test scenarios that validate AI-generated content accuracy
+- Maintain high code coverage for better AI understanding of project behavior
+
+## Ecosystem Growth and Sustainability
+
+### AI-Assisted Development Workflows
+
+**Documentation Learning**:
+- Use DeepWiki for code-generated human-readable documentation when official docs are missing or unclear
+- Engage with repository-specific AI through DeepWiki for targeted questions
+- Combine DeepWiki (single-repo depth) with Context7 (cross-repo problem solving)
+- Generate "living documentation" that updates with code changes
+
+**Technical Decision Making**:
+- Use long-context AI agents for technology selection discussions
+- Leverage Sequential Thinking MCP for improved decision quality
+- Analyze framework comparisons, ecosystem maturity, and community activity
+- Use Desktop Commander MCP for AI agents to access local codebases
+
+**Automated Framework Setup**:
+- Generate complete project skeletons with testing, CI/CD, and documentation
+- Include security configurations and best practices automatically
+- Create team-specific templates based on historical project patterns
+- Integrate README and development standards generation
+
+**AI-Assisted Debugging**:
+- Share error logs and stack traces for root cause analysis
+- Get step-by-step execution flow analysis for complex issues
+- Use AI for "auto-fix" functionality combined with unit testing
+- Generate comprehensive debugging strategies for async and multi-threaded problems
+
+### Developer Experience Optimization
+- Create comprehensive onboarding materials for new developers
+- Use AI to generate getting-started guides and tutorials
+- Provide interactive examples and playground environments
+- Maintain up-to-date development environment setup instructions
+
+### Tool and Framework Development
+- Build tools that support both human developers and AI assistance
+- Create reusable components and templates for common patterns
+- Develop CLI tools and automation scripts for repetitive tasks
+- Support integration with popular AI development tools and editors
+
+### Community Building Through AI
+- Use AI to analyze community needs and frequently asked questions
+- Generate educational content based on common community challenges
+- Create AI-assisted tutorials and learning materials
+- Support multilingual community engagement through AI translation tools
+
+## Monitoring and Analytics
+
+### AI Interaction Analytics
+- Track how AI tools interact with project documentation and code
+- Monitor the effectiveness of GAIO implementations
+- Analyze patterns in AI-generated contributions and suggestions
+- Use feedback to improve AI-friendliness of ecosystem components
+
+### Community Growth Metrics
+- Measure developer adoption and engagement with AI-assisted tools
+- Track documentation usage and effectiveness
+- Monitor issue resolution times and community contribution patterns
+- Analyze the impact of AI tools on development velocity and code quality
+
+### Continuous Improvement
+- Regularly review and update GAIO practices based on community feedback
+- Stay current with AI tool developments and integration opportunities
+- Experiment with new AI-assisted development workflows
+- Share successful practices with the broader CKB ecosystem
+
+## Security and Privacy Considerations
+
+### AI Safety Practices
+- Review all AI-generated code for security vulnerabilities
+- Implement proper access controls for AI tool integrations
+- Avoid including sensitive information in AI prompts and training data
+- Maintain audit trails for AI-assisted development decisions
+
+### Data Management
+- Implement proper data governance for community knowledge bases
+- Ensure privacy compliance for user-generated content and discussions
+- Maintain transparency about AI tool usage in project development
+- Provide clear opt-out mechanisms for community members who prefer traditional workflows
+
+## Future-Proofing and Innovation
+
+### Emerging Technology Integration
+- Stay informed about new AI capabilities and integration opportunities
+- Experiment with cutting-edge AI tools while maintaining production stability
+- Contribute to the development of new GAIO standards and practices
+- Participate in cross-ecosystem collaboration on AI-friendly development practices
+
+### Ecosystem Evolution
+- Plan for AI tool evolution and changing capabilities
+- Maintain backward compatibility while adopting new AI features
+- Support multiple AI tools and platforms to avoid vendor lock-in
+- Foster innovation while maintaining ecosystem stability and reliability

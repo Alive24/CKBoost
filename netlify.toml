@@ -1,0 +1,17 @@
+# Netlify configuration file
+
+[build]
+  # The command to build your Next.js application
+  command = "pnpm build"
+
+  # The directory where the Next.js app is located
+  base = "dapp"
+
+  # The directory that contains the built site.
+  # This is relative to the repository root.
+  publish = ".next"
+
+[[plugins]]
+  # Essential plugin for deploying Next.js sites on Netlify.
+  # It automatically configures redirects, serverless functions, and more.
+  package = "@netlify/plugin-nextjs" 

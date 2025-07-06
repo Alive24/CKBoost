@@ -1,0 +1,247 @@
+---
+description: Guide for using Taskmaster to manage task-driven development workflows
+globs: **/*
+alwaysApply: true
+---
+---
+description: Guide for managing task-driven development workflows using any project management tool
+globs: tasks.json, docs/*.txt, docs/*.md
+alwaysApply: true
+---
+
+- **Tool-Agnostic Development Workflow**
+  - These guidelines work with any task management system (Jira, Trello, Linear, GitHub Issues, etc.)
+  - Focus on workflow patterns and best practices rather than specific tool implementations
+  - Adapt the concepts to whatever project management tool you're using
+
+- **Core Development Principles**
+  - **PRD-First Development**: Always start with a comprehensive Product Requirements Document
+  - **Task-Driven Approach**: Break down work into manageable, trackable tasks
+  - **Dependency Management**: Understand and respect task dependencies
+  - **Iterative Implementation**: Plan, implement, document, and refine in cycles
+
+## The Basic Development Loop
+
+The fundamental development cycle for any project:
+
+1. **List/Review**: Understand what needs to be done and current priorities
+2. **Next Task Selection**: Choose the next task based on dependencies and priorities
+3. **Task Analysis**: Break down complex tasks into smaller, manageable pieces
+4. **Implementation**: Write code and implement the solution
+5. **Documentation**: Log progress, findings, and decisions
+6. **Status Update**: Mark tasks as complete and update dependent tasks
+7. **Repeat**: Continue the cycle
+
+---
+
+## Project Initialization Workflow
+
+### Starting New Projects
+
+**PRD-First Approach:**
+- Begin every project with product design discussions
+- Create a comprehensive PRD following the standardized template
+- Generate initial task breakdown from the completed PRD
+- Set up project tracking in your chosen tool
+
+**Initial Task Structure:**
+- Focus on high-level deliverables and major milestones
+- Identify critical infrastructure and foundational work
+- Plan MVP scope based on PRD specifications
+- Establish dependency relationships between tasks
+
+---
+
+## Advanced Workflow Patterns
+
+### When to Use Multiple Project Contexts
+
+Recognize when your project has evolved beyond simple task management:
+
+#### Feature Branch Development
+- **Trigger**: Creating new git branches for features
+- **Pattern**: Isolate feature-specific tasks from main project backlog
+- **Benefit**: Prevents merge conflicts and maintains context separation
+
+#### Team Collaboration
+- **Trigger**: Working with multiple team members
+- **Pattern**: Create separate task contexts for individual contributors
+- **Benefit**: Avoids conflicts while maintaining shared understanding
+
+#### Experimental Work
+- **Trigger**: Trying risky refactors or new approaches
+- **Pattern**: Sandbox experimental tasks separately from main work
+- **Benefit**: Easy to discard if experiment fails
+
+#### Large Feature Initiatives
+- **Trigger**: Complex, multi-phase features requiring detailed planning
+- **Pattern**: Dedicated project context with comprehensive PRD
+- **Benefit**: Structured approach to major development efforts
+
+### Project Organization Strategy
+
+**Main Project Context Should Contain:**
+- High-level deliverables with significant business value
+- Major milestones and epic-level features
+- Critical infrastructure work affecting the entire project
+- Release-blocking items
+
+**Separate Contexts for:**
+- Detailed implementation subtasks
+- Refactoring and technical debt work
+- Experimental features and spike work
+- Individual team member assignments
+
+---
+
+## PRD-Driven Development Process
+
+### For Major Features
+
+1. **Initiative Identification**: Recognize when a feature needs formal planning
+2. **PRD Creation**: Work collaboratively to create comprehensive PRD
+3. **Task Generation**: Convert PRD sections into actionable tasks
+4. **Complexity Analysis**: Assess which tasks need further breakdown
+5. **Implementation Planning**: Establish dependency chains and priorities
+
+### For Existing Codebase Improvements
+
+1. **Codebase Assessment**: Analyze current architecture and identify improvement areas
+2. **Strategic Planning**: Create PRDs that include current state analysis
+3. **Improvement Roadmap**: Define specific technical debt and enhancement work
+4. **Organized Execution**: Create separate project contexts for different improvement areas
+
+---
+
+## Task Management Best Practices
+
+### Task Complexity Analysis
+
+- **Simple Tasks** (1-3 complexity): Direct implementation, minimal breakdown needed
+- **Medium Tasks** (4-6 complexity): Break into 2-4 subtasks for clarity
+- **Complex Tasks** (7-10 complexity): Requires detailed analysis and multiple subtasks
+
+### Task Breakdown Process
+
+- **Research Phase**: Understand requirements and technical constraints
+- **Planning Phase**: Define specific implementation steps
+- **Atomic Design**: Ensure each subtask is independently completable
+- **Dependency Mapping**: Identify prerequisite work and blocking relationships
+
+### Implementation Workflow
+
+**Iterative Subtask Implementation:**
+
+1. **Goal Understanding**: Thoroughly review task requirements and context
+2. **Exploration & Planning**: Research codebase and define implementation approach
+3. **Progress Documentation**: Log detailed plans, findings, and decisions
+4. **Implementation**: Execute the planned changes
+5. **Continuous Learning**: Document what works, what doesn't, and why
+6. **Completion**: Verify implementation and update task status
+
+### Status Management
+
+- **Pending**: Ready to be worked on, all dependencies satisfied
+- **In Progress**: Currently being implemented
+- **Done**: Completed and verified
+- **Blocked**: Waiting on external dependencies
+- **Deferred**: Postponed for later consideration
+
+---
+
+## Task Structure Guidelines
+
+### Essential Task Fields
+
+- **Identifier**: Unique reference for tracking and linking
+- **Title**: Clear, descriptive summary of the work
+- **Description**: Detailed explanation of what needs to be accomplished
+- **Status**: Current state of the task
+- **Dependencies**: Prerequisites that must be completed first
+- **Priority**: Relative importance level
+- **Implementation Details**: Specific technical guidance and requirements
+- **Acceptance Criteria**: Definition of done
+- **Subtasks**: Breakdown of complex work into manageable pieces
+
+### Dependency Management
+
+- **Visual Indicators**: Use status symbols to show dependency completion
+- **Blocking Relationships**: Clearly identify what prevents task start
+- **Critical Path**: Understand which dependencies affect project timeline
+- **Circular Prevention**: Avoid creating impossible dependency loops
+
+---
+
+## Cross-Tool Integration
+
+### File Organization
+project-root/
+├── docs/
+│ ├── feature-name.prd.txt
+│ ├── technical-specs.md
+│ └── decisions/
+├── tasks/
+│ ├── backlog.md
+│ ├── current-sprint.md
+│ └── completed.md
+└── notes/
+├── meeting-notes.md
+└── research-findings.md
+
+### Documentation Standards
+
+- **PRD Location**: Store PRDs in dedicated documentation folder
+- **Task Export**: Use format compatible with your chosen tool
+- **Version Control**: Include all project documentation in git
+- **Linking**: Reference related documents and external tickets
+
+### Tool Migration Strategy
+
+- **Export Compatibility**: Structure data for easy tool switching
+- **Standard Formats**: Use markdown, JSON, or CSV for portability
+- **Backup Strategy**: Maintain offline copies of critical project data
+- **Import Planning**: Understand target tool's data requirements
+
+---
+
+## Quality Assurance
+
+### Task Quality Checklist
+
+```markdown
+✅ Task has clear, specific title
+✅ Requirements are well-defined and testable
+✅ Dependencies are identified and tracked
+✅ Implementation approach is documented
+✅ Acceptance criteria are defined
+✅ Priority level is assigned appropriately
+✅ Estimated effort is reasonable for atomic work
+✅ Task fits within larger project context
+```
+
+### Project Health Indicators
+
+- **Dependency Resolution**: No circular dependencies or unrealistic blocking
+- **Task Granularity**: Work items are appropriately sized for implementation
+- **Priority Alignment**: High-priority tasks support critical project goals
+- **Documentation Quality**: Sufficient detail for any team member to understand
+- **Progress Visibility**: Clear status tracking and completion indicators
+
+---
+
+## Anti-Patterns to Avoid
+
+- ❌ Starting development work without completing PRD
+- ❌ Creating tasks that are too large to implement atomically
+- ❌ Ignoring dependency relationships between tasks
+- ❌ Poor documentation of implementation decisions
+- ❌ Mixing different types of work in single task contexts
+- ❌ Accepting low-quality task descriptions as "good enough"
+- ❌ Skipping the planning phase for complex features
+- ❌ Creating tasks without clear acceptance criteria
+- ❌ Failing to update task status regularly
+- ❌ Not documenting lessons learned during implementation
+
+---
+
+*This workflow provides general guidelines adaptable to any development team and project management system. Focus on the principles rather than specific tool implementations.*

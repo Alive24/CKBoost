@@ -1,0 +1,223 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# CKB dApp and Smart Contract Development Rules
+
+## AI-Assisted Development Setup
+
+### Required Tools and Context
+- Use Cursor with Awesome CKB aggregation for enhanced RAG context
+- Add CKB documentation via `@Docs` using Awesome CKB aggregate URLs:
+  - Use "Copy Aggregate All (No Outdated) Preset Link" or "Copy Aggregate Recommended Only Preset Link"
+  - Select specific resources and click "Copy aggregate link" for custom aggregation
+  - Enable "Include Issues for LLMs Context" to include GitHub Issue discussions
+- Configure MCP services for Context7 and DeepWiki integration when available
+- Set up AI editing tools: Choose between Cursor (integrated solution) or Kilo Code (plugin-based)
+- Configure AI Agent tools: Raycast AI (macOS), Highlight (Windows), or Claude Desktop (cross-platform)
+
+### RAG (Retrieval-Augmented Generation) Setup
+RAG enhances AI by providing relevant context before generation. For CKB development:
+- Access Awesome CKB page to explore CKB ecosystem resources
+- Filter resources by tags (dApp, Script, Recommended, etc.)
+- Copy aggregation API URLs and add them to Cursor Settings -> Indexing & Docs -> Add Doc
+- Use `@Docs` in Cursor to reference aggregated documentation during development
+- Refresh documentation periodically to get latest updates automatically
+
+### MCP (Model Context Protocol) Integration
+MCP acts as a universal plugin system for AI language models:
+- **Automatic Installation**: Use Raycast AI or Highlight for built-in MCP support
+- **Smithery.ai**: One-click installation for most MCP services
+- **Command Line**: Use npx commands from GitHub repositories
+- **JSON Configuration**: Add MCP servers to your client's mcp.json configuration
+
+### Documentation and Learning
+- Always consult CKB Getting Started documentation for foundational concepts
+- Use Context7 and DeepWiki MCP services for deep code understanding across repositories
+- Leverage AI for exploring CKB concepts, UTXO model, and Rust patterns
+- Use DeepWiki for single-repository deep learning, Context7 for cross-repository problem solving
+
+## Smart Contract Development
+
+### Transaction Design Pattern
+When designing transactions, use this YAML template structure:
+
+```yaml
+Inputs:
+  input-cell:
+    lock: <lock-script-name>
+      args: <args explanation>
+      rules: <Lock Script validation requirements>
+    type: <type-script-name>
+      args: <args explanation>
+      rules: <Type Script validation requirements>
+    data: <data explanation>
+    capacity: <required Occupied Capacity if not specified>
+
+Outputs:
+  output-cell:
+    lock: <lock-script-name>
+      args: <args explanation>
+      rules: <Lock Script validation requirements>
+    type: <type-script-name>  
+      args: <args explanation>
+      rules: <Type Script validation requirements>
+    data: <data explanation>
+
+HeaderDeps:
+  header-dep:
+    <required relationship between HeaderDep and Cell>
+
+CellDeps:
+  dep-alias:
+    <required relationship between dependent Cells>
+
+Witnesses:
+  0: <Witness 0 content>
+```
+
+### Cell Data Structure Design
+Follow established patterns for common Cell structures:
+
+**xUDT Cell Structure**:
+```yaml
+data:
+    <amount: <uint128> <xUDT data>
+type:
+    code_hash: xUDT type script
+    args: <owner lock script hash> <xUDT args>
+lock:
+    <user_defined>
+```
+
+**Custom Cell Data Structures with Molecule Schema**:
+For custom Cell data structures, use Molecule Schema format. Example of a Pausable Data Cell:
+
+```mol
+table UDTPausableData {
+    pause_list:      Byte32Vec,
+    next_type_script:      ScriptOpt,
+}
+```
+
+**Cell Structure Design Principles**:
+- Follow xUDT Cell structure patterns for token-related contracts
+- Use Molecule Schema for custom Cell Data structures beyond simple uint128 storage
+- Design Cell structures with clear data/type/lock separation
+- Consider capacity requirements and optimization
+- Document the purpose and validation rules for each field
+
+### Contract Development Best Practices
+- Start with Transaction Skeleton design and validation logic
+- Use AI to validate business flow and permission logic
+- Implement comprehensive error handling and edge cases
+- Test thoroughly on testnet before mainnet deployment
+- Remember: transactions do not validate Lock Scripts in Outputs (only Inputs)
+- Simplify in prototyping phase (omit common witnesses, code CellDeps, change cells) but validate in actual implementation
+
+## dApp Development
+
+### Frontend Development
+- Consider multiple frontend options: Web, Mobile App, or Telegram Mini App
+- Use modern frameworks with CKB SDK integration
+- Implement proper wallet connection and transaction signing
+- Design responsive UIs that work across different platforms
+
+### Rapid Prototyping Approach
+**Long Context Agent Strategy**: Use AI agents (Raycast AI, Highlight, Claude Desktop) that support MCP protocol for continuous context tracking throughout prototype development. These agents remember all ideas, requirements changes, and context information.
+
+**Frontend-First Approach**:
+- Start with UI/UX to validate user experience early
+- Use tools like v0 to generate interactive prototypes quickly  
+- Share prototypes with team for immediate feedback on design and flow
+- Consider Web, Mobile App, or Telegram Mini App as frontend options
+
+**Service Framework Approach**:
+- Use Node.js or Python for rapid development and easy iteration
+- Consider modular frameworks like Nest.js for better architecture
+- Plan Rust migration only when performance becomes critical after validation
+- Build basic API endpoints and transaction handling logic first
+
+**Contract-First Approach**:
+- Start with Transaction Skeleton design based on business flow
+- Use AI agents to validate transaction logic and permission systems
+- Design Cell structures before implementing full contract logic
+- Test transaction flows with mock data before full implementation
+
+### Service Framework Development
+- Prefer Node.js or Python for initial development speed
+- Use modular frameworks like Nest.js for better architecture
+- Plan for Rust migration only when performance becomes critical
+- Integrate CKB RPC calls and transaction building logic
+
+## Testing and Debugging
+
+### AI-Assisted Debugging
+- Share error logs and stack traces with AI for analysis
+- Use AI to understand complex UTXO validation errors
+- Leverage AI for transaction construction debugging
+- Ask AI to explain CKB-specific error patterns
+
+### Testing Strategy
+- Implement comprehensive unit tests for contract logic
+- Use AI to generate test cases covering edge scenarios
+- Test transaction flows end-to-end on testnet
+- Validate capacity calculations and cell consumption patterns
+
+### AI-Assisted Test-Driven Development (TDD)
+- Use AI to generate unit tests, integration tests, and end-to-end test cases
+- Describe business requirements to AI for automatic test case generation
+- Leverage AI to create high-coverage test suites automatically
+- Generate boundary condition and edge case tests based on historical bug data
+- Use AI to supplement manual testing with comprehensive scenario coverage
+
+## Code Quality and Documentation
+
+### Documentation Standards
+- Write clear inline comments explaining UTXO logic
+- Document transaction flows and cell lifecycle
+- Use AI to generate comprehensive API documentation
+- Maintain updated README with setup and usage instructions
+
+### AI-Assisted Documentation Generation
+- Generate standard and comprehensive documentation automatically from code
+- Create documentation for every public function, module, and interface
+- Use AI for technical writing assistance and language improvements
+- Generate multi-language documentation and translations
+- Create interactive documentation structures through AI dialogue
+- Ensure documentation supports both human understanding and AI knowledge retrieval
+
+### Code Organization
+- Separate contract logic, transaction building, and UI concerns
+- Use clear naming conventions for locks, types, and data structures
+- Organize tests alongside implementation files
+- Keep configuration and constants in dedicated files
+
+## Integration and Deployment
+
+### CKB Network Integration
+- Start development on testnet (Pudge)
+- Use official CKB tooling and SDKs
+- Implement proper error handling for network calls
+- Plan for mainnet deployment with proper testing
+
+### Continuous Development
+- Use version control with descriptive commit messages
+- Implement CI/CD for automated testing
+- Monitor contract performance and usage patterns
+- Plan for upgrades and migrations when needed
+
+## Troubleshooting Common Issues
+
+### UTXO Model Challenges
+- Use AI to understand cell dependency and consumption patterns
+- Debug capacity calculation errors with step-by-step analysis
+- Validate lock and type script argument construction
+- Check witness data formatting and signing procedures
+
+### Performance Optimization
+- Optimize transaction size and cell count
+- Use AI to identify bottlenecks in contract logic
+- Consider batching strategies for multiple operations
+- Monitor gas costs and execution efficiency
