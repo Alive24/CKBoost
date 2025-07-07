@@ -10,15 +10,15 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 # Core Features
 
 ## Campaign & Quest System
-- **Campaign Management**: Sponsors can create comprehensive campaigns with multiple quests targeting specific objectives (ecosystem growth, education, development, etc.)
+- **Campaign Management**: Sponsors, whitelisted via an on-chain Protocol Cell managed by platform admins, can create campaigns with multiple quests targeting specific objectives. Sponsors must fully fund the campaign before it can be approved by platform admins.
 - **Quest Creation**: Granular task definition with subtasks, proof requirements, difficulty levels, and reward structures
 - **Progress Tracking**: Real-time progress monitoring with visual indicators and completion status
 - **Proof Submission**: Flexible proof submission system supporting files, links, and text-based evidence
 - **Review & Approval**: Automated and manual review processes with campaign admin oversight
 
 ## Gamified Reward System
-- **Points & Badges**: Hierarchical progression system with badges (Newcomer, Beginner, Intermediate, Advanced, Expert, Legend)
-- **Multi-Token Rewards**: Support for CKB, SPORE, and other ecosystem tokens as quest rewards
+- **Points & Badges**: The points system itself will be implemented as a dedicated UDT, mintable only with authorization from a Protocol Cell. This allows points to function as a native on-chain asset.
+- **Multi-Token Rewards**: The platform will support CKB, SPORE, and other UDTs, including the native Points UDT, as quest rewards.
 - **Dynamic Leaderboards**: Real-time ranking system with monthly and quarterly reward pools
 - **Streak Bonuses**: Additional rewards for consistent participation and consecutive day streaks
 - **Difficulty Multipliers**: Bonus rewards based on quest complexity and completion rates
@@ -31,10 +31,10 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 - **Contribution Recognition**: Permanent record of community-recognized contributions
 
 ## Identity Verification & Anti-Sybil
-- **Multi-Method Verification**: Telegram, KYC, DID, and manual review options
+- **Multi-Method Verification**: The UI will display multiple verification options, including Telegram, DID and KYC, marked as "Coming Soon". The initial MVP will implement admin manual review for Telegram as the first available method.
 - **Privacy-Preserving**: Minimal data storage with encrypted verification status
 - **Flexible Requirements**: Campaign-specific verification requirements
-- **Verification Benefits**: Enhanced rewards and exclusive campaign access for verified users
+- **Verification Benefits**: Rewards earned by users will be locked until their chosen verification method is successfully completed. Some campaigns may require additional verification methods to be completed before rewards can be claimed.
 
 ## Administrative Controls
 - **Campaign Administration**: Comprehensive tools for campaign creators to manage quests, review submissions, and distribute rewards
@@ -60,21 +60,20 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 ## Key User Flows
 
 ### New User Onboarding
-1. Connect CKB wallet and create profile
-2. Complete basic verification (Telegram)
-3. Browse available campaigns and understand reward system
-4. Start with beginner-friendly quests
-5. Submit first proof and receive feedback
-6. Earn first rewards and see leaderboard position
+1. Connect CKB wallet and create profile.
+2. Browse available campaigns and start participating in quests immediately.
+3. Submit first proof and see earned (but locked) rewards accumulate.
+4. To unlock/claim rewards, complete a verification process (initially, manual admin review).
+5. Once verified, claim first rewards and see leaderboard position.
 
 ### Quest Participation Flow
 1. Browse campaigns by category, difficulty, or reward
 2. Check verification requirements and campaign rules
 3. Start quest and review subtask requirements
-4. Complete subtasks and gather proof materials
-5. Submit proof through appropriate channels
-6. Receive admin review and feedback
-7. Claim rewards upon approval
+4. Complete subtasks and gather proof materials. For on-chain tasks (e.g., "Mint iCKB"), this involves copying the transaction hash.
+5. Submit proof (URL, text, or transaction hash) through the appropriate form.
+6. Receive admin review and feedback (for v0, this is a manual process for all quest types).
+7. Claim rewards upon approval.
 
 ### Campaign Creation Flow
 1. Apply for campaign sponsor status
@@ -118,20 +117,45 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 - **Wallet Integration**: CCC (Common Chain Connector) for universal wallet support
 
 ### Smart Contract Architecture (Primary Data Layer)
-- **Campaign Management Contracts**: Immutable campaign creation, quest definition, and lifecycle management
-- **Reward Distribution Contracts**: Automated token distribution with transparent allocation rules
-- **Verification Contracts**: On-chain verification status and anti-sybil mechanisms
-- **Treasury Contracts**: Multi-signature community treasury with transparent governance
-- **Governance Contracts**: Decentralized voting and proposal management
-- **Leaderboard Contracts**: On-chain ranking calculation and badge assignment
+The system will be built upon three core, specialized `Type Scripts`, ensuring modularity and clear separation of concerns:
+
+1.  **`ckboost-protocol-type`**:
+    *   **Purpose**: Acts as the central "governor" of the entire platform.
+    *   **Logic**: Manages platform-wide rules, authorizations, and critical states.
+    *   **Controls**:
+        *   The list of whitelisted campaign sponsors.
+        *   The authority to mint the native Points UDT.
+        *   Platform-level administrative roles and permissions.
+
+2.  **`ckboost-campaign-type`**:
+    *   **Purpose**: Defines the logic and rules for all campaigns on the platform.
+    *   **Logic**: Governs the lifecycle of a campaign, from creation to completion.
+    *   **Controls**:
+        *   Quest definitions, reward structures, and verification requirements.
+        *   Rules for participation and proof submission.
+
+3.  **`ckboost-campaign-lock`**:
+    *   **Purpose**: A specialized `Lock Script` that acts as a secure vault for campaign assets. It also locks the campaign cell to the campaign creator.
+    *   **Logic**: It locks the CKB or UDTs allocated as the reward pool for a specific campaign, or the campaign cell itself to the campaign creator.
+    *   **Controls**:
+        *   Ensures that locked assets can only be unlocked and distributed according to the rules defined in the corresponding `ckboost-campaign-type` script (e.g., after a proof is verified).
+        *   Locks the campaign cell to the campaign creator.
+
 
 ### Data Architecture (CKB Celldata-First)
-- **Primary Storage**: All governance and proof data stored in CKB Celldata structures
-- **User Profiles**: Wallet addresses, verification status, achievement history in Cells
-- **Campaign Data**: Quest definitions, reward pools, completion records in structured Cells
-- **Proof Storage**: IPFS hashes and verification status stored on-chain
-- **Intermediate Cache**: Neon serverless database for performance optimization only
-- **Data Consolidation**: Periodic consolidation of cache data to on-chain permanent storage
+The platform's state will be stored in the `cell_data` of Cells, each governed by one of the core scripts:
+
+-   **Protocol Cell (governed by `ckboost-protocol-type`)**:
+    *   The single, authoritative source for platform-wide settings.
+    *   **Data Stored**: The list of whitelisted sponsor public keys, platform admin addresses, rules for Points UDT minting, etc.
+
+-   **Campaign Cells (governed by `ckboost-campaign-type`)**:
+    *   Each Cell represents a single, unique campaign.
+    *   **Data Stored**: All data related to a campaign, including its objectives, total reward pool, quest definitions, list of participants, and submitted proofs (as IPFS hashes or transaction hashes).
+
+-   **Campaign Vault Cells (locked by `ckboost-campaign-lock`)**:
+    *   These cells hold the actual CKB/UDT assets for a campaign's reward pool. Their `cell_data` might be minimal, as their primary purpose is to lock assets.
+
 
 ### External Integrations
 - **Telegram Bot**: Automated verification and notifications
@@ -182,18 +206,41 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 - **Usage Analytics**: User behavior tracking and engagement metrics
 - **Security Monitoring**: Suspicious activity detection and prevention
 
+### Mock Campaigns
+We would be using the following mock campaigns to visually represent the workflow, and test the platform and the smart contracts.
+These campaigns would need some level of human oversight to ensure that tasks are completed appropriately and not abused, also because some tasks may require submitting evidence.
+- AMA boost campaign. Points for:
+    - Posting a question on the reddit AMA thread
+    - Sharing the AMA thread on X
+    - Like/RT the main X post that points to the AMA thread
+- Raid an X post or forum thread. Points for:
+    - Replying with comment
+- Community fund DAO campaign
+    - Replying with comment or feedback on a proposal
+- Knowledge boost campaign
+    - Share an article on X from the Knowledge Base and summarise in your own words
+- Analytics websites boost
+    - Create accounts on CMC, Coingecko, Lunarcrush and upvote daily
+- On-chain boost. (will need to develop an effective system to verify this). Points for:
+    - Deposit liquidity on a DEX (e.g. utxoswap)
+    - Lock CKB to create iCKB
+    - Lock CKB to create RUSD
+    - ? Hold USDI?
+
 # Development Roadmap
 
 ## Phase 1: Foundation & Core Features (MVP)
-- **User Authentication**: Wallet connection and basic profile management
-- **Campaign System**: Basic campaign creation and quest definition
-- **Quest Participation**: Simple quest completion with manual review
-- **Reward Distribution**: Basic point system and token rewards
+- **User Authentication**: Wallet connection and profile management.
+- **Campaign System**: Basic campaign creation by whitelisted admins and quest definition.
+- **Quest Participation**: Quest completion with manual review for all task types (including on-chain ones).
+- **Reward Distribution**: A point system implemented as a UDT, and support for CKB/other UDTs as rewards. Rewards are earned in a locked state pending verification.
+- **Verification**: A simple admin-facing UI to manually approve users and unlock their rewards.
 - **Leaderboard**: Simple ranking system with basic badges
-- **Admin Dashboard**: Essential campaign management tools
+- **Campaign Admin Dashboard**: Campaign management tools for campaign creators
+- **Platform Admin Dashboard**: Essential campaign management tools
 
 ## Phase 2: Enhanced Engagement & Verification
-- **Advanced Verification**: Multiple verification methods (Telegram, KYC, DID)
+- **Advanced Verification**: Implement the "Coming Soon" features: integration with DID protocols and optional third-party KYC providers.
 - **Gamification Enhancement**: Streak bonuses, difficulty multipliers, achievement system
 - **Social Features**: User profiles, activity feeds, social interactions
 - **Tipping System**: Community-driven tipping with approval workflow
@@ -202,7 +249,7 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 
 ## Phase 3: Advanced Features & Scaling
 - **Advanced Quest Types**: Complex multi-step quests with conditional logic
-- **Automated Verification**: Smart contract-based verification for certain quest types
+- **Automated Verification**: Build an on-chain data indexer and oracle system to automatically verify specific on-chain actions (e.g., checking for a specific transaction type from the user's address)
 - **API Ecosystem**: Third-party integrations and developer tools
 - **Advanced Analytics**: AI-driven insights and recommendation engine
 - **Multi-Language Support**: Internationalization for global community

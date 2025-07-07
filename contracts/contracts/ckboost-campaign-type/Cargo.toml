@@ -12,6 +12,8 @@ moleculec = "0.7.3"
 [dependencies]
 ckb-std = "0.17.0"
 molecule = { version = "0.7.3", default-features = false }
+ckb-ssri-std = "0.0.1"
+ckb-ssri-std-proc-macro = "0.0.1"
 
 [features]
 library = []

@@ -1,0 +1,702 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Core Infrastructure Setup",
+        "description": "Set up the foundational Next.js application with TypeScript, CCC wallet integration, and basic UI components",
+        "details": "Create Next.js application scaffold with TypeScript support and static generation capabilities. Integrate @ckb-ccc/connector-react for universal wallet support. Set up basic component library with consistent design system using Tailwind CSS or similar. Configure development environment with proper linting, formatting, and build processes. Implement basic routing structure for campaigns, quests, and user profiles.",
+        "testStrategy": "Unit tests for core components, integration tests for wallet connection, end-to-end tests for basic navigation flows, performance tests for static generation build times",
+        "priority": "high",
+        "dependencies": [],
+        "status": "in-progress",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize Next.js application with TypeScript",
+            "description": "Create a new Next.js project with TypeScript configuration, ESLint, and Prettier setup",
+            "dependencies": [],
+            "details": "Set up Next.js 14+ with TypeScript, configure tsconfig.json, add ESLint and Prettier configurations, and verify the basic application runs successfully",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Integrate CCC wallet connector",
+            "description": "Install and configure @ckb-ccc/connector-react for CKB wallet integration",
+            "dependencies": [
+              1
+            ],
+            "details": "Install @ckb-ccc/connector-react package, set up wallet provider context, configure supported wallets, and create basic wallet connection components",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Set up UI component library",
+            "description": "Install and configure a UI component library (Tailwind CSS + shadcn/ui or similar)",
+            "dependencies": [
+              1
+            ],
+            "details": "Install Tailwind CSS and shadcn/ui components, configure theme settings, set up component variants, and create base component structure",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Configure development environment",
+            "description": "Set up development tools, environment variables, and build configuration",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Configure .env files, set up development scripts, configure build optimization, add debugging tools, and ensure hot reloading works properly",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement basic routing structure",
+            "description": "Create the foundational page structure and routing configuration",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Set up Next.js app router structure, create main pages (home, campaign creation, dashboard), implement navigation components, and ensure routing works with wallet integration",
+            "status": "done",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Smart Contract Architecture - Core Type Scripts",
+        "description": "Implement the three core smart contracts: ckboost-protocol-type, ckboost-campaign-type, and ckboost-campaign-lock",
+        "details": "Develop ckboost-protocol-type as the central governor managing whitelisted sponsors, Points UDT minting authority, and platform admin roles. Create ckboost-campaign-type to handle campaign lifecycle, quest definitions, reward structures, and verification requirements. Implement ckboost-campaign-lock as a specialized lock script securing campaign assets and locking campaign cells to creators. Use Molecule schema for cell data structures. Include comprehensive error handling and validation logic.",
+        "testStrategy": "Unit tests for each contract function, integration tests for contract interactions, security testing for potential vulnerabilities, gas optimization tests, testnet deployment verification",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Design and implement Molecule schema for CKBoost data structures",
+            "description": "Create comprehensive Molecule schema definitions for protocol and campaign data structures, including serialization/deserialization logic",
+            "dependencies": [],
+            "details": "Define schema for campaign metadata, protocol configuration, participant data, and reward distribution structures. Implement build.rs for code generation and ensure consistent schema across all contracts.",
+            "status": "done",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement ckboost-protocol-type contract",
+            "description": "Develop the main protocol contract handling governance, global configuration, and protocol-level operations",
+            "dependencies": [
+              1
+            ],
+            "details": "Create type script for protocol governance, fee management, campaign registry, and protocol upgrade mechanisms. Include validation logic for protocol-wide rules and constraints.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement ckboost-campaign-type contract",
+            "description": "Develop campaign lifecycle management contract handling creation, execution, and completion of boost campaigns",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create type script for campaign state management, participant tracking, reward calculation, and campaign completion logic. Include validation for campaign parameters and state transitions.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement ckboost-campaign-lock contract",
+            "description": "Develop lock script for securing campaign assets and controlling access to campaign funds",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Create lock script for campaign asset security, participant authorization, withdrawal permissions, and emergency controls. Include multi-signature and timelock mechanisms.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Design and implement comprehensive error handling system",
+            "description": "Create unified error handling framework across all CKBoost contracts with clear error codes and messages",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Define error types for each contract, implement error propagation mechanisms, create debugging utilities, and ensure consistent error reporting across the entire system.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement security validation logic and audit framework",
+            "description": "Develop comprehensive security validation system and create audit framework for all contract interactions",
+            "dependencies": [
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Implement input validation, overflow protection, reentrancy guards, access control validation, and create automated security testing suite. Include formal verification checks and security audit documentation.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "User Authentication & Profile Management",
+        "description": "Implement wallet-based user authentication, profile creation, and session management",
+        "details": "Create user registration flow with CKB wallet connection using CCC. Implement profile creation with basic user information storage. Set up session management with secure token handling. Create role-based access control system for regular users, campaign administrators, and platform administrators. Implement user profile dashboard with achievement display and reward history. Include wallet address verification and signature-based authentication.",
+        "testStrategy": "Unit tests for authentication logic, integration tests for wallet connections, security tests for session management, user acceptance tests for onboarding flow",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Wallet-based Authentication Flow",
+            "description": "Implement wallet connection and authentication using CKB wallet integration",
+            "dependencies": [],
+            "details": "Set up wallet connection using @ckb-ccc/connector-react, implement wallet signature verification, handle wallet connection states, and create authentication middleware for API endpoints",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "User Profile Creation and Management",
+            "description": "Create user profile system with data storage and management capabilities",
+            "dependencies": [
+              1
+            ],
+            "details": "Design user profile data structure, implement profile creation flow after wallet authentication, build profile update functionality, and handle profile data persistence using on-chain storage patterns",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Session Management and Security",
+            "description": "Implement secure session handling and token management system",
+            "dependencies": [
+              1
+            ],
+            "details": "Create JWT-based session tokens, implement session validation middleware, handle session expiration and refresh, and ensure secure session storage with proper encryption",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Role-based Access Control System",
+            "description": "Build comprehensive role and permission management system",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Define user roles and permissions structure, implement role assignment and validation, create access control middleware for protected routes, and build admin interface for role management",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Campaign & Quest Management System",
+        "description": "Build the core campaign creation, quest definition, and management functionality",
+        "details": "Create campaign creation interface for whitelisted sponsors with full funding requirements. Implement quest definition system with subtasks, proof requirements, difficulty levels, and reward structures. Build campaign approval workflow for platform administrators. Create quest browsing and filtering interface with category, difficulty, and reward filters. Implement campaign lifecycle management from creation to completion. Include campaign analytics and progress tracking for administrators.",
+        "testStrategy": "Unit tests for campaign logic, integration tests for quest creation workflow, end-to-end tests for complete campaign lifecycle, performance tests for quest browsing with large datasets",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Campaign Creation Interface",
+            "description": "Build user interface for campaign creators to define new campaigns with metadata, rewards, and basic configuration",
+            "dependencies": [],
+            "details": "Create form-based interface allowing users to input campaign title, description, reward structure, duration, and target audience. Include validation, preview functionality, and draft saving capabilities.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Quest Definition System",
+            "description": "Implement system for defining and configuring individual quests within campaigns",
+            "dependencies": [
+              1
+            ],
+            "details": "Build quest builder interface with quest types, completion criteria, point values, and interconnected quest flows. Support various quest formats including social media actions, on-chain activities, and custom verification methods.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Campaign Approval Workflow",
+            "description": "Create approval process for campaigns before they go live to the public",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement review queue system with admin interface for campaign approval/rejection, automated validation checks, feedback mechanism, and status tracking throughout the approval process.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Quest Browsing and Filtering",
+            "description": "Build public interface for users to discover and filter available campaigns and quests",
+            "dependencies": [
+              3
+            ],
+            "details": "Create browsing interface with search functionality, category filters, difficulty levels, reward ranges, and personalized recommendations. Include campaign details pages and quest progression tracking.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Campaign Lifecycle Management with Analytics",
+            "description": "Implement comprehensive campaign management system with performance analytics and reporting",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Build dashboard for campaign creators to monitor participation rates, completion statistics, reward distribution, and user engagement metrics. Include campaign editing, pausing/resuming, and performance optimization recommendations.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Quest Participation & Proof Submission",
+        "description": "Implement quest participation flow with proof submission, progress tracking, and review system",
+        "details": "Create quest participation interface with clear subtask breakdown and requirements. Build proof submission system supporting files, URLs, text, and transaction hashes. Implement progress tracking with visual indicators and completion status. Create IPFS integration for decentralized proof storage. Build review queue for administrators with approval/rejection workflow. Include proof validation logic for different quest types (social media, on-chain transactions, content creation).",
+        "testStrategy": "Unit tests for proof submission logic, integration tests for IPFS storage, end-to-end tests for complete quest participation flow, load tests for proof upload performance",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Quest Participation Interface",
+            "description": "Build user interface for browsing available quests, viewing quest details, and joining quests",
+            "dependencies": [],
+            "details": "Create components for quest discovery, quest card display, quest details modal, and participation flow. Include filtering, search, and category organization.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Proof Submission System with Multiple Formats",
+            "description": "Implement proof submission interface supporting various formats (images, videos, documents, links)",
+            "dependencies": [
+              1
+            ],
+            "details": "Build file upload components with format validation, preview functionality, and metadata collection. Support drag-and-drop, progress indicators, and file type restrictions.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "IPFS Integration for Decentralized Storage",
+            "description": "Integrate IPFS for storing proof files and metadata in decentralized manner",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement IPFS client integration, file pinning service, hash generation, and retrieval mechanisms. Include fallback strategies and error handling for network issues.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Admin Review Workflow for Proof Validation",
+            "description": "Create admin dashboard for reviewing submitted proofs and managing validation workflow",
+            "dependencies": [
+              3
+            ],
+            "details": "Build admin interface with proof queue, review tools, approval/rejection actions, and feedback system. Include batch operations and validation history tracking.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "title": "Points UDT & Reward Distribution System",
+        "description": "Implement the Points UDT token system and multi-token reward distribution mechanisms",
+        "details": "Create Points UDT with minting authority restricted to ckboost-protocol-type contract. Implement reward calculation system based on quest difficulty, completion rates, and multipliers. Build reward distribution mechanisms for CKB, SPORE, and other UDTs. Create locked reward system where rewards are earned but not claimable until verification. Implement batch reward processing for efficiency. Include reward history tracking and display for users.",
+        "testStrategy": "Unit tests for UDT logic, integration tests for reward distribution, security tests for minting authority, performance tests for batch processing, testnet verification of token operations",
+        "priority": "high",
+        "dependencies": [
+          2,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Points UDT implementation with minting restrictions",
+            "description": "Implement custom UDT (User Defined Token) for platform points with controlled minting mechanisms and access restrictions",
+            "dependencies": [],
+            "details": "Create a custom UDT contract following CKB standards with specific minting rules - only authorized campaign creators can mint points, implement proper validation logic, and ensure secure token issuance. Include molecule schema definition for points token data structure.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Reward calculation engine",
+            "description": "Develop the core algorithm engine that calculates user rewards based on campaign participation and contribution metrics",
+            "dependencies": [
+              1
+            ],
+            "details": "Build mathematical models for reward calculation including factors like participation time, contribution quality, campaign success metrics, and user engagement levels. Implement fair distribution algorithms and anti-gaming mechanisms.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Multi-token distribution mechanisms",
+            "description": "Create systems to handle distribution of various token types (points, campaign tokens, bonus rewards) across different user groups",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Implement transaction patterns for distributing multiple token types simultaneously, handle different distribution strategies (equal split, weighted distribution, tier-based), and ensure atomic operations for complex multi-token transfers.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Locked reward system with batch processing",
+            "description": "Implement time-locked reward mechanisms with efficient batch processing capabilities for handling large-scale reward distributions",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create smart contract logic for time-locked rewards with configurable unlock schedules, implement batch processing for efficient handling of multiple reward distributions, and optimize transaction costs through batching strategies.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Verification & Anti-Sybil System",
+        "description": "Build user verification system with multiple methods and anti-sybil protection",
+        "details": "Create verification status management system with support for multiple verification methods. Implement manual admin review for Telegram verification as MVP feature. Build UI framework for future DID and KYC integration with 'Coming Soon' indicators. Create verification requirement checking for campaigns. Implement reward unlocking mechanism tied to verification status. Include anti-sybil detection algorithms and suspicious activity monitoring.",
+        "testStrategy": "Unit tests for verification logic, integration tests for admin review workflow, security tests for anti-sybil measures, user acceptance tests for verification process",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          6
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Verification Status Management",
+            "description": "Implement core verification status tracking system with state transitions",
+            "dependencies": [],
+            "details": "Create verification status enum, state machine logic, and status update mechanisms for campaign participants",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Manual Admin Review System",
+            "description": "Build administrative interface for manual verification review and approval",
+            "dependencies": [
+              1
+            ],
+            "details": "Develop admin dashboard, review queue management, and approval/rejection workflows with audit trails",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Future Verification Method Framework",
+            "description": "Design extensible framework for adding new verification methods",
+            "dependencies": [
+              1
+            ],
+            "details": "Create plugin architecture for verification methods, configuration system, and integration points for future verification providers",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Anti-Sybil Detection Algorithms",
+            "description": "Implement algorithms to detect and prevent Sybil attacks",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Develop pattern recognition, behavior analysis, and reputation scoring algorithms to identify suspicious accounts and duplicate identities",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Leaderboard & Gamification Features",
+        "description": "Implement ranking system, badges, streaks, and gamification elements",
+        "details": "Create real-time leaderboard system with monthly and quarterly rankings. Implement badge system with achievement criteria and visual representations. Build streak tracking with consecutive day participation bonuses. Create difficulty multipliers for quest complexity. Implement social features like user profiles and activity feeds. Include achievement display and progression tracking. Add celebration animations and milestone notifications.",
+        "testStrategy": "Unit tests for ranking calculations, integration tests for real-time updates, performance tests for leaderboard queries, user acceptance tests for gamification features",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement real-time leaderboard system",
+            "description": "Create a dynamic leaderboard that updates in real-time based on user activities and campaign performance metrics",
+            "dependencies": [],
+            "details": "Build ranking algorithms, real-time data processing pipeline, and leaderboard UI components with live updates",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Develop badge and achievement system",
+            "description": "Design and implement a comprehensive badge system with various achievement types and unlock conditions",
+            "dependencies": [
+              1
+            ],
+            "details": "Create badge templates, achievement tracking logic, unlock conditions, and badge display components",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build streak tracking with bonuses",
+            "description": "Implement streak counting mechanism with bonus rewards for consecutive actions and milestones",
+            "dependencies": [
+              1
+            ],
+            "details": "Track user activity streaks, calculate bonus multipliers, and integrate with reward distribution system",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Create social features with activity feeds",
+            "description": "Develop social interaction features including activity feeds, user following, and social sharing capabilities",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Build activity feed system, user interaction features, social sharing mechanisms, and community engagement tools",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 9,
+        "title": "Administrative Dashboards & Management Tools",
+        "description": "Build comprehensive admin interfaces for campaign and platform management",
+        "details": "Create campaign administrator dashboard with quest management, submission review, and reward distribution tools. Build platform administrator interface with user management, campaign approval, and system monitoring. Implement analytics and reporting system with participation metrics, completion rates, and engagement data. Create staff management system with role-based permissions. Include automated notification system for admins and users. Add bulk operations for efficient management.",
+        "testStrategy": "Unit tests for admin functionality, integration tests for dashboard data, usability tests for admin workflows, performance tests for analytics queries",
+        "priority": "medium",
+        "dependencies": [
+          4,
+          5
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Campaign Administrator Dashboard",
+            "description": "Create a comprehensive dashboard for campaign administrators to manage their individual campaigns, including campaign creation, editing, monitoring, and basic analytics",
+            "dependencies": [],
+            "details": "Build an intuitive interface for campaign owners to create new campaigns, edit existing ones, monitor performance metrics, manage campaign settings, and view participant activities. Include features for campaign lifecycle management, participant communication, and basic reporting tools.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Platform Administrator Interface",
+            "description": "Develop a master administrative interface for platform-wide management including user management, campaign oversight, system configuration, and platform-level controls",
+            "dependencies": [],
+            "details": "Create a comprehensive admin panel for platform administrators to manage all users, oversee all campaigns, configure system-wide settings, manage platform policies, handle disputes, and maintain overall platform health. Include tools for content moderation, user verification, and system maintenance.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Analytics and Reporting System",
+            "description": "Build a comprehensive analytics and reporting system that provides detailed insights for both campaign and platform administrators",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Develop advanced analytics tools including campaign performance metrics, user engagement analytics, financial reporting, trend analysis, and custom report generation. Create visualization dashboards with charts, graphs, and data export capabilities for both campaign-level and platform-level insights.",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Staff Management with Role-Based Permissions",
+            "description": "Implement a comprehensive role-based access control system with staff management capabilities for different administrative levels",
+            "dependencies": [
+              2
+            ],
+            "details": "Create a flexible permission system that allows for different administrative roles (super admin, platform admin, campaign admin, moderator, support staff). Include features for role assignment, permission management, audit logging, and hierarchical access controls. Ensure secure delegation of responsibilities while maintaining data integrity.",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Community Tipping System",
+        "description": "Implement community-driven tipping with approval workflow and treasury integration",
+        "details": "Create tip proposal system for community members to nominate valuable contributions. Build democratic approval workflow requiring 5 community approvals. Implement treasury integration for automated distribution of approved tips. Create personal tipping functionality with social features. Build contribution recognition system with permanent records. Include tip history tracking and display. Add notification system for tip proposals and approvals.",
+        "testStrategy": "Unit tests for tipping logic, integration tests for approval workflow, security tests for treasury operations, user acceptance tests for tipping experience",
+        "priority": "low",
+        "dependencies": [
+          7,
+          8
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement tip proposal and approval workflow",
+            "description": "Create democratic proposal system where community members can submit tip proposals for valuable contributions, with voting mechanisms and approval thresholds",
+            "dependencies": [],
+            "details": "Build proposal submission interface, voting system with stake-weighted or reputation-based voting, proposal lifecycle management (pending, voting, approved, rejected), and anti-spam mechanisms",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Integrate treasury with automated distribution system",
+            "description": "Connect approved tip proposals to treasury funds with automated payout mechanisms and proper accounting",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement treasury fund management, automated distribution logic for approved tips, transaction fee handling, fund allocation limits, and financial reporting dashboard",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Build personal tipping with social features",
+            "description": "Create direct peer-to-peer tipping functionality with social elements like public acknowledgments and tip history",
+            "dependencies": [
+              2
+            ],
+            "details": "Develop personal wallet integration, tip amount selection UI, social feed for public tips, user profiles with tip history, notification system, and privacy controls for anonymous tipping",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 11,
+        "title": "Mock Campaign Implementation & Testing",
+        "description": "Deploy and test the platform with the specified mock campaigns for real-world validation",
+        "details": "Implement the six mock campaigns: AMA boost, X post raids, Community fund DAO, Knowledge boost, Analytics websites boost, and On-chain boost. Create quest definitions for each campaign type with appropriate proof requirements. Set up human oversight workflows for campaign validation. Build verification systems for on-chain activities like DEX deposits, iCKB creation, and RUSD locking. Include transaction hash verification and automated checking where possible. Create comprehensive testing scenarios for each campaign type.",
+        "testStrategy": "End-to-end tests for each mock campaign, integration tests for on-chain verification, user acceptance tests with real community members, performance tests under load, security tests for campaign abuse prevention",
+        "priority": "medium",
+        "dependencies": [
+          9
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement AMA boost campaign mock",
+            "description": "Create mock campaign for AMA (Ask Me Anything) boost with participant verification and reward distribution",
+            "dependencies": [],
+            "details": "Design AMA campaign structure with question submission, host verification, participant tracking, and reward calculation based on engagement metrics",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement X post raids campaign mock",
+            "description": "Create mock campaign for X (Twitter) post raids with social media verification and engagement tracking",
+            "dependencies": [],
+            "details": "Build X post raid campaign with tweet verification, retweet/like tracking, participant authentication, and reward distribution based on raid participation",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement Community fund DAO campaign mock",
+            "description": "Create mock campaign for Community fund DAO with governance participation and voting mechanisms",
+            "dependencies": [],
+            "details": "Design DAO campaign structure with proposal submission, voting mechanisms, governance token distribution, and community fund allocation logic",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement Knowledge boost campaign mock",
+            "description": "Create mock campaign for Knowledge boost with educational content verification and learning progress tracking",
+            "dependencies": [],
+            "details": "Build knowledge campaign with quiz systems, educational content validation, learning milestone tracking, and reward distribution based on knowledge acquisition",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement Analytics websites boost campaign mock",
+            "description": "Create mock campaign for Analytics websites boost with traffic verification and engagement metrics",
+            "dependencies": [],
+            "details": "Design analytics campaign with website visit tracking, engagement metrics verification, referral systems, and reward calculation based on traffic generation",
+            "status": "pending",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement On-chain boost campaign with verification systems",
+            "description": "Create mock campaign for On-chain boost with comprehensive blockchain transaction verification and smart contract integration",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "details": "Build on-chain campaign with transaction verification, smart contract interaction tracking, blockchain-based reward distribution, and integration with all other campaign types for unified verification system",
+            "status": "pending",
+            "testStrategy": ""
+          }
+        ]
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-07T18:41:01.894Z",
+      "updated": "2025-07-07T19:08:18.495Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

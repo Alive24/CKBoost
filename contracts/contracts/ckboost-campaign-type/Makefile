@@ -17,7 +17,7 @@ CARGO_ARGS :=
 MODE := release
 # Tweak this to change the clang version to use for building C code. By default
 # we use a bash script with somes heuristics to find clang in current system.
-CLANG := $(shell $(TOP)/scripts/find_clang)
+CLANG := $(shell $(TOP)/../../scripts/find_clang)
 AR := $(subst clang,llvm-ar,$(CLANG))
 OBJCOPY := $(subst clang,llvm-objcopy,$(CLANG))
 # When this is set to some value, the generated binaries will be copied over

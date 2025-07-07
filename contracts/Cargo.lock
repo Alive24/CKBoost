@@ -229,7 +229,7 @@ dependencies = [
  "ckb-crypto",
  "ckb-dao-utils",
  "ckb-error",
- "ckb-hash",
+ "ckb-hash 0.200.0",
  "ckb-jsonrpc-types",
  "ckb-logger",
  "ckb-pow",
@@ -341,6 +341,17 @@ dependencies = [
 
 [[package]]
 name = "ckb-gen-types"
+version = "0.119.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bc221d4b9d6d39215b1d62be855861b8b0c8d668ca29874903b0bf5d0b4d9fa"
+dependencies = [
+ "cfg-if",
+ "ckb-hash 0.119.0",
+ "molecule 0.8.0",
+]
+
+[[package]]
+name = "ckb-gen-types"
 version = "0.200.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc8b9b56ee90afca6710a512abac5c4d7dba69b39b63ed9c246ec17aee764bf8"
@@ -348,10 +359,29 @@ dependencies = [
  "cfg-if",
  "ckb-error",
  "ckb-fixed-hash",
- "ckb-hash",
+ "ckb-hash 0.200.0",
  "ckb-occupied-capacity",
  "molecule 0.8.0",
  "numext-fixed-uint",
+]
+
+[[package]]
+name = "ckb-hash"
+version = "0.116.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d5754bc49cf76a7e8829fe6a7cf1eea1284cbca9777b521f072c76d6ae28d303"
+dependencies = [
+ "blake2b-ref",
+ "blake2b-rs",
+]
+
+[[package]]
+name = "ckb-hash"
+version = "0.119.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "99ba7c72f86f239b3e0154f51d6cd5d0d83bbaa8775fdc7b6bcac459ae24b6fd"
+dependencies = [
+ "blake2b-ref",
 ]
 
 [[package]]
@@ -444,7 +474,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "656ce99ec57ed75be3d87800d747c15311a99acd24f8d332ecf9aad99dcd4fd0"
 dependencies = [
  "byteorder",
- "ckb-hash",
+ "ckb-hash 0.200.0",
  "ckb-types",
  "eaglesong",
  "log",
@@ -485,7 +515,7 @@ dependencies = [
  "byteorder",
  "ckb-chain-spec",
  "ckb-error",
- "ckb-hash",
+ "ckb-hash 0.200.0",
  "ckb-logger",
  "ckb-traits",
  "ckb-types",
@@ -496,6 +526,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckb-ssri-std"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ce0963ee3c182e0cf45bc91562fe3977fa84443442dc24a4d408d05f6c63580"
+dependencies = [
+ "ckb-ssri-std-proc-macro",
+ "ckb-std 0.16.4",
+ "serde",
+ "serde_molecule",
+]
+
+[[package]]
+name = "ckb-ssri-std-proc-macro"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "581fce8a2695f8345ff551f391dbde9537301adde3f70775a74073d362073897"
+dependencies = [
+ "ckb-hash 0.116.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "ckb-std"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a673595baadfa1712ff03a36e1519f28015cf9944282410863d5e256336f5b9"
+dependencies = [
+ "buddy-alloc",
+ "cc",
+ "ckb-gen-types 0.119.0",
+ "gcd",
+]
+
+[[package]]
 name = "ckb-std"
 version = "0.17.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -503,7 +569,7 @@ checksum = "d399a77aef9814044db51bfd61a4aaa42ee468bfb9a13e83ba656bd95f7793ca"
 dependencies = [
  "buddy-alloc",
  "cc",
- "ckb-gen-types",
+ "ckb-gen-types 0.200.0",
  "ckb-x64-simulator",
  "gcd",
 ]
@@ -540,7 +606,7 @@ dependencies = [
  "ckb-chain-spec",
  "ckb-crypto",
  "ckb-error",
- "ckb-hash",
+ "ckb-hash 0.200.0",
  "ckb-jsonrpc-types",
  "ckb-mock-tx-types",
  "ckb-resource",
@@ -576,8 +642,8 @@ dependencies = [
  "ckb-constant",
  "ckb-error",
  "ckb-fixed-hash",
- "ckb-gen-types",
- "ckb-hash",
+ "ckb-gen-types 0.200.0",
+ "ckb-hash 0.200.0",
  "ckb-merkle-mountain-range",
  "ckb-occupied-capacity",
  "ckb-rational",
@@ -693,7 +759,7 @@ dependencies = [
 name = "ckboost-campaign-lock"
 version = "0.1.0"
 dependencies = [
- "ckb-std",
+ "ckb-std 0.17.2",
  "molecule 0.7.5",
  "moleculec",
 ]
@@ -702,7 +768,9 @@ dependencies = [
 name = "ckboost-campaign-type"
 version = "0.1.0"
 dependencies = [
- "ckb-std",
+ "ckb-ssri-std",
+ "ckb-ssri-std-proc-macro",
+ "ckb-std 0.17.2",
  "molecule 0.7.5",
  "moleculec",
 ]
@@ -711,7 +779,7 @@ dependencies = [
 name = "ckboost-protocol-type"
 version = "0.1.0"
 dependencies = [
- "ckb-std",
+ "ckb-std 0.17.2",
  "molecule 0.7.5",
  "moleculec",
 ]
@@ -1819,6 +1887,15 @@ dependencies = [
  "itoa",
  "memchr",
  "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_molecule"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bc06f0c67a492a3969744eb47ce58a86529140fba6b395c83b9dea432032503"
+dependencies = [
  "serde",
 ]
 

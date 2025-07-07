@@ -1,0 +1,101 @@
+{
+	"meta": {
+		"generatedAt": "2025-07-07T18:44:41.154Z",
+		"tasksAnalyzed": 11,
+		"totalTasks": 11,
+		"analysisCount": 11,
+		"thresholdScore": 5,
+		"projectName": "Taskmaster",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 1,
+			"taskTitle": "Core Infrastructure Setup",
+			"complexityScore": 7,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down the infrastructure setup into: Next.js application scaffold with TypeScript, CCC wallet integration, UI component library setup, development environment configuration, and basic routing structure",
+			"reasoning": "High complexity due to multiple integration points and foundational nature. Requires expertise in Next.js, TypeScript, wallet integration, and tooling setup. Critical foundation that affects all subsequent development."
+		},
+		{
+			"taskId": 2,
+			"taskTitle": "Smart Contract Architecture - Core Type Scripts",
+			"complexityScore": 9,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Separate into individual contract implementations: ckboost-protocol-type contract, ckboost-campaign-type contract, ckboost-campaign-lock contract, Molecule schema design, error handling system, and security validation logic",
+			"reasoning": "Extremely high complexity requiring deep blockchain knowledge, security considerations, and custom contract logic. Multiple interdependent contracts with governance, lifecycle management, and asset security features."
+		},
+		{
+			"taskId": 3,
+			"taskTitle": "User Authentication & Profile Management",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Divide into: wallet-based authentication flow, user profile creation and management, session management and security, and role-based access control system",
+			"reasoning": "Moderate-high complexity involving wallet integration, security considerations, and user management. Requires understanding of CKB wallet patterns and secure session handling."
+		},
+		{
+			"taskId": 4,
+			"taskTitle": "Campaign & Quest Management System",
+			"complexityScore": 8,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break into: campaign creation interface, quest definition system, campaign approval workflow, quest browsing and filtering, and campaign lifecycle management with analytics",
+			"reasoning": "High complexity with multiple user interfaces, complex business logic, and approval workflows. Requires sophisticated data modeling and user experience design."
+		},
+		{
+			"taskId": 5,
+			"taskTitle": "Quest Participation & Proof Submission",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Separate into: quest participation interface, proof submission system with multiple formats, IPFS integration for decentralized storage, and admin review workflow for proof validation",
+			"reasoning": "High complexity due to multiple proof types, decentralized storage integration, and complex validation logic. Requires IPFS knowledge and robust file handling."
+		},
+		{
+			"taskId": 6,
+			"taskTitle": "Points UDT & Reward Distribution System",
+			"complexityScore": 8,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Divide into: Points UDT implementation with minting restrictions, reward calculation engine, multi-token distribution mechanisms, and locked reward system with batch processing",
+			"reasoning": "High complexity requiring custom UDT development, complex reward algorithms, and efficient batch processing. Critical for platform economics and user incentives."
+		},
+		{
+			"taskId": 7,
+			"taskTitle": "Verification & Anti-Sybil System",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Break into: verification status management, manual admin review system, future verification method framework, and anti-sybil detection algorithms",
+			"reasoning": "High complexity involving security algorithms, manual review processes, and extensible verification framework. Requires sophisticated anti-fraud measures."
+		},
+		{
+			"taskId": 8,
+			"taskTitle": "Leaderboard & Gamification Features",
+			"complexityScore": 6,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Separate into: real-time leaderboard system, badge and achievement system, streak tracking with bonuses, and social features with activity feeds",
+			"reasoning": "Moderate-high complexity with real-time data processing, gamification logic, and social features. Requires efficient ranking algorithms and engaging user experience."
+		},
+		{
+			"taskId": 9,
+			"taskTitle": "Administrative Dashboards & Management Tools",
+			"complexityScore": 7,
+			"recommendedSubtasks": 4,
+			"expansionPrompt": "Divide into: campaign administrator dashboard, platform administrator interface, analytics and reporting system, and staff management with role-based permissions",
+			"reasoning": "High complexity due to multiple admin interfaces, complex data visualization, and comprehensive management tools. Requires sophisticated permission systems and intuitive admin UX."
+		},
+		{
+			"taskId": 10,
+			"taskTitle": "Community Tipping System",
+			"complexityScore": 6,
+			"recommendedSubtasks": 3,
+			"expansionPrompt": "Break into: tip proposal and approval workflow, treasury integration with automated distribution, and personal tipping with social features",
+			"reasoning": "Moderate-high complexity with democratic approval mechanisms, treasury integration, and social features. Requires careful economic design and fraud prevention."
+		},
+		{
+			"taskId": 11,
+			"taskTitle": "Mock Campaign Implementation & Testing",
+			"complexityScore": 8,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Separate into individual mock campaigns: AMA boost implementation, X post raids campaign, Community fund DAO campaign, Knowledge boost campaign, Analytics websites boost campaign, and On-chain boost campaign with verification systems",
+			"reasoning": "High complexity requiring implementation of diverse campaign types, each with unique verification requirements. Critical for platform validation and requires comprehensive testing across multiple scenarios."
+		}
+	]
+}
