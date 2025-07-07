@@ -1,12 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Wallet, CheckCircle, Copy, ExternalLink, ChevronDown, Shield, AlertCircle, UserCheck } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { ccc } from "@ckb-ccc/connector-react"
 
 // Mock verification status - in real app, this would come from authentication
 const USER_VERIFICATION_STATUS = {
@@ -49,29 +50,57 @@ const getVerificationStatus = () => {
 }
 
 export function WalletConnect() {
-  const [isConnected, setIsConnected] = useState(false)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [address] = useState("ckb1qyq...7x8n")
+  const { open } = ccc.useCcc()
+  const signer = ccc.useSigner()
+  const [address, setAddress] = React.useState<string>("")
+  const [isConnecting, setIsConnecting] = React.useState(false)
   const verificationStatus = getVerificationStatus()
   const VerificationIcon = verificationStatus.icon
 
+  React.useEffect(() => {
+    const getAddress = async () => {
+      if (signer) {
+        try {
+          const addr = await signer.getRecommendedAddress()
+          setAddress(addr)
+        } catch (error) {
+          console.error("Error getting address:", error)
+        }
+      } else {
+        setAddress("")
+      }
+    }
+    getAddress()
+  }, [signer])
+
   const handleConnect = async () => {
-    setIsConnecting(true)
-    // Simulate wallet connection delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsConnected(true)
-    setIsConnecting(false)
+    try {
+      setIsConnecting(true)
+      await open()
+    } catch (error) {
+      console.error("Connection failed:", error)
+    } finally {
+      setIsConnecting(false)
+    }
   }
 
-  const handleDisconnect = () => {
-    setIsConnected(false)
+  const handleDisconnect = async () => {
+    // CCC handles disconnection through the wallet interface
+    await open()
   }
 
-  const copyAddress = () => {
-    navigator.clipboard.writeText("ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7")
+  const copyAddress = async () => {
+    if (address) {
+      navigator.clipboard.writeText(address)
+    }
   }
 
-  if (!isConnected) {
+  const formatAddress = (addr: string) => {
+    if (!addr) return "ckb1qyq...7x8n"
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  }
+
+  if (!signer) {
     return (
       <Button
         onClick={handleConnect}
@@ -100,7 +129,7 @@ export function WalletConnect() {
         <Button variant="outline" className="flex items-center gap-2 bg-transparent">
           <div className="flex items-center gap-2">
             <CheckCircle className="w-4 h-4 text-green-600" />
-            <span className="font-mono text-sm">{address}</span>
+            <span className="font-mono text-sm">{formatAddress(address)}</span>
             {Object.values(USER_VERIFICATION_STATUS).some(Boolean) && (
               <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
                 <Shield className="w-3 h-3 mr-1" />
@@ -115,7 +144,7 @@ export function WalletConnect() {
         {/* Wallet Info */}
         <div className="px-3 py-2 border-b">
           <div className="text-sm font-medium">Wallet Connected</div>
-          <div className="text-xs text-muted-foreground">CKB Mainnet</div>
+          <div className="text-xs text-muted-foreground">CKB Testnet</div>
         </div>
         
         {/* Verification Status */}

@@ -28,7 +28,7 @@
               1
             ],
             "details": "Install @ckb-ccc/connector-react package, set up wallet provider context, configure supported wallets, and create basic wallet connection components",
-            "status": "pending",
+            "status": "done",
             "testStrategy": ""
           },
           {
@@ -695,7 +695,7 @@
     ],
     "metadata": {
       "created": "2025-07-07T18:41:01.894Z",
-      "updated": "2025-07-07T19:08:18.495Z",
+      "updated": "2025-07-07T19:20:35.356Z",
       "description": "Tasks for master context"
     }
   }
