@@ -3,8 +3,15 @@ name = "ckboost-protocol-type"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["rlib"]
+
+[build-dependencies]
+moleculec = "0.7.3"
+
 [dependencies]
 ckb-std = "0.17.0"
+molecule = { version = "0.7.3", default-features = false }
 
 [features]
 library = []

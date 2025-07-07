@@ -1,0 +1,95 @@
+# Treasury Proposal Creation Transaction Skeleton
+# SSRI Method: create_treasury_proposal(proposal_data, requested_amount, requesting_assets?)
+# Creates governance proposals for treasury fund allocation with mixed asset support
+
+Inputs:
+  treasury-cell:
+    lock: ckboost-protocol-lock
+      args: <protocol_lock_args>
+      rules: Protocol treasury containing community funds
+    type: ckboost-protocol-type
+      args: <treasury_type_args>
+      rules: Must be active treasury with available funds for allocation
+    data: <TreasuryData: total_funds, allocated_funds, proposal_count, governance_config>
+    capacity: <treasury_capacity>
+    
+  proposer-cell:
+    lock: secp256k1_blake160
+      args: <proposer_lock_hash>
+      rules: Must be signed by proposal creator
+    type: null
+      args: null
+      rules: CKB for proposal creation fees
+    data: null
+    capacity: <proposal_creation_fee + transaction_fees>
+    
+  proposer-verification-cell:
+    lock: ckboost-protocol-lock
+      args: <protocol_lock_args>
+      rules: Proposer verification for eligibility validation
+    type: ckboost-protocol-type
+      args: <user_verification_type_args>
+      rules: Contains proposer verification and reputation data
+    data: <UserVerificationData: user_id, verification_level, reputation_score, participation_history>
+    capacity: <verification_occupied_capacity>
+
+Outputs:
+  updated-treasury-cell:
+    lock: ckboost-protocol-lock
+      args: <protocol_lock_args>
+      rules: Same lock as input treasury cell
+    type: ckboost-protocol-type
+      args: <treasury_type_args>
+      rules: Must maintain treasury invariants and increment proposal count
+    data: <TreasuryData: total_funds, allocated_funds, increased_proposal_count, governance_config>
+    capacity: <treasury_capacity>
+    
+  proposal-cell:
+    lock: ckboost-protocol-lock
+      args: <protocol_lock_args>
+      rules: New proposal cell controlled by protocol lock
+    type: ckboost-protocol-type
+      args: <proposal_type_args>
+      rules: Proposal type script validates voting operations
+    data: <ProposalData: id, proposer, description, requested_amount, requested_assets, voting_info, status=created, created_at, voting_deadline>
+    capacity: <proposal_operational_capacity>
+    
+  unchanged-proposer-verification:
+    lock: ckboost-protocol-lock
+      args: <protocol_lock_args>
+      rules: Proposer verification remains unchanged (read-only validation)
+    type: ckboost-protocol-type
+      args: <user_verification_type_args>
+      rules: Verification data unchanged - used only for eligibility validation
+    data: <UserVerificationData: unchanged verification data>
+    capacity: <verification_occupied_capacity>
+    
+  change-cell:
+    lock: secp256k1_blake160
+      args: <proposer_lock_hash>
+      rules: Returns excess capacity to proposer
+    type: null
+      args: null
+      rules: Standard change cell
+    data: null
+    capacity: <excess_capacity>
+
+HeaderDeps:
+  recent-header:
+    Required for transaction validity window and proposal creation timestamp
+
+CellDeps:
+  ckboost-protocol-type-dep:
+    Required for protocol type script execution and validation
+    
+  ckboost-protocol-lock-dep:
+    Required for protocol lock script validation
+    
+  secp256k1-dep:
+    Required for proposer signature verification
+
+Witnesses:
+  0: <proposer_signature: signs transaction hash for proposal creation authorization>
+  1: <proposal_metadata: JSON metadata including description, justification, expected outcomes>
+  2: <funding_request_details: specific amounts and asset types requested from treasury>
+  3: <eligibility_proof: proof of proposer eligibility and reputation requirements>

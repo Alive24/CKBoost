@@ -1,9 +1,19 @@
-#![cfg_attr(not(feature = "library"), no_std)]
-#![allow(special_module_name)]
-#![allow(unused_attributes)]
-#[cfg(feature = "library")]
-mod main;
-#[cfg(feature = "library")]
-pub use main::program_entry;
+#![no_std]
+#![cfg_attr(not(test), no_main)]
 
+pub mod generated;
+
+#[cfg(test)]
 extern crate alloc;
+
+#[cfg(not(test))]
+use ckb_std::default_alloc;
+
+#[cfg(not(test))]
+ckb_std::entry!(program_entry);
+#[cfg(not(test))]
+default_alloc!();
+
+pub fn program_entry() -> i8 {
+    0
+}

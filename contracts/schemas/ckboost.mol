@@ -1,0 +1,219 @@
+/* Basic Types */
+
+// The `UintN` is used to store a `N` bits unsigned integer
+// as a byte array in little endian.
+array Uint32 [byte; 4];
+array Uint64 [byte; 8];
+array Uint128 [byte; 16];
+array Byte32 [byte; 32];
+array Uint256 [byte; 32];
+
+vector Bytes <byte>;
+option BytesOpt (Bytes);
+vector BytesOptVec <BytesOpt>;
+vector BytesVec <Bytes>;
+vector Byte32Vec <Byte32>;
+
+/* Types for Chain */
+
+option ScriptOpt (Script);
+
+array ProposalShortId [byte; 10];
+
+vector UncleBlockVec <UncleBlock>;
+vector TransactionVec <Transaction>;
+vector ProposalShortIdVec <ProposalShortId>;
+vector CellDepVec <CellDep>;
+vector CellInputVec <CellInput>;
+vector CellOutputVec <CellOutput>;
+
+table Script {
+    code_hash:      Byte32,
+    hash_type:      byte,
+    args:           Bytes,
+}
+
+struct OutPoint {
+    tx_hash:        Byte32,
+    index:          Uint32,
+}
+
+struct CellInput {
+    since:           Uint64,
+    previous_output: OutPoint,
+}
+
+table CellOutput {
+    capacity:       Uint64,
+    lock:           Script,
+    type_:          ScriptOpt,
+}
+
+struct CellDep {
+    out_point:      OutPoint,
+    dep_type:       byte,
+}
+
+table RawTransaction {
+    version:        Uint32,
+    cell_deps:      CellDepVec,
+    header_deps:    Byte32Vec,
+    inputs:         CellInputVec,
+    outputs:        CellOutputVec,
+    outputs_data:   BytesVec,
+}
+
+table Transaction {
+    raw:            RawTransaction,
+    witnesses:      BytesVec,
+}
+
+struct RawHeader {
+    version:                Uint32,
+    compact_target:         Uint32,
+    timestamp:              Uint64,
+    number:                 Uint64,
+    epoch:                  Uint64,
+    parent_hash:            Byte32,
+    transactions_root:      Byte32,
+    proposals_hash:         Byte32,
+    extra_hash:             Byte32,
+    dao:                    Byte32,
+}
+
+struct Header {
+    raw:                    RawHeader,
+    nonce:                  Uint128,
+}
+
+table UncleBlock {
+    header:                 Header,
+    proposals:              ProposalShortIdVec,
+}
+
+table Block {
+    header:                 Header,
+    uncles:                 UncleBlockVec,
+    transactions:           TransactionVec,
+    proposals:              ProposalShortIdVec,
+}
+
+table BlockV1 {
+    header:                 Header,
+    uncles:                 UncleBlockVec,
+    transactions:           TransactionVec,
+    proposals:              ProposalShortIdVec,
+    extension:              Bytes,
+}
+
+table CellbaseWitness {
+    lock:    Script,
+    message: Bytes,
+}
+
+table WitnessArgs {
+    lock:                   BytesOpt,          // Lock args
+    input_type:             BytesOpt,          // Type args for input
+    output_type:            BytesOpt,          // Type args for output
+}
+
+vector ScriptVec <Script>;
+
+// Schemas for CKBoost Campaign Data
+
+// Campaign funding information
+table CampaignFunding {
+    target_amount: Uint64,        // Total funding target for the campaign
+    current_amount: Uint64,       // Current funding received
+    funding_deadline: Uint64,     // Timestamp deadline for funding completion
+    min_funding_threshold: Uint64, // Minimum funding required to activate campaign
+}
+
+// Asset reward reference for multi-asset rewards
+table AssetReward {
+    asset_type: byte,             // 0=CKB, 1=NFT, 2=UDT
+    asset_script: ScriptOpt,      // Type script for NFT/UDT, null for CKB
+    amount: Uint128,              // Amount (for CKB/UDT) or NFT identifier
+    metadata: Bytes,              // Additional metadata for asset
+    from_funding: byte,           // 1 if reward comes from campaign funding, 0 if minted fresh
+}
+
+vector AssetRewardVec <AssetReward>;
+
+// Campaign data with funding tracking
+table CampaignData {
+    id: Byte32,
+    creator: Script,
+    metadata: Bytes,
+    funding_info: CampaignFunding,
+    quest_count: Uint64,
+    status: byte,                 // 0=created, 1=funding, 2=active, 3=completed, 4=cancelled
+    created_at: Uint64,
+    activated_at: Uint64,         // Timestamp when campaign became fully funded
+}
+
+// Quest data with asset reward support and funding source tracking
+table QuestData {
+    id: Byte32,
+    campaign_id: Byte32,
+    creator: Script,
+    requirements: Bytes,
+    asset_rewards: AssetRewardVec, // Multiple asset types as rewards with funding source info
+    participants: ScriptVec,
+    status: byte,                 // 0=created, 1=active, 2=completed, 3=cancelled
+    funding_required: byte,       // 1 if quest requires campaign to be fully funded
+    created_at: Uint64,
+    completion_deadline: Uint64,  // Optional deadline for quest completion
+}
+
+// Schemas for CKBoost Protocol Data
+
+table UserVerificationData {
+    user_id: Byte32,
+    verification_level: byte,
+    reputation_score: Uint64,
+    participation_history: Bytes, // Serialized participation data
+    verified_at: Uint64,
+    last_activity: Uint64,
+}
+
+table TreasuryProposalData {
+    id: Byte32,
+    proposer: Script,
+    amount: Uint64,
+    description: Bytes,
+    voting_status: byte,
+    created_at: Uint64,
+    voting_deadline: Uint64,
+    execution_timestamp: Uint64,
+}
+
+// Voting record for treasury proposals
+table VoteRecord {
+    proposal_id: Byte32,
+    voter: Script,
+    vote_choice: byte,            // 0=reject, 1=approve
+    vote_weight: Uint64,
+    timestamp: Uint64,
+}
+
+vector VoteRecordVec <VoteRecord>;
+
+// Protocol state data
+table ProtocolData {
+    campaign_counter: Uint64,
+    quest_counter: Uint64,
+    proposal_counter: Uint64,
+    treasury_balance: Uint64,
+    protocol_version: Uint32,
+    last_updated: Uint64,
+}
+
+// Schemas for Social Interaction Data
+table SocialInteractionData {
+    user_id: Byte32,
+    target_id: Byte32,
+    interaction_type: byte,
+    timestamp: Uint64,
+    metadata: Bytes,
+} 
