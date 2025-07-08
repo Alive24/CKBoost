@@ -1,0 +1,41 @@
+# Protocol Update Transaction Skeleton
+# SSRI Method: update_protocol(
+#   protocol_type_hash: Option<Byte32>,
+#   protocol_data: ProtocolData,
+# ) -> Result<(), Error>;
+
+Inputs:
+  Option<protocol-cell>:
+    lock: <ckboost-protocol-lock>
+      args: <ckboost-protocol-lock-args>
+    type: ckboost-protocol-type
+      args: <Type ID args for singleton>
+    data: <ProtocolData: current protocol state>
+    capacity: <minimal_occupied_capacity + treasury_balance>
+
+  # Optional: Deposit more treasury funds
+  Vec<admin-deposit-cell>:
+    lock: admin_lock
+      args: <admin_lock_args>
+    type: null
+    data: null
+    capacity: <additional_treasury_funding_amount + transaction_fees>
+
+Outputs:
+  updated-protocol-cell:
+    lock: admin_lock
+      args: <admin_lock_args>
+    type: ckboost-protocol-type
+      args: <Type ID args for singleton>
+    data: <ProtocolData: New protocol state>
+    capacity: <minimal_occupied_capacity + treasury_balance + additional_treasury_funding_amount>
+
+CellDeps:
+  ckboost-protocol-type-dep:
+    Required for protocol type script execution and validation
+    
+  admin-lock-dep:
+    Required for admin signature verification
+
+Witnesses:
+  0: <admin_signature: signs transaction hash for protocol update authorization>

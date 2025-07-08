@@ -1,4 +1,4 @@
-# ckboost-protocol-type
+# ckboost-campaign-lock
 
 TODO: Write this readme
 

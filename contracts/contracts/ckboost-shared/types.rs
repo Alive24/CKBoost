@@ -1,0 +1,1 @@
+pub use ckboost_shared::generated::ckboost::*;

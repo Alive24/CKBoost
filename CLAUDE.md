@@ -757,3 +757,6 @@ We would try our best use serverless architecture by doing the following:
 - **contracts**: As created by scaffold template
 - **dapp**: As downloaded from v0.dev
 - **docs**: Include transaction skeletons (recipes), external docs, and PRD file.
+
+### Code Generations
+Molecule generates code for Molecule Schema. Don't edit the generated code, but use it as a reference. If implementing, do it in other files.

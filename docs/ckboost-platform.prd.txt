@@ -133,6 +133,7 @@ The system will be built upon three core, specialized `Type Scripts`, ensuring m
     *   **Controls**:
         *   Quest definitions, reward structures, and verification requirements.
         *   Rules for participation and proof submission.
+        *   Quest completion and proof submission.
 
 3.  **`ckboost-campaign-lock`**:
     *   **Purpose**: A specialized `Lock Script` that acts as a secure vault for campaign assets. It also locks the campaign cell to the campaign creator.

@@ -4,7 +4,7 @@ use std::fs;
 fn main() {
     let output = Command::new("sh")
         .arg("-c")
-        .arg("cd ../../ && moleculec --language rust --schema-file schemas/ckboost.mol")
+        .arg("cd ../../../ && moleculec --language rust --schema-file schemas/ckboost.mol")
         .output()
         .expect("failed to execute process");
 
@@ -13,4 +13,4 @@ fn main() {
     }
 
     fs::write("src/generated/ckboost.rs", &output.stdout).expect("Unable to write file");
-} 
+}

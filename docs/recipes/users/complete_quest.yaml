@@ -1,0 +1,111 @@
+# Batch Quest Proof Submission Transaction Skeleton
+# SSRI Method: submit_batch_quest_proofs(quest_proofs_batch, user_verification?)
+# Users submit batch of quest proofs for verification after collecting them off-chain in Neon storage
+
+Inputs:
+  quest-cells:
+    lock: ckboost-campaign-lock
+      args: <campaign-cell-type-hash>
+      rules: Multiple quest cells controlled by campaigns (one per quest with proofs)
+    type: ckboost-quest-type
+      args: <campaign_id> + <quest_id>
+      rules: 
+        - Must be active quests (status=1)
+        - Must not exceed completion deadline if set
+        - Must verify campaign funding requirements
+    data: <QuestData: current quest state with participants list>
+    capacity: <quest_capacity_requirement_per_quest>
+
+  user-cell:
+    lock: user_lock
+      args: <user_lock_args>
+      rules: Must be signed by quest participant user
+    type: null
+      args: null
+      rules: Standard user cell for batch proof submission
+    data: null
+    capacity: <batch_proof_submission_fee + transaction_fees>
+
+  # Optional: User verification cell for reputation/eligibility check
+  user-verification-cell:
+    lock: user_lock
+      args: <user_lock_args>
+      rules: User verification data controlled by user
+    type: ckboost-campaign-type
+      args: <verification_campaign_id>
+      rules: 
+        - User verification managed through campaign system
+        - Must meet quest verification requirements
+        - Must check reputation score minimums
+    data: <UserVerificationData: user verification state>
+    capacity: <verification_cell_capacity>
+
+Outputs:
+  updated-quest-cells:
+    lock: ckboost-campaign-lock
+      args: <campaign-cell-type-hash>
+      rules: Quest cells controlled by campaigns with updated participant lists
+    type: ckboost-quest-type
+      args: <campaign_id> + <quest_id>
+      rules: 
+        - Must maintain quest integrity
+        - Must add user to participants list for each quest
+        - Must track batch proof submission data
+    data: <QuestData: updated participants list including submitting user, proof metadata>
+    capacity: <quest_capacity_requirement_per_quest>
+
+  batch-proof-cell:
+    lock: ckboost-campaign-lock
+      args: <campaign_creator_lock_hash>
+      rules: Batch proof cell controlled by campaign system
+    type: ckboost-campaign-type
+      args: <proof_verification_campaign_id>
+      rules: 
+        - Must contain valid batch proof data
+        - Must link to specific user and quest batch
+        - Must be verifiable by campaign system
+        - Managed through campaign type script logic
+    data: <BatchProofData: user_id, quest_proofs_array, batch_submission_timestamp, verification_status=pending>
+    capacity: <batch_proof_storage_capacity>
+
+  # Optional: Updated user verification cell
+  updated-user-verification-cell:
+    lock: user_lock
+      args: <user_lock_args>
+      rules: Updated user verification with participation tracking
+    type: ckboost-campaign-type
+      args: <verification_campaign_id>
+      rules: 
+        - Must update participation history through campaign system
+        - Must track quest submission activity
+        - Must maintain reputation scoring
+    data: <UserVerificationData: updated participation_history, last_activity=current_timestamp>
+    capacity: <verification_cell_capacity>
+
+  change-cell:
+    lock: user_lock
+      args: <user_lock_args>
+      rules: Returns excess capacity to user
+    type: null
+      args: null
+      rules: Standard change cell
+    data: null
+    capacity: <excess_capacity>
+
+HeaderDeps:
+  recent-header:
+    Required for transaction validity window and proof submission timestamp
+
+CellDeps:
+  ckboost-campaign-type-dep:
+    Required for campaign type script execution and validation (handles quests, proofs, verification)
+    
+  ckboost-campaign-lock-dep:
+    Required for campaign lock script validation
+    
+  secp256k1-dep:
+    Required for user signature verification
+
+Witnesses:
+  0: <user_signature: signs transaction hash for proof submission authorization>
+  1: <proof_data: encoded quest proof content and metadata>

@@ -1,20 +1,10 @@
 # Campaign Creation Transaction Skeleton
 # SSRI Method: create_campaign(metadata, funding_config, initial_funding?, nft_assets?, udt_assets?)
 # Creates new campaigns with optional initial funding and multi-asset reward setup
+# Approval of campaign creation should be done in another transaction.
+# If adding NFT or UDT funding, the campaign-cell doesn't need to be consumed. Just lock them to the campaign cell.
 
 Inputs:
-  protocol-cell:
-    lock: admin_lock
-      args: <admin_lock_args>
-      rules: Platform protocol cell for campaign counter management
-    type: ckboost-protocol-type
-      args: <Type ID>
-      rules: 
-        - Must contain valid protocol state for campaign creation
-        - Use Type ID mechanism to ensure uniqueness.
-        - Must verify script code hash.
-    data: <ProtocolData with campaign counter>
-
   creator-cell:
     lock: creator_lock
       args: <creator_lock_hash>
@@ -23,7 +13,7 @@ Inputs:
       args: null
       rules: Standard CKB cell for campaign creation and optional initial funding
     data: null
-    capacity: <campaign_creation_fee + optional_initial_funding + transaction_fees>
+    capacity: <campaign_creation_fee + optional_initial_CKB_funding + transaction_fees>
     
   # Optional: NFT assets to fund campaign with
   nft-funding-cells:
@@ -47,21 +37,22 @@ Inputs:
     data: <uint128: UDT amount>
     capacity: <udt_occupied_capacity>
     
-
-
 Outputs:
   campaign-cell:
-    lock: ckboost-campaign-lock
-      args: <campaign_creator_lock_hash>
+    lock: creator_lock
+      args: <creator_lock_args>
       rules: Give admin to campaign creator
     type: ckboost-campaign-type
       args: <ckboost-protocol-cell-type-hash> + <Type ID>
-      rules: Type script validates campaign operations
-    data: <CampaignData: id, creator, metadata, funding_info(target_amount, initial_amount, funding_deadline, min_threshold), quest_count=0, status=funding, created_at, activated_at=0>
-    capacity: <optional_initial_funding_amount>
+      rules: 
+        - Type script validates campaign operations
+        - Use Type ID mechanism to ensure uniqueness.
+        - Must verify script code hash.
+    data: <CampaignData>
+    capacity: <campaign_cell_occupied_capacity + optional_initial_CKB_funding_amount>
     
   # Optional: NFT assets transferred to campaign control
-  nft-campaign-cells:
+  nft-locked-to-campaign-cells:
     lock: ckboost-campaign-lock
       args: <campaign-cell-type-hash>
       rules: NFT assets controlled by campaign (if NFTs provided)
@@ -71,7 +62,7 @@ Outputs:
     capacity: <nft_occupied_capacity>
     
   # Optional: UDT assets transferred to campaign control
-  udt-campaign-cells:
+  udt-locked-to-campaign-cells:
     lock: ckboost-campaign-lock
       args: <campaign-cell-type-hash>
       rules: UDT assets controlled by campaign (if UDTs provided)
@@ -80,33 +71,6 @@ Outputs:
     data: <uint128: UDT amount>
     capacity: <udt_occupied_capacity>
     
-  updated-protocol-cell:
-    lock: admin_lock
-      args: <admin_lock_args>
-      rules: Platform protocol cell with incremented campaign counter
-    type: ckboost-protocol-type
-      args: <Type ID>
-      rules: 
-        - Must contain valid protocol state for campaign creation
-        - Use Type ID mechanism to ensure uniqueness.
-        - Must verify script code hash.
-    data: <ProtocolData with incremented campaign_counter>
-    capacity: <minimal_occupied_capacity>
-    
-  change-cell:
-    lock: creator_lock
-      args: <creator_lock_hash>
-      rules: Returns excess capacity to creator
-    type: null
-      args: null
-      rules: Standard change cell
-    data: null
-    capacity: <excess_capacity>
-
-HeaderDeps:
-  recent-header:
-    Required for transaction validity window and campaign creation timestamp
-
 CellDeps:
   ckboost-campaign-type-dep:
     Required for campaign type script execution and validation
@@ -114,16 +78,13 @@ CellDeps:
   ckboost-campaign-lock-dep:
     Required for campaign lock script validation
     
-  ckboost-protocol-type-dep:
-    Required for protocol type script execution
-    
   spore-type-dep:
     Required for NFT type script execution (if NFT assets provided)
     
   xudt-type-dep:
     Required for UDT type script execution (if UDT assets provided)
     
-  secp256k1-dep:
+  creator-lock-dep:
     Required for creator signature verification
 
 Witnesses:

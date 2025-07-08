@@ -1,8 +1,6 @@
-#![no_std]
-
 use ckb_std::error::SysError;
 
-/// Error codes for the campaign type script
+/// Error codes for CKBoost contracts
 #[repr(i8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Error {
@@ -25,6 +23,11 @@ pub enum Error {
     InvalidQuestReward = 23,
     InvalidQuestStatus = 24,
     
+    // Protocol validation errors
+    InvalidProtocolData = 25,
+    InvalidProtocolState = 26,
+    InvalidProtocolVersion = 27,
+    
     // Operation errors
     CampaignNotFound = 30,
     CampaignNotActive = 31,
@@ -40,6 +43,7 @@ pub enum Error {
     InvalidSSRIParams = 43,
     SSRIMethodNotSupported = 44,
     SSRISerializationError = 45,
+    MoleculeVerificationError = 46,
 }
 
 impl From<SysError> for Error {
@@ -47,7 +51,7 @@ impl From<SysError> for Error {
         match err {
             SysError::IndexOutOfBound => Error::IndexOutOfBound,
             SysError::ItemMissing => Error::ItemMissing,
-            SysError::LengthNotEnough => Error::LengthNotEnough,
+            SysError::LengthNotEnough(_) => Error::LengthNotEnough,
             SysError::Encoding => Error::Encoding,
             _ => Error::InvalidTransaction,
         }
