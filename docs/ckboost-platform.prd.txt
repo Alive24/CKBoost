@@ -120,12 +120,16 @@ CKBoost is valuable because it creates a sustainable ecosystem where community m
 The system will be built upon three core, specialized `Type Scripts`, ensuring modularity and clear separation of concerns:
 
 1.  **`ckboost-protocol-type`**:
-    *   **Purpose**: Acts as the central "governor" of the entire platform.
-    *   **Logic**: Manages platform-wide rules, authorizations, and critical states.
+    *   **Purpose**: Validation for protocol update and tipping proposal update.
     *   **Controls**:
         *   The list of whitelisted campaign sponsors.
-        *   The authority to mint the native Points UDT.
-        *   Platform-level administrative roles and permissions.
+        *   Protocol configs for updating the protocol data and tipping proposal.
+
+2.  **`ckboost-protocol-lock`**:
+    *   **Purpose**: Authentication for protocol update and tipping proposal update.
+    *   **Controls**:
+        *   The permission to update the protocol data.
+        *   The permission to update the tipping proposal.
 
 2.  **`ckboost-campaign-type`**:
     *   **Purpose**: Defines the logic and rules for all campaigns on the platform.
