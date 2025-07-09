@@ -4,7 +4,7 @@ import React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { Wallet, CheckCircle, Copy, ExternalLink, ChevronDown, Shield, AlertCircle, UserCheck } from "lucide-react"
+import { Wallet, CheckCircle, Copy, ExternalLink, ChevronDown, Shield, AlertCircle, UserCheck, Settings } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ccc } from "@ckb-ccc/connector-react"
@@ -15,6 +15,15 @@ const USER_VERIFICATION_STATUS = {
   kyc: false,
   did: false,
   manualReview: false,
+}
+
+// Mock user role - in real app, this would come from authentication
+const USER_ROLE: "user" | "campaign_admin" | "platform_admin" | "both" = "both"
+
+// Helper function to check user permissions
+const hasPermission = (permission: "campaign_admin" | "platform_admin") => {
+  if (USER_ROLE === "both") return true
+  return USER_ROLE === permission
 }
 
 // Helper function to get verification status info
@@ -131,7 +140,11 @@ export function WalletConnect() {
             <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="font-mono text-sm">{formatAddress(address)}</span>
             {Object.values(USER_VERIFICATION_STATUS).some(Boolean) && (
-              <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+              <Badge variant="secondary" className={cn("text-xs", 
+                Object.values(USER_VERIFICATION_STATUS).filter(Boolean).length === Object.values(USER_VERIFICATION_STATUS).length
+                  ? "bg-green-100 text-green-700 dark:bg-green-800 dark:text-green-100"
+                  : "bg-yellow-100 text-yellow-700 dark:bg-yellow-800 dark:text-yellow-100"
+              )}>
                 <Shield className="w-3 h-3 mr-1" />
                 {getVerificationStatus().text}
               </Badge>
@@ -193,6 +206,29 @@ export function WalletConnect() {
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />
+        
+        {/* Admin Actions */}
+        {hasPermission("campaign_admin") && (
+          <DropdownMenuItem asChild>
+            <Link href="/admin" className="w-full">
+              <Settings className="w-4 h-4 mr-2" />
+              Campaign Admin
+            </Link>
+          </DropdownMenuItem>
+        )}
+        
+        {hasPermission("platform_admin") && (
+          <DropdownMenuItem asChild>
+            <Link href="/platform-admin" className="w-full">
+              <Shield className="w-4 h-4 mr-2" />
+              Platform Admin
+            </Link>
+          </DropdownMenuItem>
+        )}
+        
+        {(hasPermission("campaign_admin") || hasPermission("platform_admin")) && (
+          <DropdownMenuSeparator />
+        )}
         
         <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
           <Wallet className="w-4 h-4 mr-2" />

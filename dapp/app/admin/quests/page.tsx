@@ -325,7 +325,7 @@ export default function AdminQuestManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -355,7 +355,7 @@ export default function AdminQuestManagement() {
                 placeholder="Search campaigns and quests..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white"
+                className="pl-10 bg-white dark:bg-gray-800"
               />
             </div>
 
@@ -366,7 +366,7 @@ export default function AdminQuestManagement() {
               </div>
 
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -379,7 +379,7 @@ export default function AdminQuestManagement() {
               </Select>
 
               <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -485,7 +485,7 @@ export default function AdminQuestManagement() {
                           const fundingStatus = getFundingStatus(quest.funding.required, quest.funding.current)
 
                           return (
-                            <div key={quest.id} className="border rounded-lg p-4 bg-white">
+                            <div key={quest.id} className="border rounded-lg p-4 bg-white dark:bg-gray-800">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">

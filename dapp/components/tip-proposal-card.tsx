@@ -107,15 +107,15 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
   const getStatusBadge = () => {
     switch (proposal.status) {
       case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800">⏳ Pending Approval</Badge>
+        return <Badge className="bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 whitespace-nowrap">⏳ Pending Approval</Badge>
       case "approved":
-        return <Badge className="bg-blue-100 text-blue-800">✅ Approved</Badge>
+        return <Badge className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 whitespace-nowrap">✅ Approved</Badge>
       case "completed":
-        return <Badge className="bg-green-100 text-green-800">🎉 Completed</Badge>
+        return <Badge className="bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 whitespace-nowrap">🎉 Completed</Badge>
       case "rejected":
-        return <Badge className="bg-red-100 text-red-800">❌ Rejected</Badge>
+        return <Badge className="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 whitespace-nowrap">❌ Rejected</Badge>
       default:
-        return <Badge variant="outline">Unknown</Badge>
+        return <Badge variant="outline" className="whitespace-nowrap">Unknown</Badge>
     }
   }
 
@@ -137,15 +137,15 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
   const getTypeColor = (type: string) => {
     switch (type) {
       case "analysis":
-        return "bg-blue-100 text-blue-800"
+        return "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200"
       case "tutorial":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200"
       case "proposal":
-        return "bg-purple-100 text-purple-800"
+        return "bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200"
       case "comment":
-        return "bg-orange-100 text-orange-800"
+        return "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200"
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200"
     }
   }
 
@@ -154,7 +154,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
   const totalAdditionalTips = proposal.additionalTips.reduce((sum, tip) => sum + tip.amount, 0)
 
   return (
-    <Card className="border-2 border-blue-200 bg-blue-50">
+    <Card className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
       <CardHeader className="pb-4">
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -163,7 +163,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
             <div className="flex-1">
               <h3 className="text-xl font-bold mb-2">{proposal.contributionTitle}</h3>
               <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className={getTypeColor(proposal.contributionType)}>
+                <Badge variant="outline" className={`${getTypeColor(proposal.contributionType)} whitespace-nowrap`}>
                   {proposal.contributionType}
                 </Badge>
                 {proposal.contributionUrl && (
@@ -187,7 +187,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
         </div>
 
         {/* Recipient & Proposer Info */}
-        <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+        <div className="flex items-center justify-between p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-200 to-blue-200 flex items-center justify-center font-semibold">
               {proposal.recipientName.charAt(0).toUpperCase()}
@@ -211,7 +211,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
 
       <CardContent className="space-y-4">
         {/* Justification */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="text-sm font-medium mb-2">Justification:</div>
           <div className="text-sm text-muted-foreground">{proposal.justification}</div>
         </div>
@@ -251,7 +251,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
               {showDetails ? (
                 <div className="space-y-2">
                   {proposal.approvals.map((approval, index) => (
-                    <div key={index} className="flex items-center gap-2 bg-white px-3 py-2 rounded border text-sm">
+                    <div key={index} className="flex items-center gap-2 bg-white dark:bg-gray-900 px-3 py-2 rounded border border-gray-200 dark:border-gray-700 text-sm">
                       <Avatar className="w-6 h-6">
                         <AvatarFallback className="text-xs bg-gradient-to-br from-green-200 to-blue-200">
                           {approval.username.charAt(0).toUpperCase()}
@@ -302,7 +302,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
               {proposal.additionalTips.map((tip) => (
                 <div
                   key={tip.id}
-                  className="flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200"
+                  className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800"
                 >
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="text-sm bg-gradient-to-br from-green-200 to-emerald-200">
@@ -332,7 +332,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
               size="sm"
               className={`${
                 proposal.currentUserApproved
-                  ? "bg-green-100 text-green-800 hover:bg-green-100"
+                  ? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 hover:bg-green-100 dark:hover:bg-green-900"
                   : "bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
               }`}
               variant={proposal.currentUserApproved ? "outline" : "default"}
@@ -360,7 +360,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
             onClick={() => setIsAdditionalTipModalOpen(true)}
             size="sm"
             variant="outline"
-            className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+            className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30"
           >
             <Plus className="w-4 h-4 mr-2" />
             Add Personal Tip
@@ -369,17 +369,17 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
 
         {/* Completion Status */}
         {proposal.status === "completed" && (
-          <div className="text-center p-4 bg-green-100 rounded-lg border border-green-200">
-            <div className="text-green-800 font-medium">
+          <div className="text-center p-4 bg-green-100 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="text-green-800 dark:text-green-200 font-medium">
               🎉 Community tip of {proposal.communityTipAmount} CKB sent to {proposal.recipientName}!
             </div>
             {totalAdditionalTips > 0 && (
-              <div className="text-sm text-green-600 mt-1">
+              <div className="text-sm text-green-600 dark:text-green-300 mt-1">
                 Plus {totalAdditionalTips} CKB in additional tips from the community
               </div>
             )}
             {proposal.completedAt && (
-              <div className="text-sm text-green-600 mt-1">
+              <div className="text-sm text-green-600 dark:text-green-300 mt-1">
                 Completed on {new Date(proposal.completedAt).toLocaleDateString()}
               </div>
             )}
@@ -411,8 +411,8 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-sm text-green-800">
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+              <div className="text-sm text-green-800 dark:text-green-200">
                 <div className="font-medium mb-1">Personal Tip</div>
                 <div className="text-xs">
                   This tip will be sent directly from your wallet to {proposal.recipientName}. No approvals needed.

@@ -155,7 +155,7 @@ export default function HomePage() {
   const allCategories = Array.from(new Set(FEATURED_CAMPAIGNS.flatMap((c) => c.categories)))
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -182,7 +182,7 @@ export default function HomePage() {
                 </Button>
               </Link>
               <Link href="/leaderboard">
-                <Button size="lg" variant="outline" className="bg-transparent">
+                <Button size="lg" variant="outline" className="bg-transparent backdrop-blur-sm">
                   View Leaderboard
                 </Button>
               </Link>
@@ -198,7 +198,7 @@ export default function HomePage() {
                 placeholder="Search campaigns..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white"
+                className="pl-10 bg-white dark:bg-gray-800"
               />
             </div>
 
@@ -209,7 +209,7 @@ export default function HomePage() {
               </div>
 
               <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Difficulty" />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +222,7 @@ export default function HomePage() {
               </Select>
 
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -236,7 +236,7 @@ export default function HomePage() {
               </Select>
 
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -253,12 +253,12 @@ export default function HomePage() {
           <div className="mb-12">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold">Featured Campaigns</h2>
-              <Badge variant="outline" className="bg-white">
+              <Badge variant="outline" className="bg-white dark:bg-gray-800">
                 {filteredCampaigns.length} campaigns
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
               {filteredCampaigns.map((campaign) => (
                 <CampaignCard key={campaign.id} campaign={campaign} />
               ))}

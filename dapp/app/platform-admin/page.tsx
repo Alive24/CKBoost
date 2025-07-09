@@ -706,7 +706,7 @@ export default function PlatformAdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-purple-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 via-purple-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -986,7 +986,7 @@ export default function PlatformAdminDashboard() {
                         <div className="text-sm text-muted-foreground mb-2">Supporting Documents</div>
                         <div className="flex gap-2">
                           {campaign.documents.map((doc, index) => (
-                            <Badge key={index} variant="outline" className="bg-blue-50">
+                            <Badge key={index} variant="outline" className="bg-blue-50 dark:bg-blue-900">
                               📄 {doc}
                             </Badge>
                           ))}
@@ -1016,9 +1016,9 @@ export default function PlatformAdminDashboard() {
                         <TabsContent value="users" className="space-y-6">
               {/* Pending Verifications */}
               {PENDING_VERIFICATIONS.length > 0 && (
-                <Card className="bg-yellow-50 border-yellow-200">
+                <Card className="bg-yellow-50 dark:bg-yellow-900 border-yellow-200 dark:border-yellow-700">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-yellow-800">
+                    <CardTitle className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
                       <Clock className="w-5 h-5" />
                       Pending Verifications ({PENDING_VERIFICATIONS.length})
                     </CardTitle>
@@ -1027,7 +1027,7 @@ export default function PlatformAdminDashboard() {
                     {PENDING_VERIFICATIONS.map((verification) => (
                       <div
                         key={verification.id}
-                        className="flex items-center justify-between p-4 bg-white rounded-lg border"
+                        className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border"
                       >
                         <div className="flex items-center gap-4">
                           <Avatar>
@@ -1050,7 +1050,7 @@ export default function PlatformAdminDashboard() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleVerificationAction(verification.id, "approve")}
-                            className="text-green-600 border-green-600 hover:bg-green-50"
+                            className="text-green-600 border-green-600 hover:bg-green-50 dark:hover:bg-green-900"
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
                             Approve
@@ -1059,7 +1059,7 @@ export default function PlatformAdminDashboard() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleVerificationAction(verification.id, "reject")}
-                            className="text-red-600 border-red-600 hover:bg-red-50"
+                            className="text-red-600 border-red-600 hover:bg-red-50 dark:hover:bg-red-900"
                           >
                             <X className="w-4 h-4 mr-1" />
                             Reject
@@ -1079,7 +1079,7 @@ export default function PlatformAdminDashboard() {
                     placeholder="Search users by name, pubkey, or email..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white"
+                    className="pl-10 bg-white dark:bg-gray-800"
                   />
                 </div>
 
@@ -1090,7 +1090,7 @@ export default function PlatformAdminDashboard() {
                   </div>
 
                   <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                    <SelectTrigger className="w-40 bg-white">
+                    <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1102,7 +1102,7 @@ export default function PlatformAdminDashboard() {
                   </Select>
 
                   <Select value={selectedVerification} onValueChange={setSelectedVerification}>
-                    <SelectTrigger className="w-40 bg-white">
+                    <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                       <SelectValue placeholder="Verification" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1113,7 +1113,7 @@ export default function PlatformAdminDashboard() {
                   </Select>
 
                   <Select value={selectedRole} onValueChange={setSelectedRole}>
-                    <SelectTrigger className="w-40 bg-white">
+                    <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                       <SelectValue placeholder="Role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1139,7 +1139,7 @@ export default function PlatformAdminDashboard() {
                     {filteredUsers.map((user) => (
                       <div
                         key={user.id}
-                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer"
                         onClick={() => handleUserClick(user)}
                       >
                         <div className="flex items-center gap-4">
@@ -1201,7 +1201,7 @@ export default function PlatformAdminDashboard() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <Label className="text-sm font-medium">Public Key</Label>
-                            <div className="text-sm font-mono bg-gray-100 p-2 rounded">{selectedUser.pubkey}</div>
+                            <div className="text-sm font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded">{selectedUser.pubkey}</div>
                           </div>
                           <div>
                             <Label className="text-sm font-medium">Email</Label>
@@ -1226,7 +1226,7 @@ export default function PlatformAdminDashboard() {
                           <Label className="text-sm font-medium mb-2 block">Verification Status</Label>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {Object.entries(selectedUser.verificationStatus).map(([method, verified]) => (
-                              <div key={method} className="flex items-center gap-2 p-3 border rounded-lg">
+                              <div key={method} className="flex items-center gap-2 p-3 border dark:border-gray-700 rounded-lg">
                                 {getVerificationIcon(method)}
                                 <div>
                                   <div className="text-sm font-medium capitalize">{method}</div>
@@ -1243,19 +1243,19 @@ export default function PlatformAdminDashboard() {
                         <div>
                           <Label className="text-sm font-medium mb-2 block">Activity Statistics</Label>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <div className="text-center p-3 border rounded-lg">
+                            <div className="text-center p-3 border dark:border-gray-700 rounded-lg">
                               <div className="text-2xl font-bold">{selectedUser.activities.questsCompleted}</div>
                               <div className="text-xs text-muted-foreground">Quests Completed</div>
                             </div>
-                            <div className="text-center p-3 border rounded-lg">
+                            <div className="text-center p-3 border dark:border-gray-700 rounded-lg">
                               <div className="text-2xl font-bold">{selectedUser.activities.completionRate}%</div>
                               <div className="text-xs text-muted-foreground">Completion Rate</div>
                             </div>
-                            <div className="text-center p-3 border rounded-lg">
+                            <div className="text-center p-3 border dark:border-gray-700 rounded-lg">
                               <div className="text-2xl font-bold">{selectedUser.activities.currentStreak}</div>
                               <div className="text-xs text-muted-foreground">Current Streak</div>
                             </div>
-                            <div className="text-center p-3 border rounded-lg">
+                            <div className="text-center p-3 border dark:border-gray-700 rounded-lg">
                               <div className="text-2xl font-bold">{selectedUser.activities.averagePointsPerQuest}</div>
                               <div className="text-xs text-muted-foreground">Avg Points/Quest</div>
                             </div>
@@ -1267,7 +1267,7 @@ export default function PlatformAdminDashboard() {
                           <Label className="text-sm font-medium mb-2 block">Campaign Participation</Label>
                           <div className="space-y-2">
                             {selectedUser.campaignParticipation.map((campaign: any, index: number) => (
-                              <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                              <div key={index} className="flex items-center justify-between p-3 border dark:border-gray-700 rounded-lg">
                                 <div>
                                   <div className="font-medium text-sm">{campaign.campaignName}</div>
                                   <div className="text-xs text-muted-foreground">
@@ -1329,7 +1329,7 @@ export default function PlatformAdminDashboard() {
                         <div className="text-sm text-muted-foreground mb-2">Supporting Evidence</div>
                         <div className="flex gap-2">
                           {tip.evidence.map((evidence, index) => (
-                            <Badge key={index} variant="outline" className="bg-blue-50">
+                            <Badge key={index} variant="outline" className="bg-blue-50 dark:bg-blue-900">
                               ✓ {evidence}
                             </Badge>
                           ))}
@@ -1500,7 +1500,7 @@ export default function PlatformAdminDashboard() {
                           </div>
 
                           {newReward.eligibilityRules.verificationRequired && (
-                            <div className="bg-gray-50 p-3 rounded-lg space-y-3">
+                            <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg space-y-3">
                               <Label className="text-sm font-medium">Acceptable Verification Methods</Label>
                               <div className="grid grid-cols-2 gap-2">
                                 {["telegram", "kyc", "did", "manual"].map((method) => (
@@ -1545,7 +1545,7 @@ export default function PlatformAdminDashboard() {
                                 </Label>
                               </div>
 
-                              <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                              <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900 p-2 rounded">
                                 💡 Tip: KYC or DID verification automatically satisfies identity requirements
                               </div>
                             </div>
@@ -1610,7 +1610,7 @@ export default function PlatformAdminDashboard() {
                           {/* Reward Tiers */}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {reward.tiers.map((tier, index) => (
-                              <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                              <div key={index} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
                                 <div className="flex items-center justify-between mb-2">
                                   <h4 className="font-semibold">{tier.rank}</h4>
                                   <Badge variant="outline">{tier.percentage}%</Badge>
@@ -1657,22 +1657,22 @@ export default function PlatformAdminDashboard() {
                             </div>
                             
                             {reward.eligibilityRules.verificationRequired && (
-                              <div className="bg-blue-50 p-3 rounded-lg">
-                                <h5 className="font-medium text-blue-800 mb-2">Accepted Verification Methods</h5>
+                              <div className="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg">
+                                <h5 className="font-medium text-blue-800 dark:text-blue-200 mb-2">Accepted Verification Methods</h5>
                                 <div className="flex flex-wrap gap-2">
                                   {reward.eligibilityRules.acceptableVerifications.map((method: string) => (
-                                    <Badge key={method} variant="outline" className="bg-white">
+                                    <Badge key={method} variant="outline" className="bg-white dark:bg-gray-800">
                                       {getVerificationIcon(method)}
                                       <span className="ml-1 capitalize">{method}</span>
                                     </Badge>
                                   ))}
                                 </div>
                                 {reward.eligibilityRules.excludeManualReview && (
-                                  <div className="mt-2 text-xs text-blue-700">
+                                  <div className="mt-2 text-xs text-blue-700 dark:text-blue-300">
                                     ⚠️ Manual review is excluded - KYC or DID verification preferred
                                   </div>
                                 )}
-                                <div className="mt-2 text-xs text-blue-700">
+                                <div className="mt-2 text-xs text-blue-700 dark:text-blue-300">
                                   💡 Having KYC or DID verification satisfies identity requirements
                                 </div>
                               </div>
@@ -1683,14 +1683,14 @@ export default function PlatformAdminDashboard() {
                           {reward.specialBonus?.enabled && (
                             <div className="border-t pt-4">
                               <h4 className="font-semibold mb-2">Special Bonus</h4>
-                              <div className="p-3 bg-yellow-50 rounded-lg">
+                              <div className="p-3 bg-yellow-50 dark:bg-yellow-900 rounded-lg">
                                 <div className="flex items-center gap-2 mb-1">
                                   <Star className="w-4 h-4 text-yellow-600" />
-                                  <span className="font-medium text-yellow-800">
+                                  <span className="font-medium text-yellow-800 dark:text-yellow-200">
                                     {reward.specialBonus.multiplier}x Multiplier
                                   </span>
                                 </div>
-                                <p className="text-sm text-yellow-700">
+                                <p className="text-sm text-yellow-700 dark:text-yellow-300">
                                   {reward.specialBonus.description}
                                 </p>
                               </div>

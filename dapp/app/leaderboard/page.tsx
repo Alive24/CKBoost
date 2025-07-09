@@ -185,15 +185,15 @@ export default function Leaderboard() {
   const getBadgeColor = (badge: string) => {
     switch (badge) {
       case "Legend":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200"
+        return "bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-800"
       case "Expert":
-        return "bg-orange-100 text-orange-800 border-orange-200"
+        return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/30 dark:text-orange-200 dark:border-orange-800"
       case "Advanced":
-        return "bg-purple-100 text-purple-800 border-purple-200"
+        return "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-200 dark:border-purple-800"
       case "Intermediate":
-        return "bg-blue-100 text-blue-800 border-blue-200"
+        return "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-200 dark:border-blue-800"
       default:
-        return "bg-green-100 text-green-800 border-green-200"
+        return "bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-200 dark:border-green-800"
     }
   }
 
@@ -205,7 +205,7 @@ export default function Leaderboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -228,7 +228,7 @@ export default function Leaderboard() {
             <div className="flex items-center gap-4">
               <span className="text-sm font-medium">Time Period:</span>
               <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-                <SelectTrigger className="w-48 bg-white">
+                <SelectTrigger className="w-48 bg-white dark:bg-gray-800">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -246,7 +246,7 @@ export default function Leaderboard() {
             {/* Main Leaderboard */}
             <div className="lg:col-span-2 space-y-6">
               {/* Current User Position */}
-              <Card className="border-2 border-purple-200 bg-purple-50">
+              <Card className="border-2 border-purple-200 bg-purple-50 dark:bg-purple-900/20 dark:border-purple-800">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Star className="w-5 h-5 text-purple-600" />
@@ -262,7 +262,7 @@ export default function Leaderboard() {
                         <div className="text-sm text-muted-foreground">{currentUser.points} points</div>
                       </div>
                     </div>
-                    <Badge className="bg-purple-100 text-purple-800">Your Rank</Badge>
+                    <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100">Your Rank</Badge>
                   </div>
                 </CardContent>
               </Card>
@@ -277,7 +277,9 @@ export default function Leaderboard() {
                     <div
                       key={user.rank}
                       className={`flex items-center justify-between p-4 rounded-lg border ${
-                        user.rank <= 3 ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200" : "bg-white"
+                        user.rank <= 3 
+                          ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 dark:from-yellow-900/20 dark:to-orange-900/20 dark:border-yellow-800" 
+                          : "bg-white dark:bg-gray-800"
                       }`}
                     >
                       <div className="flex items-center gap-4">
@@ -330,12 +332,14 @@ export default function Leaderboard() {
                     <div
                       key={index}
                       className={`p-4 rounded-lg border ${
-                        reward.special ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200" : "bg-gray-50"
+                        reward.special 
+                          ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 dark:from-yellow-900/20 dark:to-orange-900/20 dark:border-yellow-800" 
+                          : "bg-gray-50 dark:bg-gray-800"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold">{reward.period}</h4>
-                        {reward.special && <Badge className="bg-yellow-100 text-yellow-800">Special</Badge>}
+                        {reward.special && <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100">Special</Badge>}
                       </div>
 
                       <div className="flex items-center gap-2 mb-3">
@@ -442,13 +446,13 @@ export default function Leaderboard() {
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium">Current Badge</span>
-                        <Badge className="bg-blue-100 text-blue-800">
+                        <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
                           <Award className="w-3 h-3 mr-1" />
                           Intermediate
                         </Badge>
                       </div>
                       <div className="text-xs text-muted-foreground mb-2">515 points needed for Advanced badge</div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div
                           className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full"
                           style={{ width: "48.5%" }}

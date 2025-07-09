@@ -282,7 +282,7 @@ export default function EditQuest() {
 
   if (!originalQuest) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center">
@@ -296,7 +296,7 @@ export default function EditQuest() {
 
   if (!isOwner) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center">
@@ -311,7 +311,7 @@ export default function EditQuest() {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-2xl mx-auto text-center py-12">
@@ -335,7 +335,7 @@ export default function EditQuest() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">

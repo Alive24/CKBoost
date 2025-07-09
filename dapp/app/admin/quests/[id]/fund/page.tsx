@@ -67,7 +67,7 @@ export default function FundQuest() {
 
   if (!quest) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
@@ -119,7 +119,7 @@ export default function FundQuest() {
   const isFullyFunded = quest.rewards.tokens.every((token) => token.funded >= token.required)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">

@@ -146,6 +146,11 @@ The system will be built upon three core, specialized `Type Scripts`, ensuring m
         *   Ensures that locked assets can only be unlocked and distributed according to the rules defined in the corresponding `ckboost-campaign-type` script (e.g., after a proof is verified).
         *   Locks the campaign cell to the campaign creator.
 
+4.  **`ckboost-user-type`**:
+    *   **Purpose**: Defines the logic and rules for all users on the platform.
+    *   **Logic**: Governs the lifecycle of a user, from creation to completion.
+    *   **Controls**:
+        *   User data, including their public key, verification status, submission, and any other data that is relevant to the user.
 
 ### Data Architecture (CKB Celldata-First)
 The platform's state will be stored in the `cell_data` of Cells, each governed by one of the core scripts:
@@ -161,6 +166,9 @@ The platform's state will be stored in the `cell_data` of Cells, each governed b
 -   **Campaign Vault Cells (locked by `ckboost-campaign-lock`)**:
     *   These cells hold the actual CKB/UDT assets for a campaign's reward pool. Their `cell_data` might be minimal, as their primary purpose is to lock assets.
 
+-   **User Cells (governed by `ckboost-user-type`)**:
+    *   Each Cell represents a single, unique user.
+    *   **Data Stored**: All data related to a user, including their public key, verification status, submission, and any other data that is relevant to the user.
 
 ### External Integrations
 - **Telegram Bot**: Automated verification and notifications

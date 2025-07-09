@@ -84,7 +84,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -105,7 +105,7 @@ export default function Dashboard() {
               {/* Verification Status */}
               {!user.verified && (
                 <Link href="/verify">
-                  <Button className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600">
+                  <Button className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-white">
                     <Shield className="w-4 h-4" />
                     Verify Identity
                   </Button>
@@ -115,9 +115,9 @@ export default function Dashboard() {
 
             {/* Admin Quick Access */}
             {isAdmin && (
-              <Card className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
+              <Card className="mb-6 bg-gradient-to-r from-orange-50 to-red-50 border-orange-200 dark:from-orange-900/20 dark:to-red-900/20 dark:border-orange-800">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-orange-800">
+                  <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
                     <Settings className="w-5 h-5" />
                     Admin Quick Access
                   </CardTitle>
@@ -288,7 +288,7 @@ export default function Dashboard() {
                   {user.upcomingDeadlines.map((deadline) => (
                     <div
                       key={deadline.questId}
-                      className="flex items-center justify-between p-3 bg-orange-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg"
                     >
                       <div>
                         <div className="font-medium text-sm">{deadline.title}</div>

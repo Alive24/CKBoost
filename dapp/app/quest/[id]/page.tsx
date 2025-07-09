@@ -219,7 +219,7 @@ export default function QuestDetail() {
 
   if (!quest) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
           <div className="text-center py-12">
@@ -312,7 +312,7 @@ export default function QuestDetail() {
   const allSubtasksCompleted = completedSubtasks === subtasks.length
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -398,21 +398,21 @@ export default function QuestDetail() {
                   <CardContent>
                     <div className="flex items-center gap-3">
                       <Link href={`/quest/${questId}/edit`}>
-                        <Button variant="outline" size="sm" className="bg-white">
+                        <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                           <Edit className="w-4 h-4 mr-1" />
                           Edit Quest
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" className="bg-white">
+                      <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                         <Users className="w-4 h-4 mr-1" />
                         View Submissions ({quest.completions})
                       </Button>
-                      <Button variant="outline" size="sm" className="bg-white">
+                      <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                         <Trophy className="w-4 h-4 mr-1" />
                         Manage Rewards
                       </Button>
                       <Link href="/admin">
-                        <Button variant="outline" size="sm" className="bg-white">
+                        <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                           <Settings className="w-4 h-4 mr-1" />
                           Admin Dashboard
                         </Button>

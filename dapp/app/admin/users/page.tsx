@@ -244,7 +244,7 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
@@ -338,7 +338,7 @@ export default function UserManagement() {
                 {PENDING_VERIFICATIONS.map((verification) => (
                   <div
                     key={verification.id}
-                    className="flex items-center justify-between p-4 bg-white rounded-lg border"
+                    className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-lg border"
                   >
                     <div className="flex items-center gap-4">
                       <Avatar>
@@ -390,7 +390,7 @@ export default function UserManagement() {
                 placeholder="Search users by name, pubkey, or email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white"
+                className="pl-10 bg-white dark:bg-gray-800"
               />
             </div>
 
@@ -401,7 +401,7 @@ export default function UserManagement() {
               </div>
 
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -413,7 +413,7 @@ export default function UserManagement() {
               </Select>
 
               <Select value={selectedVerification} onValueChange={setSelectedVerification}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Verification" />
                 </SelectTrigger>
                 <SelectContent>
@@ -424,7 +424,7 @@ export default function UserManagement() {
               </Select>
 
               <Select value={selectedRole} onValueChange={setSelectedRole}>
-                <SelectTrigger className="w-40 bg-white">
+                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>

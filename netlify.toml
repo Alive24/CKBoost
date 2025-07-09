@@ -8,7 +8,7 @@
   base = "dapp"
 
   # The directory that contains the built site.
-  # This is relative to the repository root.
+  # This is relative to the base directory.
   publish = ".next"
 
 [[plugins]]
