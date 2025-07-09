@@ -3,12 +3,11 @@
 import { useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { CampaignCard } from "@/components/campaign-card"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Search, Filter, Trophy, Users, Coins, TrendingUp, Star, Shield, CheckCircle, AlertTriangle, MessageCircle, FileText, Fingerprint, User } from "lucide-react"
+import { Search, Star, X } from "lucide-react"
 import Link from "next/link"
 
 const FEATURED_CAMPAIGNS = [
@@ -118,41 +117,101 @@ const FEATURED_CAMPAIGNS = [
   },
 ]
 
-const PLATFORM_STATS = {
-  totalUsers: 1247,
-  activeCampaigns: 12,
-  totalRewards: 45000,
-  questsCompleted: 3456,
-}
+const NON_FEATURED_CAMPAIGNS = [
+  {
+    id: 5,
+    title: "Bug Bounty Hunter",
+    description: "Find and report bugs in CKB ecosystem projects. Earn rewards for discovering vulnerabilities.",
+    sponsor: "Security Alliance",
+    totalRewards: {
+      points: 2800,
+      tokens: [
+        { symbol: "CKB", amount: 1200 },
+        { symbol: "SEC", amount: 400 },
+      ],
+    },
+    participants: 45,
+    questsCount: 5,
+    questsCompleted: 2,
+    endDate: "2024-04-10",
+    status: "active",
+    difficulty: "Advanced",
+    categories: ["Security", "Development"],
+    image: "/placeholder.svg?height=200&width=400&text=Bug+Bounty",
+  },
+  {
+    id: 6,
+    title: "Social Media Ambassador",
+    description: "Promote CKB ecosystem on social media platforms. Create engaging content and grow the community.",
+    sponsor: "Marketing DAO",
+    totalRewards: {
+      points: 1800,
+      tokens: [
+        { symbol: "CKB", amount: 800 },
+      ],
+    },
+    participants: 312,
+    questsCount: 8,
+    questsCompleted: 4,
+    endDate: "2024-03-30",
+    status: "active",
+    difficulty: "Easy",
+    categories: ["Social", "Marketing"],
+    image: "/placeholder.svg?height=200&width=400&text=Ambassador",
+  },
+  {
+    id: 7,
+    title: "Developer Documentation Sprint",
+    description: "Improve developer documentation for CKB tools and libraries. Make onboarding easier for new developers.",
+    sponsor: "Dev Foundation",
+    totalRewards: {
+      points: 2200,
+      tokens: [
+        { symbol: "CKB", amount: 1000 },
+        { symbol: "DOC", amount: 300 },
+      ],
+    },
+    participants: 28,
+    questsCount: 6,
+    questsCompleted: 1,
+    endDate: "2024-04-05",
+    status: "active",
+    difficulty: "Medium",
+    categories: ["Documentation", "Development"],
+    image: "/placeholder.svg?height=200&width=400&text=Documentation",
+  },
+]
 
-// Mock current user verification status - in real app, this would come from authentication
-const CURRENT_USER_VERIFICATION = {
-  telegram: true,
-  kyc: false,
-  did: false,
-  manualReview: false,
-}
+const ALL_CAMPAIGNS = [...FEATURED_CAMPAIGNS, ...NON_FEATURED_CAMPAIGNS]
+
 
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedDifficulty, setSelectedDifficulty] = useState("all")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  const [selectedStatus, setSelectedStatus] = useState("all")
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
 
-  const filteredCampaigns = FEATURED_CAMPAIGNS.filter((campaign) => {
+  const hasActiveFilters = searchTerm !== "" || selectedDifficulties.length > 0 || selectedCategories.length > 0 || selectedStatuses.length > 0
+
+  const filteredCampaigns = ALL_CAMPAIGNS.filter((campaign) => {
+    // If no filters are active, exclude featured campaigns from "All Campaigns" section
+    if (!hasActiveFilters && FEATURED_CAMPAIGNS.some(fc => fc.id === campaign.id)) {
+      return false
+    }
+
     const matchesSearch =
       campaign.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       campaign.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesDifficulty = selectedDifficulty === "all" || campaign.difficulty.toLowerCase() === selectedDifficulty
+    const matchesDifficulty = selectedDifficulties.length === 0 || selectedDifficulties.includes(campaign.difficulty.toLowerCase())
     const matchesCategory =
-      selectedCategory === "all" ||
-      campaign.categories.some((cat) => cat.toLowerCase() === selectedCategory.toLowerCase())
-    const matchesStatus = selectedStatus === "all" || campaign.status === selectedStatus
+      selectedCategories.length === 0 ||
+      campaign.categories.some((cat) => selectedCategories.includes(cat.toLowerCase()))
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(campaign.status)
 
     return matchesSearch && matchesDifficulty && matchesCategory && matchesStatus
   })
 
-  const allCategories = Array.from(new Set(FEATURED_CAMPAIGNS.flatMap((c) => c.categories)))
+  const allCategories = Array.from(new Set(ALL_CAMPAIGNS.flatMap((c) => c.categories)))
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -190,69 +249,157 @@ export default function HomePage() {
           </div>
 
 
-          {/* Search and Filters */}
-          <div className="mb-8 space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search campaigns..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white dark:bg-gray-800"
-              />
+          {/* Featured Campaigns */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold">Featured Campaigns</h2>
+              <Badge variant="outline" className="bg-white dark:bg-gray-800">
+                {FEATURED_CAMPAIGNS.length} featured
+              </Badge>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Filters:</span>
-              </div>
-
-              <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
-                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
-                  <SelectValue placeholder="Difficulty" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Levels</SelectItem>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {allCategories.map((category) => (
-                    <SelectItem key={category} value={category.toLowerCase()}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-40 bg-white dark:bg-gray-800">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="upcoming">Upcoming</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+              {FEATURED_CAMPAIGNS.map((campaign) => (
+                <CampaignCard key={campaign.id} campaign={campaign} />
+              ))}
             </div>
           </div>
 
-          {/* Featured Campaigns */}
+          {/* Search and Filters */}
+          <div className="mb-8 space-y-4">
+            <Card className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-gray-200 dark:border-gray-700">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Search className="w-4 h-4 text-muted-foreground" />
+                  <h3 className="text-sm font-medium">Search & Filter All Campaigns</h3>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search campaigns..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10 bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600"
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  {/* Difficulty Filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground">Difficulty:</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedDifficulties([])}
+                        className={`h-auto p-1 text-xs ${selectedDifficulties.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {["beginner", "easy", "medium", "advanced"].map((level) => (
+                        <Badge
+                          key={level}
+                          variant={selectedDifficulties.includes(level) ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/10 border-gray-300 dark:border-gray-600"
+                          onClick={() => {
+                            if (selectedDifficulties.includes(level)) {
+                              setSelectedDifficulties(selectedDifficulties.filter(d => d !== level))
+                            } else {
+                              setSelectedDifficulties([...selectedDifficulties, level])
+                            }
+                          }}
+                        >
+                          {level.charAt(0).toUpperCase() + level.slice(1)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Category Filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground">Category:</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedCategories([])}
+                        className={`h-auto p-1 text-xs ${selectedCategories.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {allCategories.map((category) => (
+                        <Badge
+                          key={category}
+                          variant={selectedCategories.includes(category.toLowerCase()) ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/10 border-gray-300 dark:border-gray-600"
+                          onClick={() => {
+                            const categoryLower = category.toLowerCase()
+                            if (selectedCategories.includes(categoryLower)) {
+                              setSelectedCategories(selectedCategories.filter(c => c !== categoryLower))
+                            } else {
+                              setSelectedCategories([...selectedCategories, categoryLower])
+                            }
+                          }}
+                        >
+                          {category}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-muted-foreground">Status:</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedStatuses([])}
+                        className={`h-auto p-1 text-xs ${selectedStatuses.length > 0 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Clear
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {["active", "upcoming", "completed"].map((status) => (
+                        <Badge
+                          key={status}
+                          variant={selectedStatuses.includes(status) ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-primary/10 border-gray-300 dark:border-gray-600"
+                          onClick={() => {
+                            if (selectedStatuses.includes(status)) {
+                              setSelectedStatuses(selectedStatuses.filter(s => s !== status))
+                            } else {
+                              setSelectedStatuses([...selectedStatuses, status])
+                            }
+                          }}
+                        >
+                          {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* All Campaigns */}
           <div className="mb-12">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold">Featured Campaigns</h2>
+              <h2 className="text-2xl font-bold">
+                {hasActiveFilters ? "Filtered Campaigns" : "Other Campaigns"}
+              </h2>
               <Badge variant="outline" className="bg-white dark:bg-gray-800">
                 {filteredCampaigns.length} campaigns
               </Badge>
@@ -274,9 +421,9 @@ export default function HomePage() {
                 <Button
                   onClick={() => {
                     setSearchTerm("")
-                    setSelectedDifficulty("all")
-                    setSelectedCategory("all")
-                    setSelectedStatus("all")
+                    setSelectedDifficulties([])
+                    setSelectedCategories([])
+                    setSelectedStatuses([])
                   }}
                   variant="outline"
                 >

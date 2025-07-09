@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Calendar, Users, Trophy, Coins, Clock, Shield, MessageCircle, FileText, Fingerprint, User, CheckCircle, AlertTriangle, Twitter, MessageSquare } from "lucide-react"
+import { Calendar, Users, Trophy, Coins, Clock, Shield, MessageCircle, FileText, Fingerprint, User, CheckCircle, AlertTriangle, X, MessageSquare } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -267,10 +267,10 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                         ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
                         : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
                     }`}>
-                      <Twitter className={`w-3 h-3 ${
+                      <X className={`w-3 h-3 ${
                         CURRENT_USER_VERIFICATION.twitter ? "text-green-600" : "text-blue-500"
                       }`} />
-                      <span>Requires Twitter</span>
+                      <span>Requires X</span>
                       {CURRENT_USER_VERIFICATION.twitter ? (
                         <CheckCircle className="w-3 h-3 text-green-600" />
                       ) : (
