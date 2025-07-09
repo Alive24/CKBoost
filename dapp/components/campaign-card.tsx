@@ -39,6 +39,12 @@ interface Campaign {
 
 interface CampaignCardProps {
   campaign: Campaign
+  onCategoryClick?: (category: string) => void
+  onDifficultyClick?: (difficulty: string) => void
+  onStatusClick?: (status: string) => void
+  selectedCategories?: string[]
+  selectedDifficulties?: string[]
+  selectedStatuses?: string[]
 }
 
 // Mock current user verification status - in real app, this would come from authentication
@@ -59,16 +65,7 @@ const meetsVerificationRequirements = (requirements: any) => {
   // Check if campaign refuses manual review
   const refusesManualReview = requirements.excludeManualReview || false
   
-  // If user has KYC or DID, they meet identity verification requirements
-  if (CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) {
-    // Check if they have all non-identity requirements (telegram if required)
-    if (requirements.telegram && !CURRENT_USER_VERIFICATION.telegram) {
-      return false
-    }
-    return true // KYC/DID satisfies identity verification
-  }
-  
-  // If no KYC/DID, check other requirements
+  // Check each requirement individually
   if (requirements.telegram && !CURRENT_USER_VERIFICATION.telegram) {
     return false
   }
@@ -85,14 +82,25 @@ const meetsVerificationRequirements = (requirements: any) => {
     return false
   }
   
-  if (requirements.manualReview && !refusesManualReview && !CURRENT_USER_VERIFICATION.manualReview) {
+  // For identity verification (KYC or DID), user needs to have at least one if either is required
+  if (requirements.kyc || requirements.did) {
+    const hasIdentityVerification = CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did
+    if (!hasIdentityVerification) {
+      return false
+    }
+  }
+  
+  // Manual review requirement (only if KYC/DID not available and not excluded)
+  if (requirements.manualReview && !refusesManualReview && 
+      !requirements.kyc && !requirements.did && 
+      !CURRENT_USER_VERIFICATION.manualReview) {
     return false
   }
   
   return true
 }
 
-export function CampaignCard({ campaign }: CampaignCardProps) {
+export function CampaignCard({ campaign, onCategoryClick, onDifficultyClick, onStatusClick, selectedCategories = [], selectedDifficulties = [], selectedStatuses = [] }: CampaignCardProps) {
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty.toLowerCase()) {
       case "beginner":
@@ -111,6 +119,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
     switch (status.toLowerCase()) {
       case "active":
         return "bg-green-100 dark:bg-green-800 text-green-800 dark:text-green-100"
+      case "ending-soon":
+        return "bg-orange-100 dark:bg-orange-800 text-orange-800 dark:text-orange-100"
       case "upcoming":
         return "bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-100"
       case "completed":
@@ -137,8 +147,26 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
       <div className="relative h-48 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20">
         <Image src={campaign.image || "/placeholder.svg"} alt={campaign.title} fill className="object-cover" />
         <div className="absolute top-4 left-4 flex gap-2">
-          <Badge className={getStatusColor(campaign.status)}>{campaign.status}</Badge>
-          <Badge className={getDifficultyColor(campaign.difficulty)}>{campaign.difficulty}</Badge>
+          <Badge 
+            className={`${getStatusColor(campaign.status)} ${onStatusClick ? 'cursor-pointer hover:opacity-80' : ''} ${selectedStatuses.includes(campaign.status) ? 'ring-2 ring-white ring-offset-2' : ''}`}
+            onClick={onStatusClick ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onStatusClick(campaign.status)
+            } : undefined}
+          >
+            {campaign.status}
+          </Badge>
+          <Badge 
+            className={`${getDifficultyColor(campaign.difficulty)} ${onDifficultyClick ? 'cursor-pointer hover:opacity-80' : ''} ${selectedDifficulties.includes(campaign.difficulty.toLowerCase()) ? 'ring-2 ring-white ring-offset-2' : ''}`}
+            onClick={onDifficultyClick ? (e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onDifficultyClick(campaign.difficulty.toLowerCase())
+            } : undefined}
+          >
+            {campaign.difficulty}
+          </Badge>
         </div>
         <div className="absolute top-4 right-4">
           <Badge variant="outline" className="bg-white/90 dark:bg-gray-800 dark:text-gray-200">
@@ -163,13 +191,25 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
         <div className="space-y-4">
           {/* Categories */}
           <div className="flex flex-wrap gap-1">
-            {campaign.categories.slice(0, 3).map((category) => (
-              <Badge key={category} variant="outline" className="text-xs">
-                {category}
-              </Badge>
-            ))}
+            {campaign.categories.slice(0, 3).map((category) => {
+              const isSelected = selectedCategories.includes(category.toLowerCase())
+              return (
+                <Badge 
+                  key={category} 
+                  variant={isSelected ? "default" : "outline"}
+                  className={`text-xs ${onCategoryClick ? 'cursor-pointer hover:bg-primary/10' : ''} border-gray-300 dark:border-gray-600`}
+                  onClick={onCategoryClick ? (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onCategoryClick(category.toLowerCase())
+                  } : undefined}
+                >
+                  {category}
+                </Badge>
+              )
+            })}
             {campaign.categories.length > 3 && (
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-xs border-gray-300 dark:border-gray-600">
                 +{campaign.categories.length - 3}
               </Badge>
             )}
@@ -220,20 +260,41 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
             </div>
           </div>
 
+          {/* No Verification Message */}
+          {campaign.verificationRequirements && 
+           !campaign.verificationRequirements.telegram && 
+           !campaign.verificationRequirements.kyc && 
+           !campaign.verificationRequirements.did && 
+           !campaign.verificationRequirements.manualReview &&
+           !campaign.verificationRequirements.twitter &&
+           !campaign.verificationRequirements.discord &&
+           !campaign.verificationRequirements.reddit && (
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-xs text-blue-800 dark:text-blue-200">
+                  <div className="font-medium mb-1">No Verification Required!</div>
+                  <div>You can start completing tasks immediately and collect rewards after verifying your Telegram account.</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Verification Requirements */}
           {campaign.verificationRequirements && (
             <div className="space-y-2">
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-2">
+                  {/* Telegram */}
                   {campaign.verificationRequirements.telegram && (
                     <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                       CURRENT_USER_VERIFICATION.telegram 
                         ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
                         : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
                     }`}>
-                      <MessageCircle className={`w-3 h-3 ${
-                        CURRENT_USER_VERIFICATION.telegram ? "text-green-600" : "text-blue-600"
-                      }`} />
+                      <div className="w-3 h-3 rounded-full bg-blue-500 flex items-center justify-center">
+                        <div className="w-2 h-2 bg-white rounded-full"></div>
+                      </div>
                       <span>Requires Telegram</span>
                       {CURRENT_USER_VERIFICATION.telegram ? (
                         <CheckCircle className="w-3 h-3 text-green-600" />
@@ -242,25 +303,8 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                       )}
                     </div>
                   )}
-                  {/* Identity Verification - KYC OR DID */}
-                  {(campaign.verificationRequirements.kyc || campaign.verificationRequirements.did) && (
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                      (CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) 
-                        ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
-                        : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
-                    }`}>
-                      <FileText className={`w-3 h-3 ${
-                        (CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) ? "text-green-600" : "text-purple-600"
-                      }`} />
-                      <span>Requires Identity (KYC or DID)</span>
-                      {(CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) ? (
-                        <CheckCircle className="w-3 h-3 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="w-3 h-3 text-red-600" />
-                      )}
-                    </div>
-                  )}
-                  {/* Account Binding Requirements */}
+                  
+                  {/* Twitter/X */}
                   {campaign.verificationRequirements.twitter && (
                     <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                       CURRENT_USER_VERIFICATION.twitter 
@@ -268,7 +312,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                         : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
                     }`}>
                       <X className={`w-3 h-3 ${
-                        CURRENT_USER_VERIFICATION.twitter ? "text-green-600" : "text-blue-500"
+                        CURRENT_USER_VERIFICATION.twitter ? "text-green-600" : "text-black dark:text-white"
                       }`} />
                       <span>Requires X</span>
                       {CURRENT_USER_VERIFICATION.twitter ? (
@@ -278,15 +322,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                       )}
                     </div>
                   )}
+                  
+                  {/* Discord */}
                   {campaign.verificationRequirements.discord && (
                     <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                       CURRENT_USER_VERIFICATION.discord 
                         ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
                         : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
                     }`}>
-                      <MessageSquare className={`w-3 h-3 ${
-                        CURRENT_USER_VERIFICATION.discord ? "text-green-600" : "text-indigo-500"
-                      }`} />
+                      <div className="w-3 h-3 rounded bg-indigo-500 flex items-center justify-center">
+                        <div className="w-2 h-1 bg-white rounded"></div>
+                      </div>
                       <span>Requires Discord</span>
                       {CURRENT_USER_VERIFICATION.discord ? (
                         <CheckCircle className="w-3 h-3 text-green-600" />
@@ -295,15 +341,17 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                       )}
                     </div>
                   )}
+                  
+                  {/* Reddit */}
                   {campaign.verificationRequirements.reddit && (
                     <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
                       CURRENT_USER_VERIFICATION.reddit 
                         ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
                         : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
                     }`}>
-                      <MessageCircle className={`w-3 h-3 ${
-                        CURRENT_USER_VERIFICATION.reddit ? "text-green-600" : "text-orange-500"
-                      }`} />
+                      <div className="w-3 h-3 rounded-full bg-orange-500 flex items-center justify-center">
+                        <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+                      </div>
                       <span>Requires Reddit</span>
                       {CURRENT_USER_VERIFICATION.reddit ? (
                         <CheckCircle className="w-3 h-3 text-green-600" />
@@ -312,6 +360,7 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                       )}
                     </div>
                   )}
+                  
                   {/* Manual Review - only if KYC/DID not available and not excluded */}
                   {campaign.verificationRequirements.manualReview && 
                    !campaign.verificationRequirements.kyc && 
@@ -333,10 +382,39 @@ export function CampaignCard({ campaign }: CampaignCardProps) {
                       )}
                     </div>
                   )}
+                  
+                  {/* Identity Verification - KYC OR DID - Show last since it's longer */}
+                  {(campaign.verificationRequirements.kyc || campaign.verificationRequirements.did) && (
+                    <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs ${
+                      (CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) 
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" 
+                        : "bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-200"
+                    }`}>
+                      <Shield className={`w-3 h-3 ${
+                        (CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) ? "text-green-600" : "text-purple-600"
+                      }`} />
+                      <span>Requires Identity (KYC or DID)</span>
+                      {(CURRENT_USER_VERIFICATION.kyc || CURRENT_USER_VERIFICATION.did) ? (
+                        <CheckCircle className="w-3 h-3 text-green-600" />
+                      ) : (
+                        <AlertTriangle className="w-3 h-3 text-red-600" />
+                      )}
+                    </div>
+                  )}
                 </div>
                 
-                {/* Verification Status */}
+                {/* Verification Status - only show if there are actual requirements */}
                 {(() => {
+                  // Check if there are any actual verification requirements
+                  const hasRequirements = campaign.verificationRequirements.telegram || 
+                    campaign.verificationRequirements.kyc || campaign.verificationRequirements.did || 
+                    campaign.verificationRequirements.manualReview || campaign.verificationRequirements.twitter ||
+                    campaign.verificationRequirements.discord || campaign.verificationRequirements.reddit
+                  
+                  if (!hasRequirements) {
+                    return null // Don't show verification status for campaigns with no requirements
+                  }
+                  
                   const isEligible = meetsVerificationRequirements(campaign.verificationRequirements)
                   
                   if (!isEligible) {

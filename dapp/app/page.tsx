@@ -26,11 +26,11 @@ const FEATURED_CAMPAIGNS = [
     participants: 156,
     questsCount: 8,
     questsCompleted: 3,
-    endDate: "2024-03-15",
+    endDate: "2025-08-15",
     status: "active",
     difficulty: "Medium",
     categories: ["Development", "Content", "Community"],
-    image: "/placeholder.svg?height=200&width=400&text=CKB+Ecosystem",
+    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop&crop=center",
     verificationRequirements: {
       telegram: true,
       kyc: false,
@@ -53,11 +53,11 @@ const FEATURED_CAMPAIGNS = [
     participants: 89,
     questsCount: 6,
     questsCompleted: 2,
-    endDate: "2024-04-20",
+    endDate: "2025-09-10",
     status: "active",
     difficulty: "Beginner",
     categories: ["Education", "DeFi", "Finance"],
-    image: "/placeholder.svg?height=200&width=400&text=DeFi+Education",
+    image: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=200&fit=crop&crop=center",
     verificationRequirements: {
       telegram: false,
       kyc: true,
@@ -81,11 +81,11 @@ const FEATURED_CAMPAIGNS = [
     participants: 234,
     questsCount: 10,
     questsCompleted: 5,
-    endDate: "2024-05-01",
+    endDate: "2025-10-15",
     status: "active",
     difficulty: "Easy",
     categories: ["Community", "Social", "Events"],
-    image: "/placeholder.svg?height=200&width=400&text=Community+Builder",
+    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=200&fit=crop&crop=center",
     verificationRequirements: {
       telegram: true,
       kyc: false,
@@ -109,11 +109,19 @@ const FEATURED_CAMPAIGNS = [
     participants: 67,
     questsCount: 12,
     questsCompleted: 0,
-    endDate: "2024-06-15",
+    endDate: "2025-11-20",
     status: "active",
     difficulty: "Advanced",
     categories: ["NFT", "Art", "Creative"],
-    image: "/placeholder.svg?height=200&width=400&text=NFT+Bootcamp",
+    image: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&h=200&fit=crop&crop=center",
+    verificationRequirements: {
+      telegram: true,
+      kyc: false,
+      did: true,
+      manualReview: false,
+      twitter: true,
+      discord: true,
+    },
   },
 ]
 
@@ -133,11 +141,17 @@ const NON_FEATURED_CAMPAIGNS = [
     participants: 45,
     questsCount: 5,
     questsCompleted: 2,
-    endDate: "2024-04-10",
+    endDate: "2025-08-05",
     status: "active",
     difficulty: "Advanced",
     categories: ["Security", "Development"],
-    image: "/placeholder.svg?height=200&width=400&text=Bug+Bounty",
+    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop&crop=center",
+    verificationRequirements: {
+      telegram: true,
+      kyc: true,
+      did: false,
+      manualReview: false,
+    },
   },
   {
     id: 6,
@@ -153,11 +167,18 @@ const NON_FEATURED_CAMPAIGNS = [
     participants: 312,
     questsCount: 8,
     questsCompleted: 4,
-    endDate: "2024-03-30",
+    endDate: "2025-07-25",
     status: "active",
     difficulty: "Easy",
     categories: ["Social", "Marketing"],
-    image: "/placeholder.svg?height=200&width=400&text=Ambassador",
+    image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=200&fit=crop&crop=center",
+    verificationRequirements: {
+      telegram: true,
+      kyc: false,
+      did: false,
+      manualReview: false,
+      twitter: true,
+    },
   },
   {
     id: 7,
@@ -174,11 +195,44 @@ const NON_FEATURED_CAMPAIGNS = [
     participants: 28,
     questsCount: 6,
     questsCompleted: 1,
-    endDate: "2024-04-05",
+    endDate: "2025-07-30",
     status: "active",
     difficulty: "Medium",
     categories: ["Documentation", "Development"],
-    image: "/placeholder.svg?height=200&width=400&text=Documentation",
+    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop&crop=center",
+    verificationRequirements: {
+      telegram: true,
+      kyc: false,
+      did: true,
+      manualReview: false,
+    },
+  },
+  {
+    id: 8,
+    title: "Learn Blockchain Basics",
+    description: "Complete educational modules about blockchain fundamentals. Perfect for beginners to get started.",
+    sponsor: "Education DAO",
+    totalRewards: {
+      points: 1500,
+      tokens: [
+        { symbol: "CKB", amount: 600 },
+        { symbol: "EDU", amount: 200 },
+      ],
+    },
+    participants: 523,
+    questsCount: 5,
+    questsCompleted: 0,
+    endDate: "2025-12-31",
+    status: "active",
+    difficulty: "Beginner",
+    categories: ["Education", "Beginner"],
+    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=200&fit=crop&crop=center",
+    verificationRequirements: {
+      telegram: false,
+      kyc: false,
+      did: false,
+      manualReview: false,
+    },
   },
 ]
 
@@ -190,6 +244,25 @@ export default function HomePage() {
   const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+
+  const getDaysUntilEnd = (endDate: string) => {
+    const end = new Date(endDate)
+    const now = new Date()
+    const diffTime = end.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays > 0 ? diffDays : 0
+  }
+
+  const getDerivedStatus = (campaign: any) => {
+    const daysLeft = getDaysUntilEnd(campaign.endDate)
+    if (daysLeft <= 0) return "completed"
+    if (daysLeft <= 30) return "ending-soon"
+    return campaign.status // Keep original status if not ending soon
+  }
+
+  const isEndingSoon = (campaign: any) => {
+    return getDerivedStatus(campaign) === "ending-soon"
+  }
 
   const hasActiveFilters = searchTerm !== "" || selectedDifficulties.length > 0 || selectedCategories.length > 0 || selectedStatuses.length > 0
 
@@ -206,12 +279,50 @@ export default function HomePage() {
     const matchesCategory =
       selectedCategories.length === 0 ||
       campaign.categories.some((cat) => selectedCategories.includes(cat.toLowerCase()))
-    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(campaign.status)
+    
+    // Handle status filter with derived status
+    const derivedStatus = getDerivedStatus(campaign)
+    let matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(derivedStatus)
 
     return matchesSearch && matchesDifficulty && matchesCategory && matchesStatus
   })
 
   const allCategories = Array.from(new Set(ALL_CAMPAIGNS.flatMap((c) => c.categories)))
+
+  const scrollToAllCampaigns = () => {
+    const allCampaignsSection = document.getElementById('all-campaigns')
+    if (allCampaignsSection) {
+      allCampaignsSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const handleCategoryClick = (category: string) => {
+    if (selectedCategories.includes(category)) {
+      setSelectedCategories(selectedCategories.filter(c => c !== category))
+    } else {
+      setSelectedCategories([...selectedCategories, category])
+    }
+    // Scroll to filtered results after a brief delay to allow state update
+    setTimeout(() => scrollToAllCampaigns(), 100)
+  }
+
+  const handleDifficultyClick = (difficulty: string) => {
+    if (selectedDifficulties.includes(difficulty)) {
+      setSelectedDifficulties(selectedDifficulties.filter(d => d !== difficulty))
+    } else {
+      setSelectedDifficulties([...selectedDifficulties, difficulty])
+    }
+    setTimeout(() => scrollToAllCampaigns(), 100)
+  }
+
+  const handleStatusClick = (status: string) => {
+    if (selectedStatuses.includes(status)) {
+      setSelectedStatuses(selectedStatuses.filter(s => s !== status))
+    } else {
+      setSelectedStatuses([...selectedStatuses, status])
+    }
+    setTimeout(() => scrollToAllCampaigns(), 100)
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -260,7 +371,16 @@ export default function HomePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
               {FEATURED_CAMPAIGNS.map((campaign) => (
-                <CampaignCard key={campaign.id} campaign={campaign} />
+                <CampaignCard 
+                  key={campaign.id} 
+                  campaign={{...campaign, status: getDerivedStatus(campaign)}}
+                  onCategoryClick={handleCategoryClick}
+                  onDifficultyClick={handleDifficultyClick}
+                  onStatusClick={handleStatusClick}
+                  selectedCategories={selectedCategories}
+                  selectedDifficulties={selectedDifficulties}
+                  selectedStatuses={selectedStatuses}
+                />
               ))}
             </div>
           </div>
@@ -371,7 +491,7 @@ export default function HomePage() {
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {["active", "upcoming", "completed"].map((status) => (
+                      {["active", "ending-soon", "upcoming", "completed"].map((status) => (
                         <Badge
                           key={status}
                           variant={selectedStatuses.includes(status) ? "default" : "outline"}
@@ -395,7 +515,7 @@ export default function HomePage() {
           </div>
 
           {/* All Campaigns */}
-          <div className="mb-12">
+          <div id="all-campaigns" className="mb-12">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">
                 {hasActiveFilters ? "Filtered Campaigns" : "Other Campaigns"}
@@ -407,7 +527,16 @@ export default function HomePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
               {filteredCampaigns.map((campaign) => (
-                <CampaignCard key={campaign.id} campaign={campaign} />
+                <CampaignCard 
+                  key={campaign.id} 
+                  campaign={{...campaign, status: getDerivedStatus(campaign)}}
+                  onCategoryClick={handleCategoryClick}
+                  onDifficultyClick={handleDifficultyClick}
+                  onStatusClick={handleStatusClick}
+                  selectedCategories={selectedCategories}
+                  selectedDifficulties={selectedDifficulties}
+                  selectedStatuses={selectedStatuses}
+                />
               ))}
             </div>
 
