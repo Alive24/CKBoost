@@ -8,34 +8,7 @@ import { Calendar, Users, Trophy, Coins, Clock, Shield, MessageCircle, FileText,
 import Link from "next/link"
 import Image from "next/image"
 
-interface Campaign {
-  id: number
-  title: string
-  description: string
-  sponsor: string
-  totalRewards: {
-    points: number
-    tokens: Array<{ symbol: string; amount: number }>
-  }
-  participants: number
-  questsCount: number
-  questsCompleted: number
-  endDate: string
-  status: string
-  difficulty: string
-  categories: string[]
-  image: string
-  verificationRequirements?: {
-    telegram: boolean
-    kyc: boolean
-    did: boolean
-    manualReview: boolean
-    excludeManualReview?: boolean
-    twitter?: boolean
-    discord?: boolean
-    reddit?: boolean
-  }
-}
+import { Campaign, getDaysUntilEnd } from "@/lib"
 
 interface CampaignCardProps {
   campaign: Campaign
@@ -130,13 +103,6 @@ export function CampaignCard({ campaign, onCategoryClick, onDifficultyClick, onS
     }
   }
 
-  const getDaysUntilEnd = (endDate: string) => {
-    const end = new Date(endDate)
-    const now = new Date()
-    const diffTime = end.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays : 0
-  }
 
   const getProgressPercentage = () => {
     return campaign.questsCount > 0 ? (campaign.questsCompleted / campaign.questsCount) * 100 : 0
@@ -180,8 +146,8 @@ export function CampaignCard({ campaign, onCategoryClick, onDifficultyClick, onS
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <CardTitle className="text-lg mb-2">{campaign.title}</CardTitle>
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{campaign.description}</p>
-            <div className="text-xs text-muted-foreground">Sponsored by {campaign.sponsor}</div>
+            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{campaign.shortDescription}</p>
+            <div className="text-xs text-muted-foreground">Sponsored by {campaign.sponsor.name}</div>
           </div>
         </div>
       </CardHeader>

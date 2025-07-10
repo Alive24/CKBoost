@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ArrowLeft, Calendar, Users, Trophy, CheckCircle, Clock, Coins, ExternalLink, Edit, Plus, Settings, Shield, MessageCircle, FileText, Fingerprint, User, AlertTriangle } from "lucide-react"
 import Link from "next/link"
+import { getDaysUntilEnd, useCampaign, type Campaign, type Quest, type Subtask, type TokenReward } from "@/lib"
 
 // Mock current user - in real app, this would come from authentication
 const CURRENT_USER = {
@@ -24,374 +25,7 @@ const CURRENT_USER = {
   }
 }
 
-// Type definitions
-interface TokenReward {
-  symbol: string
-  amount: number
-}
-
-interface Subtask {
-  id: number
-  title: string
-  type: string
-  completed: boolean
-  description: string
-  proofRequired: string
-}
-
-interface Quest {
-  id: number
-  title: string
-  description: string
-  points: number
-  difficulty: string
-  timeEstimate: string
-  icon: string
-  completions: number
-  rewards: {
-    points: number
-    tokens: TokenReward[]
-  }
-  subtasks: Subtask[]
-}
-
-interface Campaign {
-  id: number
-  title: string
-  description: string
-  sponsor: {
-    name: string
-    logo: string
-    verified: boolean
-    description: string
-    website: string
-    social: {
-      twitter: string
-      github: string
-    }
-  }
-  status: string
-  startDate: string
-  endDate: string
-  totalRewards: {
-    points: number
-    tokens: TokenReward[]
-  }
-  participants: number
-  questsCount: number
-  completedQuests: number
-  category: string
-  difficulty: string
-  rules: string[]
-  quests: Quest[]
-  verificationRequirements: {
-    telegram: boolean
-    kyc: boolean
-    did: boolean
-    manualReview: boolean
-    excludeManualReview?: boolean
-  }
-}
-
-// Mock campaign data - in real app, this would come from API
-const CAMPAIGN_DATA: Record<number, Campaign> = {
-  1: {
-    id: 1,
-    title: "CKB Ecosystem Growth Initiative",
-    description:
-      "Help expand the CKB ecosystem through social engagement, development, and community building. This comprehensive campaign includes multiple quest types designed to onboard new users, increase developer adoption, and strengthen community bonds.",
-    sponsor: {
-      name: "Nervos Foundation",
-      logo: "🏛️",
-      verified: true,
-      description: "The official foundation supporting the Nervos Network ecosystem",
-      website: "https://nervos.org",
-      social: {
-        twitter: "@NervosNetwork",
-        github: "nervosnetwork",
-      },
-    },
-    status: "active",
-    startDate: "2024-01-15",
-    endDate: "2024-03-15",
-    totalRewards: {
-      points: 2500,
-      tokens: [
-        { symbol: "CKB", amount: 1000 },
-        { symbol: "SPORE", amount: 500 },
-      ],
-    },
-    participants: 156,
-    questsCount: 6,
-    completedQuests: 89,
-    category: "Ecosystem",
-    difficulty: "Mixed",
-    rules: [
-      "Complete quests in any order",
-      "Each quest can only be completed once per participant",
-      "Rewards are distributed weekly",
-      "Campaign ends on March 15, 2024",
-    ],
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: false,
-      manualReview: false,
-      excludeManualReview: false, // Basic campaign accepts all verification types
-    },
-    quests: [
-      {
-        id: 1,
-        title: "Raid the CKB Announcement",
-        description: "Like, retweet, and comment on the latest CKB announcement on X to help spread awareness",
-        points: 50,
-        difficulty: "Easy",
-        timeEstimate: "2 mins",
-        icon: "📢",
-        completions: 45,
-        rewards: {
-          points: 50,
-          tokens: [{ symbol: "CKB", amount: 10 }],
-        },
-        subtasks: [
-          {
-            id: 1,
-            title: "Follow @NervosNetwork on X",
-            type: "social",
-            completed: false,
-            description: "Follow the official Nervos Network account",
-            proofRequired: "Screenshot of follow confirmation",
-          },
-          {
-            id: 2,
-            title: "Like the announcement post",
-            type: "social",
-            completed: false,
-            description: "Like the latest CKB announcement post",
-            proofRequired: "Link to the liked post",
-          },
-          {
-            id: 3,
-            title: "Retweet with comment",
-            type: "social",
-            completed: false,
-            description: "Retweet with your own meaningful comment about CKB",
-            proofRequired: "Link to your retweet",
-          },
-          {
-            id: 4,
-            title: "Tag 2 friends",
-            type: "social",
-            completed: false,
-            description: "Tag 2 friends who might be interested in blockchain",
-            proofRequired: "Screenshot showing tagged friends",
-          },
-        ],
-      },
-      {
-        id: 2,
-        title: "Deploy Smart Contract",
-        description: "Deploy your first smart contract on the CKB testnet and verify its functionality",
-        points: 300,
-        difficulty: "Hard",
-        timeEstimate: "45 mins",
-        icon: "🚀",
-        completions: 12,
-        rewards: {
-          points: 300,
-          tokens: [
-            { symbol: "CKB", amount: 100 },
-            { symbol: "SPORE", amount: 50 },
-          ],
-        },
-        subtasks: [
-          {
-            id: 1,
-            title: "Set up development environment",
-            type: "technical",
-            completed: false,
-            description: "Install and configure CKB development tools",
-            proofRequired: "Screenshot of successful setup",
-          },
-          {
-            id: 2,
-            title: "Write smart contract code",
-            type: "technical",
-            completed: false,
-            description: "Create a simple smart contract using CKB Script",
-            proofRequired: "Code repository link",
-          },
-          {
-            id: 3,
-            title: "Deploy to testnet",
-            type: "onchain",
-            completed: false,
-            description: "Deploy your contract to CKB testnet",
-            proofRequired: "Transaction hash of deployment",
-          },
-          {
-            id: 4,
-            title: "Verify deployment",
-            type: "onchain",
-            completed: false,
-            description: "Confirm contract is working correctly",
-            proofRequired: "Screenshot of successful verification",
-          },
-        ],
-      },
-    ],
-  },
-  2: {
-    id: 2,
-    title: "DeFi Education Campaign",
-    description:
-      "Learn and teach about DeFi concepts on CKB through tutorials and content creation. This campaign requires KYC verification due to high-value rewards and regulatory compliance.",
-    sponsor: {
-      name: "DeFi Alliance",
-      logo: "🏦",
-      verified: true,
-      description: "Leading DeFi education platform for CKB ecosystem",
-      website: "https://defialliance.org",
-      social: {
-        twitter: "@CKBDeFi",
-        github: "ckb-defi",
-      },
-    },
-    status: "active",
-    startDate: "2024-02-01",
-    endDate: "2024-04-01",
-    totalRewards: {
-      points: 3500,
-      tokens: [
-        { symbol: "CKB", amount: 1500 },
-        { symbol: "DEFI", amount: 750 },
-      ],
-    },
-    participants: 89,
-    questsCount: 4,
-    completedQuests: 45,
-    category: "Education",
-    difficulty: "Advanced",
-    rules: [
-      "Must complete KYC verification before participating",
-      "Educational content must be original and high-quality",
-      "Plagiarism will result in disqualification",
-      "Rewards distributed monthly",
-    ],
-    verificationRequirements: {
-      telegram: false,
-      kyc: true,
-      did: false,
-      manualReview: false,
-      excludeManualReview: true, // High-value DeFi campaign excludes manual review
-    },
-    quests: [
-      {
-        id: 3,
-        title: "Create DeFi Tutorial",
-        description: "Create a comprehensive tutorial about DeFi concepts on CKB",
-        points: 200,
-        difficulty: "Medium",
-        timeEstimate: "3 hours",
-        icon: "📚",
-        completions: 15,
-        rewards: {
-          points: 200,
-          tokens: [{ symbol: "CKB", amount: 100 }],
-        },
-        subtasks: [
-          {
-            id: 1,
-            title: "Research DeFi protocols",
-            type: "research",
-            completed: false,
-            description: "Research existing DeFi protocols on CKB",
-            proofRequired: "List of protocols with descriptions",
-          },
-          {
-            id: 2,
-            title: "Create tutorial content",
-            type: "content",
-            completed: false,
-            description: "Write comprehensive tutorial",
-            proofRequired: "Tutorial document or video",
-          },
-        ],
-      },
-    ],
-  },
-  3: {
-    id: 3,
-    title: "Community Builder Program",
-    description:
-      "Build and strengthen the CKB community through engagement and outreach. This campaign requires multiple verification methods for maximum security.",
-    sponsor: {
-      name: "CKB Community DAO",
-      logo: "🤝",
-      verified: true,
-      description: "Decentralized community building organization",
-      website: "https://ckbcommunity.org",
-      social: {
-        twitter: "@CKBCommunity",
-        github: "ckb-community",
-      },
-    },
-    status: "active",
-    startDate: "2024-01-01",
-    endDate: "2024-06-01",
-    totalRewards: {
-      points: 4000,
-      tokens: [
-        { symbol: "CKB", amount: 2000 },
-        { symbol: "COMM", amount: 1000 },
-      ],
-    },
-    participants: 234,
-    questsCount: 8,
-    completedQuests: 120,
-    category: "Community",
-    difficulty: "Mixed",
-    rules: [
-      "Must complete Telegram and DID verification",
-      "Community engagement must be genuine and helpful",
-      "Spam or bot-like behavior will result in disqualification",
-      "Manual review required for high-value rewards",
-    ],
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: true,
-      manualReview: true,
-      excludeManualReview: false, // Community campaign accepts manual review
-    },
-    quests: [
-      {
-        id: 4,
-        title: "Community Engagement Challenge",
-        description: "Engage with community members and help newcomers",
-        points: 150,
-        difficulty: "Easy",
-        timeEstimate: "2 hours",
-        icon: "💬",
-        completions: 50,
-        rewards: {
-          points: 150,
-          tokens: [{ symbol: "COMM", amount: 50 }],
-        },
-        subtasks: [
-          {
-            id: 1,
-            title: "Help newcomers",
-            type: "community",
-            completed: false,
-            description: "Provide helpful answers to newcomer questions",
-            proofRequired: "Screenshots of helpful interactions",
-          },
-        ],
-      },
-    ],
-  },
-}
+// No additional type definitions needed - all imported from campaign-data.ts
 
 // Helper function to check if user meets verification requirements based on new logic
 const meetsVerificationRequirements = (requirements: any) => {
@@ -424,12 +58,35 @@ const meetsVerificationRequirements = (requirements: any) => {
 export default function CampaignDetail() {
   const params = useParams()
   const campaignId = Number.parseInt(params.id as string)
-  const campaign = CAMPAIGN_DATA[campaignId]
+  
+  // Use campaign provider hook
+  const { campaign, userProgress, isLoading, exists } = useCampaign(campaignId)
   
   // Check if current user owns this campaign
   const isOwner = CURRENT_USER.ownedCampaigns.includes(campaignId)
+  
+  // Get data from campaign
+  const quests = campaign?.quests || []
+  const rules = campaign?.rules || []
+  const completedQuests = campaign?.completedQuests || 0
 
-  if (!campaign) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading campaign...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!exists || !campaign) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -451,7 +108,7 @@ export default function CampaignDetail() {
   }
 
   const isActive = campaign.status === "active"
-  const progressPercentage = (campaign.completedQuests / (campaign.questsCount * campaign.participants)) * 100
+  const progressPercentage = (completedQuests / (quests.length * campaign.participants)) * 100
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -461,16 +118,7 @@ export default function CampaignDetail() {
     })
   }
 
-  const getDaysRemaining = () => {
-    if (!isActive) return null
-    const endDate = new Date(campaign.endDate)
-    const today = new Date()
-    const diffTime = endDate.getTime() - today.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays : 0
-  }
-
-  const daysRemaining = getDaysRemaining()
+  const daysRemaining = isActive ? getDaysUntilEnd(campaign.endDate) : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -514,7 +162,9 @@ export default function CampaignDetail() {
                           <Badge variant={isActive ? "default" : "secondary"}>
                             {isActive ? "🔥 Active Campaign" : "📚 Ended Campaign"}
                           </Badge>
-                          <Badge variant="outline">{campaign.category}</Badge>
+                          {campaign.categories.map((category, idx) => (
+                            <Badge key={idx} variant="outline">{category}</Badge>
+                          ))}
                           <Badge variant="outline">{campaign.difficulty}</Badge>
                         </div>
                         {isOwner && (
@@ -557,7 +207,7 @@ export default function CampaignDetail() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-lg text-muted-foreground leading-relaxed">{campaign.description}</p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">{campaign.longDescription}</p>
                 </CardContent>
               </Card>
 
@@ -576,11 +226,11 @@ export default function CampaignDetail() {
                       <div className="text-sm text-muted-foreground">Participants</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{campaign.completedQuests}</div>
+                      <div className="text-2xl font-bold text-green-600">{completedQuests}</div>
                       <div className="text-sm text-muted-foreground">Completions</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{campaign.questsCount}</div>
+                      <div className="text-2xl font-bold text-purple-600">{quests.length}</div>
                       <div className="text-sm text-muted-foreground">Total Quests</div>
                     </div>
                   </div>
@@ -804,7 +454,7 @@ export default function CampaignDetail() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {campaign.rules.map((rule: string, index: number) => (
+                    {rules.map((rule: string, index: number) => (
                       <li key={index} className="flex items-start gap-2">
                         <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
                         <span>{rule}</span>
@@ -819,7 +469,7 @@ export default function CampaignDetail() {
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                   <span>🎯</span> Campaign Quests
                 </h2>
-                {campaign.quests.map((quest: Quest) => (
+                {quests.map((quest) => (
                   <QuestCard key={quest.id} quest={quest} campaignId={campaign.id} />
                 ))}
               </div>

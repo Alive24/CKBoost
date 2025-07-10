@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { WalletProvider } from '@/components/wallet-provider'
 import { ThemeProvider } from '@/components/theme-provider'
+import { CampaignProvider } from '@/lib'
 
 export const metadata: Metadata = {
   title: 'v0 App',
@@ -24,7 +25,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <WalletProvider>
-            {children}
+            <CampaignProvider>
+              {children}
+            </CampaignProvider>
           </WalletProvider>
         </ThemeProvider>
       </body>

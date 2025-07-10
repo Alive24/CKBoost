@@ -9,234 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Star, X } from "lucide-react"
 import Link from "next/link"
-
-const FEATURED_CAMPAIGNS = [
-  {
-    id: 1,
-    title: "CKB Ecosystem Growth Initiative",
-    description: "Help grow the CKB ecosystem through content creation, development, and community engagement",
-    sponsor: "Nervos Foundation",
-    totalRewards: {
-      points: 5000,
-      tokens: [
-        { symbol: "CKB", amount: 2000 },
-        { symbol: "SPORE", amount: 1000 },
-      ],
-    },
-    participants: 156,
-    questsCount: 8,
-    questsCompleted: 3,
-    endDate: "2025-08-15",
-    status: "active",
-    difficulty: "Medium",
-    categories: ["Development", "Content", "Community"],
-    image: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: false,
-      manualReview: false,
-    },
-  },
-  {
-    id: 2,
-    title: "DeFi Education Campaign",
-    description: "Learn and teach others about DeFi protocols, yield farming, and decentralized finance concepts",
-    sponsor: "DeFi Alliance",
-    totalRewards: {
-      points: 3500,
-      tokens: [
-        { symbol: "CKB", amount: 1500 },
-        { symbol: "DEFI", amount: 500 },
-      ],
-    },
-    participants: 89,
-    questsCount: 6,
-    questsCompleted: 2,
-    endDate: "2025-09-10",
-    status: "active",
-    difficulty: "Beginner",
-    categories: ["Education", "DeFi", "Finance"],
-    image: "https://images.unsplash.com/photo-1559526324-4b87b5e36e44?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: false,
-      kyc: true,
-      did: false,
-      manualReview: false,
-      excludeManualReview: true, // High-value campaign excludes manual review
-    },
-  },
-  {
-    id: 3,
-    title: "Community Builder Program",
-    description: "Build and engage communities around blockchain projects through events and social activities",
-    sponsor: "Community DAO",
-    totalRewards: {
-      points: 4200,
-      tokens: [
-        { symbol: "CKB", amount: 1800 },
-        { symbol: "COMM", amount: 800 },
-      ],
-    },
-    participants: 234,
-    questsCount: 10,
-    questsCompleted: 5,
-    endDate: "2025-10-15",
-    status: "active",
-    difficulty: "Easy",
-    categories: ["Community", "Social", "Events"],
-    image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: true,
-      manualReview: true,
-      excludeManualReview: false, // Community campaign accepts manual review
-    },
-  },
-  {
-    id: 4,
-    title: "NFT Creator Bootcamp",
-    description: "Create, mint, and promote NFT collections while learning about digital art and blockchain",
-    sponsor: "NFT Studios",
-    totalRewards: {
-      points: 6000,
-      tokens: [
-        { symbol: "CKB", amount: 2500 },
-        { symbol: "SPORE", amount: 1500 },
-      ],
-    },
-    participants: 67,
-    questsCount: 12,
-    questsCompleted: 0,
-    endDate: "2025-11-20",
-    status: "active",
-    difficulty: "Advanced",
-    categories: ["NFT", "Art", "Creative"],
-    image: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: true,
-      manualReview: false,
-      twitter: true,
-      discord: true,
-    },
-  },
-]
-
-const NON_FEATURED_CAMPAIGNS = [
-  {
-    id: 5,
-    title: "Bug Bounty Hunter",
-    description: "Find and report bugs in CKB ecosystem projects. Earn rewards for discovering vulnerabilities.",
-    sponsor: "Security Alliance",
-    totalRewards: {
-      points: 2800,
-      tokens: [
-        { symbol: "CKB", amount: 1200 },
-        { symbol: "SEC", amount: 400 },
-      ],
-    },
-    participants: 45,
-    questsCount: 5,
-    questsCompleted: 2,
-    endDate: "2025-08-05",
-    status: "active",
-    difficulty: "Advanced",
-    categories: ["Security", "Development"],
-    image: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: true,
-      did: false,
-      manualReview: false,
-    },
-  },
-  {
-    id: 6,
-    title: "Social Media Ambassador",
-    description: "Promote CKB ecosystem on social media platforms. Create engaging content and grow the community.",
-    sponsor: "Marketing DAO",
-    totalRewards: {
-      points: 1800,
-      tokens: [
-        { symbol: "CKB", amount: 800 },
-      ],
-    },
-    participants: 312,
-    questsCount: 8,
-    questsCompleted: 4,
-    endDate: "2025-07-25",
-    status: "active",
-    difficulty: "Easy",
-    categories: ["Social", "Marketing"],
-    image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: false,
-      manualReview: false,
-      twitter: true,
-    },
-  },
-  {
-    id: 7,
-    title: "Developer Documentation Sprint",
-    description: "Improve developer documentation for CKB tools and libraries. Make onboarding easier for new developers.",
-    sponsor: "Dev Foundation",
-    totalRewards: {
-      points: 2200,
-      tokens: [
-        { symbol: "CKB", amount: 1000 },
-        { symbol: "DOC", amount: 300 },
-      ],
-    },
-    participants: 28,
-    questsCount: 6,
-    questsCompleted: 1,
-    endDate: "2025-07-30",
-    status: "active",
-    difficulty: "Medium",
-    categories: ["Documentation", "Development"],
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: true,
-      kyc: false,
-      did: true,
-      manualReview: false,
-    },
-  },
-  {
-    id: 8,
-    title: "Learn Blockchain Basics",
-    description: "Complete educational modules about blockchain fundamentals. Perfect for beginners to get started.",
-    sponsor: "Education DAO",
-    totalRewards: {
-      points: 1500,
-      tokens: [
-        { symbol: "CKB", amount: 600 },
-        { symbol: "EDU", amount: 200 },
-      ],
-    },
-    participants: 523,
-    questsCount: 5,
-    questsCompleted: 0,
-    endDate: "2025-12-31",
-    status: "active",
-    difficulty: "Beginner",
-    categories: ["Education", "Beginner"],
-    image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400&h=200&fit=crop&crop=center",
-    verificationRequirements: {
-      telegram: false,
-      kyc: false,
-      did: false,
-      manualReview: false,
-    },
-  },
-]
-
-const ALL_CAMPAIGNS = [...FEATURED_CAMPAIGNS, ...NON_FEATURED_CAMPAIGNS]
+import { getDerivedStatus, useCampaigns } from "@/lib"
 
 
 export default function HomePage() {
@@ -245,36 +18,20 @@ export default function HomePage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
 
-  const getDaysUntilEnd = (endDate: string) => {
-    const end = new Date(endDate)
-    const now = new Date()
-    const diffTime = end.getTime() - now.getTime()
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays > 0 ? diffDays : 0
-  }
-
-  const getDerivedStatus = (campaign: any) => {
-    const daysLeft = getDaysUntilEnd(campaign.endDate)
-    if (daysLeft <= 0) return "completed"
-    if (daysLeft <= 30) return "ending-soon"
-    return campaign.status // Keep original status if not ending soon
-  }
-
-  const isEndingSoon = (campaign: any) => {
-    return getDerivedStatus(campaign) === "ending-soon"
-  }
+  // Use campaign provider
+  const { campaigns, featuredCampaigns, isLoading, error } = useCampaigns()
 
   const hasActiveFilters = searchTerm !== "" || selectedDifficulties.length > 0 || selectedCategories.length > 0 || selectedStatuses.length > 0
 
-  const filteredCampaigns = ALL_CAMPAIGNS.filter((campaign) => {
+  const filteredCampaigns = campaigns.filter((campaign) => {
     // If no filters are active, exclude featured campaigns from "All Campaigns" section
-    if (!hasActiveFilters && FEATURED_CAMPAIGNS.some(fc => fc.id === campaign.id)) {
+    if (!hasActiveFilters && featuredCampaigns.some(fc => fc.id === campaign.id)) {
       return false
     }
 
     const matchesSearch =
       campaign.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      campaign.description.toLowerCase().includes(searchTerm.toLowerCase())
+      campaign.shortDescription.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesDifficulty = selectedDifficulties.length === 0 || selectedDifficulties.includes(campaign.difficulty.toLowerCase())
     const matchesCategory =
       selectedCategories.length === 0 ||
@@ -287,7 +44,42 @@ export default function HomePage() {
     return matchesSearch && matchesDifficulty && matchesCategory && matchesStatus
   })
 
-  const allCategories = Array.from(new Set(ALL_CAMPAIGNS.flatMap((c) => c.categories)))
+  const allCategories = Array.from(new Set(campaigns.flatMap((c) => c.categories)))
+
+  // Handle loading and error states
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading campaigns...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="text-red-500 text-xl mb-4">⚠️</div>
+              <h2 className="text-xl font-semibold mb-2">Failed to Load Campaigns</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>Try Again</Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   const scrollToAllCampaigns = () => {
     const allCampaignsSection = document.getElementById('all-campaigns')
@@ -365,12 +157,12 @@ export default function HomePage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-3xl font-bold">Featured Campaigns</h2>
               <Badge variant="outline" className="bg-white dark:bg-gray-800">
-                {FEATURED_CAMPAIGNS.length} featured
+                {featuredCampaigns.length} featured
               </Badge>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
-              {FEATURED_CAMPAIGNS.map((campaign) => (
+              {featuredCampaigns.map((campaign) => (
                 <CampaignCard 
                   key={campaign.id} 
                   campaign={{...campaign, status: getDerivedStatus(campaign)}}
