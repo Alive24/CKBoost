@@ -1,331 +1,282 @@
-# CKBoost Transaction Recipes
+# CKBoost - Gamified Community Engagement Platform
 
-Comprehensive transaction skeleton definitions for the CKBoost gamified community engagement platform on Nervos CKB. These recipes define standardized SSRI (Script-Source Rich Information) methods for all platform operations with unified multi-asset support.
+> [!IMPORTANT]
+> This project is currently under active development as part of the Nervos Community Catalyst initiative and is not yet ready for production use.
 
-## Overview
+A purpose-built open-source gamified engagement platform for the CKB ecosystem, designed to transform community engagement from scattered, ad-hoc efforts into a structured, rewarding, and measurable system that drives participation, incentivizes real contributions, and encourages ecosystem growth.
 
-CKBoost is a gamified community engagement platform that combines campaigns, quests, user verification, and governance into a cohesive ecosystem. All recipes support **mixed asset types** (CKB + NFT + UDT) as optional parameters in unified transactions, eliminating the need for separate asset-specific recipes.
+## 🎯 Mission
 
-### Key Design Principles
+CKBoost directly supports the goals of the [Nervos Community Catalyst](https://talk.nervos.org/t/nervos-community-catalyst/8128) initiative by providing the technical backbone for:
 
-1. **Unified Multi-Asset Support**: Every transaction recipe supports CKB, NFT (CKB Spore), and UDT tokens as optional parameters
-2. **Optional Campaign Funding**: Campaigns can be created with or without initial funding 
-3. **No History Tracking**: Transactions are inherently trackable; no additional history structures maintained
-4. **Funding-First Rewards**: UDT/NFT rewards come from campaign funding unless specifically minted for celebration
-5. **SSRI Method Alignment**: All recipes correspond to standardized SSRI interface methods
+- **Structured Engagement**: Transform random community efforts into organized campaigns with clear goals
+- **Verifiable Contributions**: Implement "proof of participation" for all types of community activities
+- **Fair Rewards**: Distribute on-chain rewards transparently based on actual contributions
+- **Ecosystem Growth**: Drive both off-chain engagement and on-chain activity through gamification
 
-## Architecture
+## 🌟 Overview
 
-### Core Contracts
-- **ckboost-campaign-type**: Campaign and quest management with multi-asset reward handling
-- **ckboost-protocol-type**: Treasury, governance, and user verification 
-- **ckboost-campaign-lock**: Secure fund and asset escrow management
+CKBoost addresses key challenges in community management:
 
-### External Protocol Integration
-- **CKB Spore**: NFT protocol for digital asset rewards
-- **xUDT**: Fungible token standard for token rewards  
-- **Standard CKB**: Native capacity for basic rewards and platform fees
+- **Inclusive Participation**: Reward community members who don't have directly transferable skills for formal tracks
+- **Synergized Effort**: Coordinate community action across social media, off-chain, and on-chain platforms
+- **Fun & Incentivized**: Create enthusiasm for participation through gamification and rewards
+- **On-Chain Activity**: Leverage CKB features and encourage more blockchain interaction
 
-## Recipe Organization
+### Key Features
 
-Recipes are organized by functional domain with SSRI method names:
+- **Campaign & Quest Management**: Multi-task campaigns with detailed quests, success metrics, and fully funded reward pools
+- **On-Chain Points & Badges**: All achievements tracked via dedicated UDT for transparent rewards
+- **Gamification Elements**: Streak bonuses, difficulty multipliers, dynamic leaderboards, and badge milestones
+- **Anti-Sybil Verification**: Flexible verification starting with manual Telegram proof, expanding to DID/KYC
+- **Community Tipping**: Peer recognition system with democratic approval flow and automated payouts
+- **Comprehensive Dashboards**: Tools for campaign creators, admins, and reviewers to monitor progress
+
+## 🏗️ Project Structure
 
 ```
-recipes/
-├── campaigns/           # Campaign lifecycle management
-│   ├── create_campaign.yaml    # SSRI: create_campaign()
-│   └── fund_campaign.yaml      # SSRI: fund_campaign()
-├── quests/             # Quest operations
-│   ├── create_quest.yaml       # SSRI: create_quest() 
-│   └── complete_quest.yaml     # SSRI: complete_quest()
-├── rewards/            # Reward distribution
-│   └── distribute_rewards.yaml # SSRI: distribute_rewards()
-├── governance/         # Platform governance
-│   ├── create_treasury_proposal.yaml # SSRI: create_treasury_proposal()
-│   └── vote_on_proposal.yaml  # SSRI: vote_on_proposal()
-└── users/              # User management
-    └── verify_user.yaml        # SSRI: verify_user()
+CKBoost/
+├── dapp/                    # Next.js frontend application
+│   ├── app/                 # App Router pages and layouts
+│   ├── components/          # Reusable UI components
+│   ├── lib/                 # Business logic and data management
+│   │   ├── types/           # TypeScript type definitions
+│   │   ├── mock/            # Development mock data
+│   │   ├── ckb/             # Blockchain integration layer
+│   │   ├── providers/       # React context providers
+│   │   └── services/        # Data service abstraction
+│   └── ...                  # Standard Next.js structure
+├── contracts/               # Smart contracts (Rust)
+│   ├── contracts/           # Individual contract implementations
+│   │   ├── ckboost-campaign-type/    # Campaign management logic
+│   │   ├── ckboost-campaign-lock/    # Secure fund vaults
+│   │   ├── ckboost-protocol-type/    # Governance & minting
+│   │   ├── ckboost-protocol-lock/    # Protocol governance
+│   │   ├── ckboost-user-type/        # Verification & bindings
+│   │   └── ckboost-shared/           # Common utilities
+│   └── tests/               # Integration tests
+├── docs/                    # Documentation and specifications
+│   ├── recipes/             # Transaction skeleton definitions
+│   └── *.prd.txt           # Product requirements documents
+└── schemas/                 # Molecule schema definitions
 ```
 
-## Multi-Asset Transaction Design
+## 🚀 Getting Started
 
-### Unified Asset Handling
+### Prerequisites
 
-All transaction recipes support mixed asset types through optional parameters:
+- **Node.js** 18+ with **pnpm**
+- **Rust** toolchain for contract development
+- **CKB Node** for blockchain interaction (development/testnet)
 
-- **CKB Capacity**: Always available, sourced from campaign funding or fresh capacity
-- **NFT Assets (Spore)**: Optional, typically from campaign funding (`from_funding=1`) or celebration minting (`from_funding=0`)
-- **UDT Tokens**: Optional, typically from campaign funding (`from_funding=1`) or celebration minting (`from_funding=0`)
+### Quick Start
 
-### Asset Source Tracking
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Alive24/CKBoost.git
+   cd CKBoost
+   ```
 
-The `from_funding` flag in AssetReward structures indicates reward source:
-- `from_funding=1`: Asset comes from campaign funding (typical case)
-- `from_funding=0`: Asset is freshly minted for celebration/special rewards
+2. **Start the frontend application**
+   ```bash
+   cd dapp
+   pnpm install
+   pnpm dev
+   ```
 
-### Flexible Funding Model
+   The application will be available at `http://localhost:3000`
 
-#### Campaign Creation with Optional Funding
-```yaml
-# Minimal campaign (no initial funding)
-create_campaign(metadata, funding_config)
+3. **Build smart contracts** (optional for frontend development)
+   ```bash
+   cd contracts
+   make build
+   ```
 
-# Campaign with initial CKB funding  
-create_campaign(metadata, funding_config, initial_ckb_amount)
+## 🛠️ Technical Architecture
 
-# Campaign with mixed initial assets
-create_campaign(metadata, funding_config, initial_ckb_amount, nft_assets, udt_assets)
-```
+### Decentralized Design Philosophy
 
-#### Progressive Campaign Funding
-```yaml
-# Add CKB funding
-fund_campaign(campaign_id, ckb_amount)
+CKBoost implements a new pattern of decentralization for dApps:
 
-# Add mixed assets 
-fund_campaign(campaign_id, ckb_amount, nft_assets, udt_assets)
+- **Anyone-Can-Host Backend**: All backend services use open-source Cloudflare Workers that anyone can deploy
+- **Trustless Operation**: No reliance on any single, centralized operator
+- **Community Infrastructure**: Campaign sponsors and community members can host their own services
+- **Resilient Network**: Multiple interoperable services instead of single points of failure
 
-# Add only non-CKB assets
-fund_campaign(campaign_id, null, nft_assets, udt_assets)
-```
+### Technology Stack
 
-## Campaign Lifecycle
+#### Frontend (dApp)
 
-### Status Flow
-1. **Created (0)**: Initial state, may have some funding
-2. **Funding (1)**: Accepting additional funding to reach targets
-3. **Active (2)**: Fully funded, quest participation enabled  
-4. **Completed (3)**: All quests finished and rewards distributed
-5. **Cancelled (4)**: Terminated with fund returns
+- **Framework**: Next.js 15 with App Router
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **State Management**: React Context with CKB CCC integration
+- **Wallet Integration**: @ckb-ccc/connector-react for universal wallet support
+- **Data Layer**: Abstracted service layer supporting mock and blockchain data
 
-### Funding Requirements
-- Users can only complete quests when campaigns are **Active** (fully funded)
-- Campaign creators can add funding at any time during **Created** or **Funding** states
-- Community members can contribute funding to support campaigns
+#### Smart Contracts
 
-## Quest Operations
+- **ckboost-protocol-type**: Governance & Points UDT minting
+- **ckboost-protocol-lock**: Protocol governance and treasury management
+- **ckboost-campaign-type**: Campaign logic and quest management
+- **ckboost-campaign-lock**: Secure vaults for campaign funds
+- **ckboost-user-type**: Submission, verification, and social bindings
 
-### Unified Quest Creation
-```yaml
-# CKB-only rewards
-create_quest(campaign_id, requirements, ckb_rewards)
+#### Decentralized API Services
 
-# NFT-only rewards  
-create_quest(campaign_id, requirements, null, nft_rewards)
+- **Infrastructure**: Open-source Cloudflare Workers
+- **Hosting**: By campaign sponsors and community members
+- **Purpose**: Indexing, proof validation, and coordination
 
-# Mixed rewards (most common)
-create_quest(campaign_id, requirements, ckb_rewards, nft_rewards, udt_rewards)
-```
+#### Data Storage Strategy
 
-### Quest Completion
-- **complete_quest()**: Handles mixed reward distribution in single transaction
-- Direct completion with proof submission and evidence validation
-- All reward types (CKB/NFT/UDT) processed simultaneously when quest completed
-- Users can submit completion evidence via local storage or Neon storage for persistence
+- **Critical State**: CKB Cell data for all on-chain states
+- **Non-Critical Data**: Anyone-can-host Neon storage for submissions
+- **Performance**: Local cache for fee optimization
 
-## Reward Distribution Strategies
+## 📋 Core User Flows
 
-### Individual Quest Rewards
-- Distributed immediately upon quest completion
-- Mixed asset types supported in single transaction
-- Automatic escrow release from campaign-controlled assets
+### Campaign Creation Flow
+Define quests → Fund campaign → Set proof requirements → Get admin approval → Launch → Monitor submissions → Distribute rewards
 
-### Batch Reward Distribution  
-- **distribute_rewards()**: Batch distribution to multiple recipients
-- Supports mixing CKB capacity, NFT assets, and UDT tokens
-- Efficient for campaign-wide reward events and celebrations
+### Contributor Flow
+Connect wallet → Browse campaigns → Complete tasks → Submit proof → Pass verification → Claim rewards → Earn badges & ranking
 
-### Asset Escrow Management
-- Quest creation locks reward assets in campaign-controlled escrow
-- Quest completion triggers automatic escrow release to user
-- Unused rewards remain in campaign control for reallocation
+### Tipping Flow
+Propose tip → Receive 5 peer approvals → Automated treasury payout → Permanent profile record
 
-## Governance System
+### Admin Flow
+Identity verification → Campaign sponsor verification → Campaign approval → Base campaign creation
 
-### Treasury Proposal Process
-1. **create_treasury_proposal()**: Community members propose funding requests
-2. **vote_on_proposal()**: Reputation-weighted community voting  
-3. Automatic execution when proposal passes quorum requirements
+## 🎮 Example Campaign Types
 
-### Voting Mechanics
-- Reputation-based vote weighting system
-- Transparent vote recording for governance auditability
-- Time-bounded voting periods with clear deadlines
+- **AMA Boost**: Points for questions, shares, and Nervos discussion amplification
+- **Knowledge Boost**: Share and summarize Knowledge Base articles
+- **On-Chain Quests**: Lock CKB for iCKB, add DEX liquidity, interact with DeFi
+- **Community Governance**: Engage with proposals and provide feedback
 
-## User Verification System
+## 🔐 Security & Risk Management
 
-### Verification Levels
-- **Basic**: Self-attested identity with minimal requirements
-- **Enhanced**: Community-verified identity with reputation requirements  
-- **Authority**: Platform or external authority verified identity
+### Security Measures
 
-### Reputation Integration
-- Quest completion increases reputation scores
-- Governance participation affects reputation
-- Higher reputation enables greater platform privileges
+- **Escrow Protection**: Campaign lock scripts protect all escrowed assets
+- **Multi-Signature**: Support for high-value campaign management
+- **Time Locks**: Campaign duration enforcement and deadline management
+- **Gradual Rollout**: Small initial contract funds with progressive scaling
 
-## Technical Implementation
+### Anti-Sybil Protection
 
-### Molecule Schema Structures
+- **Locked Rewards**: Rewards remain locked until verification passes
+- **Multi-Method Verification**: Telegram, DID, KYC, and manual review options
+- **Reputation System**: Build trust through consistent participation
 
-#### CampaignData
-```rust
-table CampaignData {
-    id: Uint64,
-    creator: Byte20,
-    metadata: Bytes,
-    funding_info: CampaignFunding,
-    quest_count: Uint32,
-    status: Uint8,          // 0=created, 1=funding, 2=active, 3=completed, 4=cancelled
-    created_at: Uint64,
-    activated_at: Uint64,
-}
+## 📈 Development Roadmap
 
-table CampaignFunding {
-    target_amount: Uint64,
-    current_amount: Uint64, 
-    funding_deadline: Uint64,
-    min_threshold: Uint64,
-}
-```
+### Milestone 1: Foundation & Core MVP (~Month 1)
+- ✅ Next.js scaffold with CCC wallet integration
+- ✅ Visual and interaction prototyping
+- 🔄 Smart contract development for core scripts
+- 🔄 Campaign & quest creation flows
+- 🔄 Points UDT and reward distribution
 
-#### QuestData  
-```rust
-table QuestData {
-    id: Uint64,
-    campaign_id: Uint64,
-    creator: Byte20,
-    requirements: Bytes,
-    asset_rewards: AssetRewardVec,  // Mixed CKB/NFT/UDT rewards
-    participants: Byte20Vec,
-    status: Uint8,                  // 0=created, 1=active, 2=completed, 3=cancelled
-    funding_required: Uint8,        // 1=requires funded campaign, 0=standalone
-    created_at: Uint64,
-    completion_deadline: Uint64,
-}
+### Milestone 2: Advanced Features (~Month 2)
+- 📅 Expanded verification methods
+- 📅 Leaderboards and user profiles
+- 📅 Gamification features (streaks, multipliers, badges)
+- 📅 Tipping system with peer approvals
+- 📅 Admin dashboard and analytics
 
-table AssetReward {
-    asset_type: Uint8,              // 0=CKB, 1=NFT, 2=UDT
-    amount: Uint128,                // CKB capacity or UDT amount
-    asset_info: Bytes,              // NFT type args or UDT type args
-    from_funding: Uint8,            // 1=from campaign funding, 0=fresh mint
-}
-```
+### Milestone 3: Launch Preparation (~Month 3)
+- 📅 Deploy test campaigns with real users
+- 📅 Automated on-chain verification
+- 📅 Documentation and onboarding guides
+- 📅 Final testing and optimization
+- 📅 Community feedback integration
 
-### Transaction Validation Rules
+## 💰 Funding
 
-#### Campaign Operations
-- Campaign creation requires protocol cell state update
-- Funding validation ensures target amounts and deadlines are respected
-- Status transitions follow strict state machine rules
+This project is funded by the CKB Community Fund DAO:
+- **Total Grant**: $20,000 USD
+- **Payment Structure**: 10% upfront, 90% across 3 milestones
+- **Timeline**: 3 months from commencement
+- **Purpose**: Support design, development, and deployment of CKBoost
 
-#### Quest Operations  
-- Quest creation requires active or funding campaign with available assets
-- Participation validation checks campaign funding status and user eligibility
-- Quest completion validates proof requirements and asset availability
+## 🤝 Contributing
 
-#### Reward Distribution
-- Escrow validation ensures assets are available for distribution
-- Multi-asset distribution maintains atomic transaction properties
-- Remaining asset handling for partial distributions
+We welcome contributions from the community! Here's how you can help:
 
-## Integration Guidelines
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes** following the coding standards
+4. **Add tests** for new functionality
+5. **Submit a pull request** with clear description
 
-### Frontend Integration
-```typescript
-// Campaign creation with optional funding
-await ckboost.createCampaign({
-  metadata: campaignData,
-  fundingConfig: fundingRules,
-  initialCkb?: ckbAmount,
-  nftAssets?: nftList,
-  udtAssets?: udtList
-});
+### Development Standards
 
-// Unified quest creation
-await ckboost.createQuest({
-  campaignId: id,
-  requirements: questRules,
-  ckbRewards?: ckbAmount,
-  nftRewards?: nftList, 
-  udtRewards?: udtList
-});
-```
+- **TypeScript**: Strict type checking enabled
+- **Code Quality**: ESLint/Prettier for formatting
+- **Commits**: Conventional commit format
+- **Testing**: High coverage for critical paths
 
-### Contract Integration
-- All recipes include comprehensive CellDeps for multi-contract interactions
-- Witness structures provide extensible metadata and proof handling
-- HeaderDeps ensure proper transaction validity windows
+## 📚 Documentation
 
-## Security Considerations
+### For Users
+- **Campaign Creation Guide**: How to launch engaging campaigns
+- **Quest Participation**: How to complete quests and earn rewards
+- **Verification Guide**: Understanding identity requirements
+- **Tipping System**: How to recognize exceptional contributions
 
-### Asset Safety
-- Campaign lock script protects all escrowed assets
-- Multi-signature support for high-value campaign management
-- Time-based locks for campaign duration enforcement
+### For Developers
+- **Architecture Overview**: Understanding the decentralized design
+- **Contract Interface**: Smart contract specifications
+- **API Documentation**: Decentralized service APIs
+- **Integration Guide**: Adding CKBoost to your project
 
-### Governance Security
-- Reputation-weighted voting prevents Sybil attacks
-- Proposal execution requires community consensus
-- Treasury access controlled by governance mechanisms
+### Key Resources
+- [Grant Proposal](https://talk.nervos.org/t/dis-ckboost-gamified-community-engagement-platform-proposal)
+- [UI/UX Demo](https://ckboost.netlify.app/)
+- [Technical Specifications](docs/ckboost-platform.prd.txt)
+- [Transaction Recipes](docs/recipes/)
 
-### User Protection  
-- Quest participation validation prevents unfunded quest engagement
-- Reward distribution guarantees atomic asset transfers
-- Verification system prevents identity fraud
+## 🌐 Deployment
 
-## Development Status
-
-### Completed Components
-- ✅ Unified multi-asset transaction recipes
-- ✅ Campaign lifecycle with optional funding
-- ✅ Quest operations with mixed reward support
-- ✅ Governance and treasury management
-- ✅ User verification and reputation system
-- ✅ SSRI method alignment and standardization
-
-### Integration Requirements
-- Smart contract implementation following recipe specifications
-- Frontend integration with unified SSRI methods
-- Testing with multi-asset transaction scenarios
-- Deployment with proper CellDep management
-
-## Usage Examples
-
-### Creating a Mixed-Asset Campaign
+### Netlify Frontend
 ```bash
-# Create campaign with CKB + NFT funding
-create_campaign(
-  metadata: "Community Dev Bootcamp",
-  funding_config: {target: 10000, deadline: 30_days},
-  initial_ckb: 5000,
-  nft_assets: [bootcamp_certificates],
-  udt_assets: [merit_tokens]
-)
+# Automatic deployment on push to main branch
+git push origin main
 ```
 
-### Multi-Reward Quest
-```bash  
-# Create quest with mixed rewards
-create_quest(
-  campaign_id: 1,
-  requirements: "Complete tutorial series",
-  ckb_rewards: 100,
-  nft_rewards: [completion_badge],
-  udt_rewards: [learning_tokens: 50]
-)
-```
-
-### Batch Reward Distribution
+### Decentralized Services
 ```bash
-# Distribute mixed rewards to multiple winners
-distribute_rewards(
-  campaign_id: 1, 
-  recipients: [user1, user2, user3],
-  ckb_amounts: [200, 150, 100],
-  nft_rewards: [gold_badge, silver_badge, bronze_badge],
-  udt_amounts: [100, 75, 50]
-)
+# Deploy your own Cloudflare Worker instance
+cd services
+wrangler deploy
 ```
 
-This unified approach eliminates complexity while maintaining full flexibility for all CKBoost platform operations with comprehensive multi-asset support. 
+### Smart Contracts
+```bash
+cd contracts
+make deploy-testnet    # Deploy to CKB testnet
+make deploy-mainnet    # Deploy to CKB mainnet
+```
+
+## 🆘 Support & Community
+
+- **GitHub Issues**: [Report bugs or request features](https://github.com/Alive24/CKBoost/issues)
+- **Discussions**: [Join the conversation](https://github.com/Alive24/CKBoost/discussions)
+- **Nervos Talk**: [Community discussions](https://talk.nervos.org/)
+- **Documentation**: [Full documentation](docs/)
+
+## 🙏 Acknowledgments
+
+- **Nervos Community Catalyst** for sponsoring this initiative
+- **CKB Community Fund DAO** for funding support
+- **Nervos Foundation** for the innovative CKB blockchain
+- **Community Contributors** who make this project possible
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Built with ❤️ by Alive24 for the Nervos Community**
