@@ -974,17 +974,18 @@ dependencies = [
  "ckb-ssri-std-proc-macro",
  "ckb-std",
  "ckboost-shared",
- "molecule 0.9.0",
+ "molecule 0.8.0",
 ]
 
 [[package]]
 name = "ckboost-shared"
 version = "0.1.0"
 dependencies = [
+ "blake2b-ref",
  "ckb-ssri-std",
  "ckb-ssri-std-proc-macro",
  "ckb-std",
- "molecule 0.9.0",
+ "molecule 0.8.0",
  "moleculec",
 ]
 
@@ -2248,6 +2249,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "ckb-testtool",
+ "ckboost-shared",
  "serde_json",
 ]
 

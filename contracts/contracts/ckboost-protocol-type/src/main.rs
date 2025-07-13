@@ -6,7 +6,7 @@ extern crate alloc;
 
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
-use ckboost_shared::{types::{Byte32, ProtocolData, TippingProposalData}, Error};
+use ckboost_shared::{type_id::check_type_id, types::{Byte32, ProtocolData, TippingProposalData}, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -27,16 +27,26 @@ ckb_std::default_alloc!(16384, 1258306, 64);
 
 pub mod modules;
 pub mod ssri;
+pub mod fallback;
+
+
 
 use modules::CKBoostProtocolType;
 
 use crate::ssri::CKBoostProtocol;
+use crate::fallback::fallback;
 
 fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
 
     if should_fallback()? {
-        debug!("Falling back to lock script validation");
+        match check_type_id() {
+            Ok(_) => fallback()?,
+            Err(err) => {
+                debug!("Contract execution failed with error: {:?}", err);
+                return Err(err);
+            }
+        }
         return Ok(());
     }
 

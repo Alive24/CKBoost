@@ -24,6 +24,10 @@ pub enum Error {
     SSRIMethodRequireHigherLevel,
     InvalidVmVersion,
 
+    // * Type ID Error
+    InvalidTypeIDCellNum,
+    TypeIDNotMatch,
+
     // * Molecule Error
     MoleculeVerificationError,
 
