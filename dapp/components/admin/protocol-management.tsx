@@ -85,6 +85,14 @@ import {
 import { useProtocol, useProtocolAdmin } from "@/lib/providers/protocol-provider"
 import { ccc } from "@ckb-ccc/connector-react"
 import { computeLockHashWithPrefix } from "@/lib/utils/address-utils"
+import { 
+  isProtocolConfigured, 
+  getProtocolDeploymentTemplate, 
+  deployProtocolCell, 
+  validateDeploymentParams,
+  generateEnvConfig,
+  type DeployProtocolCellParams 
+} from "@/lib/ckb/protocol-deployment"
 
 // Form schemas
 const updateProtocolConfigSchema = z.object({
@@ -127,6 +135,26 @@ const addEndorserSchema = z.object({
   path: ["endorserAddress"]
 })
 
+const deployProtocolSchema = z.object({
+  adminLockHashes: z.array(z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format")).min(1, "At least one admin required"),
+  scriptCodeHashes: z.object({
+    ckbBoostProtocolTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+    ckbBoostProtocolLockCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+    ckbBoostCampaignTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+    ckbBoostCampaignLockCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+    ckbBoostUserTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format")
+  }),
+  tippingConfig: z.object({
+    approvalRequirementThresholds: z.array(z.string().regex(/^\d+$/, "Must be a valid number")).min(1, "At least one threshold required"),
+    expirationDuration: z.number().min(3600, "Minimum 1 hour").max(2592000, "Maximum 30 days")
+  }),
+  initialEndorsers: z.array(z.object({
+    endorserLockHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format"),
+    endorserName: z.string().min(1, "Name required"),
+    endorserDescription: z.string().min(1, "Description required")
+  })).optional()
+})
+
 
 export function ProtocolManagement() {
   // Use protocol provider instead of direct service calls
@@ -147,6 +175,9 @@ export function ProtocolManagement() {
     refreshProtocolData,
     isWalletConnected
   } = useProtocol()
+
+  // Get signer at the top level of the component
+  const signer = ccc.useSigner()
 
   const protocolConfigForm = useForm<UpdateProtocolConfigForm>({
     resolver: zodResolver(updateProtocolConfigSchema),
@@ -189,11 +220,21 @@ export function ProtocolManagement() {
     }
   })
 
+  const deploymentForm = useForm<DeployProtocolCellParams>({
+    resolver: zodResolver(deployProtocolSchema),
+    defaultValues: getProtocolDeploymentTemplate()
+  })
+
   // State for managing change tracking
   const [showChangesOnly, setShowChangesOnly] = useState(false)
   const [protocolChanges, setProtocolChanges] = useState<ProtocolChanges | null>(null)
   const [previewLockHash, setPreviewLockHash] = useState<string>("")
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
+  
+  // State for protocol deployment
+  const [showDeploymentDialog, setShowDeploymentDialog] = useState(false)
+  const [deploymentResult, setDeploymentResult] = useState<string>("")
+  const [isDeploying, setIsDeploying] = useState(false)
   const [pendingChanges, setPendingChanges] = useState<{
     protocolConfig: boolean
     scriptCodeHashes: boolean
@@ -567,6 +608,66 @@ export function ProtocolManagement() {
     }
   }
 
+  // Protocol deployment handler
+  const handleDeployProtocol = async (data: DeployProtocolCellParams) => {
+    if (!isWalletConnected) {
+      alert("Please connect your wallet first")
+      return
+    }
+
+    try {
+      setIsDeploying(true)
+      
+      // Use the signer from component level
+      if (!signer) {
+        throw new Error("No signer available. Please connect your wallet.")
+      }
+
+      // Validate deployment parameters
+      const validationErrors = validateDeploymentParams(data)
+      if (validationErrors.length > 0) {
+        throw new Error("Validation failed: " + validationErrors.join(", "))
+      }
+
+      // Deploy the protocol cell
+      const result = await deployProtocolCell(signer, data)
+      
+      // Generate environment configuration
+      const envConfig = generateEnvConfig(result)
+      
+      setDeploymentResult(envConfig)
+      alert("Protocol deployed successfully! Check the environment configuration below.")
+      
+    } catch (error) {
+      console.error("Failed to deploy protocol:", error)
+      alert("Failed to deploy protocol: " + (error as Error).message)
+      setDeploymentResult("")
+    } finally {
+      setIsDeploying(false)
+    }
+  }
+
+  // Initialize deployment form with user's lock hash
+  useEffect(() => {
+    const initializeDeploymentForm = async () => {
+      try {
+        if (signer && isWalletConnected) {
+          const address = await signer.getRecommendedAddress()
+          const userLockHash = await computeLockHashWithPrefix(address)
+          
+          // Update deployment form with user's lock hash as admin
+          deploymentForm.setValue("adminLockHashes", [userLockHash])
+        }
+      } catch (error) {
+        console.error("Failed to initialize deployment form:", error)
+      }
+    }
+
+    if (isWalletConnected && showDeploymentDialog) {
+      initializeDeploymentForm()
+    }
+  }, [signer, isWalletConnected, showDeploymentDialog, deploymentForm])
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -653,6 +754,234 @@ export function ProtocolManagement() {
         </div>
       </div>
 
+      {/* Protocol Deployment Check */}
+      {!isProtocolConfigured() && (
+        <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+          <CardHeader>
+            <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              Protocol Not Deployed
+            </CardTitle>
+            <CardDescription className="text-yellow-600 dark:text-yellow-400">
+              No protocol type script configuration found. You need to deploy a protocol cell before managing protocol data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button 
+                onClick={() => setShowDeploymentDialog(true)}
+                className="bg-yellow-600 hover:bg-yellow-700"
+                disabled={!isWalletConnected}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Deploy Protocol Cell
+              </Button>
+              {!isWalletConnected && (
+                <p className="text-sm text-yellow-600 dark:text-yellow-400 self-center">
+                  Connect your wallet to deploy the protocol
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Deployment Dialog */}
+      <Dialog open={showDeploymentDialog} onOpenChange={setShowDeploymentDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Deploy Protocol Cell</DialogTitle>
+            <DialogDescription>
+              Deploy a new protocol cell to the CKB blockchain with initial configuration.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...deploymentForm}>
+            <form onSubmit={deploymentForm.handleSubmit(handleDeployProtocol)} className="space-y-6">
+              {/* Admin Configuration */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold">Admin Configuration</h4>
+                <FormField
+                  control={deploymentForm.control}
+                  name="adminLockHashes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Admin Lock Hashes</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="0x... (one per line)"
+                          value={field.value.join('\n')}
+                          onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                          rows={3}
+                        />
+                      </FormControl>
+                      <FormDescription>Lock hashes of protocol administrators (your wallet is pre-filled)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Script Code Hashes */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold">Script Code Hashes</h4>
+                <div className="grid lg:grid-cols-2 gap-4">
+                  <FormField
+                    control={deploymentForm.control}
+                    name="scriptCodeHashes.ckbBoostProtocolTypeCodeHash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Protocol Type Code Hash</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="0x..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deploymentForm.control}
+                    name="scriptCodeHashes.ckbBoostProtocolLockCodeHash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Protocol Lock Code Hash</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="0x..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deploymentForm.control}
+                    name="scriptCodeHashes.ckbBoostCampaignTypeCodeHash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campaign Type Code Hash</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="0x..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deploymentForm.control}
+                    name="scriptCodeHashes.ckbBoostCampaignLockCodeHash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Campaign Lock Code Hash</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="0x..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={deploymentForm.control}
+                    name="scriptCodeHashes.ckbBoostUserTypeCodeHash"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>User Type Code Hash</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="0x..." />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              {/* Tipping Configuration */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold">Tipping Configuration</h4>
+                <FormField
+                  control={deploymentForm.control}
+                  name="tippingConfig.approvalRequirementThresholds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Approval Thresholds (Shannons)</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="10000 (one per line)"
+                          value={field.value ? field.value.join('\n') : ''}
+                          onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                          rows={3}
+                        />
+                      </FormControl>
+                      <FormDescription>CKB amounts in shannons that require approval</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={deploymentForm.control}
+                  name="tippingConfig.expirationDuration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Expiration Duration (seconds)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number"
+                          {...field}
+                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          placeholder="604800"
+                        />
+                      </FormControl>
+                      <FormDescription>How long proposals remain valid (default: 7 days)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Deployment Result */}
+              {deploymentResult && (
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-green-600">Deployment Successful!</h4>
+                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
+                    <pre className="text-sm whitespace-pre-wrap">{deploymentResult}</pre>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Copy the configuration above to your .env file and restart your application to start managing the protocol.
+                  </p>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowDeploymentDialog(false)}
+                  disabled={isDeploying}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isDeploying || !isWalletConnected}
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {isDeploying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Deploying...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Deploy Protocol
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       {/* Metrics Overview */}
       {metrics && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -735,7 +1064,7 @@ export function ProtocolManagement() {
                               rows={4}
                             />
                           </FormControl>
-                          <FormDescription>One lock hash per line (64-character hex strings)</FormDescription>
+                          <FormDescription>One lock hash per line (Byte32)</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -824,7 +1153,7 @@ export function ProtocolManagement() {
                           <FormControl>
                             <Input placeholder="0x..." {...field} />
                           </FormControl>
-                          <FormDescription>64-character hex string</FormDescription>
+                          <FormDescription>Byte32</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -838,7 +1167,7 @@ export function ProtocolManagement() {
                           <FormControl>
                             <Input placeholder="0x..." {...field} />
                           </FormControl>
-                          <FormDescription>64-character hex string</FormDescription>
+                          <FormDescription>Byte32</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -852,7 +1181,7 @@ export function ProtocolManagement() {
                           <FormControl>
                             <Input placeholder="0x..." {...field} />
                           </FormControl>
-                          <FormDescription>64-character hex string</FormDescription>
+                          <FormDescription>Byte32</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -866,7 +1195,7 @@ export function ProtocolManagement() {
                           <FormControl>
                             <Input placeholder="0x..." {...field} />
                           </FormControl>
-                          <FormDescription>64-character hex string</FormDescription>
+                          <FormDescription>Byte32</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -880,7 +1209,7 @@ export function ProtocolManagement() {
                           <FormControl>
                             <Input placeholder="0x..." {...field} />
                           </FormControl>
-                          <FormDescription>64-character hex string</FormDescription>
+                          <FormDescription>Byte32</FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
