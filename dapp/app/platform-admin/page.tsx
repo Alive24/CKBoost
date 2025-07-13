@@ -38,6 +38,7 @@ import {
   Fingerprint
 } from "lucide-react"
 import Link from "next/link"
+import { ProtocolManagement } from "@/components/admin/protocol-management"
 
 // Mock current user - in real app, this would come from authentication
 const CURRENT_USER = {
@@ -828,12 +829,13 @@ export default function PlatformAdminDashboard() {
 
           {/* Main Content */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="campaigns">Campaign Reviews</TabsTrigger>
               <TabsTrigger value="users">User Management</TabsTrigger>
               <TabsTrigger value="tips">Tip Proposals</TabsTrigger>
               <TabsTrigger value="rewards">Leaderboard Rewards</TabsTrigger>
+              <TabsTrigger value="protocol">Protocol Management</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6">
@@ -1701,6 +1703,10 @@ export default function PlatformAdminDashboard() {
                   </Card>
                 ))}
               </div>
+            </TabsContent>
+
+            <TabsContent value="protocol" className="space-y-6">
+              <ProtocolManagement />
             </TabsContent>
           </Tabs>
         </div>

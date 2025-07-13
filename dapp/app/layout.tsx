@@ -3,11 +3,12 @@ import './globals.css'
 import { WalletProvider } from '@/components/wallet-provider'
 import { ThemeProvider } from '@/components/theme-provider'
 import { CampaignProvider } from '@/lib'
+import { ProtocolProvider } from '@/lib/providers/protocol-provider'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'CKBoost',
+  description: 'Decentralized campaign platform on CKB blockchain for community contribution rewards',
+  generator: 'Next.js',
 }
 
 export default function RootLayout({
@@ -16,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeProvider
           attribute="class"
@@ -26,7 +27,9 @@ export default function RootLayout({
         >
           <WalletProvider>
             <CampaignProvider>
-              {children}
+              <ProtocolProvider>
+                {children}
+              </ProtocolProvider>
             </CampaignProvider>
           </WalletProvider>
         </ThemeProvider>

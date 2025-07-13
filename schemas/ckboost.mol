@@ -220,10 +220,18 @@ table ProtocolData {
     campaigns_approved: CampaignDataVec,
     tipping_proposals: TippingProposalDataVec,
     tipping_config: TippingConfig,
-    endorsers_whitelist: Byte32Vec,
+    endorsers_whitelist: EndorserInfoVec,
     last_updated: Uint64,
     protocol_config: ProtocolConfig,
 }
+
+table EndorserInfo {
+    endorser_lock_hash: Byte32,
+    endorser_name: Bytes,
+    endorser_description: Bytes,
+}
+
+vector EndorserInfoVec <EndorserInfo>;
 
 table TippingConfig {
     approval_requirement_thresholds: Uint128Vec, // e.g. [10000, 50000, 100000] means it takes 3 approvals for 10000, 4 approvals for 50000, 5 approvals for 100000. Can add more thresholds in the future. Minimum approval threshold is 3.
