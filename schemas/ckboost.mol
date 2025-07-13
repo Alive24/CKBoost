@@ -15,6 +15,7 @@ vector BytesOptVec <BytesOpt>;
 vector BytesVec <Bytes>;
 vector Byte32Vec <Byte32>;
 option Byte32Opt (Byte32);
+vector Uint128Vec <Uint128>;
 
 /* Types for Chain */
 
@@ -221,9 +222,23 @@ table ProtocolData {
     tipping_config: TippingConfig,
     endorsers_whitelist: Byte32Vec,
     last_updated: Uint64,
+    protocol_config: ProtocolConfig,
 }
 
 table TippingConfig {
     approval_requirement_thresholds: Uint128Vec, // e.g. [10000, 50000, 100000] means it takes 3 approvals for 10000, 4 approvals for 50000, 5 approvals for 100000. Can add more thresholds in the future. Minimum approval threshold is 3.
     expiration_duration: Uint64, // The duration of the proposal in seconds since creation.
+}
+
+table ProtocolConfig {
+    admin_lock_hash_vec: Byte32Vec,
+    script_code_hashes: ScriptCodeHashes,
+}
+
+table ScriptCodeHashes {
+    ckb_boost_protocol_type_code_hash: Byte32,
+    ckb_boost_protocol_lock_code_hash: Byte32,
+    ckb_boost_campaign_type_code_hash: Byte32,
+    ckb_boost_campaign_lock_code_hash: Byte32,
+    ckb_boost_user_type_code_hash: Byte32,
 }

@@ -1,7 +1,8 @@
-use crate::ssri::CKBoostProtocol;
-use ckboost_shared::{types::ProtocolData, Error};
+use ckboost_shared::{types::{ProtocolData, TippingProposalData, Byte32}, Error};
 
 pub struct CKBoostProtocolType;
+
+use crate::ssri::CKBoostProtocol;
 
 impl CKBoostProtocol for CKBoostProtocolType {
     fn update_protocol(
@@ -34,8 +35,8 @@ impl CKBoostProtocol for CKBoostProtocolType {
     }
 
     fn update_tipping_proposal(
-        protocol_type_hash: Byte32,
-        tipping_proposal_data: TippingProposalData,
+        _protocol_type_hash: Byte32,
+        _tipping_proposal_data: TippingProposalData,
     ) -> Result<(), Error> {
         Ok(())
     }

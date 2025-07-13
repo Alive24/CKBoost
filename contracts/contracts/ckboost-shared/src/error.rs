@@ -1,49 +1,94 @@
+use ckb_ssri_std::SSRIError;
 use ckb_std::error::SysError;
 
 /// Error codes for CKBoost contracts
 #[repr(i8)]
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Error {
+    // * CKB Error
     IndexOutOfBound = 1,
     ItemMissing = 2,
-    LengthNotEnough = 3,
-    Encoding = 4,
+    LengthNotEnough,
+    Encoding,
+    SpawnExceededMaxContentLength,
+    SpawnWrongMemoryLimit,
+    SpawnExceededMaxPeakMemory,
+
+    // * Rust Error
+    Utf8Error,
+
+    // * SSRI Error
+    SSRIMethodsNotFound,
+    SSRIMethodsArgsInvalid,
+    SSRIMethodsNotImplemented,
+    SSRIMethodRequireHigherLevel,
+    InvalidVmVersion,
+
+    // * Molecule Error
+    MoleculeVerificationError,
+
+    // * Serde Molecule Error
+    SerdeMoleculeErrorWithMessage,
+    /// Contains a general error message as a string.
+    /// Occurs when the data length is incorrect while parsing a number or molecule header.
+    MismatchedLength,
+    /// Occurs when the data length is insufficient while parsing a number or molecule header.
+    SerdeMoleculeLengthNotEnough,
+    /// Indicates that the method or type is not implemented. Not all types in Rust can be serialized.
+    Unimplemented,
+    /// Occurs when assembling a molecule fixvec, and the size of each element is inconsistent.
+    AssembleFixvec,
+    /// Occurs when the header or size is incorrect while parsing a molecule fixvec.
+    InvalidFixvec,
+    /// Occurs when the field count is mismatched while parsing a molecule table.
+    MismatchedTableFieldCount,
+    /// Occurs when an overflow happens while parsing a molecule header.
+    Overflow,
+    /// Indicates an error encountered while parsing a molecule array.
+    InvalidArray,
+    /// Indicates that non-fixed size fields are not allowed in a molecule struct, e.g., `Option`, `Vec`, `DynVec`, `enum`.
+    InvalidStructField,
+    /// Indicates that a map should have exactly two fields: a key and a value.
+    InvalidMap,
+    /// Indicates that the table header is invalid or malformed.
+    InvalidTable,
+    /// Indicates that the table length is invalid or malformed.
+    InvalidTableLength,
+    /// Indicates that the table header is invalid or malformed.
+    InvalidTableHeader,
+    /// Indicates that the field count in serialization is mismatched.
+    InvalidTableCount,
+    /// Indicates that non-fixed size fields are not allowed in a molecule struct, e.g., `Option`, `Vec`, `DynVec`, `enum`.
+    MixTableAndStruct,
+    InvalidChar,
     
     // Campaign validation errors
-    InvalidCampaignData = 10,
-    InvalidCampaignState = 11,
-    InvalidCampaignCreator = 12,
-    InvalidCampaignFunding = 13,
-    InvalidCampaignTimestamp = 14,
+    InvalidCampaignData,
+    InvalidCampaignState,
+    InvalidCampaignCreator,
+    InvalidCampaignFunding,
+    InvalidCampaignTimestamp,
     
     // Quest validation errors
-    InvalidQuestData = 20,
-    InvalidQuestCreator = 21,
-    InvalidQuestCampaign = 22,
-    InvalidQuestReward = 23,
-    InvalidQuestStatus = 24,
+    InvalidQuestData,
+    InvalidQuestCreator,
+    InvalidQuestCampaign,
+    InvalidQuestReward,
+    InvalidQuestStatus,
     
     // Protocol validation errors
-    InvalidProtocolData = 25,
-    InvalidProtocolState = 26,
-    InvalidProtocolVersion = 27,
+    InvalidProtocolData,
+    InvalidProtocolState,
+    InvalidProtocolVersion,
     
     // Operation errors
-    CampaignNotFound = 30,
-    CampaignNotActive = 31,
-    InsufficientFunding = 32,
-    QuestLimitExceeded = 33,
-    UnauthorizedOperation = 34,
-    InvalidTransaction = 35,
+    CampaignNotFound,
+    CampaignNotActive,
+    InsufficientFunding,
+    QuestLimitExceeded,
+    UnauthorizedOperation,
+    InvalidTransaction,
     
-    // SSRI errors
-    SSRIMethodsNotFound = 40,
-    SSRIMethodsArgsInvalid = 41,
-    InvalidSSRIMethod = 42,
-    InvalidSSRIParams = 43,
-    SSRIMethodNotSupported = 44,
-    SSRISerializationError = 45,
-    MoleculeVerificationError = 46,
 }
 
 impl From<SysError> for Error {
@@ -58,15 +103,14 @@ impl From<SysError> for Error {
     }
 }
 
-// SSRI error type conversions (conditional compilation for when SSRI is available)
-#[cfg(feature = "ssri")]
-impl From<ckb_ssri_std::Error> for Error {
-    fn from(err: ckb_ssri_std::Error) -> Self {
+impl From<SSRIError> for Error {
+    fn from(err: SSRIError) -> Self {
         match err {
-            ckb_ssri_std::Error::MethodNotFound => Error::SSRIMethodsNotFound,
-            ckb_ssri_std::Error::InvalidArgs => Error::SSRIMethodsArgsInvalid,
-            ckb_ssri_std::Error::SerializationError => Error::SSRISerializationError,
-            _ => Error::SSRIMethodNotSupported,
+            SSRIError::SSRIMethodsNotFound => Self::SSRIMethodsArgsInvalid,
+            SSRIError::SSRIMethodsArgsInvalid => Self::SSRIMethodsNotImplemented,
+            SSRIError::SSRIMethodsNotImplemented => Self::SSRIMethodsNotImplemented,
+            SSRIError::SSRIMethodRequireHigherLevel => Self::SSRIMethodRequireHigherLevel,
+            SSRIError::InvalidVmVersion => Self::InvalidVmVersion,
         }
     }
 }

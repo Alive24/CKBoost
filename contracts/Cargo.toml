@@ -7,7 +7,6 @@ members = [
   # @@INSERTION_POINT@@
   "contracts/ckboost-user-type",
   "contracts/ckboost-protocol-lock",
-  "contracts/ckboost-campaign-lock",
   "contracts/ckboost-shared",
   "contracts/ckboost-protocol-type",
   "contracts/ckboost-campaign-lock",

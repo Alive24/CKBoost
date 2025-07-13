@@ -6,7 +6,7 @@ extern crate alloc;
 
 use alloc::borrow::Cow;
 use alloc::vec::Vec;
-use ckboost_shared::{Error, types::protocol::{ProtocolData, TippingProposalData}};
+use ckboost_shared::{types::{Byte32, ProtocolData, TippingProposalData}, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -29,7 +29,8 @@ pub mod modules;
 pub mod ssri;
 
 use modules::CKBoostProtocolType;
-use ssri::CKBoostProtocol;
+
+use crate::ssri::CKBoostProtocol;
 
 fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
@@ -49,15 +50,15 @@ fn program_entry_wrap() -> Result<(), Error> {
         "CKBoostProtocol.update_protocol" => {
             debug!("Entered CKBoostProtocol.update_protocol");
             
-            // Parse protocol_id (optional)
-            let protocol_id = if argv[1].is_empty() {
+            // Parse protocol_type_hash (optional)
+            let protocol_type_hash = if argv[1].is_empty() {
                 None
             } else {
-                let id_bytes = decode_hex(argv[1].as_ref())?;
-                if id_bytes.len() != 8 {
+                let hash_bytes = decode_hex(argv[1].as_ref())?;
+                if hash_bytes.len() != 32 {
                     return Err(Error::SSRIMethodsArgsInvalid);
                 }
-                Some(u64::from_le_bytes(id_bytes.try_into().unwrap()))
+                Some(Byte32::from_slice(&hash_bytes).map_err(|_| Error::SSRIMethodsArgsInvalid)?)
             };
             
             // Parse protocol_data from molecule serialized bytes
@@ -65,27 +66,27 @@ fn program_entry_wrap() -> Result<(), Error> {
             let protocol_data = ProtocolData::from_slice(&protocol_data_bytes)
                 .map_err(|_| Error::MoleculeVerificationError)?;
             
-            CKBoostProtocolType::update_protocol(protocol_id, protocol_data)?;
+            CKBoostProtocolType::update_protocol(protocol_type_hash, protocol_data)?;
             Ok(Cow::from(b"success".to_vec()))
         },
-        "CKBoostProtocol.update_tipping_proposal" => {
-            debug!("Entered CKBoostProtocol.update_tipping_proposal");
+        // "CKBoostProtocol.update_tipping_proposal" => {
+        //     debug!("Entered CKBoostProtocol.update_tipping_proposal");
             
-            // Parse protocol_id
-            let protocol_id_bytes = decode_hex(argv[1].as_ref())?;
-            if protocol_id_bytes.len() != 8 {
-                return Err(Error::SSRIMethodsArgsInvalid);
-            }
-            let protocol_id = u64::from_le_bytes(protocol_id_bytes.try_into().unwrap());
+        //     // Parse protocol_id
+        //     let protocol_id_bytes = decode_hex(argv[1].as_ref())?;
+        //     if protocol_id_bytes.len() != 8 {
+        //         return Err(Error::SSRIMethodsArgsInvalid);
+        //     }
+        //     let protocol_id = u64::from_le_bytes(protocol_id_bytes.try_into().unwrap());
             
-            // Parse tipping_proposal_data from molecule serialized bytes
-            let proposal_data_bytes = decode_hex(argv[2].as_ref())?;
-            let tipping_proposal_data = TippingProposalData::from_slice(&proposal_data_bytes)
-                .map_err(|_| Error::MoleculeVerificationError)?;
+        //     // Parse tipping_proposal_data from molecule serialized bytes
+        //     let proposal_data_bytes = decode_hex(argv[2].as_ref())?;
+        //     let tipping_proposal_data = TippingProposalData::from_slice(&proposal_data_bytes)
+        //         .map_err(|_| Error::MoleculeVerificationError)?;
             
-            CKBoostProtocolType::update_tipping_proposal(protocol_id, tipping_proposal_data)?;
-            Ok(Cow::from(b"success".to_vec()))
-        },
+        //     CKBoostProtocolType::update_tipping_proposal(protocol_id, tipping_proposal_data)?;
+        //     Ok(Cow::from(b"success".to_vec()))
+        // },
     )?;
     
     let pipe = pipe()?;

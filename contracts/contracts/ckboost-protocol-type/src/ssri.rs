@@ -1,4 +1,5 @@
-use ckboost_shared::{types::{ProtocolData, TippingProposalData}, Error};
+use ckboost_shared::{types::{ProtocolData, TippingProposalData, Byte32}, Error};
+
 
 pub trait CKBoostProtocol {
     fn update_protocol(

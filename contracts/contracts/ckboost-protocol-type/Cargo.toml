@@ -4,11 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ckb-std = "0.17.0"
+ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
 ckboost-shared = { path = "../ckboost-shared" }
-ckb-ssri-std = "0.1.0"
-ckb-ssri-std-proc-macro = "0.1.0"
+molecule = { version = "0.9.0", default-features = false, features = ["bytes_vec"] }
+ckb-ssri-std = { version = "0.0.1" }
+ckb-ssri-std-proc-macro = { version = "0.0.1" }
 
-[features]
-library = []
-native-simulator = ["library", "ckb-std/native-simulator"]
