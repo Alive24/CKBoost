@@ -93,6 +93,8 @@ pub enum Error {
     UnauthorizedOperation,
     InvalidTransaction,
     
+    // SSRI parsing errors
+    ArgumentNotFound,
 }
 
 impl From<SysError> for Error {

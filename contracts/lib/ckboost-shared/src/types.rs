@@ -66,3 +66,11 @@ pub mod protocol {
         // Add other readers/builders as needed
     };
 }
+
+/// SSRI transaction recipe types
+pub mod ssri {
+    pub use crate::generated::{
+        TransactionRecipe,
+        TransactionRecipeReader, TransactionRecipeBuilder,
+    };
+}

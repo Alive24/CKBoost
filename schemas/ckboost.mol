@@ -252,3 +252,9 @@ table ProtocolData {
     last_updated: Uint64,
     protocol_config: ProtocolConfig,
 }
+
+// Transaction Recipe Schema for SSRI
+table TransactionRecipe {
+    method_path: Bytes,           // The method path (e.g., "ckboost_protocol::update_protocol")
+    arguments: BytesVec,          // Encoded arguments for the method
+}

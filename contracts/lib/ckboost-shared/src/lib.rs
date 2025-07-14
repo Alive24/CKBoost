@@ -7,6 +7,8 @@ mod generated;
 pub mod error;
 pub mod types;
 pub mod type_id;
+pub mod transaction_recipe;
+pub mod ssri;
 
 // Re-export error types at crate root
 pub use error::*;
