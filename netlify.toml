@@ -1,8 +1,8 @@
 # Netlify configuration file
 
 [build]
-  # The command to build your Next.js application
-  command = "pnpm build"
+  # Install build tools and build the Next.js application
+  command = "./scripts/install-build-tools.sh && source $HOME/.cargo/env && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && pnpm build"
 
   # The directory where the Next.js app is located
   base = "dapp"
