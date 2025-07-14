@@ -1,14 +1,64 @@
-// Protocol cell management types for CKBoost admin dashboard
-// These types define protocol-level configuration and management based on ProtocolData schema
+// Protocol-specific types for CKBoost admin dashboard and protocol management
+// This file contains types specific to protocol operations, forms, cells, transactions, and metrics
 
-// CKB script definition
-export interface Script {
-  codeHash: string
-  hashType: "type" | "data" | "data1"
-  args: string
-}
+import type {
+  // UI-friendly interfaces
+  Script,
+  ProtocolData,
+  ProtocolConfig,
+  TippingConfig,
+  EndorserInfo,
+  TippingProposalData,
+  TippingProposalMetadata,
+  CampaignData,
+  CampaignMetadata,
+  QuestData,
+  QuestSubTaskData,
+  CompletionRecord,
+  AssetList,
+  UDTFunding,
+  ScriptCodeHashes,
+  UserVerificationData,
+  
+  // Generated molecule types (for actual blockchain data)
+  ProtocolDataType,
+  ProtocolConfigType,
+  TippingConfigType,
+  EndorserInfoType,
+  TippingProposalDataType,
+  TippingProposalMetadataType,
+  CampaignDataType,
+  CampaignMetadataType,
+  QuestDataType,
+  QuestSubTaskDataType,
+  CompletionRecordType,
+  AssetListType,
+  UDTFundingType,
+  ScriptCodeHashesType,
+  UserVerificationDataType,
+  ScriptType,
+  
+  // Generated molecule classes (for runtime operations)
+  ProtocolDataClass,
+  ProtocolConfigClass,
+  TippingConfigClass,
+  EndorserInfoClass,
+  TippingProposalDataClass,
+  TippingProposalMetadataClass,
+  CampaignDataClass,
+  CampaignMetadataClass,
+  QuestDataClass,
+  QuestSubTaskDataClass,
+  CompletionRecordClass,
+  AssetListClass,
+  UDTFundingClass,
+  ScriptCodeHashesClass,
+  UserVerificationDataClass,
+  ScriptClass,
+  
+} from './index'
 
-// Protocol cell structure
+// Protocol cell structure (CKB-specific) that uses generated molecule types
 export interface ProtocolCell {
   outPoint: {
     txHash: string
@@ -20,110 +70,25 @@ export interface ProtocolCell {
     type?: Script
   }
   data: string // Hex-encoded ProtocolData
+  
+  // Parsed protocol data using generated types
+  parsedData?: ProtocolDataType
 }
 
-// EndorserInfo structure from Molecule schema
-export interface EndorserInfo {
-  endorserLockHash: string // Byte32 - the storage format
-  endorserName: string // Bytes
-  endorserDescription: string // Bytes
-}
-
-// Parsed ProtocolData structure from Molecule schema
-export interface ProtocolData {
-  campaignsApproved: CampaignData[]
-  tippingProposals: TippingProposalData[]
-  tippingConfig: TippingConfig
-  endorsersWhitelist: EndorserInfo[]
-  lastUpdated: number // Uint64 timestamp
-  protocolConfig: ProtocolConfig
-}
-
-export interface CampaignData {
-  id: string // Byte32
-  creator: Script
-  metadata: CampaignMetadata
-  status: number // 0=created, 1=funding, 2=reviewing, 3=approved, 4=active, 5=completed
-  quests: QuestData[]
-}
-
-export interface CampaignMetadata {
-  fundingInfo: AssetList[]
-  createdAt: number // Uint64
-  startingTime: number // Uint64
-  endingTime: number // Uint64
-  verificationRequirements: number // 0=none, 1=telegram, 2=identity
-  lastUpdated: number // Uint64
-}
-
-export interface AssetList {
-  ckbAmount: number // Uint64
-  nftAssets: Script[]
-  udtAssets: UDTFunding[]
-}
-
-export interface UDTFunding {
-  udtScript: Script
-  amount: string // Uint128
-}
-
-export interface QuestData {
-  id: string // Byte32
-  campaignId: string // Byte32
-  requirements: string // Bytes
-  rewardsOnCompletion: AssetList[]
-  completionRecords: CompletionRecord[]
-  completionDeadline: number // Uint64
-  status: number // 0=created, 1=active, 2=completed, 3=cancelled
-  subTasks: QuestSubTaskData[]
-}
-
-export interface QuestSubTaskData {
-  id: number // Uint8
-  title: string // Bytes
-  type: string // Bytes - text, link, txhash
-  description: string // Bytes
-}
-
-export interface CompletionRecord {
-  userAddress: string // Bytes
-  subTaskId: number // Uint8
-  completionTimestamp: number // Uint64
-  completionContent: string // Bytes
-}
-
-export interface TippingProposalData {
-  targetAddress: string // Bytes
-  proposerLockHash: string // Byte32
-  metadata: TippingProposalMetadata
-  amount: number // Uint64
-  tippingTransactionHash?: string // Byte32Opt
-  approvalTransactionHash: string[] // Byte32Vec
-}
-
-export interface TippingProposalMetadata {
-  contributionTitle: string // Bytes
-  contributionTypeTags: string[] // BytesVec
-  description: string // Bytes
-  proposalCreationTimestamp: number // Uint64
-}
-
-export interface TippingConfig {
-  approvalRequirementThresholds: string[] // Uint128Vec
-  expirationDuration: number // Uint64
-}
-
-export interface ProtocolConfig {
-  adminLockHashVec: string[] // Byte32Vec
-  scriptCodeHashes: ScriptCodeHashes
-}
-
-export interface ScriptCodeHashes {
-  ckbBoostProtocolTypeCodeHash: string // Byte32
-  ckbBoostProtocolLockCodeHash: string // Byte32
-  ckbBoostCampaignTypeCodeHash: string // Byte32
-  ckbBoostCampaignLockCodeHash: string // Byte32
-  ckbBoostUserTypeCodeHash: string // Byte32
+// Helper type for working with raw protocol data from blockchain
+export interface ProtocolDataWithMetadata {
+  // Raw molecule data
+  raw: ProtocolDataType
+  
+  // Parsed for UI consumption
+  ui: ProtocolData
+  
+  // Cell reference
+  cell: ProtocolCell
+  
+  // Additional metadata
+  blockNumber?: number
+  timestamp?: number
 }
 
 // Transaction types for protocol operations
@@ -175,7 +140,7 @@ export interface EditEndorserForm extends AddEndorserForm {
   index: number // Index in the endorsersWhitelist array
 }
 
-// Change tracking types
+// Change tracking types for protocol updates
 export interface FieldChange<T = any> {
   fieldPath: string
   oldValue: T
@@ -214,4 +179,62 @@ export interface BatchUpdateProtocolForm {
     edit?: EditEndorserForm[]
     remove?: number[]
   }
+}
+
+// Re-export base types for convenience (single import from protocol.ts)
+export type {
+  // UI-friendly interfaces
+  Script,
+  ProtocolData,
+  ProtocolConfig,
+  TippingConfig,
+  EndorserInfo,
+  TippingProposalData,
+  TippingProposalMetadata,
+  CampaignData,
+  CampaignMetadata,
+  QuestData,
+  QuestSubTaskData,
+  CompletionRecord,
+  AssetList,
+  UDTFunding,
+  ScriptCodeHashes,
+  UserVerificationData,
+  
+  // Generated molecule types
+  ProtocolDataType,
+  ProtocolConfigType,
+  TippingConfigType,
+  EndorserInfoType,
+  TippingProposalDataType,
+  TippingProposalMetadataType,
+  CampaignDataType,
+  CampaignMetadataType,
+  QuestDataType,
+  QuestSubTaskDataType,
+  CompletionRecordType,
+  AssetListType,
+  UDTFundingType,
+  ScriptCodeHashesType,
+  UserVerificationDataType,
+  ScriptType,
+  
+  // Generated molecule classes
+  ProtocolDataClass,
+  ProtocolConfigClass,
+  TippingConfigClass,
+  EndorserInfoClass,
+  TippingProposalDataClass,
+  TippingProposalMetadataClass,
+  CampaignDataClass,
+  CampaignMetadataClass,
+  QuestDataClass,
+  QuestSubTaskDataClass,
+  CompletionRecordClass,
+  AssetListClass,
+  UDTFundingClass,
+  ScriptCodeHashesClass,
+  UserVerificationDataClass,
+  ScriptClass,
+  
 }

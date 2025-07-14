@@ -2,7 +2,27 @@
 // This file handles deploying a new protocol cell when none exists
 
 import { ccc } from "@ckb-ccc/connector-react"
-import { ProtocolData } from "../types/protocol"
+import { SerializeProtocolData } from "../generated"
+// Import type definitions for better TypeScript support
+// Note: The generated file uses plain objects that match these type shapes
+import type { ProtocolDataType } from "../types/protocol"
+
+// Helper function to convert number to bytes
+function numToBytes(num: number, length: number): Uint8Array {
+  const buffer = new ArrayBuffer(length)
+  const view = new DataView(buffer)
+  
+  if (length === 8) {
+    // For 64-bit numbers, use BigInt
+    view.setBigUint64(0, BigInt(num), true) // little-endian
+  } else if (length === 4) {
+    view.setUint32(0, num, true) // little-endian
+  } else {
+    throw new Error(`Unsupported byte length: ${length}`)
+  }
+  
+  return new Uint8Array(buffer)
+}
 
 export interface DeployProtocolCellParams {
   // Initial protocol configuration
@@ -76,18 +96,70 @@ export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
 /**
  * Generate initial protocol data for deployment
  */
-function generateInitialProtocolData(params: DeployProtocolCellParams): ProtocolData {
-  return {
-    campaignsApproved: [],
-    tippingProposals: [],
-    tippingConfig: params.tippingConfig,
-    endorsersWhitelist: params.initialEndorsers || [],
-    lastUpdated: Date.now(),
-    protocolConfig: {
-      adminLockHashVec: params.adminLockHashes,
-      scriptCodeHashes: params.scriptCodeHashes
+function generateInitialProtocolData(params: DeployProtocolCellParams): ProtocolDataType {
+  // Convert string thresholds to Uint128 ArrayBuffers
+  const thresholds = params.tippingConfig.approvalRequirementThresholds.map(threshold => {
+    const value = BigInt(threshold)
+    const buffer = new ArrayBuffer(16) // 128 bits = 16 bytes
+    const view = new DataView(buffer)
+    // Write as little-endian
+    view.setBigUint64(0, value & BigInt('0xFFFFFFFFFFFFFFFF'), true)
+    view.setBigUint64(8, (value >> BigInt(64)) & BigInt('0xFFFFFFFFFFFFFFFF'), true)
+    return buffer
+  })
+
+  // Convert admin lock hashes to Byte32 ArrayBuffers
+  const adminHashes = params.adminLockHashes.map(hash => {
+    // Remove 0x prefix if present
+    const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash
+    const buffer = new ArrayBuffer(32)
+    const view = new Uint8Array(buffer)
+    for (let i = 0; i < 32; i++) {
+      view[i] = parseInt(cleanHash.substring(i * 2, i * 2 + 2), 16)
+    }
+    return buffer
+  })
+
+  // Convert script code hashes to Byte32 ArrayBuffers
+  const convertHashToBytes = (hash: string): ArrayBuffer => {
+    const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash
+    const buffer = new ArrayBuffer(32)
+    const view = new Uint8Array(buffer)
+    for (let i = 0; i < 32; i++) {
+      view[i] = parseInt(cleanHash.substring(i * 2, i * 2 + 2), 16)
+    }
+    return buffer
+  }
+
+  // Convert endorser data
+  const endorsers = (params.initialEndorsers || []).map(endorser => ({
+    endorser_lock_hash: convertHashToBytes(endorser.endorserLockHash),
+    endorser_name: new TextEncoder().encode(endorser.endorserName).buffer,
+    endorser_description: new TextEncoder().encode(endorser.endorserDescription).buffer
+  }))
+
+  const protocolData: ProtocolDataType = {
+    campaigns_approved: [],
+    tipping_proposals: [],
+    tipping_config: {
+      approval_requirement_thresholds: thresholds,
+      expiration_duration: numToBytes(params.tippingConfig.expirationDuration, 8).buffer
+    },
+    endorsers_whitelist: endorsers,
+    last_updated: numToBytes(Date.now(), 8).buffer,
+    protocol_config: {
+      admin_lock_hash_vec: adminHashes,
+      script_code_hashes: {
+        ckb_boost_protocol_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostProtocolTypeCodeHash),
+        ckb_boost_protocol_lock_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostProtocolLockCodeHash),
+        ckb_boost_campaign_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignTypeCodeHash),
+        ckb_boost_campaign_lock_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignLockCodeHash),
+        ckb_boost_user_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostUserTypeCodeHash),
+      }
     }
   }
+
+  return protocolData
 }
 
 /**
@@ -109,38 +181,39 @@ export async function deployProtocolCell(
     // Generate initial protocol data
     const protocolData = generateInitialProtocolData(params)
     
-    // TODO: Implement actual Molecule serialization when generated code is available
-    // For now, this would need to be replaced with real Molecule serialization
-    console.warn("Protocol deployment requires Molecule serialization implementation")
-    throw new Error("Protocol deployment not yet implemented - requires Molecule code generation")
+    // Serialize protocol data using generated Molecule code
+    const protocolDataBytes = SerializeProtocolData(protocolData)
     
-    // The actual implementation would look like this:
-    /*
-    const protocolDataBytes = generateProtocolData(protocolData)
-    
-    // Create protocol type script (this would need to be the actual protocol type script)
+    // Create protocol type script
     const protocolTypeScript = {
       codeHash: params.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
       hashType: "type" as const,
       args: "0x" // Could be derived from admin lock hash or random
     }
     
+    // Get deployer's address and script
+    const deployerAddress = await signer.getRecommendedAddress()
+    const deployerScript = (await ccc.Address.fromString(deployerAddress, signer.client)).script
+    
     // Calculate minimum capacity needed for the cell
-    const minCapacity = calculateMinCapacity(protocolDataBytes, protocolTypeScript)
+    // Base capacity (61 CKB) + data capacity + type script capacity
+    const dataCapacity = ccc.fixedPointFrom(protocolDataBytes.byteLength.toString())
+    const baseCapacity = ccc.fixedPointFrom("61") // Minimum cell capacity
+    const minCapacity = baseCapacity + dataCapacity + ccc.fixedPointFrom("1") // Extra buffer
     
     // Build deployment transaction
     const tx = ccc.Transaction.from({
       inputs: [],
       outputs: [
         {
-          capacity: minCapacity.toString(),
-          lock: await signer.getAddressObj().script, // Use deployer's lock
+          capacity: ccc.fixedPointToString(minCapacity),
+          lock: deployerScript,
           type: protocolTypeScript
         }
       ],
-      outputsData: [protocolDataBytes],
+      outputsData: ["0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('')],
       cellDeps: [
-        // Add necessary cell deps for protocol scripts
+        // TODO: Add necessary cell deps for protocol scripts when available
       ],
       headerDeps: [],
       witnesses: []
@@ -161,7 +234,6 @@ export async function deployProtocolCell(
         index: 0 // Protocol cell is the first output
       }
     }
-    */
     
   } catch (error) {
     console.error("Failed to deploy protocol cell:", error)

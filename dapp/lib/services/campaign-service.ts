@@ -1,16 +1,12 @@
 // Campaign Service - Abstracts data fetching logic
-// This service decides whether to use mock data or real CKB blockchain data
+// This service provides high-level campaign operations by delegating to the cell layer
 
 import { Campaign, UserProgress } from '../types/campaign'
-import { getAllMockCampaigns, getMockCampaignById, getFeaturedMockCampaigns } from '../mock/mock-campaigns'
 import { fetchCampaignCells, fetchCampaignById, fetchUserProgress } from '../ckb/campaign-cells'
 import { ccc } from "@ckb-ccc/connector-react"
 
-// Configuration - Set to true when ready to use real CKB data
-const USE_REAL_CKB_DATA = false
-
 /**
- * Campaign service that abstracts data source (mock vs real CKB)
+ * Campaign service that provides high-level campaign operations
  */
 export class CampaignService {
   
@@ -20,17 +16,12 @@ export class CampaignService {
    * @returns Array of all campaigns
    */
   static async getAllCampaigns(signer?: ccc.Signer): Promise<Campaign[]> {
-    if (USE_REAL_CKB_DATA && signer) {
-      try {
-        return await fetchCampaignCells(signer)
-      } catch (error) {
-        console.warn("Failed to fetch real CKB data, falling back to mock:", error)
-        return getAllMockCampaigns()
-      }
+    try {
+      return await fetchCampaignCells(signer)
+    } catch (error) {
+      console.error("Failed to fetch campaigns:", error)
+      throw error
     }
-    
-    // Use mock data
-    return getAllMockCampaigns()
   }
 
   /**
@@ -39,18 +30,13 @@ export class CampaignService {
    * @returns Array of featured campaigns
    */
   static async getFeaturedCampaigns(signer?: ccc.Signer): Promise<Campaign[]> {
-    if (USE_REAL_CKB_DATA && signer) {
-      try {
-        const allCampaigns = await fetchCampaignCells(signer)
-        return allCampaigns.slice(0, 4)
-      } catch (error) {
-        console.warn("Failed to fetch real CKB data, falling back to mock:", error)
-        return getFeaturedMockCampaigns()
-      }
+    try {
+      const allCampaigns = await fetchCampaignCells(signer)
+      return allCampaigns.slice(0, 4)
+    } catch (error) {
+      console.error("Failed to fetch featured campaigns:", error)
+      throw error
     }
-    
-    // Use mock data
-    return getFeaturedMockCampaigns()
   }
 
   /**
@@ -60,17 +46,12 @@ export class CampaignService {
    * @returns Campaign or undefined if not found
    */
   static async getCampaignById(id: number, signer?: ccc.Signer): Promise<Campaign | undefined> {
-    if (USE_REAL_CKB_DATA && signer) {
-      try {
-        return await fetchCampaignById(id, signer)
-      } catch (error) {
-        console.warn("Failed to fetch real CKB data, falling back to mock:", error)
-        return getMockCampaignById(id)
-      }
+    try {
+      return await fetchCampaignById(id, signer)
+    } catch (error) {
+      console.error("Failed to fetch campaign by ID:", error)
+      throw error
     }
-    
-    // Use mock data
-    return getMockCampaignById(id)
   }
 
   /**
@@ -80,17 +61,12 @@ export class CampaignService {
    * @returns Map of campaign ID to user progress
    */
   static async getUserProgress(userAddress: string, signer?: ccc.Signer): Promise<Map<number, UserProgress>> {
-    if (USE_REAL_CKB_DATA && signer) {
-      try {
-        return await fetchUserProgress(userAddress, signer)
-      } catch (error) {
-        console.warn("Failed to fetch real user progress, returning empty:", error)
-        return new Map()
-      }
+    try {
+      return await fetchUserProgress(userAddress, signer)
+    } catch (error) {
+      console.error("Failed to fetch user progress:", error)
+      throw error
     }
-    
-    // Return empty map for mock data
-    return new Map()
   }
 
   /**

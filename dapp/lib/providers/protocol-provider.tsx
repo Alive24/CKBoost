@@ -4,11 +4,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { ccc } from "@ckb-ccc/connector-react"
 import { 
   ProtocolData, 
-  ProtocolMetrics, 
-  ProtocolTransaction,
   EndorserInfo,
   TippingProposalData,
-  CampaignData,
+  CampaignData
+} from '../types'
+import {
+  ProtocolMetrics, 
+  ProtocolTransaction,
   UpdateProtocolConfigForm,
   UpdateScriptCodeHashesForm,
   UpdateTippingConfigForm,
@@ -101,7 +103,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         // Try to load default data as fallback
         try {
           const service = new ProtocolService()
-          const defaultData = service.getDefaultProtocolData()
+          const defaultData = await service.getDefaultProtocolData()
           setProtocolData(defaultData)
         } catch (fallbackErr) {
           console.error('Failed to load fallback data:', fallbackErr)

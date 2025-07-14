@@ -1,0 +1,784 @@
+{
+  "syntax_version": {
+    "version": 1
+  },
+  "namespace": "ckboost",
+  "imports": [],
+  "declarations": [
+    {
+      "type": "array",
+      "name": "Uint32",
+      "item": "byte",
+      "item_count": 4
+    },
+    {
+      "type": "array",
+      "name": "Uint64",
+      "item": "byte",
+      "item_count": 8
+    },
+    {
+      "type": "array",
+      "name": "Uint128",
+      "item": "byte",
+      "item_count": 16
+    },
+    {
+      "type": "array",
+      "name": "Byte32",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "array",
+      "name": "Uint256",
+      "item": "byte",
+      "item_count": 32
+    },
+    {
+      "type": "fixvec",
+      "name": "Bytes",
+      "item": "byte"
+    },
+    {
+      "type": "option",
+      "name": "BytesOpt",
+      "item": "Bytes"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesOptVec",
+      "item": "BytesOpt"
+    },
+    {
+      "type": "dynvec",
+      "name": "BytesVec",
+      "item": "Bytes"
+    },
+    {
+      "type": "fixvec",
+      "name": "Byte32Vec",
+      "item": "Byte32"
+    },
+    {
+      "type": "option",
+      "name": "ScriptOpt",
+      "item": "Script"
+    },
+    {
+      "type": "array",
+      "name": "ProposalShortId",
+      "item": "byte",
+      "item_count": 10
+    },
+    {
+      "type": "dynvec",
+      "name": "UncleBlockVec",
+      "item": "UncleBlock"
+    },
+    {
+      "type": "dynvec",
+      "name": "TransactionVec",
+      "item": "Transaction"
+    },
+    {
+      "type": "fixvec",
+      "name": "ProposalShortIdVec",
+      "item": "ProposalShortId"
+    },
+    {
+      "type": "fixvec",
+      "name": "CellDepVec",
+      "item": "CellDep"
+    },
+    {
+      "type": "fixvec",
+      "name": "CellInputVec",
+      "item": "CellInput"
+    },
+    {
+      "type": "dynvec",
+      "name": "CellOutputVec",
+      "item": "CellOutput"
+    },
+    {
+      "type": "table",
+      "name": "Script",
+      "fields": [
+        {
+          "name": "code_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "hash_type",
+          "type": "byte"
+        },
+        {
+          "name": "args",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "OutPoint",
+      "fields": [
+        {
+          "name": "tx_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "index",
+          "type": "Uint32"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "CellInput",
+      "fields": [
+        {
+          "name": "since",
+          "type": "Uint64"
+        },
+        {
+          "name": "previous_output",
+          "type": "OutPoint"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "CellOutput",
+      "fields": [
+        {
+          "name": "capacity",
+          "type": "Uint64"
+        },
+        {
+          "name": "lock",
+          "type": "Script"
+        },
+        {
+          "name": "type_",
+          "type": "ScriptOpt"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "CellDep",
+      "fields": [
+        {
+          "name": "out_point",
+          "type": "OutPoint"
+        },
+        {
+          "name": "dep_type",
+          "type": "byte"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "RawTransaction",
+      "fields": [
+        {
+          "name": "version",
+          "type": "Uint32"
+        },
+        {
+          "name": "cell_deps",
+          "type": "CellDepVec"
+        },
+        {
+          "name": "header_deps",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "inputs",
+          "type": "CellInputVec"
+        },
+        {
+          "name": "outputs",
+          "type": "CellOutputVec"
+        },
+        {
+          "name": "outputs_data",
+          "type": "BytesVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "Transaction",
+      "fields": [
+        {
+          "name": "raw",
+          "type": "RawTransaction"
+        },
+        {
+          "name": "witnesses",
+          "type": "BytesVec"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "RawHeader",
+      "fields": [
+        {
+          "name": "version",
+          "type": "Uint32"
+        },
+        {
+          "name": "compact_target",
+          "type": "Uint32"
+        },
+        {
+          "name": "timestamp",
+          "type": "Uint64"
+        },
+        {
+          "name": "number",
+          "type": "Uint64"
+        },
+        {
+          "name": "epoch",
+          "type": "Uint64"
+        },
+        {
+          "name": "parent_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "transactions_root",
+          "type": "Byte32"
+        },
+        {
+          "name": "proposals_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "extra_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "dao",
+          "type": "Byte32"
+        }
+      ]
+    },
+    {
+      "type": "struct",
+      "name": "Header",
+      "fields": [
+        {
+          "name": "raw",
+          "type": "RawHeader"
+        },
+        {
+          "name": "nonce",
+          "type": "Uint128"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "UncleBlock",
+      "fields": [
+        {
+          "name": "header",
+          "type": "Header"
+        },
+        {
+          "name": "proposals",
+          "type": "ProposalShortIdVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "Block",
+      "fields": [
+        {
+          "name": "header",
+          "type": "Header"
+        },
+        {
+          "name": "uncles",
+          "type": "UncleBlockVec"
+        },
+        {
+          "name": "transactions",
+          "type": "TransactionVec"
+        },
+        {
+          "name": "proposals",
+          "type": "ProposalShortIdVec"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "BlockV1",
+      "fields": [
+        {
+          "name": "header",
+          "type": "Header"
+        },
+        {
+          "name": "uncles",
+          "type": "UncleBlockVec"
+        },
+        {
+          "name": "transactions",
+          "type": "TransactionVec"
+        },
+        {
+          "name": "proposals",
+          "type": "ProposalShortIdVec"
+        },
+        {
+          "name": "extension",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "CellbaseWitness",
+      "fields": [
+        {
+          "name": "lock",
+          "type": "Script"
+        },
+        {
+          "name": "message",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "WitnessArgs",
+      "fields": [
+        {
+          "name": "lock",
+          "type": "BytesOpt"
+        },
+        {
+          "name": "input_type",
+          "type": "BytesOpt"
+        },
+        {
+          "name": "output_type",
+          "type": "BytesOpt"
+        }
+      ]
+    },
+    {
+      "type": "option",
+      "name": "Byte32Opt",
+      "item": "Byte32"
+    },
+    {
+      "type": "dynvec",
+      "name": "ScriptVec",
+      "item": "Script"
+    },
+    {
+      "type": "fixvec",
+      "name": "Uint128Vec",
+      "item": "Uint128"
+    },
+    {
+      "type": "array",
+      "name": "Uint8",
+      "item": "byte",
+      "item_count": 1
+    },
+    {
+      "type": "table",
+      "name": "UDTFunding",
+      "fields": [
+        {
+          "name": "udt_script",
+          "type": "Script"
+        },
+        {
+          "name": "amount",
+          "type": "Uint128"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "UDTFundingVec",
+      "item": "UDTFunding"
+    },
+    {
+      "type": "table",
+      "name": "AssetList",
+      "fields": [
+        {
+          "name": "ckb_amount",
+          "type": "Uint64"
+        },
+        {
+          "name": "nft_assets",
+          "type": "ScriptVec"
+        },
+        {
+          "name": "udt_assets",
+          "type": "UDTFundingVec"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "AssetListVec",
+      "item": "AssetList"
+    },
+    {
+      "type": "table",
+      "name": "QuestSubTaskData",
+      "fields": [
+        {
+          "name": "id",
+          "type": "Uint8"
+        },
+        {
+          "name": "title",
+          "type": "Bytes"
+        },
+        {
+          "name": "type",
+          "type": "Bytes"
+        },
+        {
+          "name": "description",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "QuestSubTaskDataVec",
+      "item": "QuestSubTaskData"
+    },
+    {
+      "type": "table",
+      "name": "CompletionRecord",
+      "fields": [
+        {
+          "name": "user_address",
+          "type": "Bytes"
+        },
+        {
+          "name": "sub_task_id",
+          "type": "Uint8"
+        },
+        {
+          "name": "completion_timestamp",
+          "type": "Uint64"
+        },
+        {
+          "name": "completion_content",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "CompletionRecordVec",
+      "item": "CompletionRecord"
+    },
+    {
+      "type": "table",
+      "name": "QuestData",
+      "fields": [
+        {
+          "name": "id",
+          "type": "Byte32"
+        },
+        {
+          "name": "campaign_id",
+          "type": "Byte32"
+        },
+        {
+          "name": "requirements",
+          "type": "Bytes"
+        },
+        {
+          "name": "rewards_on_completion",
+          "type": "AssetListVec"
+        },
+        {
+          "name": "completion_records",
+          "type": "CompletionRecordVec"
+        },
+        {
+          "name": "completion_deadline",
+          "type": "Uint64"
+        },
+        {
+          "name": "status",
+          "type": "byte"
+        },
+        {
+          "name": "sub_tasks",
+          "type": "QuestSubTaskDataVec"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "QuestDataVec",
+      "item": "QuestData"
+    },
+    {
+      "type": "table",
+      "name": "CampaignMetadata",
+      "fields": [
+        {
+          "name": "funding_info",
+          "type": "AssetListVec"
+        },
+        {
+          "name": "created_at",
+          "type": "Uint64"
+        },
+        {
+          "name": "starting_time",
+          "type": "Uint64"
+        },
+        {
+          "name": "ending_time",
+          "type": "Uint64"
+        },
+        {
+          "name": "verification_requirements",
+          "type": "byte"
+        },
+        {
+          "name": "last_updated",
+          "type": "Uint64"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "CampaignData",
+      "fields": [
+        {
+          "name": "id",
+          "type": "Byte32"
+        },
+        {
+          "name": "creator",
+          "type": "Script"
+        },
+        {
+          "name": "metadata",
+          "type": "CampaignMetadata"
+        },
+        {
+          "name": "status",
+          "type": "byte"
+        },
+        {
+          "name": "quests",
+          "type": "QuestDataVec"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "CampaignDataVec",
+      "item": "CampaignData"
+    },
+    {
+      "type": "table",
+      "name": "UserVerificationData",
+      "fields": [
+        {
+          "name": "user_address",
+          "type": "Bytes"
+        },
+        {
+          "name": "telegram_personal_chat_id",
+          "type": "Uint128"
+        },
+        {
+          "name": "identity_verification_data",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "TippingProposalMetadata",
+      "fields": [
+        {
+          "name": "contribution_title",
+          "type": "Bytes"
+        },
+        {
+          "name": "contribution_type_tags",
+          "type": "BytesVec"
+        },
+        {
+          "name": "description",
+          "type": "Bytes"
+        },
+        {
+          "name": "proposal_creation_timestamp",
+          "type": "Uint64"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "TippingProposalData",
+      "fields": [
+        {
+          "name": "target_address",
+          "type": "Bytes"
+        },
+        {
+          "name": "proposer_lock_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "metadata",
+          "type": "TippingProposalMetadata"
+        },
+        {
+          "name": "amount",
+          "type": "Uint64"
+        },
+        {
+          "name": "tipping_transaction_hash",
+          "type": "Byte32Opt"
+        },
+        {
+          "name": "approval_transaction_hash",
+          "type": "Byte32Vec"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "TippingProposalDataVec",
+      "item": "TippingProposalData"
+    },
+    {
+      "type": "table",
+      "name": "EndorserInfo",
+      "fields": [
+        {
+          "name": "endorser_lock_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "endorser_name",
+          "type": "Bytes"
+        },
+        {
+          "name": "endorser_description",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "EndorserInfoVec",
+      "item": "EndorserInfo"
+    },
+    {
+      "type": "table",
+      "name": "TippingConfig",
+      "fields": [
+        {
+          "name": "approval_requirement_thresholds",
+          "type": "Uint128Vec"
+        },
+        {
+          "name": "expiration_duration",
+          "type": "Uint64"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "ScriptCodeHashes",
+      "fields": [
+        {
+          "name": "ckb_boost_protocol_type_code_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "ckb_boost_protocol_lock_code_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "ckb_boost_campaign_type_code_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "ckb_boost_campaign_lock_code_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "ckb_boost_user_type_code_hash",
+          "type": "Byte32"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "ProtocolConfig",
+      "fields": [
+        {
+          "name": "admin_lock_hash_vec",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "script_code_hashes",
+          "type": "ScriptCodeHashes"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "ProtocolData",
+      "fields": [
+        {
+          "name": "campaigns_approved",
+          "type": "CampaignDataVec"
+        },
+        {
+          "name": "tipping_proposals",
+          "type": "TippingProposalDataVec"
+        },
+        {
+          "name": "tipping_config",
+          "type": "TippingConfig"
+        },
+        {
+          "name": "endorsers_whitelist",
+          "type": "EndorserInfoVec"
+        },
+        {
+          "name": "last_updated",
+          "type": "Uint64"
+        },
+        {
+          "name": "protocol_config",
+          "type": "ProtocolConfig"
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,40 @@
-// Type definitions for campaigns, quests, and related data structures
-// These types define the shape of data regardless of source (mock or blockchain)
+// Campaign-specific types for CKBoost campaign management and UI
+// This file contains types specific to campaign operations, UI components, and user interactions
 
+import type {
+  // UI-friendly interfaces
+  Script,
+  CampaignData,
+  CampaignMetadata,
+  QuestData,
+  QuestSubTaskData,
+  CompletionRecord,
+  AssetList,
+  UDTFunding,
+  
+  // Generated molecule types (for actual blockchain data)
+  CampaignDataType,
+  CampaignMetadataType,
+  QuestDataType,
+  QuestSubTaskDataType,
+  CompletionRecordType,
+  AssetListType,
+  UDTFundingType,
+  ScriptType,
+  
+  // Generated molecule classes (for runtime operations)
+  CampaignDataClass,
+  CampaignMetadataClass,
+  QuestDataClass,
+  QuestSubTaskDataClass,
+  CompletionRecordClass,
+  AssetListClass,
+  UDTFundingClass,
+  ScriptClass,
+  
+} from './index'
+
+// UI-specific campaign types that extend the base campaign data
 export interface TokenReward {
   symbol: string
   amount: number
@@ -87,7 +121,7 @@ export interface UserProgress {
   lastActivity: string
 }
 
-// CKB blockchain specific types
+// CKB blockchain specific types for campaigns that use generated molecule types
 export interface CKBCampaignCell {
   outPoint: {
     txHash: string
@@ -107,6 +141,21 @@ export interface CKBCampaignCell {
     }
   }
   data: string // Hex-encoded campaign data
+  
+  // Parsed campaign data using generated types
+  parsedData?: CampaignDataType
+}
+
+// Helper type for working with raw campaign data from blockchain
+export interface CampaignDataWithMetadata {
+  // Raw molecule data
+  raw: CampaignDataType
+  
+  // Parsed for UI consumption
+  ui: CampaignData
+  
+  // Cell reference
+  cell: CKBCampaignCell
 }
 
 export interface CKBUserProgressCell {
@@ -128,4 +177,38 @@ export interface CKBUserProgressCell {
     }
   }
   data: string // Hex-encoded user progress data
+}
+
+// Re-export base types for convenience (single import from campaign.ts)
+export type {
+  // UI-friendly interfaces
+  Script,
+  CampaignData,
+  CampaignMetadata,
+  QuestData,
+  QuestSubTaskData,
+  CompletionRecord,
+  AssetList,
+  UDTFunding,
+  
+  // Generated molecule types
+  CampaignDataType,
+  CampaignMetadataType,
+  QuestDataType,
+  QuestSubTaskDataType,
+  CompletionRecordType,
+  AssetListType,
+  UDTFundingType,
+  ScriptType,
+  
+  // Generated molecule classes
+  CampaignDataClass,
+  CampaignMetadataClass,
+  QuestDataClass,
+  QuestSubTaskDataClass,
+  CompletionRecordClass,
+  AssetListClass,
+  UDTFundingClass,
+  ScriptClass,
+  
 }

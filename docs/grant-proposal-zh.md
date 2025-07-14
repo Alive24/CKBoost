@@ -60,7 +60,7 @@ CKBoost 正是为了应对这些挑战而构思的。
 
 ### UI 设计草图
 
-CKBoost v0 的预期设计前端草图可在此处查看：
+CKBoost v0 的前端设计草图可在此处查看：
 
 [https://ckboost.netlify.app/](https://ckboost.netlify.app/)
 

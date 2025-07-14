@@ -1,4 +1,4 @@
-## **\[DIS\] CKBoost Gamified Community Engagement Platform Proposal**
+# **\[DIS\] CKBoost Gamified Community Engagement Platform Proposal**
 
 ## Summary
 
@@ -10,7 +10,7 @@ Amount requested: $20,000 USD (= xxx CKB @ current price)
 
 ETA to completion: 3 months from commencement
 
-CKB address:ckb1qyqq5y2yu75h35shdke9gy4du9z536dvuruscqw90f
+CKB address: ckb1qyqq5y2yu75h35shdke9gy4du9z536dvuruscqw90f
 
 ## Purpose
 
@@ -159,7 +159,7 @@ The funding covers \~3 months of focused delivery across three clear phases. An 
 * Deploy Next.js scaffold with CCC wallet integration.  
 * Visual and interaction prototyping.
 
-* Smart contract development for core Scripts (`protocol-type`, `protocol-lock`, `campaign-type`, `campaign-lock, user-type`).
+* Smart contract development for core Scripts (`protocol-type`, `campaign-type`, `campaign-lock, user-type`).
 
 * Launch Protocol Cell to manage whitelisted sponsors, admin roles, and Points UDT minting.
 

@@ -3,6 +3,10 @@
 
 import { ccc } from "@ckb-ccc/connector-react"
 import { Campaign, CKBCampaignCell, UserProgress, CKBUserProgressCell } from '../types/campaign'
+import { getAllMockCampaigns, getMockCampaignById } from '../mock/mock-campaigns'
+
+// Development flag - set to true to use blockchain, false to use mock data
+const USE_BLOCKCHAIN = false // Set to true when blockchain is available
 
 // CKB Script Configuration - Replace with actual deployed script hashes
 const CAMPAIGN_TYPE_SCRIPT = {
@@ -18,13 +22,19 @@ const USER_PROGRESS_TYPE_SCRIPT = {
 }
 
 /**
- * Fetch all campaign cells from CKB blockchain
- * @param signer - CCC signer instance
- * @returns Array of campaigns from blockchain
+ * Fetch all campaign cells from CKB blockchain or return mock data
+ * @param signer - CCC signer instance (optional when using mock data)
+ * @returns Array of campaigns from blockchain or mock data
  */
 export async function fetchCampaignCells(signer?: ccc.Signer): Promise<Campaign[]> {
+  if (!USE_BLOCKCHAIN) {
+    // Return mock data for development
+    console.log("Using mock campaign data for development")
+    return getAllMockCampaigns()
+  }
+
   if (!signer) {
-    throw new Error("Signer required to fetch campaign data")
+    throw new Error("Signer required when USE_BLOCKCHAIN is true")
   }
 
   try {
@@ -50,14 +60,20 @@ export async function fetchCampaignCells(signer?: ccc.Signer): Promise<Campaign[
 }
 
 /**
- * Fetch a specific campaign by ID from CKB blockchain
+ * Fetch a specific campaign by ID from CKB blockchain or return mock data
  * @param campaignId - Campaign ID to fetch
- * @param signer - CCC signer instance
+ * @param signer - CCC signer instance (optional when using mock data)
  * @returns Campaign data or undefined if not found
  */
 export async function fetchCampaignById(campaignId: number, signer?: ccc.Signer): Promise<Campaign | undefined> {
+  if (!USE_BLOCKCHAIN) {
+    // Return mock data for development
+    console.log(`Using mock data for campaign ${campaignId}`)
+    return getMockCampaignById(campaignId)
+  }
+
   if (!signer) {
-    throw new Error("Signer required to fetch campaign data")
+    throw new Error("Signer required when USE_BLOCKCHAIN is true")
   }
 
   try {
@@ -86,12 +102,18 @@ export async function fetchCampaignById(campaignId: number, signer?: ccc.Signer)
 }
 
 /**
- * Fetch user progress for all campaigns
+ * Fetch user progress for all campaigns or return empty map for mock data
  * @param userAddress - User's CKB address
- * @param signer - CCC signer instance
+ * @param signer - CCC signer instance (optional when using mock data)
  * @returns Map of campaign ID to user progress
  */
-export async function fetchUserProgress(userAddress: string, signer?: ccc.Signer): Promise<Map<number, UserProgress>> {
+export async function fetchUserProgress(_userAddress: string, signer?: ccc.Signer): Promise<Map<number, UserProgress>> {
+  if (!USE_BLOCKCHAIN) {
+    // Return empty map for mock data - user progress is not mocked
+    console.log("User progress not available in mock mode")
+    return new Map()
+  }
+
   if (!signer) {
     return new Map()
   }
@@ -136,10 +158,10 @@ export async function fetchUserProgress(userAddress: string, signer?: ccc.Signer
  * @returns Transaction hash
  */
 export async function submitQuestCompletion(
-  campaignId: number,
-  questId: number,
-  proof: string,
-  signer: ccc.Signer
+  _campaignId: number,
+  _questId: number,
+  _proof: string,
+  _signer: ccc.Signer
 ): Promise<string> {
   try {
     // TODO: Implement quest completion transaction
@@ -166,7 +188,7 @@ export async function submitQuestCompletion(
  * @param signer - CCC signer instance
  * @returns Transaction hash
  */
-export async function createCampaign(campaignData: Omit<Campaign, 'id'>, signer: ccc.Signer): Promise<string> {
+export async function createCampaign(_campaignData: Omit<Campaign, 'id'>, _signer: ccc.Signer): Promise<string> {
   try {
     // TODO: Implement campaign creation transaction
     // 1. Encode campaign data using molecule schema
@@ -188,7 +210,7 @@ export async function createCampaign(campaignData: Omit<Campaign, 'id'>, signer:
  * @param cell - CKB campaign cell
  * @returns Parsed campaign object
  */
-function parseCampaignCell(cell: CKBCampaignCell): Campaign {
+function parseCampaignCell(_cell: CKBCampaignCell): Campaign {
   // TODO: Implement campaign data parsing using molecule schema
   // const campaignData = moleculeParse(cell.data)
   // return transformToClientFormat(campaignData)
@@ -201,7 +223,7 @@ function parseCampaignCell(cell: CKBCampaignCell): Campaign {
  * @param cell - CKB user progress cell
  * @returns Parsed user progress object
  */
-function parseUserProgressCell(cell: CKBUserProgressCell): UserProgress {
+function parseUserProgressCell(_cell: CKBUserProgressCell): UserProgress {
   // TODO: Implement user progress data parsing
   // const progressData = moleculeParse(cell.data)
   // return transformToClientFormat(progressData)
@@ -214,7 +236,7 @@ function parseUserProgressCell(cell: CKBUserProgressCell): UserProgress {
  * @param campaignId - Campaign ID number
  * @returns Hex-encoded args
  */
-function encodeCampaignId(campaignId: number): string {
+function encodeCampaignId(_campaignId: number): string {
   // TODO: Implement campaign ID encoding
   return "0x"
 }
@@ -224,7 +246,7 @@ function encodeCampaignId(campaignId: number): string {
  * @param address - CKB address
  * @returns Lock script object
  */
-function addressToScript(address: string) {
+function addressToScript(_address: string) {
   // TODO: Implement address to script conversion using CCC
   // return ccc.Address.fromString(address).script
   throw new Error("Address to script conversion not implemented")
