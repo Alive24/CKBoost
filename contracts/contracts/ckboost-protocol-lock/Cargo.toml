@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
 
-ckboost-shared = { path = "../../lib/ckboost-shared" }
+ckboost-shared = { path = "../../libs/ckboost-shared" }
 
 
 [features]

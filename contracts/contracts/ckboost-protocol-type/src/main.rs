@@ -109,7 +109,7 @@ pub fn program_entry() -> i8 {
         Ok(_) => 0,
         Err(err) => {
             debug!("Contract execution failed with error: {:?}", err);
-            err as i8
+            err.as_error_code()
         }
     }
 }

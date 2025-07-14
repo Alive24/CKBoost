@@ -4,18 +4,18 @@ use alloc::vec::Vec;
 /// SSRI method path constants for CKBoost protocols
 pub mod method_paths {
     // Protocol type methods
-    pub const UPDATE_PROTOCOL: &[u8] = b"CKBoostProtocol::updateProtocol";
-    pub const UPDATE_TIPPING_PROPOSAL: &[u8] = b"CKBoostProtocol::updateTippingProposal";
+    pub const UPDATE_PROTOCOL: &str = "CKBoostProtocol::updateProtocol";
+    pub const UPDATE_TIPPING_PROPOSAL: &str = "CKBoostProtocol::updateTippingProposal";
     
     // Campaign type methods  
-    pub const CREATE_CAMPAIGN: &[u8] = b"CKBoostCampaign::createCampaign";
-    pub const UPDATE_CAMPAIGN: &[u8] = b"CKBoostCampaign::updateCampaign";
-    pub const CREATE_QUEST: &[u8] = b"CKBoostCampaign::createQuest";
-    pub const UPDATE_QUEST: &[u8] = b"CKBoostCampaign::updateQuest";
-    pub const COMPLETE_QUEST: &[u8] = b"CKBoostCampaign::completeQuest";
+    pub const CREATE_CAMPAIGN: &str = "CKBoostCampaign::createCampaign";
+    pub const UPDATE_CAMPAIGN: &str = "CKBoostCampaign::updateCampaign";
+    pub const CREATE_QUEST: &str = "CKBoostCampaign::createQuest";
+    pub const UPDATE_QUEST: &str = "CKBoostCampaign::updateQuest";
+    pub const COMPLETE_QUEST: &str = "CKBoostCampaign::completeQuest";
     
     // User type methods
-    pub const UPDATE_USER_VERIFICATION: &[u8] = b"CKBoostUser::updateUserVerification";
+    pub const UPDATE_USER_VERIFICATION: &str = "CKBoostUser::updateUserVerification";
 }
 
 /// Trait for types that can be encoded/decoded as SSRI arguments
@@ -27,7 +27,7 @@ pub trait SSRICodec: Sized {
 /// SSRI method handler trait
 pub trait SSRIMethod {
     /// The method path for this handler
-    const METHOD_PATH: &'static [u8];
+    const METHOD_PATH: &'static str;
     
     /// Verify the method can be executed in current context
     fn verify(&self) -> Result<(), Error>;

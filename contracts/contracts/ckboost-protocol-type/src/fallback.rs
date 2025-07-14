@@ -5,22 +5,32 @@ use ckboost_shared::{
 };
 use ckb_std::debug;
 use crate::{modules::CKBoostProtocolType, ssri::CKBoostProtocol};
+use molecule::prelude::*;
 
 /// Dispatch method call based on method path
 fn dispatch_method(method_path: &[u8], arguments: &[Vec<u8>]) -> Result<(), Error> {
     let _decoder = ArgumentDecoder::new(arguments);
     
-    match method_path {
-        path if path == method_paths::UPDATE_PROTOCOL => {
+    // Convert method path bytes to string for comparison
+    let method_str = match core::str::from_utf8(method_path) {
+        Ok(s) => s,
+        Err(_) => {
+            debug!("Invalid UTF-8 in method path: {:?}", method_path);
+            return Err(Error::SSRIMethodsNotImplemented);
+        }
+    };
+    
+    match method_str {
+        method_paths::UPDATE_PROTOCOL => {
             debug!("Calling verify_update_protocol");
             CKBoostProtocolType::verify_update_protocol()
         }
-        path if path == method_paths::UPDATE_TIPPING_PROPOSAL => {
+        method_paths::UPDATE_TIPPING_PROPOSAL => {
             debug!("Calling verify_update_tipping_proposal");
             CKBoostProtocolType::verify_update_tipping_proposal()
         }
         _ => {
-            debug!("Unknown method path: {:?}", method_path);
+            debug!("Unknown method path: {}", method_str);
             Err(Error::SSRIMethodsNotImplemented)
         }
     }
@@ -41,8 +51,8 @@ pub fn fallback() -> Result<(), Error> {
     debug!("Transaction recipe found");
     
     // Get method path and arguments
-    let method_path = get_method_path(&recipe)?;
-    let arguments = get_arguments(&recipe);
+    let method_path = get_method_path(recipe.inner());
+    let arguments = get_arguments(recipe.inner());
     
     debug!("Method path: {:?}", method_path);
     debug!("Arguments count: {}", arguments.len());

@@ -237,6 +237,8 @@ table ScriptCodeHashes {
     ckb_boost_campaign_type_code_hash: Byte32,
     ckb_boost_campaign_lock_code_hash: Byte32,
     ckb_boost_user_type_code_hash: Byte32,
+    accepted_udt_type_code_hashes: Byte32Vec,
+    accepted_dob_type_code_hashes: Byte32Vec,
 }
 
 table ProtocolConfig {
@@ -253,8 +255,5 @@ table ProtocolData {
     protocol_config: ProtocolConfig,
 }
 
-// Transaction Recipe Schema for SSRI
-table TransactionRecipe {
-    method_path: Bytes,           // The method path (e.g., "ckboost_protocol::update_protocol")
-    arguments: BytesVec,          // Encoded arguments for the method
-}
+// TransactionRecipe is now defined in ckb_deterministic
+// Projects using ckb_deterministic should use the generic TransactionRecipe from there

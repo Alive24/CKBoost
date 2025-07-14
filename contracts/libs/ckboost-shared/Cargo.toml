@@ -15,3 +15,4 @@ molecule = { version = "0.8.0", default-features = false, features = ["bytes_vec
 ckb-ssri-std = { version = "0.0.1" }
 ckb-ssri-std-proc-macro = { version = "0.0.1" }
 blake2b-ref = "0.3.1"
+ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic" }
