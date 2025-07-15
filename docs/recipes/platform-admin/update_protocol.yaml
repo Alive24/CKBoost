@@ -6,8 +6,8 @@
 
 Inputs:
   Option<protocol-cell>:
-    lock: <ckboost-protocol-lock>
-      args: <ckboost-protocol-lock-args>
+    lock: admin_lock
+      args: <admin_lock_args>
     type: ckboost-protocol-type
       args: <Type ID args for singleton>
     data: <ProtocolData: current protocol state>

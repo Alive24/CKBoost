@@ -4,18 +4,18 @@ use alloc::vec::Vec;
 /// SSRI method path constants for CKBoost protocols
 pub mod method_paths {
     // Protocol type methods
-    pub const UPDATE_PROTOCOL: &str = "CKBoostProtocol::updateProtocol";
-    pub const UPDATE_TIPPING_PROPOSAL: &str = "CKBoostProtocol::updateTippingProposal";
+    pub const UPDATE_PROTOCOL: &str = "CKBoostProtocol.updateProtocol";
+    pub const UPDATE_TIPPING_PROPOSAL: &str = "CKBoostProtocol.updateTippingProposal";
     
     // Campaign type methods  
-    pub const CREATE_CAMPAIGN: &str = "CKBoostCampaign::createCampaign";
-    pub const UPDATE_CAMPAIGN: &str = "CKBoostCampaign::updateCampaign";
-    pub const CREATE_QUEST: &str = "CKBoostCampaign::createQuest";
-    pub const UPDATE_QUEST: &str = "CKBoostCampaign::updateQuest";
-    pub const COMPLETE_QUEST: &str = "CKBoostCampaign::completeQuest";
-    
+    pub const CREATE_CAMPAIGN: &str = "CKBoostCampaign.createCampaign";
+    pub const UPDATE_CAMPAIGN: &str = "CKBoostCampaign.updateCampaign";
+    pub const CREATE_QUEST: &str = "CKBoostCampaign.createQuest";
+    pub const UPDATE_QUEST: &str = "CKBoostCampaign.updateQuest";
+    pub const COMPLETE_QUEST: &str = "CKBoostCampaign.completeQuest";
+
     // User type methods
-    pub const UPDATE_USER_VERIFICATION: &str = "CKBoostUser::updateUserVerification";
+    pub const UPDATE_USER_VERIFICATION: &str = "CKBoostUser.updateUserVerification";
 }
 
 /// Trait for types that can be encoded/decoded as SSRI arguments

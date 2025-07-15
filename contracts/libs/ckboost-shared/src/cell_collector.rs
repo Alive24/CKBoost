@@ -1,10 +1,14 @@
 // CKBoost-specific cell collector using ckb_deterministic library
 use crate::error::Error;
-use ckb_deterministic::cell_classifier::{
+pub use ckb_deterministic::cell_classifier::{
     CellClass, CellCollector, CellInfo, RuleBasedClassifier
+};
+use ckb_deterministic::known_scripts::{
+    KnownScript, KnownScriptClassifierBuilder
 };
 use ckb_std::ckb_constants::Source;
 use alloc::vec::Vec;
+
 
 /// CKBoost-specific cell classifications
 /// Known cells: UDT, Spore, simple CKB cell
@@ -138,12 +142,37 @@ impl CKBoostClassifiedCells {
         &self.inner
     }
     
-    /// Create from generic classified cells
-    pub fn from_generic(_classified: &ckb_deterministic::cell_classifier::ClassifiedCells) -> Self {
-        // Note: This creates a new empty ClassifiedCells for now
-        // In a real implementation, we'd need ClassifiedCells to implement Clone
-        // or provide a way to convert from reference to owned
-        Self { inner: ckb_deterministic::cell_classifier::ClassifiedCells::new() }
+    /// Create from generic classified cells by copying cell data
+    pub fn from_generic(classified: &ckb_deterministic::cell_classifier::ClassifiedCells) -> Self {
+        // Create a new ClassifiedCells and manually copy data
+        let mut new_classified = ckb_deterministic::cell_classifier::ClassifiedCells::new();
+        
+        // Copy known cells by accessing each type
+        let known_cell_types = ["udt", "spore", "simple_ckb"];
+        for cell_type in &known_cell_types {
+            if let Some(cells) = classified.get_known(cell_type) {
+                for cell in cells {
+                    new_classified.add_cell(cell.clone(), ckb_deterministic::cell_classifier::CellClass::known(*cell_type));
+                }
+            }
+        }
+        
+        // Copy custom cells by accessing each CKBoost type
+        let custom_cell_types: [&[u8]; 3] = [b"protocol", b"campaign", b"user"];
+        for cell_id in &custom_cell_types {
+            if let Some(cells) = classified.get_custom(cell_id) {
+                for cell in cells {
+                    new_classified.add_cell(cell.clone(), ckb_deterministic::cell_classifier::CellClass::custom(cell_id.to_vec()));
+                }
+            }
+        }
+        
+        // Copy unidentified cells
+        for cell in &classified.unidentified_cells {
+            new_classified.add_cell(cell.clone(), ckb_deterministic::cell_classifier::CellClass::Unidentified);
+        }
+        
+        Self { inner: new_classified }
     }
 }
 
@@ -161,24 +190,42 @@ impl CKBoostCellCollector {
     
     /// Create a CKBoost cell collector from protocol data
     pub fn from_protocol_data(data: &crate::protocol_data::ProtocolData) -> Result<Self, Error> {
-        let mut classifier = RuleBasedClassifier::new("CKBoostClassifier");
+        use ckb_std::debug;
+        debug!("Creating CKBoost cell collector from protocol data");
+        
+        // Start with universal known scripts classifier
+        let mut builder = KnownScriptClassifierBuilder::new("CKBoostClassifier");
         
         // Add all accepted UDT type hashes as known cells
-        for udt_hash in data.accepted_udt_type_hashes() {
-            classifier = classifier.add_type_hash(udt_hash, CellClass::known("udt"));
+        let udt_hashes = data.accepted_udt_type_hashes();
+        debug!("Adding {} UDT type hashes to classifier", udt_hashes.len());
+        for udt_hash in udt_hashes {
+            builder = builder.add_script(KnownScript::XUdt, udt_hash);
         }
         
         // Add all accepted DOB (Digital Object) type hashes as known cells
         // This could include Spore, mNFT, etc.
-        for (i, dob_hash) in data.accepted_dob_type_hashes().iter().enumerate() {
+        let dob_hashes = data.accepted_dob_type_hashes();
+        debug!("Adding {} DOB type hashes to classifier", dob_hashes.len());
+        for (i, dob_hash) in dob_hashes.into_iter().enumerate() {
             // For now, treat first DOB as Spore
             if i == 0 {
-                classifier = classifier.add_type_hash(*dob_hash, CellClass::known("spore"));
+                builder = builder.add_script(KnownScript::Spore, dob_hash);
             } else {
-                // Other DOBs are just known cells
-                classifier = classifier.add_type_hash(*dob_hash, CellClass::known("dob"));
+                // Other DOBs can be added with additional known script types when available
+                // For now, we'll add them as type hash rules directly
+                builder = builder.add_known_script(
+                    ckb_deterministic::known_scripts::KnownScriptConfig::new(
+                        KnownScript::Spore, // Using Spore for all DOBs for now
+                        dob_hash
+                    )
+                );
             }
         }
+        
+        // Build the classifier with known scripts
+        let mut classifier = builder.build();
+        debug!("Built classifier with known scripts");
         
         // Add CKBoost custom cell types (always required)
         classifier = classifier
@@ -186,7 +233,10 @@ impl CKBoostCellCollector {
             .add_type_hash(data.campaign_type_hash(), CellClass::custom(b"campaign".to_vec()))
             .add_type_hash(data.user_type_hash(), CellClass::custom(b"user".to_vec()));
             
+        debug!("Added CKBoost custom cell types to classifier");
+            
         let collector = CellCollector::new(classifier);
+        debug!("CKBoost cell collector created successfully");
         Ok(Self { collector })
     }
     
@@ -205,11 +255,15 @@ impl CKBoostCellCollector {
     /// Collect and classify cells from a specific source
     pub fn collect_from_source(&self, source: Source) -> Result<CKBoostClassifiedCells, Error> {
         let classified = self.collector.collect_from_source(source)
-            .map_err(|e| match e {
-                ckb_deterministic::errors::Error::UnidentifiedCells => Error::DetectedUnidentifiedCells,
-                ckb_deterministic::errors::Error::DataError => Error::DataError,
-                ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
-                ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            .map_err(|e| {
+                use ckb_std::debug;
+                debug!("Cell collection error from ckb_deterministic: {:?}", e);
+                match e {
+                    ckb_deterministic::errors::Error::UnidentifiedCells => Error::DetectedUnidentifiedCells,
+                    ckb_deterministic::errors::Error::DataError => Error::DataError,
+                    ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
+                    ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+                }
             })?;
             
         Ok(CKBoostClassifiedCells::new(classified))
@@ -218,11 +272,15 @@ impl CKBoostCellCollector {
     /// Collect and classify cells from both input and output sources
     pub fn collect_inputs_and_outputs(&self) -> Result<(CKBoostClassifiedCells, CKBoostClassifiedCells), Error> {
         let (inputs, outputs) = self.collector.collect_inputs_and_outputs()
-            .map_err(|e| match e {
-                ckb_deterministic::errors::Error::UnidentifiedCells => Error::DetectedUnidentifiedCells,
-                ckb_deterministic::errors::Error::DataError => Error::DataError,
-                ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
-                ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            .map_err(|e| {
+                use ckb_std::debug;
+                debug!("Cell collection error from ckb_deterministic (inputs/outputs): {:?}", e);
+                match e {
+                    ckb_deterministic::errors::Error::UnidentifiedCells => Error::DetectedUnidentifiedCells,
+                    ckb_deterministic::errors::Error::DataError => Error::DataError,
+                    ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
+                    ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+                }
             })?;
             
         Ok((CKBoostClassifiedCells::new(inputs), CKBoostClassifiedCells::new(outputs)))

@@ -103,6 +103,9 @@ pub enum Error {
     DataError,
     RecipeError,
     SysError(i8),
+    
+    // Script argument validation errors
+    TransactionStructureError,
 }
 
 impl From<SysError> for Error {
@@ -189,6 +192,7 @@ impl Error {
             Error::DetectedUnidentifiedCells => 54,
             Error::DataError => 55,
             Error::RecipeError => 56,
+            Error::TransactionStructureError => 57,
             Error::SysError(code) => code,
         }
     }

@@ -174,7 +174,8 @@ mod tests {
             output_unidentified_cells: 0,
         };
         
-        assert_eq!(campaign_creation_summary.identified_cell_count(), 13);
+        // Total: 6 inputs (3 UDT + 1 User + 2 Simple CKB) + 6 outputs (3 UDT + 1 User + 1 Campaign + 1 Simple CKB) = 12
+        assert_eq!(campaign_creation_summary.identified_cell_count(), 12);
         
         // Scenario 3: Complex transaction with unidentified cells (non-strict mode)
         let complex_summary = TransactionSummary {

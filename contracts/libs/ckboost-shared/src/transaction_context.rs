@@ -6,6 +6,8 @@ use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::cell_classifier::RuleBasedClassifier;
 use ckb_std::debug;
 use alloc::vec::Vec;
+use alloc::string::{String, ToString};
+use alloc::format;
 
 /// CKBoost-specific transaction context wrapping the generic ckb_deterministic context
 pub struct CKBoostTransactionContext {
@@ -89,11 +91,37 @@ impl CKBoostTransactionContext {
     
     /// Validate that the transaction context is consistent
     pub fn validate(&self) -> Result<(), Error> {
+        // First validate the inner context
         self.inner.validate().map_err(|e| match e {
             ckb_deterministic::errors::Error::UnidentifiedCells => Error::DetectedUnidentifiedCells,
             ckb_deterministic::errors::Error::DataError => Error::DataError,
             ckb_deterministic::errors::Error::RecipeError => Error::SSRIMethodsNotFound,
             ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+        })?;
+        
+        // Then validate using CKBoost-specific validation rules
+        self.validate_with_ckboost_rules()?;
+        
+        // Finally validate script arguments for all cell types
+        Ok(())
+    }
+    
+    /// Validate transaction using CKBoost-specific validation rules
+    pub fn validate_with_ckboost_rules(&self) -> Result<(), Error> {
+        use crate::transaction_recipe::validation_rules;
+        
+        let registry = validation_rules::get_default_registry();
+        
+        // Validate against registered rules
+        registry.validate(
+            self.recipe.inner(),
+            self.input_cells.inner(),
+            self.output_cells.inner(),
+        ).map_err(|validation_err| {
+            // Convert validation error to CKBoost error
+            // For now, map all validation errors to a generic validation error
+            // TODO: Create specific error types for different validation failures
+            Error::DataError
         })
     }
     
