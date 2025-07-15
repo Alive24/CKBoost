@@ -1,11 +1,10 @@
 // CKBoost-specific cell collector using ckb_deterministic library
 use crate::error::Error;
 pub use ckb_deterministic::cell_classifier::{
-    CellClass, CellCollector, CellInfo, RuleBasedClassifier
+    CellClass, CellCollector, CellInfo, RuleBasedClassifier, ClassificationRule
 };
-use ckb_deterministic::known_scripts::{
-    KnownScript, KnownScriptClassifierBuilder
-};
+use ckb_deterministic::known_scripts::KnownScript;
+use ckb_deterministic::cell_classifier::create_universal_classifier;
 use ckb_std::ckb_constants::Source;
 use alloc::vec::Vec;
 
@@ -194,37 +193,30 @@ impl CKBoostCellCollector {
         debug!("Creating CKBoost cell collector from protocol data");
         
         // Start with universal known scripts classifier
-        let mut builder = KnownScriptClassifierBuilder::new("CKBoostClassifier");
+        let mut classifier = create_universal_classifier("CKBoostClassifier");
         
         // Add all accepted UDT type hashes as known cells
         let udt_hashes = data.accepted_udt_type_hashes();
         debug!("Adding {} UDT type hashes to classifier", udt_hashes.len());
         for udt_hash in udt_hashes {
-            builder = builder.add_script(KnownScript::XUdt, udt_hash);
+            classifier = classifier.add_rule(ClassificationRule::TypeCodeHash {
+                code_hash: udt_hash,
+                class: KnownScript::XUdt.cell_class(),
+            });
         }
         
         // Add all accepted DOB (Digital Object) type hashes as known cells
         // This could include Spore, mNFT, etc.
         let dob_hashes = data.accepted_dob_type_hashes();
         debug!("Adding {} DOB type hashes to classifier", dob_hashes.len());
-        for (i, dob_hash) in dob_hashes.into_iter().enumerate() {
-            // For now, treat first DOB as Spore
-            if i == 0 {
-                builder = builder.add_script(KnownScript::Spore, dob_hash);
-            } else {
-                // Other DOBs can be added with additional known script types when available
-                // For now, we'll add them as type hash rules directly
-                builder = builder.add_known_script(
-                    ckb_deterministic::known_scripts::KnownScriptConfig::new(
-                        KnownScript::Spore, // Using Spore for all DOBs for now
-                        dob_hash
-                    )
-                );
-            }
+        for dob_hash in dob_hashes {
+            // For now, treat all DOBs as Spore
+            classifier = classifier.add_rule(ClassificationRule::TypeCodeHash {
+                code_hash: dob_hash,
+                class: KnownScript::Spore.cell_class(),
+            });
         }
         
-        // Build the classifier with known scripts
-        let mut classifier = builder.build();
         debug!("Built classifier with known scripts");
         
         // Add CKBoost custom cell types (always required)

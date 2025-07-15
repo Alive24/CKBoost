@@ -17,6 +17,9 @@ mod tests;
 #[cfg(test)]
 mod protocol_type_tests;
 
+#[cfg(test)]
+mod transaction_context_integration_tests;
+
 // The exact same Loader code from capsule's template, except that
 // now we use MODE as the environment variable
 const TEST_ENV_VAR: &str = "MODE";
