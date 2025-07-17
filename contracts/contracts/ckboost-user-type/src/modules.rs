@@ -55,12 +55,8 @@ impl CKBoostUser for CKBoostUserType {
             return Err(Error::SSRIMethodsNotImplemented);
         }
         
-        // Get user cells for validation
-        let input_user_cells = context.input_cells.user_cells();
-        let output_user_cells = context.output_cells.user_cells();
-        
         // Comprehensive validation of user verification update
-        Self::validate_user_verification_transaction(&context, input_user_cells, output_user_cells)?;
+        Self::validate_user_verification_transaction(&context)?;
         
         debug!("User verification transaction validation completed successfully");
         Ok(())
@@ -75,9 +71,10 @@ impl CKBoostUserType {
     /// Validate user verification update transaction
     fn validate_user_verification_transaction(
         context: &ckboost_shared::transaction_context::CKBoostTransactionContext,
-        input_user_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
-        output_user_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
     ) -> Result<(), Error> {
+        // Get user cells from context
+        let input_user_cells = context.input_cells.user_cells();
+        let output_user_cells = context.output_cells.user_cells();
         debug!("Validating user verification update transaction");
         
         // Validate transaction arguments

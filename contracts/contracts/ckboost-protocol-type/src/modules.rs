@@ -55,12 +55,8 @@ impl CKBoostProtocol for CKBoostProtocolType {
             return Err(Error::SSRIMethodsNotImplemented);
         }
         
-        // Get protocol cells for validation
-        let input_protocol_cells = context.input_cells.protocol_cells();
-        let output_protocol_cells = context.output_cells.protocol_cells();
-        
         // Comprehensive validation of protocol update transaction
-        Self::validate_protocol_update_transaction(&context, input_protocol_cells, output_protocol_cells)?;
+        Self::validate_protocol_update_transaction(&context)?;
         
         debug!("Protocol update transaction validation completed successfully");
         Ok(())
@@ -132,12 +128,14 @@ impl CKBoostProtocolType {
     /// This consolidates all validation logic in one place as requested
     fn validate_protocol_update_transaction(
         context: &ckboost_shared::transaction_context::CKBoostTransactionContext,
-        input_protocol_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
-        output_protocol_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
     ) -> Result<(), Error> {
         use ckb_std::ckb_types::prelude::*;
         
         debug!("Starting comprehensive protocol update transaction validation");
+        
+        // Get protocol cells from context
+        let input_protocol_cells = context.input_cells.protocol_cells();
+        let output_protocol_cells = context.output_cells.protocol_cells();
         
         // Case 1: Protocol Update (input and output both exist)
         match (input_protocol_cells, output_protocol_cells) {

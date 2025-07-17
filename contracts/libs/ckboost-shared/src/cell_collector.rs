@@ -219,6 +219,9 @@ impl CKBoostCellCollector {
         
         debug!("Built classifier with known scripts");
         
+        // Add simple CKB cell rule (cells with no type script)
+        classifier = add_simple_ckb_rule(classifier);
+        
         // Add CKBoost custom cell types (always required)
         classifier = classifier
             .add_type_hash(data.protocol_type_hash(), CellClass::custom(b"protocol".to_vec()))

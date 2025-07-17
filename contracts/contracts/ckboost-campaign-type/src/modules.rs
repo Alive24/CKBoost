@@ -67,15 +67,11 @@ impl CKBoostCampaign for CKBoostCampaignType {
             return Err(Error::SSRIMethodsNotImplemented);
         }
         
-        // Get campaign cells for validation
-        let input_campaign_cells = context.input_cells.campaign_cells();
-        let output_campaign_cells = context.output_cells.campaign_cells();
-        
         // Determine if this is creation or update based on method path
         if context.matches_method_path(method_paths::CREATE_CAMPAIGN.as_bytes()) {
-            Self::validate_campaign_creation_transaction(&context, input_campaign_cells, output_campaign_cells)?;
+            Self::validate_campaign_creation_transaction(&context)?;
         } else {
-            Self::validate_campaign_update_transaction(&context, input_campaign_cells, output_campaign_cells)?;
+            Self::validate_campaign_update_transaction(&context)?;
         }
         
         debug!("Campaign transaction validation completed successfully");
@@ -143,9 +139,10 @@ impl CKBoostCampaignType {
     /// Validate campaign creation transaction
     fn validate_campaign_creation_transaction(
         context: &ckboost_shared::transaction_context::CKBoostTransactionContext,
-        input_campaign_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
-        output_campaign_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
     ) -> Result<(), Error> {
+        // Get campaign cells from context
+        let input_campaign_cells = context.input_cells.campaign_cells();
+        let output_campaign_cells = context.output_cells.campaign_cells();
         
         debug!("Validating campaign creation transaction");
         
@@ -224,10 +221,11 @@ impl CKBoostCampaignType {
     
     /// Validate campaign update transaction
     fn validate_campaign_update_transaction(
-        _context: &ckboost_shared::transaction_context::CKBoostTransactionContext,
-        input_campaign_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
-        output_campaign_cells: Option<&Vec<ckboost_shared::cell_collector::CellInfo>>,
+        context: &ckboost_shared::transaction_context::CKBoostTransactionContext,
     ) -> Result<(), Error> {
+        // Get campaign cells from context
+        let input_campaign_cells = context.input_cells.campaign_cells();
+        let output_campaign_cells = context.output_cells.campaign_cells();
         debug!("Validating campaign update transaction");
         
         // Ensure campaign cells exist in both inputs and outputs

@@ -10,7 +10,7 @@ mod tests {
     use ckboost_shared::cell_collector::create_mock_ckboost_collector;
     use ckboost_shared::transaction_context::TransactionSummary;
     use ckboost_shared::transaction_recipe::{
-        CKBoostTransactionRecipe, create_ckboost_transaction_recipe, protocol_recipes, validation_rules
+        CKBoostTransactionRecipe, create_ckboost_transaction_recipe, protocol_recipes,
     };
     use ckboost_shared::ssri::method_paths;
     use ckboost_shared::error::Error;
@@ -258,7 +258,7 @@ mod tests {
         println!("\n=== Transaction Parsing Flow ===");
         
         // Step 1: Create mock collector
-        let collector = create_mock_ckboost_collector();
+        let _collector = create_mock_ckboost_collector();
         println!("1. Created cell collector with mock protocol data");
         
         // Step 2: Simulate transaction context creation
@@ -360,10 +360,10 @@ mod tests {
         let new_protocol_data = b"updated_protocol_config".to_vec();
         let recipe = protocol_recipes::update_protocol(new_protocol_data)
             .expect("Should create recipe");
-        let wrapper = CKBoostTransactionRecipe::new(recipe);
+        let _wrapper = CKBoostTransactionRecipe::new(recipe);
         
-        // Create validation registry
-        let registry = validation_rules::create_ckboost_validation_registry();
+        // In the decentralized validation approach, each type script validates its own transactions
+        // This test verifies transaction structure expectations
         
         // Test valid protocol update scenario
         let valid_summary = TransactionSummary {
@@ -384,8 +384,14 @@ mod tests {
         println!("  - No campaign or user cells");
         println!("  - 1 argument (protocol data)");
         
+        // Verify the valid scenario has correct structure
+        assert_eq!(valid_summary.input_protocol_cells, 1);
+        assert_eq!(valid_summary.output_protocol_cells, 1);
+        assert!(valid_summary.input_campaign_cells == 0);
+        assert!(valid_summary.input_user_cells == 0);
+        
         // Test invalid scenario: missing protocol cell in outputs
-        let invalid_summary = TransactionSummary {
+        let _invalid_summary = TransactionSummary {
             method_path_length: method_paths::UPDATE_PROTOCOL.len(),
             argument_count: 1,
             input_protocol_cells: 1,
@@ -397,10 +403,10 @@ mod tests {
         
         println!("✗ Invalid scenario test:");
         println!("  - Missing output protocol cell");
-        println!("  - Should fail validation");
+        println!("  - Protocol type script would reject this");
         
         // Test invalid scenario: unexpected campaign cell
-        let invalid_with_campaign = TransactionSummary {
+        let _invalid_with_campaign = TransactionSummary {
             method_path_length: method_paths::UPDATE_PROTOCOL.len(),
             argument_count: 1,
             input_protocol_cells: 1,
@@ -413,9 +419,13 @@ mod tests {
         
         println!("✗ Invalid scenario with campaign cell:");
         println!("  - Unexpected campaign cell in inputs");
-        println!("  - Should fail validation");
+        println!("  - Protocol type script would reject this");
         
-        println!("\nValidation framework successfully integrated! 🎉");
+        println!("\nDecentralized validation approach:");
+        println!("  - Protocol type script validates protocol updates");
+        println!("  - Campaign type script validates campaign operations");
+        println!("  - User type script validates user operations");
+        println!("  - Each contract validates only its own transactions! 🎉");
     }
     
     // Helper function to create default TransactionSummary
