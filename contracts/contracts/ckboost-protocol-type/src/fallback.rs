@@ -3,10 +3,9 @@ use ckb_std::debug;
 use ckboost_shared::{
     ssri::{method_paths, ArgumentDecoder},
     transaction_context::{create_transaction_context, CKBoostTransactionContext},
-    transaction_recipe::{get_arguments, get_method_path, parse_transaction_recipe},
     Error,
 };
-use molecule::prelude::*;
+use alloc::vec::Vec;
 
 /// Dispatch method call based on method path using ckb_deterministic transaction context
 fn dispatch_method(

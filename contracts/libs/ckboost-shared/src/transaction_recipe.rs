@@ -9,8 +9,6 @@ use ckb_deterministic::transaction_recipe::{
 };
 use alloc::vec;
 use alloc::vec::Vec;
-use alloc::string::{String, ToString};
-use alloc::format;
 
 /// CKBoost-specific wrapper around the unified transaction recipe
 #[derive(Debug)]
@@ -50,6 +48,7 @@ pub fn parse_transaction_recipe() -> Result<Option<CKBoostTransactionRecipe>, Er
         .map_err(|e| match e {
             ckb_deterministic::errors::Error::DataError => Error::DataError,
             ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
             _ => Error::RecipeError,
         })?;
     
@@ -65,6 +64,7 @@ pub fn parse_transaction_recipe_at(index: usize) -> Result<Option<CKBoostTransac
         .map_err(|e| match e {
             ckb_deterministic::errors::Error::DataError => Error::DataError,
             ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
             _ => Error::RecipeError,
         })?;
     
@@ -83,6 +83,7 @@ pub fn create_ckboost_transaction_recipe(method_path: impl AsRef<str>, arguments
         .map_err(|e| match e {
             ckb_deterministic::errors::Error::DataError => Error::DataError,
             ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
             _ => Error::RecipeError,
         })
 }
@@ -105,10 +106,31 @@ pub mod protocol_recipes {
 }
 
 // ============================================================================
-// CKBoost Validation Rules using ckb_deterministic validation framework
+// Decentralized Validation Approach
 // ============================================================================
+// 
+// CKBoost uses a decentralized validation approach where each type script
+// validates its own transactions. This reduces contract size and improves
+// modularity:
+//
+// - Protocol Type Contract: Validates protocol updates and tipping proposals
+// - Campaign Type Contract: Validates campaign creation and updates
+// - User Type Contract: Validates user verification and updates
+//
+// The shared library only provides common utilities like recipe parsing
+// and transaction context creation.
 
-/// CKBoost-specific validation rules for transaction recipes
+// Validation functions that were previously here have been moved to their respective type contracts
+// to reduce contract sizes and improve modularity.
+
+// Legacy validation rules module - removed as part of decentralized validation approach
+// Each type script now handles its own validation:
+// - Protocol Type Contract: Validates protocol updates and tipping proposals
+// - Campaign Type Contract: Validates campaign creation and updates
+// - User Type Contract: Validates user verification and updates
+
+/*
+/// Legacy validation rules module - kept for reference only
 pub mod validation_rules {
     use super::*;
     use ckb_deterministic::validation::{
@@ -117,6 +139,13 @@ pub mod validation_rules {
         ValidationRegistry,
     };
     
+    // NOTE: Protocol-specific validation rules have been moved to the protocol type contract
+    // The protocol type contract now handles all validation for:
+    // - create_protocol_update_rules()
+    // - create_tipping_proposal_update_rules()
+    // These functions are kept here commented out for reference only
+    
+    /*
     /// Create validation rules for protocol update transactions
     /// Rules:
     /// - Exactly 1 protocol cell in inputs and outputs
@@ -137,8 +166,6 @@ pub mod validation_rules {
             // UDT and Spore cells: allowed but not required
             .with_known_cell(b"udt", CellCountConstraint::any(), CellCountConstraint::any())
             .with_known_cell(b"spore", CellCountConstraint::any(), CellCountConstraint::any())
-            // Add custom validator for business logic
-            .with_custom_validator(validate_protocol_update_transaction)
     }
     
     /// Create validation rules for tipping proposal update transactions
@@ -161,9 +188,8 @@ pub mod validation_rules {
             // UDT and Spore cells: allowed but not required
             .with_known_cell(b"udt", CellCountConstraint::any(), CellCountConstraint::any())
             .with_known_cell(b"spore", CellCountConstraint::any(), CellCountConstraint::any())
-            // Add custom validator for business logic
-            .with_custom_validator(validate_tipping_proposal_update_transaction)
     }
+    */
     
     /// Create validation rules for campaign creation transactions
     /// Rules:
@@ -239,12 +265,12 @@ pub mod validation_rules {
     }
     
     /// Create a complete validation registry for CKBoost transactions
+    /// NOTE: Protocol-specific validation rules have been moved to the protocol type contract
     pub fn create_ckboost_validation_registry() -> ValidationRegistry {
         let mut registry = ValidationRegistry::new();
         
-        // Register all transaction type rules
-        registry.register(create_protocol_update_rules());
-        registry.register(create_tipping_proposal_update_rules());
+        // Register non-protocol transaction type rules
+        // Protocol update and tipping proposal rules are handled by the protocol type contract
         registry.register(create_campaign_creation_rules());
         registry.register(create_user_verification_update_rules());
         registry.register(create_quest_completion_rules());
@@ -261,142 +287,87 @@ pub mod validation_rules {
     // Custom Validation Functions
     // ========================================================================
     
-    /// Custom validator for protocol update transactions
-    fn validate_protocol_update_transaction(
-        recipe: &ckb_deterministic::generated::TransactionRecipe,
-        input_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-        output_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-    ) -> Result<(), String> {
-        use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
-        
-        let args = recipe.arguments_vec();
-        if args.len() != 1 {
-            return Err(format!("Protocol update requires exactly 1 argument, got {}", args.len()));
-        }
-        
-        // Validate protocol data argument format
-        if args[0].len() < 32 {
-            return Err("Protocol data argument must be at least 32 bytes".to_string());
-        }
-        
-        // Validate protocol cell consistency
-        let input_protocol = input_cells.get_custom(b"protocol")
-            .ok_or("Protocol input cell required")?;
-        let output_protocol = output_cells.get_custom(b"protocol")
-            .ok_or("Protocol output cell required")?;
-            
-        if input_protocol.len() != 1 || output_protocol.len() != 1 {
-            return Err("Exactly one protocol cell required in inputs and outputs".to_string());
-        }
-        
-        // TODO: Add more sophisticated protocol update validation
-        // - Validate protocol data format
-        // - Validate type script consistency
-        // - Validate data transition rules
-        
-        Ok(())
-    }
-    
-    /// Custom validator for tipping proposal update transactions
-    fn validate_tipping_proposal_update_transaction(
-        recipe: &ckb_deterministic::generated::TransactionRecipe,
-        input_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-        output_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-    ) -> Result<(), String> {
-        use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
-        
-        let args = recipe.arguments_vec();
-        if args.len() != 2 {
-            return Err(format!("Tipping proposal update requires exactly 2 arguments, got {}", args.len()));
-        }
-        
-        // Validate protocol type hash argument (32 bytes)
-        if args[0].len() != 32 {
-            return Err("Protocol type hash must be exactly 32 bytes".to_string());
-        }
-        
-        // Validate proposal data argument format
-        if args[1].len() < 16 {
-            return Err("Proposal data argument must be at least 16 bytes".to_string());
-        }
-        
-        // Validate protocol cell consistency (same as protocol update)
-        let input_protocol = input_cells.get_custom(b"protocol")
-            .ok_or("Protocol input cell required")?;
-        let output_protocol = output_cells.get_custom(b"protocol")
-            .ok_or("Protocol output cell required")?;
-            
-        if input_protocol.len() != 1 || output_protocol.len() != 1 {
-            return Err("Exactly one protocol cell required in inputs and outputs".to_string());
-        }
-        
-        // TODO: Add tipping proposal specific validation
-        // - Validate add-only semantics
-        // - Validate approval mechanisms
-        // - Validate execution conditions
-        
-        Ok(())
-    }
+    // NOTE: Protocol-specific validation has been moved to the protocol type contract
+    // since protocol cells are always present in protocol-related transactions.
+    // The protocol type contract (ckboost-protocol-type) now handles all protocol
+    // update and tipping proposal validation logic.
     
     /// Custom validator for campaign creation transactions
     fn validate_campaign_creation_transaction(
         recipe: &ckb_deterministic::generated::TransactionRecipe,
         input_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
         output_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-    ) -> Result<(), String> {
+    ) -> Result<(), ValidationError> {
         use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
         
         let args = recipe.arguments_vec();
         if args.len() != 3 {
-            return Err(format!("Campaign creation requires exactly 3 arguments, got {}", args.len()));
+            return Err(ValidationError::InvalidArgumentCount {
+                expected: 3,
+                actual: args.len(),
+            });
         }
         
         // Validate campaign data argument
         if args[0].len() < 64 {
-            return Err("Campaign data must be at least 64 bytes".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign data must be at least 64 bytes".to_string()
+            ));
         }
         
         // Validate funding amount argument (16-byte u128)
         if args[1].len() != 16 {
-            return Err("Funding amount must be exactly 16 bytes (u128)".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Funding amount must be exactly 16 bytes (u128)".to_string()
+            ));
         }
         
         // Validate duration argument (8-byte u64)
         if args[2].len() != 8 {
-            return Err("Campaign duration must be exactly 8 bytes (u64)".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign duration must be exactly 8 bytes (u64)".to_string()
+            ));
         }
         
         // Parse and validate funding amount
         let funding_amount = u128::from_le_bytes(
             args[1][..16].try_into()
-                .map_err(|_| "Invalid funding amount format")?
+                .map_err(|_| ValidationError::CustomValidation("Invalid funding amount format".to_string()))?
         );
         
         if funding_amount == 0 {
-            return Err("Campaign funding amount must be greater than zero".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign funding amount must be greater than zero".to_string()
+            ));
         }
         
         // Parse and validate duration
         let duration = u64::from_le_bytes(
             args[2][..8].try_into()
-                .map_err(|_| "Invalid duration format")?
+                .map_err(|_| ValidationError::CustomValidation("Invalid duration format".to_string()))?
         );
         
         if duration == 0 {
-            return Err("Campaign duration must be greater than zero".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign duration must be greater than zero".to_string()
+            ));
         }
         
         // Validate campaign cell creation (0 inputs, 1 output)
         let input_campaigns = input_cells.get_custom(b"campaign");
         let output_campaigns = output_cells.get_custom(b"campaign")
-            .ok_or("Campaign output cell required for creation")?;
+            .ok_or_else(|| ValidationError::CustomValidation("Campaign output cell required for creation".to_string()))?;
             
         if input_campaigns.is_some() && !input_campaigns.unwrap().is_empty() {
-            return Err("Campaign creation should have no campaign input cells".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign creation should have no campaign input cells".to_string()
+            ));
         }
         
         if output_campaigns.len() != 1 {
-            return Err("Campaign creation should produce exactly one campaign cell".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Campaign creation should produce exactly one campaign cell".to_string()
+            ));
         }
         
         Ok(())
@@ -407,32 +378,41 @@ pub mod validation_rules {
         recipe: &ckb_deterministic::generated::TransactionRecipe,
         input_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
         output_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-    ) -> Result<(), String> {
+    ) -> Result<(), ValidationError> {
         use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
         
         let args = recipe.arguments_vec();
         if args.len() != 2 {
-            return Err(format!("User verification update requires exactly 2 arguments, got {}", args.len()));
+            return Err(ValidationError::InvalidArgumentCount {
+                expected: 2,
+                actual: args.len(),
+            });
         }
         
         // Validate user data argument
         if args[0].len() < 32 {
-            return Err("User data must be at least 32 bytes".to_string());
+            return Err(ValidationError::CustomValidation(
+                "User data must be at least 32 bytes".to_string()
+            ));
         }
         
         // Validate verification proof argument
         if args[1].len() < 64 {
-            return Err("Verification proof must be at least 64 bytes".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Verification proof must be at least 64 bytes".to_string()
+            ));
         }
         
         // Validate user cell update (at least 1 in inputs and outputs)
         let input_users = input_cells.get_custom(b"user")
-            .ok_or("User input cell required for verification update")?;
+            .ok_or_else(|| ValidationError::CustomValidation("User input cell required for verification update".to_string()))?;
         let output_users = output_cells.get_custom(b"user")
-            .ok_or("User output cell required for verification update")?;
+            .ok_or_else(|| ValidationError::CustomValidation("User output cell required for verification update".to_string()))?;
             
         if input_users.is_empty() || output_users.is_empty() {
-            return Err("User verification update requires user cells in both inputs and outputs".to_string());
+            return Err(ValidationError::CustomValidation(
+                "User verification update requires user cells in both inputs and outputs".to_string()
+            ));
         }
         
         // TODO: Add verification-specific validation
@@ -448,62 +428,78 @@ pub mod validation_rules {
         recipe: &ckb_deterministic::generated::TransactionRecipe,
         input_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
         output_cells: &ckb_deterministic::cell_classifier::ClassifiedCells,
-    ) -> Result<(), String> {
+    ) -> Result<(), ValidationError> {
         use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
         
         let args = recipe.arguments_vec();
         if args.len() != 3 {
-            return Err(format!("Quest completion requires exactly 3 arguments, got {}", args.len()));
+            return Err(ValidationError::InvalidArgumentCount {
+                expected: 3,
+                actual: args.len(),
+            });
         }
         
         // Validate quest ID argument (32-byte identifier)
         if args[0].len() != 32 {
-            return Err("Quest ID must be exactly 32 bytes".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Quest ID must be exactly 32 bytes".to_string()
+            ));
         }
         
         // Validate completion proof argument
         if args[1].len() < 64 {
-            return Err("Completion proof must be at least 64 bytes".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Completion proof must be at least 64 bytes".to_string()
+            ));
         }
         
         // Validate reward amount argument (16-byte u128)
         if args[2].len() != 16 {
-            return Err("Reward amount must be exactly 16 bytes (u128)".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Reward amount must be exactly 16 bytes (u128)".to_string()
+            ));
         }
         
         // Parse and validate reward amount
         let reward_amount = u128::from_le_bytes(
             args[2][..16].try_into()
-                .map_err(|_| "Invalid reward amount format")?
+                .map_err(|_| ValidationError::CustomValidation("Invalid reward amount format".to_string()))?
         );
         
         if reward_amount == 0 {
-            return Err("Quest reward amount must be greater than zero".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Quest reward amount must be greater than zero".to_string()
+            ));
         }
         
         // Validate user cell update (at least 1 in inputs and outputs)
         let input_users = input_cells.get_custom(b"user")
-            .ok_or("User input cell required for quest completion")?;
+            .ok_or_else(|| ValidationError::CustomValidation("User input cell required for quest completion".to_string()))?;
         let output_users = output_cells.get_custom(b"user")
-            .ok_or("User output cell required for quest completion")?;
+            .ok_or_else(|| ValidationError::CustomValidation("User output cell required for quest completion".to_string()))?;
             
         if input_users.is_empty() || output_users.is_empty() {
-            return Err("Quest completion requires user cells in both inputs and outputs".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Quest completion requires user cells in both inputs and outputs".to_string()
+            ));
         }
         
         // Validate campaign cell update (at least 1 in inputs and outputs)
         let input_campaigns = input_cells.get_custom(b"campaign")
-            .ok_or("Campaign input cell required for quest completion")?;
+            .ok_or_else(|| ValidationError::CustomValidation("Campaign input cell required for quest completion".to_string()))?;
         let output_campaigns = output_cells.get_custom(b"campaign")
-            .ok_or("Campaign output cell required for quest completion")?;
+            .ok_or_else(|| ValidationError::CustomValidation("Campaign output cell required for quest completion".to_string()))?;
             
         if input_campaigns.is_empty() || output_campaigns.is_empty() {
-            return Err("Quest completion requires campaign cells in both inputs and outputs".to_string());
+            return Err(ValidationError::CustomValidation(
+                "Quest completion requires campaign cells in both inputs and outputs".to_string()
+            ));
         }
         
         Ok(())
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -574,24 +570,5 @@ mod tests {
         assert_eq!(args[0], protocol_data);
     }
     
-    #[test]
-    fn test_validation_rules() {
-        // Test protocol update validation rules creation
-        let rules = validation_rules::create_protocol_update_rules();
-        assert_eq!(rules.method_path, method_paths::UPDATE_PROTOCOL.as_bytes());
-        assert_eq!(rules.expected_arguments, Some(1));
-        
-        // Test user verification update validation rules creation
-        let user_rules = validation_rules::create_user_verification_update_rules();
-        assert_eq!(user_rules.method_path, method_paths::UPDATE_USER_VERIFICATION.as_bytes());
-        assert_eq!(user_rules.expected_arguments, Some(2));
-        
-        // Test validation registry
-        let registry = validation_rules::create_ckboost_validation_registry();
-        let protocol_rules = registry.get(method_paths::UPDATE_PROTOCOL.as_bytes());
-        assert!(protocol_rules.is_some());
-        
-        let user_verification_rules = registry.get(method_paths::UPDATE_USER_VERIFICATION.as_bytes());
-        assert!(user_verification_rules.is_some());
-    }
+    // Validation rules tests removed - validation is now decentralized to each type script
 }

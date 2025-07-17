@@ -3,6 +3,10 @@ name = "ckboost-protocol-type"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+library = []
+native-simulator = ["library", "ckb-std/native-simulator"]
+
 [dependencies]
 ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
 ckboost-shared = { path = "../../libs/ckboost-shared" }

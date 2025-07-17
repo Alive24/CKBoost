@@ -475,16 +475,6 @@ dependencies = [
 
 [[package]]
 name = "ckb-hash"
-version = "0.118.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d96b7aec74956ae5e79d0fc68e5903dc2b133c2c64644514485bbc9feb5367eb"
-dependencies = [
- "blake2b-ref",
- "blake2b-rs",
-]
-
-[[package]]
-name = "ckb-hash"
 version = "0.119.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99ba7c72f86f239b3e0154f51d6cd5d0d83bbaa8775fdc7b6bcac459ae24b6fd"
@@ -501,6 +491,15 @@ checksum = "93571b17af91fc16f03275bd70612e16092ad4d2e89eaed9cdf513cd3f1e20e7"
 dependencies = [
  "blake2b-ref",
  "blake2b-rs",
+]
+
+[[package]]
+name = "ckb-hash"
+version = "0.202.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a74fb43c0f092a5ea388d31e4579cada2cc14e45dd5818b996f348613efe202"
+dependencies = [
+ "blake2b-ref",
 ]
 
 [[package]]
@@ -932,7 +931,7 @@ dependencies = [
 name = "ckb_deterministic"
 version = "0.1.0"
 dependencies = [
- "ckb-hash 0.118.0",
+ "ckb-hash 0.202.0",
  "ckb-std",
  "molecule 0.8.0",
 ]
@@ -1014,6 +1013,7 @@ name = "ckboost-user-type"
 version = "0.1.0"
 dependencies = [
  "ckb-std",
+ "ckboost-shared",
 ]
 
 [[package]]

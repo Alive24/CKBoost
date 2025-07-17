@@ -6,8 +6,6 @@ use ckb_deterministic::transaction_context::TransactionContext;
 use ckb_deterministic::cell_classifier::RuleBasedClassifier;
 use ckb_std::debug;
 use alloc::vec::Vec;
-use alloc::string::{String, ToString};
-use alloc::format;
 
 /// CKBoost-specific transaction context wrapping the generic ckb_deterministic context
 pub struct CKBoostTransactionContext {
@@ -44,6 +42,7 @@ impl CKBoostTransactionContext {
                 ckb_deterministic::errors::Error::DataError => Error::DataError,
                 ckb_deterministic::errors::Error::RecipeError => Error::SSRIMethodsNotFound,
                 ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+                ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
             })?;
         
         // Convert classified cells back to CKBoost types
@@ -97,6 +96,7 @@ impl CKBoostTransactionContext {
             ckb_deterministic::errors::Error::DataError => Error::DataError,
             ckb_deterministic::errors::Error::RecipeError => Error::SSRIMethodsNotFound,
             ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+            ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
         })?;
         
         // Then validate using CKBoost-specific validation rules
@@ -107,22 +107,27 @@ impl CKBoostTransactionContext {
     }
     
     /// Validate transaction using CKBoost-specific validation rules
+    /// 
+    /// With the decentralized validation approach, this method now only performs
+    /// basic structural validation. Each type script is responsible for its own
+    /// business logic validation.
     pub fn validate_with_ckboost_rules(&self) -> Result<(), Error> {
-        use crate::transaction_recipe::validation_rules;
+        // Basic structural validation only
+        // Each type script validates its own transactions
+        debug!("Performing basic structural validation");
         
-        let registry = validation_rules::get_default_registry();
+        // Ensure recipe has valid method path
+        if self.method_path().is_empty() {
+            return Err(Error::SSRIMethodsNotFound);
+        }
         
-        // Validate against registered rules
-        registry.validate(
-            self.recipe.inner(),
-            self.input_cells.inner(),
-            self.output_cells.inner(),
-        ).map_err(|validation_err| {
-            // Convert validation error to CKBoost error
-            // For now, map all validation errors to a generic validation error
-            // TODO: Create specific error types for different validation failures
-            Error::DataError
-        })
+        // Ensure we have at least some cells
+        if self.input_cells.total_cell_count() == 0 {
+            return Err(Error::TransactionStructureError);
+        }
+        
+        debug!("Basic structural validation passed");
+        Ok(())
     }
     
     /// Get summary statistics for debugging

@@ -1,6 +1,6 @@
 use ckboost_shared::{types::{ProtocolData, TippingProposalData, Byte32}, Error};
 
-
+#[allow(dead_code)]
 pub trait CKBoostProtocol {
     fn update_protocol(
         protocol_type_hash: Option<Byte32>,

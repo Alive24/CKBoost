@@ -3,6 +3,7 @@ name = "ckboost-campaign-type"
 version = "0.1.0"
 edition = "2021"
 
+
 [dependencies]
 ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
 

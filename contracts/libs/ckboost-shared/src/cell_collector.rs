@@ -4,7 +4,7 @@ pub use ckb_deterministic::cell_classifier::{
     CellClass, CellCollector, CellInfo, RuleBasedClassifier, ClassificationRule
 };
 use ckb_deterministic::known_scripts::KnownScript;
-use ckb_deterministic::cell_classifier::create_universal_classifier;
+use ckb_deterministic::cell_classifier::{create_universal_classifier, add_simple_ckb_rule};
 use ckb_std::ckb_constants::Source;
 use alloc::vec::Vec;
 
@@ -194,7 +194,7 @@ impl CKBoostCellCollector {
         
         // Start with universal known scripts classifier
         let mut classifier = create_universal_classifier("CKBoostClassifier");
-        
+                
         // Add all accepted UDT type hashes as known cells
         let udt_hashes = data.accepted_udt_type_hashes();
         debug!("Adding {} UDT type hashes to classifier", udt_hashes.len());
@@ -255,6 +255,7 @@ impl CKBoostCellCollector {
                     ckb_deterministic::errors::Error::DataError => Error::DataError,
                     ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
                     ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+                    ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
                 }
             })?;
             
@@ -272,6 +273,7 @@ impl CKBoostCellCollector {
                     ckb_deterministic::errors::Error::DataError => Error::DataError,
                     ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
                     ckb_deterministic::errors::Error::SystemError(code) => Error::SysError(code),
+                    ckb_deterministic::errors::Error::ValidationError(_) => Error::DataError,
                 }
             })?;
             
