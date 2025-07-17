@@ -7,7 +7,7 @@ use ckb_std::error::SysError;
 pub enum Error {
     // * CKB Error
     IndexOutOfBound = 1,
-    ItemMissing = 2,
+    ItemMissing,
     LengthNotEnough,
     Encoding,
     SpawnExceededMaxContentLength,
@@ -102,10 +102,24 @@ pub enum Error {
     // ckb_deterministic compatibility errors
     DataError,
     RecipeError,
-    SysError(i8),
+    
+    // New validation errors from ckb_deterministic
+    UnidentifiedCells,
+    InvalidCodeHash,
+    WrongMethodPath,
+    InvalidArgumentCount,
+    CellCountViolation,
+    MissingCellDep,
+    MissingHeaderDep,
+    DataParsing,
+    InvalidCellRelationship,
+    CustomRuleFailed,
     
     // Script argument validation errors
     TransactionStructureError,
+    
+    // Unknown error
+    Unknown,
 }
 
 impl From<SysError> for Error {
@@ -115,7 +129,7 @@ impl From<SysError> for Error {
             SysError::ItemMissing => Error::ItemMissing,
             SysError::LengthNotEnough(_) => Error::LengthNotEnough,
             SysError::Encoding => Error::Encoding,
-            _ => Error::InvalidTransaction,
+            _ => Error::Unknown,
         }
     }
 }
@@ -132,70 +146,24 @@ impl From<SSRIError> for Error {
     }
 }
 
-impl Error {
-    /// Convert Error to i8 error code for contract exit codes
-    pub fn as_error_code(self) -> i8 {
-        match self {
-            Error::IndexOutOfBound => 1,
-            Error::ItemMissing => 2,
-            Error::LengthNotEnough => 3,
-            Error::Encoding => 4,
-            Error::SpawnExceededMaxContentLength => 5,
-            Error::SpawnWrongMemoryLimit => 6,
-            Error::SpawnExceededMaxPeakMemory => 7,
-            Error::Utf8Error => 8,
-            Error::SSRIMethodsNotFound => 9,
-            Error::SSRIMethodsArgsInvalid => 10,
-            Error::SSRIMethodsNotImplemented => 11,
-            Error::SSRIMethodRequireHigherLevel => 12,
-            Error::InvalidVmVersion => 13,
-            Error::InvalidTypeIDCellNum => 14,
-            Error::TypeIDNotMatch => 15,
-            Error::MoleculeVerificationError => 16,
-            Error::SerdeMoleculeErrorWithMessage => 17,
-            Error::MismatchedLength => 18,
-            Error::SerdeMoleculeLengthNotEnough => 19,
-            Error::Unimplemented => 20,
-            Error::AssembleFixvec => 21,
-            Error::InvalidFixvec => 22,
-            Error::MismatchedTableFieldCount => 23,
-            Error::Overflow => 24,
-            Error::InvalidArray => 25,
-            Error::InvalidStructField => 26,
-            Error::InvalidMap => 27,
-            Error::InvalidTable => 28,
-            Error::InvalidTableLength => 29,
-            Error::InvalidTableHeader => 30,
-            Error::InvalidTableCount => 31,
-            Error::MixTableAndStruct => 32,
-            Error::InvalidChar => 33,
-            Error::InvalidCampaignData => 34,
-            Error::InvalidCampaignState => 35,
-            Error::InvalidCampaignCreator => 36,
-            Error::InvalidCampaignFunding => 37,
-            Error::InvalidCampaignTimestamp => 38,
-            Error::InvalidQuestData => 39,
-            Error::InvalidQuestCreator => 40,
-            Error::InvalidQuestCampaign => 41,
-            Error::InvalidQuestReward => 42,
-            Error::InvalidQuestStatus => 43,
-            Error::InvalidProtocolData => 44,
-            Error::InvalidProtocolState => 45,
-            Error::InvalidProtocolVersion => 46,
-            Error::CampaignNotFound => 47,
-            Error::CampaignNotActive => 48,
-            Error::InsufficientFunding => 49,
-            Error::QuestLimitExceeded => 50,
-            Error::UnauthorizedOperation => 51,
-            Error::InvalidTransaction => 52,
-            Error::ArgumentNotFound => 53,
-            Error::DetectedUnidentifiedCells => 54,
-            Error::DataError => 55,
-            Error::RecipeError => 56,
-            Error::TransactionStructureError => 57,
-            Error::SysError(code) => code,
+impl From<ckb_deterministic::errors::Error> for Error {
+    fn from(err: ckb_deterministic::errors::Error) -> Self {
+        match err {
+            ckb_deterministic::errors::Error::IndexOutOfBound => Error::IndexOutOfBound,
+            ckb_deterministic::errors::Error::ItemMissing => Error::ItemMissing,
+            ckb_deterministic::errors::Error::LengthNotEnough => Error::LengthNotEnough,
+            ckb_deterministic::errors::Error::Encoding => Error::Encoding,
+            ckb_deterministic::errors::Error::DataError => Error::DataError,
+            ckb_deterministic::errors::Error::UnidentifiedCells => Error::UnidentifiedCells,
+            ckb_deterministic::errors::Error::RecipeError => Error::RecipeError,
+            ckb_deterministic::errors::Error::InvalidCodeHash => Error::InvalidCodeHash,
+            ckb_deterministic::errors::Error::WrongMethodPath => Error::WrongMethodPath,
+            ckb_deterministic::errors::Error::InvalidArgumentCount => Error::InvalidArgumentCount,
+            ckb_deterministic::errors::Error::CellCountViolation => Error::CellCountViolation,
+            ckb_deterministic::errors::Error::CellRelationshipRuleViolation => Error::InvalidCellRelationship,
+            ckb_deterministic::errors::Error::MissingCellDep => Error::MissingCellDep,
+            ckb_deterministic::errors::Error::MissingHeaderDep => Error::MissingHeaderDep,
+            _ => Error::Unknown,
         }
     }
 }
-
-pub type Result<T> = core::result::Result<T, Error>;

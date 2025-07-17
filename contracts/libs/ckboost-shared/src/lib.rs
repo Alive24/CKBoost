@@ -7,12 +7,16 @@ pub mod generated;
 pub mod error;
 pub mod types;
 pub mod type_id;
-pub mod transaction_recipe;
 pub mod ssri;
 pub mod cell_collector;
-pub mod transaction_context;
 pub mod protocol_data;
-pub mod fallback;
+pub mod transaction_context;
 
 // Re-export error types at crate root
 pub use error::*;
+
+// Re-export validation in ckb_deterministic
+pub use ckb_deterministic::validation;
+
+// Re-export extension trait for protocol data
+pub use protocol_data::ProtocolDataExt;

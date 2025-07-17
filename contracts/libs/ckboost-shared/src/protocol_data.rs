@@ -1,27 +1,22 @@
-use crate::generated::ckboost::{ProtocolData as GeneratedProtocolData, ScriptCodeHashes, Byte32, Byte32Vec};
+pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec};
 use ckb_std::debug;
 use molecule::prelude::*;
 use alloc::vec::Vec;
 
-/// Wrapper around generated ProtocolData with helper methods for cell classification
-#[derive(Debug, Clone)]
-pub struct ProtocolData {
-    inner: GeneratedProtocolData,
-}
-
-impl ProtocolData {
+/// Extension trait for ProtocolData with helper methods for cell classification
+pub trait ProtocolDataExt {
     /// Create protocol data from actual protocol cell
     /// TODO: Implement actual protocol cell reading
-    pub fn from_protocol_cell() -> Result<Self, crate::error::Error> {
+    fn from_protocol_cell() -> Result<ProtocolData, crate::error::Error> {
         debug!("Loading protocol data from protocol cell");
         
         // TODO: Read from actual protocol cell
         // For now, return mock data
-        Ok(Self::mock())
+        Ok(ProtocolData::mock())
     }
     
     /// Create mock protocol data for testing
-    pub fn mock() -> Self {
+    fn mock() -> ProtocolData {
         // Create mock ScriptCodeHashes
         let mock_hash_protocol_type = Byte32::from([1u8; 32]);
         let mock_hash_protocol_lock = Byte32::from([11u8; 32]);
@@ -56,16 +51,34 @@ impl ProtocolData {
             .script_code_hashes(script_code_hashes)
             .build();
             
-        let inner = GeneratedProtocolData::new_builder()
+        ProtocolData::new_builder()
             .protocol_config(protocol_config)
-            .build();
-            
-        Self { inner }
+            .build()
     }
     
     /// Get protocol type code hash
-    pub fn protocol_type_hash(&self) -> [u8; 32] {
-        let hash = self.inner
+    fn protocol_type_code_hash(&self) -> [u8; 32];
+    
+    /// Get campaign type code hash
+    fn campaign_type_code_hash(&self) -> [u8; 32];
+    
+    /// Get user type code hash
+    fn user_type_code_hash(&self) -> [u8; 32];
+    
+    /// Get accepted UDT type hashes
+    fn accepted_udt_type_hashes(&self) -> Vec<[u8; 32]>;
+    
+    /// Get accepted DOB (Digital Object) type hashes
+    fn accepted_dob_type_code_hashes(&self) -> Vec<[u8; 32]>;
+    
+    /// Check if all required type hashes are present
+    fn validate_protocol(&self) -> Result<(), crate::error::Error>;
+}
+
+impl ProtocolDataExt for ProtocolData {
+    /// Get protocol type code hash
+    fn protocol_type_code_hash(&self) -> [u8; 32] {
+        let hash = self
             .protocol_config()
             .script_code_hashes()
             .ckb_boost_protocol_type_code_hash();
@@ -75,8 +88,8 @@ impl ProtocolData {
     }
     
     /// Get campaign type code hash
-    pub fn campaign_type_hash(&self) -> [u8; 32] {
-        let hash = self.inner
+    fn campaign_type_code_hash(&self) -> [u8; 32] {
+        let hash = self
             .protocol_config()
             .script_code_hashes()
             .ckb_boost_campaign_type_code_hash();
@@ -86,8 +99,8 @@ impl ProtocolData {
     }
     
     /// Get user type code hash
-    pub fn user_type_hash(&self) -> [u8; 32] {
-        let hash = self.inner
+    fn user_type_code_hash(&self) -> [u8; 32] {
+        let hash = self
             .protocol_config()
             .script_code_hashes()
             .ckb_boost_user_type_code_hash();
@@ -97,8 +110,8 @@ impl ProtocolData {
     }
     
     /// Get accepted UDT type hashes
-    pub fn accepted_udt_type_hashes(&self) -> Vec<[u8; 32]> {
-        let hashes = self.inner
+    fn accepted_udt_type_hashes(&self) -> Vec<[u8; 32]> {
+        let hashes = self
             .protocol_config()
             .script_code_hashes()
             .accepted_udt_type_code_hashes();
@@ -114,8 +127,8 @@ impl ProtocolData {
     }
     
     /// Get accepted DOB (Digital Object) type hashes
-    pub fn accepted_dob_type_hashes(&self) -> Vec<[u8; 32]> {
-        let hashes = self.inner
+    fn accepted_dob_type_code_hashes(&self) -> Vec<[u8; 32]> {
+        let hashes = self
             .protocol_config()
             .script_code_hashes()
             .accepted_dob_type_code_hashes();
@@ -130,28 +143,11 @@ impl ProtocolData {
         result
     }
     
-    /// Get first UDT type hash if any configured
-    pub fn udt_type_hash(&self) -> Option<[u8; 32]> {
-        self.accepted_udt_type_hashes().first().copied()
-    }
-    
-    /// Get Spore type hash if configured (placeholder for now)
-    /// TODO: Add Spore to accepted DOBs when ready
-    pub fn spore_type_hash(&self) -> Option<[u8; 32]> {
-        // For now, return first DOB as placeholder for Spore
-        self.accepted_dob_type_hashes().first().copied()
-    }
-    
     /// Check if all required type hashes are present
-    pub fn validate(&self) -> Result<(), crate::error::Error> {
+    fn validate_protocol(&self) -> Result<(), crate::error::Error> {
         // Protocol, campaign, and user type hashes are always required
         // They come from the generated structure, so they're always valid
         Ok(())
-    }
-    
-    /// Get the inner generated protocol data
-    pub fn inner(&self) -> &GeneratedProtocolData {
-        &self.inner
     }
 }
 
@@ -168,13 +164,11 @@ mod tests {
     #[test]
     fn test_mock_protocol_data() {
         let data = ProtocolData::mock();
-        assert!(data.validate().is_ok());
-        assert!(data.udt_type_hash().is_some());
-        assert!(data.spore_type_hash().is_some());
+        assert!(data.validate_protocol().is_ok());
         
         // Check that type hashes are properly set
-        assert_eq!(data.protocol_type_hash(), [1u8; 32]);
-        assert_eq!(data.campaign_type_hash(), [2u8; 32]);
-        assert_eq!(data.user_type_hash(), [3u8; 32]);
+        assert_eq!(data.protocol_type_code_hash(), [1u8; 32]);
+        assert_eq!(data.campaign_type_code_hash(), [2u8; 32]);
+        assert_eq!(data.user_type_code_hash(), [3u8; 32]);
     }
 }

@@ -5,8 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use alloc::vec::Vec;
-use ckboost_shared::{type_id::check_type_id, types::{Byte32, ProtocolData, TippingProposalData}, Error};
+use ckboost_shared::{type_id::check_type_id, types::{Byte32, ProtocolData}, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -28,6 +27,7 @@ ckb_std::default_alloc!(16384, 1258306, 64);
 pub mod modules;
 pub mod ssri;
 pub mod fallback;
+pub mod recipes;
 
 
 
@@ -40,6 +40,10 @@ fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
 
     if should_fallback()? {
+        // # Validation Rules
+        // 
+        // 1. **Type ID mechanism**: Ensures the protocol cell uses the correct type ID
+        //    for singleton pattern enforcement
         match check_type_id() {
             Ok(_) => fallback()?,
             Err(err) => {
@@ -109,7 +113,7 @@ pub fn program_entry() -> i8 {
         Ok(_) => 0,
         Err(err) => {
             debug!("Contract execution failed with error: {:?}", err);
-            err.as_error_code()
+            err as i8
         }
     }
 }

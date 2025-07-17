@@ -991,6 +991,7 @@ dependencies = [
  "ckb-ssri-std",
  "ckb-ssri-std-proc-macro",
  "ckb-std",
+ "ckb_deterministic",
  "ckboost-shared",
  "molecule 0.8.0",
 ]
