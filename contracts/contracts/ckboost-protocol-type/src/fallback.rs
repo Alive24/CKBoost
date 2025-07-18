@@ -1,12 +1,9 @@
 use crate::{modules::CKBoostProtocolType, ssri::CKBoostProtocol};
-use alloc::vec::Vec;
 use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
     transaction_recipe::TransactionRecipeExt,
 };
 use ckb_std::debug;
 use ckboost_shared::{
-    ssri::{ArgumentDecoder},
     transaction_context::create_transaction_context,
     Error,
 };

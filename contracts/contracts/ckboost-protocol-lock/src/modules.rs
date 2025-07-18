@@ -1,4 +1,4 @@
-use ckboost_shared::{types::ProtocolData, Error};
+use ckboost_shared::Error;
 
 pub struct CKBoostProtocolLock;
 
@@ -11,6 +11,7 @@ impl CKBoostProtocolLock {
     /// # Returns
     /// - `Ok(())`: Validation passed
     /// - `Err(Error)`: Validation failed with specific error details
+    #[allow(dead_code)]
     fn verify_update_protocol() -> Result<(), Error> {
         Ok(())
     }
@@ -23,6 +24,7 @@ impl CKBoostProtocolLock {
     /// # Returns
     /// - `Ok(())`: Validation passed
     /// - `Err(Error)`: Validation failed with specific error details
+    #[allow(dead_code)]
     fn verify_update_tipping_proposal() -> Result<(), Error> {
         Ok(())
     }

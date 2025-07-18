@@ -37,13 +37,13 @@ impl CKBoostProtocol for CKBoostProtocolType {
         _protocol_type_hash: Byte32,
         _tipping_proposal_data: TippingProposalData,
     ) -> Result<(), Error> {
-        // TODO: Implement tipping proposal update logic
+        // TODO: Implement SSRI tipping proposal update logic
         // This should handle the actual tipping proposal update operation
         Ok(())
     }
 
     fn verify_update_tipping_proposal(
-        context: &TransactionContext<RuleBasedClassifier>,
+        _context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
         debug!("Starting verify_update_tipping_proposal");
 

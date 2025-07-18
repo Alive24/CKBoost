@@ -972,8 +972,12 @@ dependencies = [
 name = "ckboost-campaign-type"
 version = "0.1.0"
 dependencies = [
+ "ckb-ssri-std",
+ "ckb-ssri-std-proc-macro",
  "ckb-std",
+ "ckb_deterministic",
  "ckboost-shared",
+ "molecule 0.8.0",
 ]
 
 [[package]]
@@ -1013,8 +1017,12 @@ dependencies = [
 name = "ckboost-user-type"
 version = "0.1.0"
 dependencies = [
+ "ckb-ssri-std",
+ "ckb-ssri-std-proc-macro",
  "ckb-std",
+ "ckb_deterministic",
  "ckboost-shared",
+ "molecule 0.8.0",
 ]
 
 [[package]]
@@ -2270,6 +2278,7 @@ name = "tests"
 version = "0.1.0"
 dependencies = [
  "ckb-testtool",
+ "ckb_deterministic",
  "ckboost-shared",
  "serde_json",
 ]
