@@ -61,7 +61,8 @@ import {
   Trash2,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  FileSearch
 } from "lucide-react"
 import {
   ProtocolTransaction,
@@ -173,6 +174,7 @@ export function ProtocolManagement() {
     batchUpdateProtocol: providerBatchUpdateProtocol,
     calculateChanges: providerCalculateChanges,
     refreshProtocolData,
+    loadProtocolDataByOutPoint: providerLoadProtocolDataByOutPoint,
     isWalletConnected
   } = useProtocol()
 
@@ -235,6 +237,13 @@ export function ProtocolManagement() {
   const [showDeploymentDialog, setShowDeploymentDialog] = useState(false)
   const [deploymentResult, setDeploymentResult] = useState<string>("")
   const [isDeploying, setIsDeploying] = useState(false)
+  
+  // State for manual outpoint loading
+  const [showOutpointDialog, setShowOutpointDialog] = useState(false)
+  const [outpointTxHash, setOutpointTxHash] = useState<string>("")
+  const [outpointIndex, setOutpointIndex] = useState<string>("0")
+  const [isLoadingOutpoint, setIsLoadingOutpoint] = useState(false)
+  
   const [pendingChanges, setPendingChanges] = useState<{
     protocolConfig: boolean
     scriptCodeHashes: boolean
@@ -547,6 +556,30 @@ export function ProtocolManagement() {
   const toggleChangesView = () => {
     setShowChangesOnly(!showChangesOnly)
   }
+  
+  const handleLoadByOutpoint = async () => {
+    if (!outpointTxHash || !outpointIndex) {
+      alert("Please enter both transaction hash and index")
+      return
+    }
+    
+    setIsLoadingOutpoint(true)
+    try {
+      await providerLoadProtocolDataByOutPoint({
+        txHash: outpointTxHash.startsWith('0x') ? outpointTxHash : `0x${outpointTxHash}`,
+        index: parseInt(outpointIndex)
+      })
+      setShowOutpointDialog(false)
+      setOutpointTxHash("")
+      setOutpointIndex("0")
+      alert("Protocol data loaded successfully from the specified outpoint")
+    } catch (error) {
+      console.error("Failed to load protocol data by outpoint:", error)
+      alert("Failed to load protocol data: " + (error as Error).message)
+    } finally {
+      setIsLoadingOutpoint(false)
+    }
+  }
 
   // Helper function to render change indicator badge
   const ChangeIndicator = ({ hasChanged }: { hasChanged: boolean }) => {
@@ -751,6 +784,15 @@ export function ProtocolManagement() {
           <Button onClick={refreshProtocolData} disabled={isLoading}>
             <Activity className="h-4 w-4 mr-2" />
             {isLoading ? "Loading..." : "Refresh Data"}
+          </Button>
+          <Button 
+            onClick={() => setShowOutpointDialog(true)} 
+            variant="outline"
+            disabled={!isWalletConnected}
+            title={!isWalletConnected ? "Connect wallet to load by outpoint" : ""}
+          >
+            <FileSearch className="h-4 w-4 mr-2" />
+            Load by Outpoint
           </Button>
         </div>
       </div>
@@ -980,6 +1022,90 @@ export function ProtocolManagement() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manual Outpoint Loading Dialog */}
+      <Dialog open={showOutpointDialog} onOpenChange={setShowOutpointDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Load Protocol Cell by Outpoint</DialogTitle>
+            <DialogDescription>
+              Manually specify a protocol cell outpoint to load. This will replace the current protocol data.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="txHash" className="text-sm font-medium">
+                Transaction Hash
+              </label>
+              <Input
+                id="txHash"
+                placeholder="0x..."
+                value={outpointTxHash}
+                onChange={(e) => setOutpointTxHash(e.target.value)}
+                disabled={isLoadingOutpoint}
+              />
+              <p className="text-xs text-muted-foreground">
+                The transaction hash where the protocol cell was created
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="index" className="text-sm font-medium">
+                Output Index
+              </label>
+              <Input
+                id="index"
+                type="number"
+                placeholder="0"
+                value={outpointIndex}
+                onChange={(e) => setOutpointIndex(e.target.value)}
+                disabled={isLoadingOutpoint}
+                min="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                The index of the output in the transaction (usually 0)
+              </p>
+            </div>
+            
+            {process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH && (
+              <div className="text-xs text-muted-foreground p-3 bg-gray-50 dark:bg-gray-900 rounded">
+                <strong>Current Environment Config:</strong><br />
+                Code Hash: {process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH.slice(0, 10)}...<br />
+                This will be overridden when loading by outpoint.
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowOutpointDialog(false)}
+              disabled={isLoadingOutpoint}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleLoadByOutpoint}
+              disabled={isLoadingOutpoint || !outpointTxHash}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {isLoadingOutpoint ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <FileSearch className="h-4 w-4 mr-2" />
+                  Load Cell
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

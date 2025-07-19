@@ -46,6 +46,44 @@ const getProtocolTypeScript = () => {
 };
 
 /**
+ * Fetch protocol cell by specific outpoint
+ * @param signer - CCC signer instance
+ * @param outPoint - Specific outpoint to fetch
+ * @returns Protocol cell or null if not found
+ */
+export async function fetchProtocolCellByOutPoint(
+  signer: ccc.Signer,
+  outPoint: { txHash: string; index: number }
+): Promise<ProtocolCell | null> {
+  try {
+    const client = signer.client;
+    
+    // Fetch the specific cell by outpoint
+    const cell = await client.getCellLive(outPoint);
+    
+    if (!cell) {
+      return null;
+    }
+    
+    return {
+      outPoint: {
+        txHash: cell.outPoint.txHash,
+        index: Number(cell.outPoint.index),
+      },
+      output: {
+        capacity: cell.cellOutput.capacity.toString(),
+        lock: cell.cellOutput.lock,
+        type: cell.cellOutput.type || null,
+      },
+      data: cell.outputData || "0x",
+    };
+  } catch (error) {
+    console.error("Failed to fetch protocol cell by outpoint:", error);
+    throw new Error("Failed to fetch protocol cell by outpoint");
+  }
+}
+
+/**
  * Fetch protocol cell from CKB blockchain or return mock cell
  * @param signer - CCC signer instance (optional when using mock data)
  * @returns Protocol cell or null if not found
@@ -201,6 +239,23 @@ export function generateProtocolData(data: ProtocolData): string {
 }
 
 /**
+ * Fetch protocol data by specific outpoint
+ * @param signer - CCC signer instance
+ * @param outPoint - Specific outpoint to fetch
+ * @returns ProtocolData from the specified cell
+ */
+export async function fetchProtocolDataByOutPoint(
+  signer: ccc.Signer,
+  outPoint: { txHash: string; index: number }
+): Promise<ProtocolData> {
+  const cell = await fetchProtocolCellByOutPoint(signer, outPoint);
+  if (!cell) {
+    throw new Error("Protocol cell not found at specified outpoint");
+  }
+  return parseProtocolData(cell.data);
+}
+
+/**
  * Fetch current protocol data from blockchain or return mock data
  * @param signer - CCC signer instance (optional when using mock data)
  * @returns Current ProtocolData
@@ -232,6 +287,23 @@ export async function fetchProtocolMetrics(
   try {
     const data = await fetchProtocolData(signer);
 
+    // Convert timestamp and validate
+    let timestamp: number;
+    try {
+      timestamp = bufferToNumber(data.last_updated);
+      // Validate timestamp is reasonable (between year 2020 and 2100)
+      const minTimestamp = 1577836800; // Jan 1, 2020
+      const maxTimestamp = 4102444800; // Jan 1, 2100
+      
+      if (timestamp < minTimestamp || timestamp > maxTimestamp) {
+        console.warn(`Invalid timestamp value: ${timestamp}, using current time`);
+        timestamp = Math.floor(Date.now() / 1000);
+      }
+    } catch (error) {
+      console.error('Error converting timestamp:', error);
+      timestamp = Math.floor(Date.now() / 1000);
+    }
+
     return {
       totalCampaigns: data.campaigns_approved.length,
       activeCampaigns: data.campaigns_approved.filter((c: any) => c.status === 4)
@@ -241,7 +313,7 @@ export async function fetchProtocolMetrics(
         (p: any) => !p.tipping_transaction_hash
       ).length,
       totalEndorsers: data.endorsers_whitelist.length,
-      lastUpdated: new Date(bufferToNumber(data.last_updated) * 1000).toISOString(),
+      lastUpdated: new Date(timestamp * 1000).toISOString(),
     };
   } catch (error) {
     console.error("Failed to fetch protocol metrics:", error);

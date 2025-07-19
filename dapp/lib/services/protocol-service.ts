@@ -24,6 +24,7 @@ import {
 } from "../types/protocol"
 import {
   fetchProtocolData,
+  fetchProtocolDataByOutPoint,
   fetchProtocolMetrics,
   fetchProtocolTransactions,
   updateProtocolCell
@@ -48,6 +49,23 @@ export class ProtocolService {
       return await fetchProtocolData(this.signer)
     } catch (error) {
       console.warn("Failed to fetch protocol data:", error)
+      throw error
+    }
+  }
+
+  /**
+   * Get protocol data by specific outpoint
+   * @param outPoint - Specific outpoint to fetch
+   * @returns ProtocolData from the specified cell
+   */
+  async getProtocolDataByOutPoint(outPoint: { txHash: string; index: number }): Promise<ProtocolData> {
+    if (!this.signer) {
+      throw new Error("Signer required for fetching by outpoint")
+    }
+    try {
+      return await fetchProtocolDataByOutPoint(this.signer, outPoint)
+    } catch (error) {
+      console.warn("Failed to fetch protocol data by outpoint:", error)
       throw error
     }
   }

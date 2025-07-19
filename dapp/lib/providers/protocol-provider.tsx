@@ -33,6 +33,7 @@ interface ProtocolContextType {
   
   // Protocol operations
   refreshProtocolData: () => Promise<void>
+  loadProtocolDataByOutPoint: (outPoint: { txHash: string; index: number }) => Promise<void>
   updateProtocolConfig: (form: UpdateProtocolConfigForm) => Promise<string>
   updateScriptCodeHashes: (form: UpdateScriptCodeHashesForm) => Promise<string>
   updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<string>
@@ -177,6 +178,38 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to refresh protocol data')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadProtocolDataByOutPoint = async (outPoint: { txHash: string; index: number }): Promise<void> => {
+    if (!signer) {
+      throw new Error("Wallet connection required to load by outpoint")
+    }
+
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      const service = new ProtocolService(signer)
+      
+      // Load protocol data from specific outpoint
+      const data = await service.getProtocolDataByOutPoint(outPoint)
+      setProtocolData(data)
+      
+      // Also refresh metrics and transactions based on the new data
+      const [metricsData, transactionsData] = await Promise.all([
+        service.getProtocolMetrics(),
+        service.getProtocolTransactions()
+      ])
+      
+      setMetrics(metricsData)
+      setTransactions(transactionsData)
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load protocol data by outpoint')
       throw err
     } finally {
       setIsLoading(false)
@@ -348,6 +381,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     
     // Protocol operations
     refreshProtocolData,
+    loadProtocolDataByOutPoint,
     updateProtocolConfig,
     updateScriptCodeHashes,
     updateTippingConfig,

@@ -101,11 +101,30 @@ export function bufferToNumber(buffer: SDKBuffer): number {
     throw new Error('Invalid buffer type')
   }
   const uint8Array = new Uint8Array(arrayBuffer)
+  
+  // Handle different byte lengths
+  if (uint8Array.length === 0) {
+    return 0
+  }
+  
   // Handle little-endian encoding
   let value = 0
-  for (let i = 0; i < uint8Array.length && i < 8; i++) {
-    value += uint8Array[i] * Math.pow(256, i)
+  const maxBytes = Math.min(uint8Array.length, 8) // Max 8 bytes for JavaScript number
+  
+  for (let i = 0; i < maxBytes; i++) {
+    // Use bitwise operations for first 4 bytes, Math.pow for the rest
+    if (i < 4) {
+      value += (uint8Array[i] << (i * 8)) >>> 0
+    } else {
+      value += uint8Array[i] * Math.pow(256, i)
+    }
   }
+  
+  // Check if the value is within safe integer range
+  if (value > Number.MAX_SAFE_INTEGER) {
+    console.warn('Buffer value exceeds MAX_SAFE_INTEGER:', value)
+  }
+  
   return value
 }
 
