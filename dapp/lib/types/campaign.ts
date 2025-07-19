@@ -1,18 +1,8 @@
 // Campaign-specific types for CKBoost campaign management and UI
 // This file contains types specific to campaign operations, UI components, and user interactions
 
+// Import types from ssri-ckboost SDK
 import type {
-  // UI-friendly interfaces
-  Script,
-  CampaignData,
-  CampaignMetadata,
-  QuestData,
-  QuestSubTaskData,
-  CompletionRecord,
-  AssetList,
-  UDTFunding,
-  
-  // Generated molecule types (for actual blockchain data)
   CampaignDataType,
   CampaignMetadataType,
   QuestDataType,
@@ -21,18 +11,10 @@ import type {
   AssetListType,
   UDTFundingType,
   ScriptType,
-  
-  // Generated molecule classes (for runtime operations)
-  CampaignDataClass,
-  CampaignMetadataClass,
-  QuestDataClass,
-  QuestSubTaskDataClass,
-  CompletionRecordClass,
-  AssetListClass,
-  UDTFundingClass,
-  ScriptClass,
-  
-} from './index'
+  SponsorInfoType,
+  UserProgressDataType,
+  TokenRewardInfoType,
+} from 'ssri-ckboost/types'
 
 // UI-specific campaign types that extend the base campaign data
 export interface TokenReward {
@@ -152,7 +134,7 @@ export interface CampaignDataWithMetadata {
   raw: CampaignDataType
   
   // Parsed for UI consumption
-  ui: CampaignData
+  ui: Campaign // Using the Campaign interface defined above
   
   // Cell reference
   cell: CKBCampaignCell
@@ -179,36 +161,3 @@ export interface CKBUserProgressCell {
   data: string // Hex-encoded user progress data
 }
 
-// Re-export base types for convenience (single import from campaign.ts)
-export type {
-  // UI-friendly interfaces
-  Script,
-  CampaignData,
-  CampaignMetadata,
-  QuestData,
-  QuestSubTaskData,
-  CompletionRecord,
-  AssetList,
-  UDTFunding,
-  
-  // Generated molecule types
-  CampaignDataType,
-  CampaignMetadataType,
-  QuestDataType,
-  QuestSubTaskDataType,
-  CompletionRecordType,
-  AssetListType,
-  UDTFundingType,
-  ScriptType,
-  
-  // Generated molecule classes
-  CampaignDataClass,
-  CampaignMetadataClass,
-  QuestDataClass,
-  QuestSubTaskDataClass,
-  CompletionRecordClass,
-  AssetListClass,
-  UDTFundingClass,
-  ScriptClass,
-  
-}

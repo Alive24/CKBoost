@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist.commonjs/
+
+# Generated files (keep .js, .d.ts, and index.ts for TypeScript)
+src/generated/ckboost.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*

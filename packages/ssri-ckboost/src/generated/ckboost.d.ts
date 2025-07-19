@@ -153,6 +153,7 @@ export interface QuestSubTaskDataType {
   title: BytesType;
   type: BytesType;
   description: BytesType;
+  proof_required: BytesType;
 }
 
 export interface CompletionRecordType {
@@ -165,12 +166,26 @@ export interface CompletionRecordType {
 export interface QuestDataType {
   id: Byte32Type;
   campaign_id: Byte32Type;
+  title: BytesType;
+  description: BytesType;
   requirements: BytesType;
   rewards_on_completion: AssetListVecType;
   completion_records: CompletionRecordVecType;
   completion_deadline: Uint64Type;
   status: number;
   sub_tasks: QuestSubTaskDataVecType;
+  points: Uint32Type;
+  difficulty: Uint8Type;
+  time_estimate: Uint32Type;
+  completion_count: Uint32Type;
+}
+
+export interface SponsorInfoType {
+  name: BytesType;
+  description: BytesType;
+  website: BytesType;
+  social_links: BytesVecType;
+  verified: Uint8Type;
 }
 
 export interface CampaignMetadataType {
@@ -178,8 +193,12 @@ export interface CampaignMetadataType {
   created_at: Uint64Type;
   starting_time: Uint64Type;
   ending_time: Uint64Type;
-  verification_requirements: number;
+  verification_requirements: Uint32Type;
   last_updated: Uint64Type;
+  categories: BytesVecType;
+  difficulty: Uint8Type;
+  image_cid: BytesType;
+  rules: BytesVecType;
 }
 
 export interface CampaignDataType {
@@ -188,6 +207,12 @@ export interface CampaignDataType {
   metadata: CampaignMetadataType;
   status: number;
   quests: QuestDataVecType;
+  title: BytesType;
+  short_description: BytesType;
+  long_description: BytesType;
+  sponsor_info: SponsorInfoType;
+  participants_count: Uint32Type;
+  total_completions: Uint32Type;
 }
 
 export interface UserVerificationDataType {
@@ -229,6 +254,8 @@ export interface ScriptCodeHashesType {
   ckb_boost_campaign_type_code_hash: Byte32Type;
   ckb_boost_campaign_lock_code_hash: Byte32Type;
   ckb_boost_user_type_code_hash: Byte32Type;
+  accepted_udt_type_code_hashes: Byte32VecType;
+  accepted_dob_type_code_hashes: Byte32VecType;
 }
 
 export interface ProtocolConfigType {
@@ -243,6 +270,20 @@ export interface ProtocolDataType {
   endorsers_whitelist: EndorserInfoVecType;
   last_updated: Uint64Type;
   protocol_config: ProtocolConfigType;
+}
+
+export interface UserProgressDataType {
+  user_lock_script: ScriptType;
+  campaign_id: Byte32Type;
+  completed_quest_ids: Byte32VecType;
+  total_points_earned: Uint32Type;
+  last_activity_timestamp: Uint64Type;
+}
+
+export interface TokenRewardInfoType {
+  udt_script: ScriptType;
+  symbol: BytesType;
+  decimals: Uint8Type;
 }
 
 export declare class Uint32 {
@@ -546,6 +587,7 @@ export declare class QuestSubTaskData {
   getTitle(): Bytes;
   getType(): Bytes;
   getDescription(): Bytes;
+  getProofRequired(): Bytes;
 }
 
 export declare class QuestSubTaskDataVec {
@@ -576,12 +618,18 @@ export declare class QuestData {
   validate(compatible?: boolean): void;
   getId(): Byte32;
   getCampaignId(): Byte32;
+  getTitle(): Bytes;
+  getDescription(): Bytes;
   getRequirements(): Bytes;
   getRewardsOnCompletion(): AssetList;
   getCompletionRecords(): CompletionRecord;
   getCompletionDeadline(): Uint64;
   getStatus(): number;
   getSubTasks(): QuestSubTaskData;
+  getPoints(): Uint32;
+  getDifficulty(): Uint8;
+  getTimeEstimate(): Uint32;
+  getCompletionCount(): Uint32;
 }
 
 export declare class QuestDataVec {
@@ -591,6 +639,16 @@ export declare class QuestDataVec {
   indexAt(i: number): QuestData;
 }
 
+export declare class SponsorInfo {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getName(): Bytes;
+  getDescription(): Bytes;
+  getWebsite(): Bytes;
+  getSocialLinks(): Bytes;
+  getVerified(): Uint8;
+}
+
 export declare class CampaignMetadata {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
@@ -598,8 +656,12 @@ export declare class CampaignMetadata {
   getCreatedAt(): Uint64;
   getStartingTime(): Uint64;
   getEndingTime(): Uint64;
-  getVerificationRequirements(): number;
+  getVerificationRequirements(): Uint32;
   getLastUpdated(): Uint64;
+  getCategories(): Bytes;
+  getDifficulty(): Uint8;
+  getImageCid(): Bytes;
+  getRules(): Bytes;
 }
 
 export declare class CampaignData {
@@ -610,6 +672,12 @@ export declare class CampaignData {
   getMetadata(): CampaignMetadata;
   getStatus(): number;
   getQuests(): QuestData;
+  getTitle(): Bytes;
+  getShortDescription(): Bytes;
+  getLongDescription(): Bytes;
+  getSponsorInfo(): SponsorInfo;
+  getParticipantsCount(): Uint32;
+  getTotalCompletions(): Uint32;
 }
 
 export declare class CampaignDataVec {
@@ -684,6 +752,8 @@ export declare class ScriptCodeHashes {
   getCkbBoostCampaignTypeCodeHash(): Byte32;
   getCkbBoostCampaignLockCodeHash(): Byte32;
   getCkbBoostUserTypeCodeHash(): Byte32;
+  getAcceptedUdtTypeCodeHashes(): Byte32;
+  getAcceptedDobTypeCodeHashes(): Byte32;
 }
 
 export declare class ProtocolConfig {
@@ -702,5 +772,23 @@ export declare class ProtocolData {
   getEndorsersWhitelist(): EndorserInfo;
   getLastUpdated(): Uint64;
   getProtocolConfig(): ProtocolConfig;
+}
+
+export declare class UserProgressData {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getUserLockScript(): Script;
+  getCampaignId(): Byte32;
+  getCompletedQuestIds(): Byte32;
+  getTotalPointsEarned(): Uint32;
+  getLastActivityTimestamp(): Uint64;
+}
+
+export declare class TokenRewardInfo {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getUdtScript(): Script;
+  getSymbol(): Bytes;
+  getDecimals(): Uint8;
 }
 

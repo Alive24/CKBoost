@@ -389,7 +389,7 @@ export function TipProposalCard({ proposal }: TipProposalCardProps) {
         {/* Social Interactions */}
         <Separator />
         <SocialInteractions
-          contributionId={proposal.id}
+          proposalId={proposal.id}
           initialLikes={proposal.likes}
           initialComments={proposal.comments}
           isLiked={proposal.isLiked}

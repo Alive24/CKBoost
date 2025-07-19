@@ -12,7 +12,7 @@ import { ArrowLeft, Coins, AlertCircle, CheckCircle, ExternalLink, Clock } from 
 import Link from "next/link"
 
 // Mock quest data
-const QUEST_DATA = {
+const QUEST_DATA: Record<number, any> = {
   1: {
     id: 1,
     title: "Create CKB Tutorial Video",
@@ -116,7 +116,7 @@ export default function FundQuest() {
     }
   }
 
-  const isFullyFunded = quest.rewards.tokens.every((token) => token.funded >= token.required)
+  const isFullyFunded = quest.rewards.tokens.every((token: any) => token.funded >= token.required)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -188,7 +188,7 @@ export default function FundQuest() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {quest.rewards.tokens.map((token, index) => {
+                  {quest.rewards.tokens.map((token: any, index: number) => {
                     const progress = getFundingProgress(token.funded, token.required)
                     const remaining = getRemainingAmount(token)
                     const isTokenFullyFunded = token.funded >= token.required
@@ -309,7 +309,7 @@ export default function FundQuest() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
-                    {quest.rewards.tokens.map((token, index) => (
+                    {quest.rewards.tokens.map((token: any, index: number) => (
                       <div key={index} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{token.symbol}:</span>
                         <span className="font-medium">{((token.funded / token.required) * 100).toFixed(1)}%</span>
@@ -333,7 +333,7 @@ export default function FundQuest() {
                   <CardTitle className="text-lg">Recent Funding</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {quest.fundingHistory.slice(0, 3).map((funding) => (
+                  {quest.fundingHistory.slice(0, 3).map((funding: any) => (
                     <div key={funding.id} className="flex items-center justify-between text-sm">
                       <div>
                         <div className="font-medium">

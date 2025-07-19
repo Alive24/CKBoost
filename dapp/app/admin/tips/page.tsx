@@ -82,7 +82,7 @@ const MOCK_TIPS = [
 export default function TipManagement() {
   const [tips, setTips] = useState(MOCK_TIPS)
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedTip, setSelectedTip] = useState(null)
+  const [selectedTip, setSelectedTip] = useState<any>(null)
   const [isTipModalOpen, setIsTipModalOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState("all")
 
@@ -97,7 +97,7 @@ export default function TipManagement() {
     return matchesSearch && matchesStatus
   })
 
-  const handleApproveTip = (tipId) => {
+  const handleApproveTip = (tipId: number) => {
     setTips(
       tips.map((tip) =>
         tip.id === tipId
@@ -113,7 +113,7 @@ export default function TipManagement() {
     )
   }
 
-  const handleRejectTip = (tipId) => {
+  const handleRejectTip = (tipId: number) => {
     setTips(
       tips.map((tip) =>
         tip.id === tipId
@@ -128,12 +128,12 @@ export default function TipManagement() {
     )
   }
 
-  const handleViewTip = (tip) => {
+  const handleViewTip = (tip: any) => {
     setSelectedTip(tip)
     setIsTipModalOpen(true)
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
         return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>
@@ -146,7 +146,7 @@ export default function TipManagement() {
     }
   }
 
-  const getContributionIcon = (type) => {
+  const getContributionIcon = (type: string) => {
     switch (type) {
       case "comment":
         return "💬"
@@ -161,7 +161,7 @@ export default function TipManagement() {
     }
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString() + " " + new Date(dateString).toLocaleTimeString()
   }
 
@@ -406,7 +406,7 @@ export default function TipManagement() {
                   <div className="space-y-2">
                     <div className="text-sm font-medium">Approved by:</div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedTip.approvers.map((approver, index) => (
+                      {selectedTip.approvers.map((approver: string, index: number) => (
                         <Badge key={index} variant="outline" className="bg-green-50 text-green-800">
                           {approver}
                         </Badge>

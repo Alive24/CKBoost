@@ -3,7 +3,8 @@
 .shrimp/CKBoost/WebGUI.md
 node_modules/
 dapp/.next/
-
+dist
+dist.commonjs
 # Logs
 logs
 *.log

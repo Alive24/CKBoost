@@ -459,6 +459,10 @@
         {
           "name": "description",
           "type": "Bytes"
+        },
+        {
+          "name": "proof_required",
+          "type": "Bytes"
         }
       ]
     },
@@ -507,6 +511,14 @@
           "type": "Byte32"
         },
         {
+          "name": "title",
+          "type": "Bytes"
+        },
+        {
+          "name": "description",
+          "type": "Bytes"
+        },
+        {
           "name": "requirements",
           "type": "Bytes"
         },
@@ -529,6 +541,22 @@
         {
           "name": "sub_tasks",
           "type": "QuestSubTaskDataVec"
+        },
+        {
+          "name": "points",
+          "type": "Uint32"
+        },
+        {
+          "name": "difficulty",
+          "type": "Uint8"
+        },
+        {
+          "name": "time_estimate",
+          "type": "Uint32"
+        },
+        {
+          "name": "completion_count",
+          "type": "Uint32"
         }
       ]
     },
@@ -536,6 +564,32 @@
       "type": "dynvec",
       "name": "QuestDataVec",
       "item": "QuestData"
+    },
+    {
+      "type": "table",
+      "name": "SponsorInfo",
+      "fields": [
+        {
+          "name": "name",
+          "type": "Bytes"
+        },
+        {
+          "name": "description",
+          "type": "Bytes"
+        },
+        {
+          "name": "website",
+          "type": "Bytes"
+        },
+        {
+          "name": "social_links",
+          "type": "BytesVec"
+        },
+        {
+          "name": "verified",
+          "type": "Uint8"
+        }
+      ]
     },
     {
       "type": "table",
@@ -559,11 +613,27 @@
         },
         {
           "name": "verification_requirements",
-          "type": "byte"
+          "type": "Uint32"
         },
         {
           "name": "last_updated",
           "type": "Uint64"
+        },
+        {
+          "name": "categories",
+          "type": "BytesVec"
+        },
+        {
+          "name": "difficulty",
+          "type": "Uint8"
+        },
+        {
+          "name": "image_cid",
+          "type": "Bytes"
+        },
+        {
+          "name": "rules",
+          "type": "BytesVec"
         }
       ]
     },
@@ -590,6 +660,30 @@
         {
           "name": "quests",
           "type": "QuestDataVec"
+        },
+        {
+          "name": "title",
+          "type": "Bytes"
+        },
+        {
+          "name": "short_description",
+          "type": "Bytes"
+        },
+        {
+          "name": "long_description",
+          "type": "Bytes"
+        },
+        {
+          "name": "sponsor_info",
+          "type": "SponsorInfo"
+        },
+        {
+          "name": "participants_count",
+          "type": "Uint32"
+        },
+        {
+          "name": "total_completions",
+          "type": "Uint32"
         }
       ]
     },
@@ -733,6 +827,14 @@
         {
           "name": "ckb_boost_user_type_code_hash",
           "type": "Byte32"
+        },
+        {
+          "name": "accepted_udt_type_code_hashes",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "accepted_dob_type_code_hashes",
+          "type": "Byte32Vec"
         }
       ]
     },
@@ -777,6 +879,50 @@
         {
           "name": "protocol_config",
           "type": "ProtocolConfig"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "UserProgressData",
+      "fields": [
+        {
+          "name": "user_lock_script",
+          "type": "Script"
+        },
+        {
+          "name": "campaign_id",
+          "type": "Byte32"
+        },
+        {
+          "name": "completed_quest_ids",
+          "type": "Byte32Vec"
+        },
+        {
+          "name": "total_points_earned",
+          "type": "Uint32"
+        },
+        {
+          "name": "last_activity_timestamp",
+          "type": "Uint64"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "TokenRewardInfo",
+      "fields": [
+        {
+          "name": "udt_script",
+          "type": "Script"
+        },
+        {
+          "name": "symbol",
+          "type": "Bytes"
+        },
+        {
+          "name": "decimals",
+          "type": "Uint8"
         }
       ]
     }

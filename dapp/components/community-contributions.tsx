@@ -309,7 +309,7 @@ export function CommunityContributions() {
                 <p className="text-muted-foreground leading-relaxed">{contribution.content}</p>
 
                 <SocialInteractions
-                  contributionId={contribution.id}
+                  proposalId={contribution.id}
                   initialLikes={contribution.likes}
                   initialComments={contribution.comments}
                   isLiked={contribution.isLiked}

@@ -2,7 +2,7 @@
 // This file re-exports the JavaScript implementation with TypeScript types
 
 // Export all TypeScript types
-export type * from './ckboost.d.ts';
+export type * from './ckboost';
 
 // Export the JavaScript implementation (runtime classes)
 // Note: We need to be careful about module/CommonJS compatibility
@@ -56,6 +56,7 @@ export const {
   CompletionRecordVec,
   QuestData,
   QuestDataVec,
+  SponsorInfo,
   CampaignMetadata,
   CampaignData,
   CampaignDataVec,
@@ -68,7 +69,9 @@ export const {
   TippingConfig,
   ScriptCodeHashes,
   ProtocolConfig,
-  ProtocolData
+  ProtocolData,
+  UserProgressData,
+  TokenRewardInfo
 } = ckboost;
 
 // Export all serialize/deserialize functions
@@ -119,6 +122,7 @@ export const {
   SerializeCompletionRecordVec,
   SerializeQuestData,
   SerializeQuestDataVec,
+  SerializeSponsorInfo,
   SerializeCampaignMetadata,
   SerializeCampaignData,
   SerializeCampaignDataVec,
@@ -131,7 +135,9 @@ export const {
   SerializeTippingConfig,
   SerializeScriptCodeHashes,
   SerializeProtocolConfig,
-  SerializeProtocolData
+  SerializeProtocolData,
+  SerializeUserProgressData,
+  SerializeTokenRewardInfo
 } = ckboost;
 
 // Default export for convenience

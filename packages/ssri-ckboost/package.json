@@ -1,0 +1,37 @@
+{
+  "name": "ssri-ckboost",
+  "version": "0.1.0",
+  "description": "SSRI SDK for CKBoost protocol",
+  "author": "CKBoost Team",
+  "license": "MIT",
+  "private": false,
+  "main": "./dist.commonjs/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist.commonjs/index.js"
+    }
+  },
+  "scripts": {
+    "generate": "mkdir -p src/generated && moleculec --language - --schema-file ../../schemas/ckboost.mol --format json > src/generated/ckboost.json && moleculec-es -inputFile src/generated/ckboost.json -outputFile src/generated/ckboost.js && node scripts/generate-types.js",
+    "prebuild": "npm run generate",
+    "build": "rimraf ./dist && rimraf ./dist.commonjs && tsc && tsc --project tsconfig.commonjs.json && cp src/generated/ckboost.js src/generated/ckboost.d.ts dist/generated/",
+    "lint": "eslint ./src",
+    "format": "prettier --write . && eslint --fix ./src"
+  },
+  "dependencies": {
+    "@ckb-ccc/core": "^1.3.1",
+    "@ckb-ccc/ssri": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.4.5",
+    "rimraf": "^5.0.5",
+    "eslint": "^9.1.0",
+    "prettier": "^3.2.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

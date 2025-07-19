@@ -64,7 +64,6 @@ import {
   EyeOff
 } from "lucide-react"
 import {
-  ProtocolData,
   ProtocolTransaction,
   ProtocolMetrics,
   UpdateProtocolConfigForm,
@@ -72,7 +71,6 @@ import {
   UpdateTippingConfigForm,
   AddEndorserForm,
   EditEndorserForm,
-  EndorserInfo,
   Script,
   BatchUpdateProtocolForm,
   ProtocolChanges
@@ -83,6 +81,8 @@ import {
   getQuestStatusText 
 } from "@/lib/services/protocol-service"
 import { useProtocol, useProtocolAdmin } from "@/lib/providers/protocol-provider"
+import type { ProtocolDataType } from "ssri-ckboost/types"
+import { bufferToHex, bufferToNumber, bufferToString } from "@/lib/utils/type-converters"
 import { ccc } from "@ckb-ccc/connector-react"
 import { computeLockHashWithPrefix } from "@/lib/utils/address-utils"
 import { 
@@ -251,21 +251,22 @@ export function ProtocolManagement() {
   // Update form defaults when protocol data changes
   useEffect(() => {
     if (protocolData) {
+      // Convert SDK types to UI values
       protocolConfigForm.reset({
-        adminLockHashes: protocolData.protocolConfig.adminLockHashVec
+        adminLockHashes: protocolData.protocol_config.admin_lock_hash_vec.map(hash => bufferToHex(hash))
       })
 
       scriptCodeHashesForm.reset({
-        ckbBoostProtocolTypeCodeHash: protocolData.protocolConfig.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
-        ckbBoostProtocolLockCodeHash: protocolData.protocolConfig.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
-        ckbBoostCampaignTypeCodeHash: protocolData.protocolConfig.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
-        ckbBoostCampaignLockCodeHash: protocolData.protocolConfig.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
-        ckbBoostUserTypeCodeHash: protocolData.protocolConfig.scriptCodeHashes.ckbBoostUserTypeCodeHash
+        ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
+        ckbBoostProtocolLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
+        ckbBoostCampaignTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
+        ckbBoostCampaignLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
+        ckbBoostUserTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash)
       })
 
       tippingConfigForm.reset({
-        approvalRequirementThresholds: protocolData.tippingConfig.approvalRequirementThresholds,
-        expirationDuration: protocolData.tippingConfig.expirationDuration
+        approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds.map(t => bufferToNumber(t).toString()),
+        expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
       })
     }
   }, [protocolData, protocolConfigForm, scriptCodeHashesForm, tippingConfigForm])
@@ -1370,15 +1371,15 @@ export function ProtocolManagement() {
             <Card>
               <CardHeader>
                 <CardTitle>Current Endorsers</CardTitle>
-                <CardDescription>Active endorsers ({protocolData.endorsersWhitelist.length})</CardDescription>
+                <CardDescription>Active endorsers ({protocolData.endorsers_whitelist.length})</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {protocolData.endorsersWhitelist.map((endorser, index) => (
+                  {protocolData.endorsers_whitelist.map((endorser: any, index: number) => (
                     <div key={index} className="p-3 border rounded">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium">{endorser.endorserName}</div>
+                          <div className="font-medium">{bufferToString(endorser.endorser_name)}</div>
                           <div className="flex items-center gap-2">
                             <Badge variant="default" className="text-xs">Active</Badge>
                             <Button 
@@ -1392,16 +1393,16 @@ export function ProtocolManagement() {
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {endorser.endorserDescription}
+                          {bufferToString(endorser.endorser_description)}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           <span className="font-medium">Lock Hash:</span>{" "}
-                          <span className="font-mono">{endorser.endorserLockHash}</span>
+                          <span className="font-mono">{bufferToHex(endorser.endorser_lock_hash)}</span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {protocolData.endorsersWhitelist.length === 0 && (
+                  {protocolData.endorsers_whitelist.length === 0 && (
                     <div className="text-center text-muted-foreground py-4">
                       No endorsers configured
                     </div>
@@ -1421,15 +1422,15 @@ export function ProtocolManagement() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <div className="font-medium">Last Updated</div>
-                  <div className="text-muted-foreground">{formatTimestamp(protocolData.lastUpdated)}</div>
+                  <div className="text-muted-foreground">{formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000)}</div>
                 </div>
                 <div>
                   <div className="font-medium">Admin Addresses</div>
-                  <div className="text-muted-foreground">{protocolData.protocolConfig.adminLockHashVec.length}</div>
+                  <div className="text-muted-foreground">{protocolData.protocol_config.admin_lock_hash_vec.length}</div>
                 </div>
                 <div>
                   <div className="font-medium">Active Endorsers</div>
-                  <div className="text-muted-foreground">{protocolData.endorsersWhitelist.length}</div>
+                  <div className="text-muted-foreground">{protocolData.endorsers_whitelist.length}</div>
                 </div>
                 <div>
                   <div className="font-medium">Protocol Status</div>

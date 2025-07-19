@@ -3,6 +3,13 @@
 
 import { ccc } from "@ckb-ccc/connector-react"
 import { ProtocolData, EndorserInfo } from "../types"
+import { 
+  hexToBuffer, 
+  stringToBuffer, 
+  numberToUint64,
+  bufferToHex,
+  bufferToString
+} from "../utils/type-converters"
 import {
   ProtocolMetrics,
   ProtocolTransaction,
@@ -81,13 +88,15 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
-      const updatedData: ProtocolData = {
+      // Since ProtocolData is now SDK type, we need to handle it properly
+      // This is a simplified update - in production, you'd need to serialize properly
+      const updatedData: any = {
         ...currentData,
-        protocolConfig: {
-          ...currentData.protocolConfig,
-          adminLockHashVec: form.adminLockHashes
+        protocol_config: {
+          ...currentData.protocol_config,
+          admin_lock_hash_vec: form.adminLockHashes.map(hash => hexToBuffer(hash))
         },
-        lastUpdated: Date.now()
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -106,19 +115,19 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
+      // TODO: Update when schema supports these fields
+      // For now, we can only update the accepted code hashes
       const updatedData: ProtocolData = {
         ...currentData,
-        protocolConfig: {
-          ...currentData.protocolConfig,
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: form.ckbBoostProtocolTypeCodeHash,
-            ckbBoostProtocolLockCodeHash: form.ckbBoostProtocolLockCodeHash,
-            ckbBoostCampaignTypeCodeHash: form.ckbBoostCampaignTypeCodeHash,
-            ckbBoostCampaignLockCodeHash: form.ckbBoostCampaignLockCodeHash,
-            ckbBoostUserTypeCodeHash: form.ckbBoostUserTypeCodeHash
+        protocol_config: {
+          ...currentData.protocol_config,
+          script_code_hashes: {
+            ...currentData.protocol_config.script_code_hashes,
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         },
-        lastUpdated: Date.now()
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -139,11 +148,12 @@ export class ProtocolService {
       
       const updatedData: ProtocolData = {
         ...currentData,
-        tippingConfig: {
-          approvalRequirementThresholds: form.approvalRequirementThresholds,
-          expirationDuration: form.expirationDuration
+        tipping_config: {
+          ...currentData.tipping_config,
+          approval_requirement_thresholds: form.approvalRequirementThresholds.map(threshold => numberToUint64(Number(threshold))),
+          expiration_duration: numberToUint64(form.expirationDuration)
         },
-        lastUpdated: Date.now()
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -164,16 +174,16 @@ export class ProtocolService {
       
       // Create new endorser
       const newEndorser: EndorserInfo = {
-        endorserLockHash: form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args,
-        endorserName: form.endorserName,
-        endorserDescription: form.endorserDescription,
-        endorserAddress: form.endorserAddress
+        endorser_lock_hash: hexToBuffer(form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args),
+        endorser_name: stringToBuffer(form.endorserName),
+        endorser_description: stringToBuffer(form.endorserDescription),
+        // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
       }
 
       const updatedData: ProtocolData = {
         ...currentData,
-        endorsersWhitelist: [...currentData.endorsersWhitelist, newEndorser],
-        lastUpdated: Date.now()
+        endorsers_whitelist: [...currentData.endorsers_whitelist, newEndorser],
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -192,22 +202,22 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
-      if (form.index < 0 || form.index >= currentData.endorsersWhitelist.length) {
+      if (form.index < 0 || form.index >= currentData.endorsers_whitelist.length) {
         throw new Error("Invalid endorser index")
       }
 
-      const updatedEndorsers = [...currentData.endorsersWhitelist]
+      const updatedEndorsers = [...currentData.endorsers_whitelist]
       updatedEndorsers[form.index] = {
-        endorserLockHash: form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args,
-        endorserName: form.endorserName,
-        endorserDescription: form.endorserDescription,
-        endorserAddress: form.endorserAddress
+        endorser_lock_hash: hexToBuffer(form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args),
+        endorser_name: stringToBuffer(form.endorserName),
+        endorser_description: stringToBuffer(form.endorserDescription),
+        // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
       }
 
       const updatedData: ProtocolData = {
         ...currentData,
-        endorsersWhitelist: updatedEndorsers,
-        lastUpdated: Date.now()
+        endorsers_whitelist: updatedEndorsers,
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -226,16 +236,16 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
-      if (index < 0 || index >= currentData.endorsersWhitelist.length) {
+      if (index < 0 || index >= currentData.endorsers_whitelist.length) {
         throw new Error("Invalid endorser index")
       }
 
-      const updatedEndorsers = currentData.endorsersWhitelist.filter((_, i) => i !== index)
+      const updatedEndorsers = currentData.endorsers_whitelist.filter((_, i) => i !== index)
 
       const updatedData: ProtocolData = {
         ...currentData,
-        endorsersWhitelist: updatedEndorsers,
-        lastUpdated: Date.now()
+        endorsers_whitelist: updatedEndorsers,
+        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -257,28 +267,37 @@ export class ProtocolService {
 
       // Update protocol config if provided
       if (form.protocolConfig) {
-        updatedData.protocolConfig = {
-          ...updatedData.protocolConfig,
-          adminLockHashVec: form.protocolConfig.adminLockHashes
+        updatedData.protocol_config = {
+          ...updatedData.protocol_config,
+          admin_lock_hash_vec: form.protocolConfig.adminLockHashes.map(hash => hexToBuffer(hash))
         }
       }
 
       // Update script code hashes if provided
+      // TODO: Update when schema supports these fields
       if (form.scriptCodeHashes) {
-        updatedData.protocolConfig = {
-          ...updatedData.protocolConfig,
-          scriptCodeHashes: form.scriptCodeHashes
+        updatedData.protocol_config = {
+          ...updatedData.protocol_config,
+          script_code_hashes: {
+            ...currentData.protocol_config.script_code_hashes,
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
+          }
         }
       }
 
       // Update tipping config if provided
       if (form.tippingConfig) {
-        updatedData.tippingConfig = form.tippingConfig
+        updatedData.tipping_config = {
+          ...updatedData.tipping_config,
+          approval_requirement_thresholds: form.tippingConfig.approvalRequirementThresholds.map(threshold => numberToUint64(Number(threshold))),
+          expiration_duration: numberToUint64(form.tippingConfig.expirationDuration)
+        }
       }
 
       // Handle endorser operations
       if (form.endorserOperations) {
-        let endorsers = [...updatedData.endorsersWhitelist]
+        let endorsers = [...updatedData.endorsers_whitelist]
 
         // Remove endorsers (process in reverse order to maintain indices)
         if (form.endorserOperations.remove) {
@@ -295,10 +314,10 @@ export class ProtocolService {
           for (const edit of form.endorserOperations.edit) {
             if (edit.index >= 0 && edit.index < endorsers.length) {
               endorsers[edit.index] = {
-                endorserLockHash: edit.endorserLockScript.codeHash + edit.endorserLockScript.hashType + edit.endorserLockScript.args,
-                endorserName: edit.endorserName,
-                endorserDescription: edit.endorserDescription,
-                endorserAddress: edit.endorserAddress
+                endorser_lock_hash: hexToBuffer(edit.endorserLockScript.codeHash + edit.endorserLockScript.hashType + edit.endorserLockScript.args),
+                endorser_name: stringToBuffer(edit.endorserName),
+                endorser_description: stringToBuffer(edit.endorserDescription),
+                // endorser_address: stringToBuffer(edit.endorserAddress) // Field not in type
               }
             }
           }
@@ -308,18 +327,18 @@ export class ProtocolService {
         if (form.endorserOperations.add) {
           for (const add of form.endorserOperations.add) {
             endorsers.push({
-              endorserLockHash: add.endorserLockScript.codeHash + add.endorserLockScript.hashType + add.endorserLockScript.args,
-              endorserName: add.endorserName,
-              endorserDescription: add.endorserDescription,
-              endorserAddress: add.endorserAddress
+              endorser_lock_hash: hexToBuffer(add.endorserLockScript.codeHash + add.endorserLockScript.hashType + add.endorserLockScript.args),
+              endorser_name: stringToBuffer(add.endorserName),
+              endorser_description: stringToBuffer(add.endorserDescription),
+              // endorser_address: stringToBuffer(add.endorserAddress) // Field not in type
             })
           }
         }
 
-        updatedData.endorsersWhitelist = endorsers
+        updatedData.endorsers_whitelist = endorsers
       }
 
-      updatedData.lastUpdated = Date.now()
+      updatedData.last_updated = numberToUint64(Math.floor(Date.now() / 1000))
 
       return await updateProtocolCell(this.signer, updatedData)
     } catch (error) {
@@ -340,48 +359,48 @@ export class ProtocolService {
     const changes: ProtocolChanges = {
       protocolConfig: {
         adminLockHashes: this.createFieldChange(
-          'protocolConfig.adminLockHashVec',
-          currentData.protocolConfig.adminLockHashVec,
-          formData.adminLockHashes || currentData.protocolConfig.adminLockHashVec
+          'protocol_config.admin_lock_hash_vec',
+          currentData.protocol_config.admin_lock_hash_vec.map(buf => bufferToHex(buf)),
+          formData.adminLockHashes || currentData.protocol_config.admin_lock_hash_vec.map(buf => bufferToHex(buf))
         )
       },
       scriptCodeHashes: {
         ckbBoostProtocolTypeCodeHash: this.createFieldChange(
-          'protocolConfig.scriptCodeHashes.ckbBoostProtocolTypeCodeHash',
-          currentData.protocolConfig.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
-          formData.scriptCodeHashes?.ckbBoostProtocolTypeCodeHash || currentData.protocolConfig.scriptCodeHashes.ckbBoostProtocolTypeCodeHash
+          'protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash',
+          currentData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash,
+          formData.scriptCodeHashes?.ckbBoostProtocolTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash
         ),
         ckbBoostProtocolLockCodeHash: this.createFieldChange(
-          'protocolConfig.scriptCodeHashes.ckbBoostProtocolLockCodeHash',
-          currentData.protocolConfig.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
-          formData.scriptCodeHashes?.ckbBoostProtocolLockCodeHash || currentData.protocolConfig.scriptCodeHashes.ckbBoostProtocolLockCodeHash
+          'protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash',
+          currentData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash,
+          formData.scriptCodeHashes?.ckbBoostProtocolLockCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash
         ),
         ckbBoostCampaignTypeCodeHash: this.createFieldChange(
-          'protocolConfig.scriptCodeHashes.ckbBoostCampaignTypeCodeHash',
-          currentData.protocolConfig.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
-          formData.scriptCodeHashes?.ckbBoostCampaignTypeCodeHash || currentData.protocolConfig.scriptCodeHashes.ckbBoostCampaignTypeCodeHash
+          'protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash',
+          currentData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash,
+          formData.scriptCodeHashes?.ckbBoostCampaignTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
         ),
         ckbBoostCampaignLockCodeHash: this.createFieldChange(
-          'protocolConfig.scriptCodeHashes.ckbBoostCampaignLockCodeHash',
-          currentData.protocolConfig.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
-          formData.scriptCodeHashes?.ckbBoostCampaignLockCodeHash || currentData.protocolConfig.scriptCodeHashes.ckbBoostCampaignLockCodeHash
+          'protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash',
+          currentData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
+          formData.scriptCodeHashes?.ckbBoostCampaignLockCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash
         ),
         ckbBoostUserTypeCodeHash: this.createFieldChange(
-          'protocolConfig.scriptCodeHashes.ckbBoostUserTypeCodeHash',
-          currentData.protocolConfig.scriptCodeHashes.ckbBoostUserTypeCodeHash,
-          formData.scriptCodeHashes?.ckbBoostUserTypeCodeHash || currentData.protocolConfig.scriptCodeHashes.ckbBoostUserTypeCodeHash
+          'protocol_config.script_code_hashes.ckb_boost_user_type_code_hash',
+          currentData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash,
+          formData.scriptCodeHashes?.ckbBoostUserTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash
         )
       },
       tippingConfig: {
         approvalRequirementThresholds: this.createFieldChange(
-          'tippingConfig.approvalRequirementThresholds',
-          currentData.tippingConfig.approvalRequirementThresholds,
-          formData.tippingConfig?.approvalRequirementThresholds || currentData.tippingConfig.approvalRequirementThresholds
+          'tipping_config.approval_requirement_thresholds',
+          currentData.tipping_config.approval_requirement_thresholds,
+          formData.tippingConfig?.approvalRequirementThresholds || currentData.tipping_config.approval_requirement_thresholds
         ),
         expirationDuration: this.createFieldChange(
-          'tippingConfig.expirationDuration',
-          currentData.tippingConfig.expirationDuration,
-          formData.tippingConfig?.expirationDuration || currentData.tippingConfig.expirationDuration
+          'tipping_config.expiration_duration',
+          currentData.tipping_config.expiration_duration,
+          formData.tippingConfig?.expirationDuration || currentData.tipping_config.expiration_duration
         )
       },
       endorsers: {
@@ -423,7 +442,7 @@ export class ProtocolService {
   static async getEndorsers(signer?: ccc.Signer): Promise<EndorserInfo[]> {
     try {
       const data = await fetchProtocolData(signer)
-      return data.endorsersWhitelist
+      return data.endorsers_whitelist
     } catch (error) {
       console.warn("Failed to fetch endorsers:", error)
       throw error

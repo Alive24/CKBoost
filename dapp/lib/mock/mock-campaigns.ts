@@ -1,6 +1,8 @@
 // MOCK DATA - Replace this entire file with real CKB blockchain data fetching
 
 import { Campaign, Sponsor } from '../types/campaign'
+import type { CampaignDataType, SponsorInfoType } from 'ssri-ckboost/types'
+import { convertCampaign } from '../utils/type-converters'
 
 // Mock sponsor data - In production, this could come from a sponsors registry on CKB
 const MOCK_SPONSORS: Record<string, Sponsor> = {

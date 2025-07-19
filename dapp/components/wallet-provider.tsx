@@ -7,7 +7,7 @@ const client = new ccc.ClientPublicTestnet()
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   return (
-    <ccc.Provider client={client}>
+    <ccc.Provider defaultClient={client}>
       {children}
     </ccc.Provider>
   )

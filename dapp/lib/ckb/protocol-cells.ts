@@ -1,12 +1,19 @@
 // CKB Protocol Cells - Blockchain data integration with development mocking
 // This file handles fetching protocol data from CKB blockchain with fallback to mock data
 
-import { ccc } from "@ckb-ccc/connector-react"
-import { ProtocolData } from "../types"
-import { ProtocolCell, ProtocolMetrics, ProtocolTransaction } from "../types/protocol"
-import { getMockProtocolData } from "../mock/mock-protocol"
+import { ccc } from "@ckb-ccc/connector-react";
+import { ProtocolData } from "../types";
+import {
+  ProtocolCell,
+  ProtocolMetrics,
+  ProtocolTransaction,
+} from "../types/protocol";
+import { getMockProtocolData } from "../mock/mock-protocol";
+import { 
+  bufferToNumber
+} from "../utils/type-converters";
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
-// import type { 
+// import type {
 //   ProtocolDataType,
 //   EndorserInfoType,
 //   TippingConfigType,
@@ -14,97 +21,106 @@ import { getMockProtocolData } from "../mock/mock-protocol"
 //   ScriptCodeHashesType
 // } from "../types/molecule"
 
+
 // Development flag - set to true to use blockchain, false to use mock data
-const USE_BLOCKCHAIN = false // Set to true when blockchain is available
+const USE_BLOCKCHAIN = false; // Set to true when blockchain is available
 
 // Get protocol type script from environment variables
 const getProtocolTypeScript = () => {
-  const codeHash = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH
-  const hashType = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE as "type" | "data" | "data1"
-  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x"
+  const codeHash = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH;
+  const hashType = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE as
+    | "type"
+    | "data"
+    | "data1";
+  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x";
 
   if (!codeHash) {
-    throw new Error("Protocol type script configuration missing")
+    throw new Error("Protocol type script configuration missing");
   }
 
   return {
     codeHash,
     hashType: hashType || "type",
-    args
-  }
-}
+    args,
+  };
+};
 
 /**
  * Fetch protocol cell from CKB blockchain or return mock cell
  * @param signer - CCC signer instance (optional when using mock data)
  * @returns Protocol cell or null if not found
  */
-export async function fetchProtocolCell(signer?: ccc.Signer): Promise<ProtocolCell | null> {
+export async function fetchProtocolCell(
+  signer?: ccc.Signer
+): Promise<ProtocolCell | null> {
   if (!USE_BLOCKCHAIN) {
     // Return mock protocol cell for development
-    console.log("Using mock protocol cell data for development")
-    const mockData = getMockProtocolData()
-    const mockDataHex = generateProtocolData(mockData)
-    
+    console.log("Using mock protocol cell data for development");
+    const mockData = getMockProtocolData();
+
     return {
       outPoint: {
-        txHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        index: 0
+        txHash:
+          "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+        index: 0,
       },
       output: {
         capacity: "100000000000", // 1000 CKB
         lock: {
-          codeHash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
+          codeHash:
+            "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
           hashType: "type",
-          args: "0x"
+          args: "0x",
         },
         type: {
-          codeHash: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH || "0x0000000000000000000000000000000000000000000000000000000000000000",
+          codeHash:
+            process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH ||
+            "0x0000000000000000000000000000000000000000000000000000000000000000",
           hashType: "type",
-          args: "0x"
-        }
+          args: "0x",
+        },
       },
-      data: mockDataHex
-    }
+      data: generateProtocolData(mockData), // Convert to hex for consistency
+    };
   }
 
   if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true")
+    throw new Error("Signer required when USE_BLOCKCHAIN is true");
   }
 
   try {
-    const client = signer.client
-    const protocolTypeScript = getProtocolTypeScript()
+    const client = signer.client;
+    const protocolTypeScript = getProtocolTypeScript();
 
     // Search for protocol cell by type script
     const cellsGenerator = client.findCells({
       script: protocolTypeScript,
       scriptType: "type",
-      scriptSearchMode: "exact"
-    })
+      scriptSearchMode: "exact",
+    });
 
     // Get first cell from async generator
-    const firstCell = await cellsGenerator.next()
+    const firstCell = await cellsGenerator.next();
     if (firstCell.done || !firstCell.value) {
-      return null
+      return null;
     }
 
-    const cell = firstCell.value
+    const cell = firstCell.value;
     return {
       outPoint: {
         txHash: cell.outPoint.txHash,
-        index: Number(cell.outPoint.index)
+        index: Number(cell.outPoint.index),
       },
       output: {
         capacity: cell.cellOutput.capacity.toString(),
         lock: cell.cellOutput.lock,
-        type: cell.cellOutput.type
+        type: cell.cellOutput.type || null,
       },
-      data: cell.outputData || "0x"
-    }
+      data: cell.outputData || "0x",
+    };
   } catch (error) {
-    console.error("Failed to fetch protocol cell:", error)
-    throw new Error("Failed to fetch protocol data from blockchain")
+    console.error("Failed to fetch protocol cell:", error);
+    throw new Error("Failed to fetch protocol data from blockchain");
   }
 }
 
@@ -116,39 +132,43 @@ export async function fetchProtocolCell(signer?: ccc.Signer): Promise<ProtocolCe
 export function parseProtocolData(cellData: string): ProtocolData {
   try {
     if (cellData === "0x" || !cellData || cellData.length < 4) {
-      throw new Error("Invalid or empty protocol data")
+      throw new Error("Invalid or empty protocol data");
     }
 
     if (!USE_BLOCKCHAIN) {
       // Check if this is our mock data by trying to parse it as JSON first
       try {
         // Remove hex prefix and convert to string
-        const hexWithoutPrefix = cellData.startsWith('0x') ? cellData.slice(2) : cellData
-        const buffer = new Uint8Array(hexWithoutPrefix.length / 2)
+        const hexWithoutPrefix = cellData.startsWith("0x")
+          ? cellData.slice(2)
+          : cellData;
+        const buffer = new Uint8Array(hexWithoutPrefix.length / 2);
         for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
-          buffer[i / 2] = parseInt(hexWithoutPrefix.substring(i, i + 2), 16)
+          buffer[i / 2] = parseInt(hexWithoutPrefix.substring(i, i + 2), 16);
         }
-        const jsonString = new TextDecoder().decode(buffer)
-        const parsedData = JSON.parse(jsonString)
-        
-        console.log("Successfully parsed mock protocol data from cell")
-        return parsedData as ProtocolData
+        const jsonString = new TextDecoder().decode(buffer);
+        const parsedData = JSON.parse(jsonString);
+
+        console.log("Successfully parsed mock protocol data from cell");
+        return parsedData as ProtocolData;
       } catch (jsonError) {
-        console.warn("Failed to parse as JSON, falling back to mock data")
+        console.warn("Failed to parse as JSON, falling back to mock data");
       }
-      
+
       // If JSON parsing fails, return fresh mock data
-      return getMockProtocolData()
+      return getMockProtocolData();
     }
 
     // For blockchain data, implement proper Molecule parsing
     // TODO: Implement proper Molecule parsing once the generated code is fixed
-    console.warn("Using fallback mock protocol data parsing due to generated code syntax errors")
-    
-    return getMockProtocolData()
+    console.warn(
+      "Using fallback mock protocol data parsing due to generated code syntax errors"
+    );
+
+    return getMockProtocolData();
   } catch (error) {
-    console.error("Failed to parse ProtocolData:", error)
-    throw new Error("Invalid protocol data format")
+    console.error("Failed to parse ProtocolData:", error);
+    throw new Error("Invalid protocol data format");
   }
 }
 
@@ -161,15 +181,22 @@ export function generateProtocolData(data: ProtocolData): string {
   try {
     // For now, return a simple serialized format
     // TODO: Implement proper Molecule serialization once the generated code is fixed
-    console.warn("Using mock protocol data serialization due to generated code syntax errors")
-    
+    console.warn(
+      "Using mock protocol data serialization due to generated code syntax errors"
+    );
+
     // Return a minimal hex representation for now
-    const jsonData = JSON.stringify(data)
-    const buffer = new TextEncoder().encode(jsonData)
-    return "0x" + Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('')
+    const jsonData = JSON.stringify(data);
+    const buffer = new TextEncoder().encode(jsonData);
+    return (
+      "0x" +
+      Array.from(buffer)
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("")
+    );
   } catch (error) {
-    console.error("Failed to generate ProtocolData:", error)
-    throw new Error("Failed to serialize protocol data")
+    console.error("Failed to generate ProtocolData:", error);
+    throw new Error("Failed to serialize protocol data");
   }
 }
 
@@ -178,17 +205,20 @@ export function generateProtocolData(data: ProtocolData): string {
  * @param signer - CCC signer instance (optional when using mock data)
  * @returns Current ProtocolData
  */
-export async function fetchProtocolData(signer?: ccc.Signer): Promise<ProtocolData> {
+export async function fetchProtocolData(
+  signer?: ccc.Signer
+): Promise<ProtocolData> {
   if (!USE_BLOCKCHAIN) {
-    console.log("Fetching mock protocol data for development")
-    return getMockProtocolData()
+    console.log("Fetching mock protocol data for development");
+    // Return mock data directly (already in SDK format)
+    return getMockProtocolData();
   }
 
-  const cell = await fetchProtocolCell(signer)
+  const cell = await fetchProtocolCell(signer);
   if (!cell) {
-    throw new Error("Protocol cell not found on blockchain")
+    throw new Error("Protocol cell not found on blockchain");
   }
-  return parseProtocolData(cell.data)
+  return parseProtocolData(cell.data);
 }
 
 /**
@@ -196,21 +226,26 @@ export async function fetchProtocolData(signer?: ccc.Signer): Promise<ProtocolDa
  * @param signer - CCC signer instance (optional when using mock data)
  * @returns Protocol metrics
  */
-export async function fetchProtocolMetrics(signer?: ccc.Signer): Promise<ProtocolMetrics> {
+export async function fetchProtocolMetrics(
+  signer?: ccc.Signer
+): Promise<ProtocolMetrics> {
   try {
-    const data = await fetchProtocolData(signer)
-    
+    const data = await fetchProtocolData(signer);
+
     return {
-      totalCampaigns: data.campaignsApproved.length,
-      activeCampaigns: data.campaignsApproved.filter(c => c.status === 4).length,
-      totalTippingProposals: data.tippingProposals.length,
-      pendingTippingProposals: data.tippingProposals.filter(p => !p.tippingTransactionHash).length,
-      totalEndorsers: data.endorsersWhitelist.length,
-      lastUpdated: new Date(data.lastUpdated).toISOString()
-    }
+      totalCampaigns: data.campaigns_approved.length,
+      activeCampaigns: data.campaigns_approved.filter((c: any) => c.status === 4)
+        .length,
+      totalTippingProposals: data.tipping_proposals.length,
+      pendingTippingProposals: data.tipping_proposals.filter(
+        (p: any) => !p.tipping_transaction_hash
+      ).length,
+      totalEndorsers: data.endorsers_whitelist.length,
+      lastUpdated: new Date(bufferToNumber(data.last_updated) * 1000).toISOString(),
+    };
   } catch (error) {
-    console.error("Failed to fetch protocol metrics:", error)
-    throw error
+    console.error("Failed to fetch protocol metrics:", error);
+    throw error;
   }
 }
 
@@ -220,25 +255,28 @@ export async function fetchProtocolMetrics(signer?: ccc.Signer): Promise<Protoco
  * @param limit - Maximum number of transactions to fetch
  * @returns Array of protocol transactions
  */
-export async function fetchProtocolTransactions(signer?: ccc.Signer, limit: number = 50): Promise<ProtocolTransaction[]> {
+export async function fetchProtocolTransactions(
+  signer?: ccc.Signer,
+  _limit: number = 50
+): Promise<ProtocolTransaction[]> {
   if (!USE_BLOCKCHAIN) {
-    console.log("Returning empty transaction history for mock data")
-    return []
+    console.log("Returning empty transaction history for mock data");
+    return [];
   }
 
   if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true")
+    throw new Error("Signer required when USE_BLOCKCHAIN is true");
   }
 
   try {
     // TODO: Implement real transaction history fetching
     // This would involve querying the CKB indexer for transactions that modified the protocol cell
-    
-    console.warn("Protocol transaction history fetching not yet implemented")
-    return []
+
+    console.warn("Protocol transaction history fetching not yet implemented");
+    return [];
   } catch (error) {
-    console.error("Failed to fetch protocol transactions:", error)
-    throw error
+    console.error("Failed to fetch protocol transactions:", error);
+    throw error;
   }
 }
 
@@ -248,29 +286,33 @@ export async function fetchProtocolTransactions(signer?: ccc.Signer, limit: numb
  * @param newData - New ProtocolData to store
  * @returns Transaction hash (mock hash when using mock data)
  */
-export async function updateProtocolCell(signer: ccc.Signer | undefined, newData: ProtocolData): Promise<string> {
+export async function updateProtocolCell(
+  signer: ccc.Signer | undefined,
+  newData: ProtocolData
+): Promise<string> {
   if (!USE_BLOCKCHAIN) {
-    console.log("Simulating protocol cell update with mock data")
+    console.log("Simulating protocol cell update with mock data");
     // In a real application, you might want to persist this to localStorage or a mock database
     // For now, just return a mock transaction hash
-    const mockTxHash = "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-    console.log("Mock protocol cell updated, mock tx:", mockTxHash)
-    return mockTxHash
+    const mockTxHash =
+      "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
+    console.log("Mock protocol cell updated, mock tx:", mockTxHash);
+    return mockTxHash;
   }
 
   if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true")
+    throw new Error("Signer required when USE_BLOCKCHAIN is true");
   }
 
   try {
     // Get current protocol cell
-    const currentCell = await fetchProtocolCell(signer)
+    const currentCell = await fetchProtocolCell(signer);
     if (!currentCell) {
-      throw new Error("Protocol cell not found")
+      throw new Error("Protocol cell not found");
     }
 
     // Generate new protocol data
-    const newCellData = generateProtocolData(newData)
+    const newCellData = generateProtocolData(newData);
 
     // Build transaction to update protocol cell
     const tx = ccc.Transaction.from({
@@ -278,35 +320,35 @@ export async function updateProtocolCell(signer: ccc.Signer | undefined, newData
         {
           previousOutput: {
             txHash: currentCell.outPoint.txHash,
-            index: currentCell.outPoint.index
+            index: currentCell.outPoint.index,
           },
-          since: "0x0"
-        }
+          since: "0x0",
+        },
       ],
       outputs: [
         {
           capacity: currentCell.output.capacity,
           lock: currentCell.output.lock,
-          type: currentCell.output.type
-        }
+          type: currentCell.output.type,
+        },
       ],
       outputsData: [newCellData],
       cellDeps: [],
       headerDeps: [],
-      witnesses: []
-    })
+      witnesses: [],
+    });
 
     // Complete transaction (add capacity, fees, etc.)
-    await tx.completeInputsByCapacity(signer)
-    await tx.completeFeeBy(signer, 1000) // 1000 shannons/byte fee rate
+    await tx.completeInputsByCapacity(signer);
+    await tx.completeFeeBy(signer, 1000); // 1000 shannon/byte fee rate
 
     // Send transaction
-    const txHash = await signer.sendTransaction(tx)
-    
-    console.log("Protocol cell updated, tx:", txHash)
-    return txHash
+    const txHash = await signer.sendTransaction(tx);
+
+    console.log("Protocol cell updated, tx:", txHash);
+    return txHash;
   } catch (error) {
-    console.error("Failed to update protocol cell:", error)
-    throw error
+    console.error("Failed to update protocol cell:", error);
+    throw error;
   }
 }

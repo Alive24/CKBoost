@@ -147,6 +147,7 @@ table QuestSubTaskData {
     title: Bytes,
     type: Bytes, // text, link, txhash. More types can be added in the future.
     description: Bytes,
+    proof_required: Bytes, // Description of required proof
 }
 
 vector QuestSubTaskDataVec <QuestSubTaskData>;
@@ -163,23 +164,41 @@ vector CompletionRecordVec <CompletionRecord>;
 table QuestData {
     id: Byte32,
     campaign_id: Byte32,
+    title: Bytes,
+    description: Bytes,
     requirements: Bytes,
     rewards_on_completion: AssetListVec,
     completion_records: CompletionRecordVec,
     completion_deadline: Uint64,  // Optional deadline for quest completion
     status: byte,                 // 0=created, 1=active, 2=completed, 3=cancelled
     sub_tasks: QuestSubTaskDataVec,
+    points: Uint32,               // Quest points/rewards
+    difficulty: Uint8,            // 0=easy, 1=medium, 2=hard
+    time_estimate: Uint32,        // Estimated time in minutes
+    completion_count: Uint32,     // Total number of completions
 }
 
 vector QuestDataVec <QuestData>;
+
+table SponsorInfo {
+    name: Bytes,
+    description: Bytes,
+    website: Bytes,
+    social_links: BytesVec,  // Array of social media links
+    verified: Uint8,         // Verification status (0=unverified, 1=verified)
+}
 
 table CampaignMetadata {
     funding_info: AssetListVec,
     created_at: Uint64,
     starting_time: Uint64,
     ending_time: Uint64,
-    verification_requirements: byte, // 0=none, 1=telegram, 2=identity
+    verification_requirements: Uint32, // Bitmask: telegram(1), kyc(2), did(4), manual_review(8), twitter(16), discord(32), reddit(64)
     last_updated: Uint64,
+    categories: BytesVec,         // e.g., ["DeFi", "Gaming", "Social"]
+    difficulty: Uint8,            // Overall campaign difficulty
+    image_cid: Bytes,            // IPFS CID or other reference
+    rules: BytesVec,             // Campaign-specific rules
 }
 
 table CampaignData {
@@ -188,6 +207,12 @@ table CampaignData {
     metadata: CampaignMetadata,
     status: byte,       // 0=created, 1=funding, 2=reviewing, 3=approved, 4=active, 5=completed
     quests: QuestDataVec,
+    title: Bytes,
+    short_description: Bytes,     // For campaign cards
+    long_description: Bytes,      // For detail pages
+    sponsor_info: SponsorInfo,
+    participants_count: Uint32,
+    total_completions: Uint32,    // Total quest completions across all participants
 }
 
 vector CampaignDataVec <CampaignData>;
@@ -257,3 +282,19 @@ table ProtocolData {
 
 // TransactionRecipe is now defined in ckb_deterministic
 // Projects using ckb_deterministic should use the generic TransactionRecipe from there
+
+// User Progress Tracking
+table UserProgressData {
+    user_lock_script: Script,
+    campaign_id: Byte32,
+    completed_quest_ids: Byte32Vec,
+    total_points_earned: Uint32,
+    last_activity_timestamp: Uint64,
+}
+
+// Token metadata for display
+table TokenRewardInfo {
+    udt_script: Script,
+    symbol: Bytes,           // Token symbol for display
+    decimals: Uint8,         // Token decimals
+}

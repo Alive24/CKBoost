@@ -1681,6 +1681,7 @@ export class QuestSubTaskData {
     new Bytes(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
     new Bytes(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
     new Bytes(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
   }
 
   getId() {
@@ -1707,6 +1708,13 @@ export class QuestSubTaskData {
   getDescription() {
     const start = 16;
     const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getProofRequired() {
+    const start = 20;
+    const offset = this.view.getUint32(start, true);
     const offset_end = this.view.byteLength;
     return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
@@ -1718,6 +1726,7 @@ export function SerializeQuestSubTaskData(value) {
   buffers.push(SerializeBytes(value.title));
   buffers.push(SerializeBytes(value.type));
   buffers.push(SerializeBytes(value.description));
+  buffers.push(SerializeBytes(value.proof_required));
   return serializeTable(buffers);
 }
 
@@ -1864,13 +1873,19 @@ export class QuestData {
     new Byte32(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
     new Byte32(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
     new Bytes(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
-    new AssetListVec(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
-    new CompletionRecordVec(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
-    new Uint64(this.view.buffer.slice(offsets[5], offsets[6]), { validate: false }).validate();
-    if (offsets[7] - offsets[6] !== 1) {
-      throw new Error(`Invalid offset for status: ${offsets[6]} - ${offsets[7]}`)
+    new Bytes(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
+    new AssetListVec(this.view.buffer.slice(offsets[5], offsets[6]), { validate: false }).validate();
+    new CompletionRecordVec(this.view.buffer.slice(offsets[6], offsets[7]), { validate: false }).validate();
+    new Uint64(this.view.buffer.slice(offsets[7], offsets[8]), { validate: false }).validate();
+    if (offsets[9] - offsets[8] !== 1) {
+      throw new Error(`Invalid offset for status: ${offsets[8]} - ${offsets[9]}`)
     }
-    new QuestSubTaskDataVec(this.view.buffer.slice(offsets[7], offsets[8]), { validate: false }).validate();
+    new QuestSubTaskDataVec(this.view.buffer.slice(offsets[9], offsets[10]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[10], offsets[11]), { validate: false }).validate();
+    new Uint8(this.view.buffer.slice(offsets[11], offsets[12]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[12], offsets[13]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[13], offsets[14]), { validate: false }).validate();
   }
 
   getId() {
@@ -1887,46 +1902,88 @@ export class QuestData {
     return new Byte32(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
-  getRequirements() {
+  getTitle() {
     const start = 12;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
     return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
-  getRewardsOnCompletion() {
+  getDescription() {
     const start = 16;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getRequirements() {
+    const start = 20;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getRewardsOnCompletion() {
+    const start = 24;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
     return new AssetListVec(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
   getCompletionRecords() {
-    const start = 20;
+    const start = 28;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
     return new CompletionRecordVec(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
   getCompletionDeadline() {
-    const start = 24;
+    const start = 32;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
     return new Uint64(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
   getStatus() {
-    const start = 28;
+    const start = 36;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
     return new DataView(this.view.buffer.slice(offset, offset_end)).getUint8(0);
   }
 
   getSubTasks() {
-    const start = 32;
+    const start = 40;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new QuestSubTaskDataVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getPoints() {
+    const start = 44;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getDifficulty() {
+    const start = 48;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint8(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getTimeEstimate() {
+    const start = 52;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getCompletionCount() {
+    const start = 56;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.byteLength;
-    return new QuestSubTaskDataVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 }
 
@@ -1934,6 +1991,8 @@ export function SerializeQuestData(value) {
   const buffers = [];
   buffers.push(SerializeByte32(value.id));
   buffers.push(SerializeByte32(value.campaign_id));
+  buffers.push(SerializeBytes(value.title));
+  buffers.push(SerializeBytes(value.description));
   buffers.push(SerializeBytes(value.requirements));
   buffers.push(SerializeAssetListVec(value.rewards_on_completion));
   buffers.push(SerializeCompletionRecordVec(value.completion_records));
@@ -1942,6 +2001,10 @@ export function SerializeQuestData(value) {
   statusView.setUint8(0, value.status);
   buffers.push(statusView.buffer)
   buffers.push(SerializeQuestSubTaskDataVec(value.sub_tasks));
+  buffers.push(SerializeUint32(value.points));
+  buffers.push(SerializeUint8(value.difficulty));
+  buffers.push(SerializeUint32(value.time_estimate));
+  buffers.push(SerializeUint32(value.completion_count));
   return serializeTable(buffers);
 }
 
@@ -1983,6 +2046,69 @@ export function SerializeQuestDataVec(value) {
   return serializeTable(value.map(item => SerializeQuestData(item)));
 }
 
+export class SponsorInfo {
+  constructor(reader, { validate = true } = {}) {
+    this.view = new DataView(assertArrayBuffer(reader));
+    if (validate) {
+      this.validate();
+    }
+  }
+
+  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);
+    new Bytes(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
+    new BytesVec(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
+    new Uint8(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
+  }
+
+  getName() {
+    const start = 4;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getDescription() {
+    const start = 8;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getWebsite() {
+    const start = 12;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getSocialLinks() {
+    const start = 16;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new BytesVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getVerified() {
+    const start = 20;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Uint8(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+}
+
+export function SerializeSponsorInfo(value) {
+  const buffers = [];
+  buffers.push(SerializeBytes(value.name));
+  buffers.push(SerializeBytes(value.description));
+  buffers.push(SerializeBytes(value.website));
+  buffers.push(SerializeBytesVec(value.social_links));
+  buffers.push(SerializeUint8(value.verified));
+  return serializeTable(buffers);
+}
+
 export class CampaignMetadata {
   constructor(reader, { validate = true } = {}) {
     this.view = new DataView(assertArrayBuffer(reader));
@@ -1997,10 +2123,12 @@ export class CampaignMetadata {
     new Uint64(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
     new Uint64(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
     new Uint64(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
-    if (offsets[5] - offsets[4] !== 1) {
-      throw new Error(`Invalid offset for verification_requirements: ${offsets[4]} - ${offsets[5]}`)
-    }
+    new Uint32(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
     new Uint64(this.view.buffer.slice(offsets[5], offsets[6]), { validate: false }).validate();
+    new BytesVec(this.view.buffer.slice(offsets[6], offsets[7]), { validate: false }).validate();
+    new Uint8(this.view.buffer.slice(offsets[7], offsets[8]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[8], offsets[9]), { validate: false }).validate();
+    new BytesVec(this.view.buffer.slice(offsets[9], offsets[10]), { validate: false }).validate();
   }
 
   getFundingInfo() {
@@ -2035,14 +2163,42 @@ export class CampaignMetadata {
     const start = 20;
     const offset = this.view.getUint32(start, true);
     const offset_end = this.view.getUint32(start + 4, true);
-    return new DataView(this.view.buffer.slice(offset, offset_end)).getUint8(0);
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 
   getLastUpdated() {
     const start = 24;
     const offset = this.view.getUint32(start, true);
-    const offset_end = this.view.byteLength;
+    const offset_end = this.view.getUint32(start + 4, true);
     return new Uint64(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getCategories() {
+    const start = 28;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new BytesVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getDifficulty() {
+    const start = 32;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint8(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getImageCid() {
+    const start = 36;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getRules() {
+    const start = 40;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new BytesVec(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 }
 
@@ -2052,10 +2208,12 @@ export function SerializeCampaignMetadata(value) {
   buffers.push(SerializeUint64(value.created_at));
   buffers.push(SerializeUint64(value.starting_time));
   buffers.push(SerializeUint64(value.ending_time));
-  const verificationRequirementsView = new DataView(new ArrayBuffer(1));
-  verificationRequirementsView.setUint8(0, value.verification_requirements);
-  buffers.push(verificationRequirementsView.buffer)
+  buffers.push(SerializeUint32(value.verification_requirements));
   buffers.push(SerializeUint64(value.last_updated));
+  buffers.push(SerializeBytesVec(value.categories));
+  buffers.push(SerializeUint8(value.difficulty));
+  buffers.push(SerializeBytes(value.image_cid));
+  buffers.push(SerializeBytesVec(value.rules));
   return serializeTable(buffers);
 }
 
@@ -2076,6 +2234,12 @@ export class CampaignData {
       throw new Error(`Invalid offset for status: ${offsets[3]} - ${offsets[4]}`)
     }
     new QuestDataVec(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[5], offsets[6]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[6], offsets[7]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[7], offsets[8]), { validate: false }).validate();
+    new SponsorInfo(this.view.buffer.slice(offsets[8], offsets[9]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[9], offsets[10]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[10], offsets[11]), { validate: false }).validate();
   }
 
   getId() {
@@ -2109,8 +2273,50 @@ export class CampaignData {
   getQuests() {
     const start = 20;
     const offset = this.view.getUint32(start, true);
-    const offset_end = this.view.byteLength;
+    const offset_end = this.view.getUint32(start + 4, true);
     return new QuestDataVec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getTitle() {
+    const start = 24;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getShortDescription() {
+    const start = 28;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getLongDescription() {
+    const start = 32;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getSponsorInfo() {
+    const start = 36;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new SponsorInfo(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getParticipantsCount() {
+    const start = 40;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getTotalCompletions() {
+    const start = 44;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 }
 
@@ -2123,6 +2329,12 @@ export function SerializeCampaignData(value) {
   statusView.setUint8(0, value.status);
   buffers.push(statusView.buffer)
   buffers.push(SerializeQuestDataVec(value.quests));
+  buffers.push(SerializeBytes(value.title));
+  buffers.push(SerializeBytes(value.short_description));
+  buffers.push(SerializeBytes(value.long_description));
+  buffers.push(SerializeSponsorInfo(value.sponsor_info));
+  buffers.push(SerializeUint32(value.participants_count));
+  buffers.push(SerializeUint32(value.total_completions));
   return serializeTable(buffers);
 }
 
@@ -2507,6 +2719,8 @@ export class ScriptCodeHashes {
     new Byte32(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
     new Byte32(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
     new Byte32(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
+    new Byte32Vec(this.view.buffer.slice(offsets[5], offsets[6]), { validate: false }).validate();
+    new Byte32Vec(this.view.buffer.slice(offsets[6], offsets[7]), { validate: false }).validate();
   }
 
   getCkbBoostProtocolTypeCodeHash() {
@@ -2540,8 +2754,22 @@ export class ScriptCodeHashes {
   getCkbBoostUserTypeCodeHash() {
     const start = 20;
     const offset = this.view.getUint32(start, true);
-    const offset_end = this.view.byteLength;
+    const offset_end = this.view.getUint32(start + 4, true);
     return new Byte32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getAcceptedUdtTypeCodeHashes() {
+    const start = 24;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Byte32Vec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getAcceptedDobTypeCodeHashes() {
+    const start = 28;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Byte32Vec(this.view.buffer.slice(offset, offset_end), { validate: false });
   }
 }
 
@@ -2552,6 +2780,8 @@ export function SerializeScriptCodeHashes(value) {
   buffers.push(SerializeByte32(value.ckb_boost_campaign_type_code_hash));
   buffers.push(SerializeByte32(value.ckb_boost_campaign_lock_code_hash));
   buffers.push(SerializeByte32(value.ckb_boost_user_type_code_hash));
+  buffers.push(SerializeByte32Vec(value.accepted_udt_type_code_hashes));
+  buffers.push(SerializeByte32Vec(value.accepted_dob_type_code_hashes));
   return serializeTable(buffers);
 }
 
@@ -2660,6 +2890,114 @@ export function SerializeProtocolData(value) {
   buffers.push(SerializeEndorserInfoVec(value.endorsers_whitelist));
   buffers.push(SerializeUint64(value.last_updated));
   buffers.push(SerializeProtocolConfig(value.protocol_config));
+  return serializeTable(buffers);
+}
+
+export class UserProgressData {
+  constructor(reader, { validate = true } = {}) {
+    this.view = new DataView(assertArrayBuffer(reader));
+    if (validate) {
+      this.validate();
+    }
+  }
+
+  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);
+    new Script(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
+    new Byte32(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
+    new Byte32Vec(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
+    new Uint32(this.view.buffer.slice(offsets[3], offsets[4]), { validate: false }).validate();
+    new Uint64(this.view.buffer.slice(offsets[4], offsets[5]), { validate: false }).validate();
+  }
+
+  getUserLockScript() {
+    const start = 4;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Script(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getCampaignId() {
+    const start = 8;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Byte32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getCompletedQuestIds() {
+    const start = 12;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Byte32Vec(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getTotalPointsEarned() {
+    const start = 16;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Uint32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getLastActivityTimestamp() {
+    const start = 20;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Uint64(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+}
+
+export function SerializeUserProgressData(value) {
+  const buffers = [];
+  buffers.push(SerializeScript(value.user_lock_script));
+  buffers.push(SerializeByte32(value.campaign_id));
+  buffers.push(SerializeByte32Vec(value.completed_quest_ids));
+  buffers.push(SerializeUint32(value.total_points_earned));
+  buffers.push(SerializeUint64(value.last_activity_timestamp));
+  return serializeTable(buffers);
+}
+
+export class TokenRewardInfo {
+  constructor(reader, { validate = true } = {}) {
+    this.view = new DataView(assertArrayBuffer(reader));
+    if (validate) {
+      this.validate();
+    }
+  }
+
+  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);
+    new Script(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
+    new Bytes(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
+    new Uint8(this.view.buffer.slice(offsets[2], offsets[3]), { validate: false }).validate();
+  }
+
+  getUdtScript() {
+    const start = 4;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Script(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getSymbol() {
+    const start = 8;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Bytes(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getDecimals() {
+    const start = 12;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Uint8(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+}
+
+export function SerializeTokenRewardInfo(value) {
+  const buffers = [];
+  buffers.push(SerializeScript(value.udt_script));
+  buffers.push(SerializeBytes(value.symbol));
+  buffers.push(SerializeUint8(value.decimals));
   return serializeTable(buffers);
 }
 

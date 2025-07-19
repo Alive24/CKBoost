@@ -20,6 +20,7 @@ import {
   ProtocolChanges
 } from '../types/protocol'
 import { ProtocolService } from '../services/protocol-service'
+import { bufferToHex } from '../utils/type-converters'
 
 // Types for protocol provider
 interface ProtocolContextType {
@@ -140,8 +141,11 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
           // Convert address to lock hash for admin check
           // This is a simplified check - in practice you'd need to derive the lock hash properly
           const userLockHash = addr // Simplified - would need proper conversion
-          const isUserAdmin = protocolData.protocolConfig.adminLockHashVec.some(
-            adminHash => adminHash.toLowerCase().includes(userLockHash.toLowerCase())
+          const isUserAdmin = protocolData.protocol_config.admin_lock_hash_vec.some(
+            (adminHash: any) => {
+              const hashHex = typeof adminHash === 'string' ? adminHash : bufferToHex(adminHash)
+              return hashHex.toLowerCase().includes(userLockHash.toLowerCase())
+            }
           )
           setIsAdmin(isUserAdmin)
         }
@@ -323,15 +327,15 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
 
   // Helper functions
   const getEndorser = (address: string): EndorserInfo | undefined => {
-    return protocolData?.endorsersWhitelist.find(e => e.endorserAddress === address)
+    return protocolData?.endorsers_whitelist.find((e: any) => e.endorserAddress === address)
   }
 
   const getTippingProposal = (index: number): TippingProposalData | undefined => {
-    return protocolData?.tippingProposals[index]
+    return protocolData?.tipping_proposals[index]
   }
 
   const getApprovedCampaign = (id: string): CampaignData | undefined => {
-    return protocolData?.campaignsApproved.find(c => c.id === id)
+    return protocolData?.campaigns_approved.find((c: any) => c.id === id)
   }
 
   const value: ProtocolContextType = {
@@ -411,7 +415,7 @@ export function useEndorser(address?: string) {
   const { getEndorser, protocolData, isLoading } = useProtocol()
   
   const endorser = address ? getEndorser(address) : undefined
-  const allEndorsers = protocolData?.endorsersWhitelist || []
+  const allEndorsers = protocolData?.endorsers_whitelist || []
   
   return {
     endorser,
@@ -426,9 +430,9 @@ export function useEndorser(address?: string) {
 export function useTippingProposals() {
   const { protocolData, isLoading } = useProtocol()
   
-  const proposals = protocolData?.tippingProposals || []
-  const pendingProposals = proposals.filter(p => !p.tippingTransactionHash)
-  const completedProposals = proposals.filter(p => !!p.tippingTransactionHash)
+  const proposals = protocolData?.tipping_proposals || []
+  const pendingProposals = proposals.filter((p: any) => !p.tippingTransactionHash)
+  const completedProposals = proposals.filter((p: any) => !!p.tippingTransactionHash)
   
   return {
     proposals,

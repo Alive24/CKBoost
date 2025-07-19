@@ -2,10 +2,7 @@
 // This file handles deploying a new protocol cell when none exists
 
 import { ccc } from "@ckb-ccc/connector-react"
-import { SerializeProtocolData } from "../generated"
-// Import type definitions for better TypeScript support
-// Note: The generated file uses plain objects that match these type shapes
-import type { ProtocolDataType } from "../types/protocol"
+import { SerializeProtocolData, types } from "ssri-ckboost"
 
 // Helper function to convert number to bytes
 function numToBytes(num: number, length: number): Uint8Array {
@@ -96,7 +93,7 @@ export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
 /**
  * Generate initial protocol data for deployment
  */
-function generateInitialProtocolData(params: DeployProtocolCellParams): ProtocolDataType {
+function generateInitialProtocolData(params: DeployProtocolCellParams): types.ProtocolDataType {
   // Convert string thresholds to Uint128 ArrayBuffers
   const thresholds = params.tippingConfig.approvalRequirementThresholds.map(threshold => {
     const value = BigInt(threshold)
@@ -134,19 +131,19 @@ function generateInitialProtocolData(params: DeployProtocolCellParams): Protocol
   // Convert endorser data
   const endorsers = (params.initialEndorsers || []).map(endorser => ({
     endorser_lock_hash: convertHashToBytes(endorser.endorserLockHash),
-    endorser_name: new TextEncoder().encode(endorser.endorserName).buffer,
-    endorser_description: new TextEncoder().encode(endorser.endorserDescription).buffer
+    endorser_name: new TextEncoder().encode(endorser.endorserName).buffer as ArrayBuffer,
+    endorser_description: new TextEncoder().encode(endorser.endorserDescription).buffer as ArrayBuffer
   }))
 
-  const protocolData: ProtocolDataType = {
+  const protocolData: types.ProtocolDataType = {
     campaigns_approved: [],
     tipping_proposals: [],
     tipping_config: {
       approval_requirement_thresholds: thresholds,
-      expiration_duration: numToBytes(params.tippingConfig.expirationDuration, 8).buffer
+      expiration_duration: numToBytes(params.tippingConfig.expirationDuration, 8).buffer as ArrayBuffer
     },
     endorsers_whitelist: endorsers,
-    last_updated: numToBytes(Date.now(), 8).buffer,
+    last_updated: numToBytes(Date.now(), 8).buffer as ArrayBuffer,
     protocol_config: {
       admin_lock_hash_vec: adminHashes,
       script_code_hashes: {
@@ -155,6 +152,8 @@ function generateInitialProtocolData(params: DeployProtocolCellParams): Protocol
         ckb_boost_campaign_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignTypeCodeHash),
         ckb_boost_campaign_lock_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignLockCodeHash),
         ckb_boost_user_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostUserTypeCodeHash),
+        accepted_udt_type_code_hashes: [],
+        accepted_dob_type_code_hashes: []
       }
     }
   }
@@ -221,7 +220,7 @@ export async function deployProtocolCell(
     
     // Complete transaction with inputs and fees
     await tx.completeInputsByCapacity(signer)
-    await tx.completeFeeBy(signer, 1000) // 1000 shannons/byte fee rate
+    await tx.completeFeeBy(signer, 1000) // 1000 shannon/byte fee rate
     
     // Send transaction
     const txHash = await signer.sendTransaction(tx)

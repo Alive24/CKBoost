@@ -1,64 +1,17 @@
 // Protocol-specific types for CKBoost admin dashboard and protocol management
 // This file contains types specific to protocol operations, forms, cells, transactions, and metrics
 
-import type {
-  // UI-friendly interfaces
-  Script,
-  ProtocolData,
-  ProtocolConfig,
-  TippingConfig,
-  EndorserInfo,
-  TippingProposalData,
-  TippingProposalMetadata,
-  CampaignData,
-  CampaignMetadata,
-  QuestData,
-  QuestSubTaskData,
-  CompletionRecord,
-  AssetList,
-  UDTFunding,
-  ScriptCodeHashes,
-  UserVerificationData,
-  
-  // Generated molecule types (for actual blockchain data)
-  ProtocolDataType,
-  ProtocolConfigType,
-  TippingConfigType,
-  EndorserInfoType,
-  TippingProposalDataType,
-  TippingProposalMetadataType,
-  CampaignDataType,
-  CampaignMetadataType,
-  QuestDataType,
-  QuestSubTaskDataType,
-  CompletionRecordType,
-  AssetListType,
-  UDTFundingType,
-  ScriptCodeHashesType,
-  UserVerificationDataType,
-  ScriptType,
-  
-  // Generated molecule classes (for runtime operations)
-  ProtocolDataClass,
-  ProtocolConfigClass,
-  TippingConfigClass,
-  EndorserInfoClass,
-  TippingProposalDataClass,
-  TippingProposalMetadataClass,
-  CampaignDataClass,
-  CampaignMetadataClass,
-  QuestDataClass,
-  QuestSubTaskDataClass,
-  CompletionRecordClass,
-  AssetListClass,
-  UDTFundingClass,
-  ScriptCodeHashesClass,
-  UserVerificationDataClass,
-  ScriptClass,
-  
-} from './index'
+// Import the generated type from ssri-ckboost
+import type { types } from 'ssri-ckboost'
 
-// Protocol cell structure (CKB-specific) that uses generated molecule types
+// Basic Script interface for UI usage
+export interface Script {
+  codeHash: string
+  hashType: string
+  args: string
+}
+
+// Protocol cell structure (CKB-specific)
 export interface ProtocolCell {
   outPoint: {
     txHash: string
@@ -67,28 +20,10 @@ export interface ProtocolCell {
   output: {
     capacity: string
     lock: Script
-    type?: Script
+    type: Script | null
   }
-  data: string // Hex-encoded ProtocolData
-  
-  // Parsed protocol data using generated types
-  parsedData?: ProtocolDataType
-}
-
-// Helper type for working with raw protocol data from blockchain
-export interface ProtocolDataWithMetadata {
-  // Raw molecule data
-  raw: ProtocolDataType
-  
-  // Parsed for UI consumption
-  ui: ProtocolData
-  
-  // Cell reference
-  cell: ProtocolCell
-  
-  // Additional metadata
+  data: string // Hex-encoded cell data that will be parsed into ProtocolDataType
   blockNumber?: number
-  timestamp?: number
 }
 
 // Transaction types for protocol operations
@@ -164,8 +99,8 @@ export interface ProtocolChanges {
     expirationDuration: FieldChange<number>
   }
   endorsers: {
-    added: EndorserInfo[]
-    updated: Array<{ index: number, endorser: EndorserInfo }>
+    added: any[] // Will be properly typed when SDK exports are fixed
+    updated: Array<{ index: number, endorser: any }>
     removed: number[] // indices of removed endorsers
   }
 }
@@ -181,60 +116,42 @@ export interface BatchUpdateProtocolForm {
   }
 }
 
-// Re-export base types for convenience (single import from protocol.ts)
-export type {
-  // UI-friendly interfaces
-  Script,
-  ProtocolData,
-  ProtocolConfig,
-  TippingConfig,
-  EndorserInfo,
-  TippingProposalData,
-  TippingProposalMetadata,
-  CampaignData,
-  CampaignMetadata,
-  QuestData,
-  QuestSubTaskData,
-  CompletionRecord,
-  AssetList,
-  UDTFunding,
-  ScriptCodeHashes,
-  UserVerificationData,
+// Protocol context types
+export interface ProtocolContextType {
+  // Protocol data
+  protocolData: any | null // Will be properly typed when SDK exports are fixed
   
-  // Generated molecule types
-  ProtocolDataType,
-  ProtocolConfigType,
-  TippingConfigType,
-  EndorserInfoType,
-  TippingProposalDataType,
-  TippingProposalMetadataType,
-  CampaignDataType,
-  CampaignMetadataType,
-  QuestDataType,
-  QuestSubTaskDataType,
-  CompletionRecordType,
-  AssetListType,
-  UDTFundingType,
-  ScriptCodeHashesType,
-  UserVerificationDataType,
-  ScriptType,
+  // Protocol metrics
+  metrics: ProtocolMetrics | null
   
-  // Generated molecule classes
-  ProtocolDataClass,
-  ProtocolConfigClass,
-  TippingConfigClass,
-  EndorserInfoClass,
-  TippingProposalDataClass,
-  TippingProposalMetadataClass,
-  CampaignDataClass,
-  CampaignMetadataClass,
-  QuestDataClass,
-  QuestSubTaskDataClass,
-  CompletionRecordClass,
-  AssetListClass,
-  UDTFundingClass,
-  ScriptCodeHashesClass,
-  UserVerificationDataClass,
-  ScriptClass,
+  // Transaction history
+  transactions: ProtocolTransaction[]
   
+  // Loading and error states
+  isLoading: boolean
+  error: string | null
+  
+  // Update functions
+  updateProtocolConfig: (form: UpdateProtocolConfigForm) => Promise<void>
+  updateScriptCodeHashes: (form: UpdateScriptCodeHashesForm) => Promise<void>
+  updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<void>
+  addEndorser: (form: AddEndorserForm) => Promise<void>
+  editEndorser: (form: EditEndorserForm) => Promise<void>
+  removeEndorser: (index: number) => Promise<void>
+  batchUpdateProtocol: (form: BatchUpdateProtocolForm) => Promise<void>
+  
+  // Query functions
+  getEndorser: (lockHash: string) => any | undefined
+  getTippingProposal: (id: string) => any | undefined
+  getApprovedCampaign: (id: string) => any | undefined
+  
+  // Change detection
+  detectChanges: (formData: any) => ProtocolChanges
+  
+  // Wallet connection
+  walletAddress: string | null
+  isWalletConnected: boolean
+  userAddress: string | null
+  connectWallet: () => Promise<void>
+  disconnectWallet: () => void
 }
