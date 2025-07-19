@@ -992,6 +992,7 @@ dependencies = [
 name = "ckboost-protocol-type"
 version = "0.1.0"
 dependencies = [
+ "blake2b-ref",
  "ckb-ssri-std",
  "ckb-ssri-std-proc-macro",
  "ckb-std",

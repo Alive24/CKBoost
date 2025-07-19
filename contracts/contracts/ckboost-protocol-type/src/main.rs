@@ -5,12 +5,12 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use ckboost_shared::{type_id::check_type_id, types::{Byte32, ProtocolData}, Error};
+use ckboost_shared::{type_id::check_type_id, types::ProtocolData, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
-use ckb_std::high_level::decode_hex;
 use ckb_std::syscalls::{pipe, write};
+use ckb_std::ckb_types::packed::Transaction;
 use molecule::prelude::*;
 
 #[cfg(not(any(feature = "library", test)))]
@@ -64,24 +64,23 @@ fn program_entry_wrap() -> Result<(), Error> {
         "CKBoostProtocol.update_protocol" => {
             debug!("Entered CKBoostProtocol.update_protocol");
             
-            // Parse protocol_type_hash (optional)
-            let protocol_type_hash = if argv[1].is_empty() {
+            // Parse optional transaction (argv[1])
+            let tx: Option<Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
                 None
             } else {
-                let hash_bytes = decode_hex(argv[1].as_ref())?;
-                if hash_bytes.len() != 32 {
-                    return Err(Error::SSRIMethodsArgsInvalid);
-                }
-                Some(Byte32::from_slice(&hash_bytes).map_err(|_| Error::SSRIMethodsArgsInvalid)?)
+                let parsed_tx = Transaction::from_compatible_slice(&ckb_std::high_level::decode_hex(argv[1].as_ref())?)
+                    .map_err(|_| Error::MoleculeVerificationError)?;
+                Some(parsed_tx)
             };
             
-            // Parse protocol_data from molecule serialized bytes
-            let protocol_data_bytes = decode_hex(argv[2].as_ref())?;
+            // Parse protocol_data from molecule serialized bytes (argv[2])
+            let protocol_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
             let protocol_data = ProtocolData::from_slice(&protocol_data_bytes)
                 .map_err(|_| Error::MoleculeVerificationError)?;
             
-            CKBoostProtocolType::update_protocol(protocol_type_hash, protocol_data)?;
-            Ok(Cow::from(b"success".to_vec()))
+            // Call the update_protocol method and return the transaction
+            let result_tx = CKBoostProtocolType::update_protocol(tx, protocol_data)?;
+            Ok(Cow::from(result_tx.as_bytes().to_vec()))
         },
         // "CKBoostProtocol.update_tipping_proposal" => {
         //     debug!("Entered CKBoostProtocol.update_tipping_proposal");
