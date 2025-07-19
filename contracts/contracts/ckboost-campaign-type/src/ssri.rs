@@ -1,6 +1,5 @@
 use ckboost_shared::{
-    types::{CampaignData, QuestData},
-    Error,
+    cell_collector::RuleBasedClassifier, transaction_context::TransactionContext, types::{CampaignData, QuestData}, Error
 };
 use ckb_std::ckb_types::packed::Script;
 use alloc::vec::Vec;
@@ -27,7 +26,9 @@ pub trait CKBoostCampaign {
     
     /// Verify campaign update/creation transaction in Type Script
     /// This method is called automatically by the type script to validate transactions
-    fn verify_update_campaign() -> Result<(), Error>;
+    fn verify_update_campaign(
+        context: &TransactionContext<RuleBasedClassifier>,
+    ) -> Result<(), Error>;
     
     /// Fund an existing campaign with additional assets
     /// Note: No need to verify fund, just lock the assets to the campaign cell
@@ -58,5 +59,7 @@ pub trait CKBoostCampaign {
     
     /// Verify quest completion approval transaction in Type Script
     /// This method is called automatically by the type script to validate transactions
-    fn verify_approve_completion() -> Result<(), Error>;
+    fn verify_approve_completion(
+        context: &TransactionContext<RuleBasedClassifier>,
+    ) -> Result<(), Error>;
 }

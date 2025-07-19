@@ -1,13 +1,12 @@
 use ckboost_shared::{
-    types::{CampaignData, QuestData}, 
-    Error,
+    cell_collector::RuleBasedClassifier, transaction_context::TransactionContext, types::{CampaignData, QuestData}, Error
 };
 use ckb_std::debug;
 use alloc::vec::Vec;
 
 pub struct CKBoostCampaignType;
 
-use crate::ssri::CKBoostCampaign;
+use crate::{recipes, ssri::CKBoostCampaign};
 
 impl CKBoostCampaign for CKBoostCampaignType {
     fn update_campaign(
@@ -21,9 +20,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
         Err(Error::SSRIMethodsNotImplemented)
     }
     
-    fn verify_update_campaign() -> Result<(), Error> {
-        debug!("CKBoostCampaignType::verify_update_campaign - SSRI method not implemented");
-        Err(Error::SSRIMethodsNotImplemented)
+    // NOTEs:
+    // 1. Campaign created will not be approved unless included in the protocol cell's approved list.
+    fn verify_update_campaign(
+        context: &TransactionContext<RuleBasedClassifier>,
+    ) -> Result<(), Error> {
+        let validation_rules = recipes::update_campaign::get_rules();
+        validation_rules.validate(&context)?;
+        Ok(())
     }
     
     fn fund(
@@ -44,7 +48,9 @@ impl CKBoostCampaign for CKBoostCampaignType {
         Err(Error::SSRIMethodsNotImplemented)
     }
     
-    fn verify_approve_completion() -> Result<(), Error> {
+    fn verify_approve_completion(
+        context: &TransactionContext<RuleBasedClassifier>,
+    ) -> Result<(), Error> {
         debug!("CKBoostCampaignType::verify_approve_completion - SSRI method not implemented");
         Err(Error::SSRIMethodsNotImplemented)
     }

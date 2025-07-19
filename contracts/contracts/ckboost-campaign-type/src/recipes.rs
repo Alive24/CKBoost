@@ -1,10 +1,59 @@
 extern crate alloc;
 
-use alloc::{vec, vec::Vec};
-use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier,
-    validation::TransactionValidationRules,
-};
+pub mod helper {
+    use ckb_deterministic::errors::Error as DeterministicError;
+    use ckb_std::ckb_constants::Source;
+    use ckb_std::high_level::{load_cell_data, load_cell_type_hash};
+    use ckboost_shared::types::protocol::ProtocolDataReader;
+    use molecule::prelude::Reader;
+
+    // Validate a protocol cell's data against expected campaign code hash
+    pub fn validate_protocol_cell(
+        data: &[u8],
+        expected_code_hash: &[u8],
+    ) -> Result<(), DeterministicError> {
+        let protocol_data =
+            ProtocolDataReader::from_slice(data).map_err(|_| DeterministicError::Encoding)?;
+
+        let campaign_code_hash = protocol_data
+            .protocol_config()
+            .script_code_hashes()
+            .ckb_boost_campaign_type_code_hash();
+
+        if campaign_code_hash.as_slice() == expected_code_hash {
+            Ok(())
+        } else {
+            Err(DeterministicError::CellRelationshipRuleViolation)
+        }
+    }
+
+    // Find and validate protocol cell in deps
+    pub fn find_protocol_cell_in_deps(
+        protocol_type_hash: &[u8],
+        current_code_hash: &[u8],
+    ) -> Result<(), DeterministicError> {
+        let mut index = 0;
+        loop {
+            match load_cell_type_hash(index, Source::CellDep) {
+                Ok(Some(dep_type_hash)) if dep_type_hash == protocol_type_hash => {
+                    // Found a matching type hash, validate the cell data
+                    let data = load_cell_data(index, Source::CellDep)
+                        .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+
+                    // Try to validate the protocol cell, return Ok if successful
+                    match validate_protocol_cell(&data, current_code_hash) {
+                        Ok(()) => return Ok(()),
+                        Err(_) => {} // Continue searching if validation fails
+                    }
+                }
+                Err(ckb_std::error::SysError::IndexOutOfBound) => break,
+                _ => {}
+            }
+            index += 1;
+        }
+        Err(DeterministicError::CellRelationshipRuleViolation)
+    }
+}
 
 pub mod common {
     use ckb_deterministic::errors::Error as DeterministicError;
@@ -37,23 +86,25 @@ pub mod common {
 
         // For each campaign cell, verify lock and type hashes remain unchanged
         for (i, input_cell) in input_campaign_cells.iter().enumerate() {
-            if let Some(output_cell) = output_campaign_cells.get(i) {
-                // Verify lock hash immutability
-                expect(&input_cell.lock_hash)
-                    .to_equal(&output_cell.lock_hash)
-                    .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+            let output_cell = output_campaign_cells
+                .get(i)
+                .ok_or(DeterministicError::CellCountViolation)?;
 
-                // Verify type hash immutability
-                match (&input_cell.type_hash, &output_cell.type_hash) {
-                    (Some(input_hash), Some(output_hash)) => {
-                        expect(&input_hash)
-                            .to_equal(&output_hash)
-                            .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
-                    }
-                    _ => {
-                        // Either input or output campaign cell has no type hash - this is not allowed
-                        return Err(DeterministicError::CellRelationshipRuleViolation);
-                    }
+            // Verify lock hash immutability
+            expect(&input_cell.lock_hash)
+                .to_equal(&output_cell.lock_hash)
+                .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+
+            // Verify type hash immutability
+            match (&input_cell.type_hash, &output_cell.type_hash) {
+                (Some(input_hash), Some(output_hash)) => {
+                    expect(&input_hash)
+                        .to_equal(&output_hash)
+                        .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+                }
+                _ => {
+                    // Either input or output campaign cell has no type hash - this is not allowed
+                    return Err(DeterministicError::CellRelationshipRuleViolation);
                 }
             }
         }
@@ -62,62 +113,7 @@ pub mod common {
     }
 }
 
-pub mod create_campaign {
-    use alloc::{string::ToString, vec};
-    use ckb_deterministic::{
-        cell_classifier::RuleBasedClassifier,
-        validation::{CellCountConstraint, TransactionValidationRules},
-    };
-
-    pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
-        TransactionValidationRules::new(b"createCampaign".to_vec())
-            .with_arguments(1)
-            // Protocol cells: at most 1 in (for checking permissions), 0 out
-            .with_custom_cell(
-                "protocol",
-                CellCountConstraint::at_most(1), // At most 1 input protocol cell
-                CellCountConstraint::exactly(0), // No output protocol cell
-            )
-            // Campaign cells: 0 in, exactly 1 out (creation)
-            .with_custom_cell(
-                "campaign",
-                CellCountConstraint::exactly(0), // No campaign inputs
-                CellCountConstraint::exactly(1), // Exactly 1 campaign output
-            )
-            // User cells not allowed in campaign creation
-            .with_custom_cell(
-                "user",
-                CellCountConstraint::exactly(0), // No user inputs
-                CellCountConstraint::exactly(0), // No user outputs
-            )
-            .with_business_rule(
-                "campaign_creation_validation".to_string(),
-                "Validate campaign creation data and permissions".to_string(),
-                vec!["campaign".to_string(), "protocol".to_string()],
-                business_logic::campaign_creation_validation,
-            )
-    }
-
-    pub mod business_logic {
-        use ckb_deterministic::cell_classifier::RuleBasedClassifier;
-        use ckb_deterministic::errors::Error as DeterministicError;
-        use ckboost_shared::transaction_context::TransactionContext;
-
-        // **Campaign creation validation**: Ensure campaign data is valid and creator has permission
-        pub fn campaign_creation_validation(
-            _context: &TransactionContext<RuleBasedClassifier>,
-        ) -> Result<(), DeterministicError> {
-            // TODO: Implement campaign creation validation
-            // 1. Check if creator is in approved list (from protocol cell)
-            // 2. Validate campaign data structure
-            // 3. Ensure required UDT/DOB types are accepted
-            Ok(())
-        }
-    }
-}
-
 pub mod update_campaign {
-    use super::common;
     use alloc::{string::ToString, vec};
     use ckb_deterministic::{
         cell_classifier::RuleBasedClassifier,
@@ -127,36 +123,75 @@ pub mod update_campaign {
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
         TransactionValidationRules::new(b"updateCampaign".to_vec())
             .with_arguments(1)
-            // Protocol cells not allowed in campaign updates
+            // Protocol cells: No protocol cells
             .with_custom_cell(
                 "protocol",
-                CellCountConstraint::exactly(0), // No protocol inputs
-                CellCountConstraint::exactly(0), // No protocol outputs
+                CellCountConstraint::exactly(0), // No input protocol cell
+                CellCountConstraint::exactly(0), // No output protocol cell
             )
-            // Campaign cells: exactly 1 in, 1 out (update)
+            // Campaign cells: at most 1 in, exactly 1 out.
             .with_custom_cell(
                 "campaign",
-                CellCountConstraint::exactly(1), // Exactly 1 campaign input
+                CellCountConstraint::at_most(1), // No campaign inputs
                 CellCountConstraint::exactly(1), // Exactly 1 campaign output
             )
-            // User cells may be involved for quest completions
+            // User cells not allowed
             .with_custom_cell(
                 "user",
-                CellCountConstraint::at_least(0), // Any number of user inputs
-                CellCountConstraint::at_least(0), // Any number of user outputs
+                CellCountConstraint::exactly(0), // No user inputs
+                CellCountConstraint::exactly(0), // No user outputs
             )
             .with_cell_relationship(
-                "script_immutability".to_string(),
-                "Script immutability must be maintained during campaign updates".to_string(),
+                "reference_to_protocol".to_string(),
+                "Campaign type args must reference protocol cell's type hash in CellDeps"
+                    .to_string(),
                 vec!["campaign".to_string()],
-                common::script_immutability,
+                cell_relationship::reference_to_protocol,
             )
             .with_business_rule(
                 "campaign_update_validation".to_string(),
-                "Validate campaign update permissions and data consistency".to_string(),
-                vec!["campaign".to_string()],
+                "Validate campaign update data and permissions".to_string(),
+                vec!["campaign".to_string(), "protocol".to_string()],
                 business_logic::campaign_update_validation,
             )
+    }
+    pub mod cell_relationship {
+        use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::errors::Error as DeterministicError;
+        use ckboost_shared::transaction_context::TransactionContext;
+        use molecule::prelude::Entity;
+
+        // Campaign type args must reference protocol cell's type hash in the CellDep
+        pub fn reference_to_protocol(
+            context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            // Get campaign cell from output
+            let output_campaign_cell = context
+                .output_cells
+                .get_known("campaign")
+                .ok_or(DeterministicError::CellCountViolation)?
+                .first()
+                .ok_or(DeterministicError::CellCountViolation)?;
+
+            // Get the campaign cell's type script
+            let type_script = output_campaign_cell
+                .type_script
+                .as_ref()
+                .ok_or(DeterministicError::CellRelationshipRuleViolation)?;
+
+            // Extract protocol type hash from type args (first 32 bytes)
+            let type_args = type_script.args().raw_data();
+            if type_args.len() < 32 {
+                return Err(DeterministicError::CellRelationshipRuleViolation);
+            }
+            let protocol_type_hash = &type_args[0..32];
+
+            // Find and validate protocol cell
+            crate::recipes::helper::find_protocol_cell_in_deps(
+                protocol_type_hash,
+                type_script.code_hash().as_slice(),
+            )
+        }
     }
 
     pub mod business_logic {
@@ -164,7 +199,7 @@ pub mod update_campaign {
         use ckb_deterministic::errors::Error as DeterministicError;
         use ckboost_shared::transaction_context::TransactionContext;
 
-        // **Campaign update validation**: Ensure only authorized updates
+        // **Campaign update validation**: Ensure campaign data is valid and creator has permission
         pub fn campaign_update_validation(
             _context: &TransactionContext<RuleBasedClassifier>,
         ) -> Result<(), DeterministicError> {
@@ -237,13 +272,4 @@ pub mod complete_quest {
             Ok(())
         }
     }
-}
-
-/// Get all validation rules for campaign type
-pub fn get_all_rules() -> Vec<TransactionValidationRules<RuleBasedClassifier>> {
-    vec![
-        create_campaign::get_rules(),
-        update_campaign::get_rules(),
-        complete_quest::get_rules(),
-    ]
 }
