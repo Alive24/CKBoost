@@ -5,7 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use ckboost_shared::{type_id::check_type_id, types::ProtocolData, Error};
+use ckboost_shared::{type_id::check_type_id_from_script_args, types::ProtocolData, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -44,7 +44,7 @@ fn program_entry_wrap() -> Result<(), Error> {
         // 
         // 1. **Type ID mechanism**: Ensures the protocol cell uses the correct type ID
         //    for singleton pattern enforcement
-        match check_type_id() {
+        match check_type_id_from_script_args() {
             Ok(_) => fallback()?,
             Err(err) => {
                 debug!("Contract execution failed with error: {:?}", err);

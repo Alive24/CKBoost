@@ -298,3 +298,8 @@ table TokenRewardInfo {
     symbol: Bytes,           // Token symbol for display
     decimals: Uint8,         // Token decimals
 }
+
+table ConnectedTypeID {
+    type_id: Byte32,
+    connected_type_hash: Byte32,
+}

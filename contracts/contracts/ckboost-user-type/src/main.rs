@@ -5,7 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use ckboost_shared::{type_id::check_type_id, Error};
+use ckboost_shared::{type_id::check_type_id_from_script_args, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -30,7 +30,7 @@ fn program_entry_wrap() -> Result<(), Error> {
         // # Validation Rules
         // 
         // 1. **Type ID mechanism**: Ensures the user cell uses the correct type ID
-        match check_type_id() {
+        match check_type_id_from_script_args() {
             Ok(_) => fallback()?,
             Err(err) => {
                 debug!("Contract execution failed with error: {:?}", err);

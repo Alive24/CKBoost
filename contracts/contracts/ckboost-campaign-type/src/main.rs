@@ -5,11 +5,15 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use ckboost_shared::{type_id::check_type_id, Error};
+use ckb_std::high_level::load_script;
+use ckboost_shared::type_id::validate_type_id;
+use ckboost_shared::types::ConnectedTypeID;
+use ckboost_shared::{type_id::check_type_id_from_script_args, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
 use ckb_std::syscalls::{pipe, write};
+use molecule::prelude::Entity;
 
 #[cfg(not(any(feature = "library", test)))]
 ckb_std::entry!(program_entry);
@@ -30,7 +34,9 @@ fn program_entry_wrap() -> Result<(), Error> {
         // # Validation Rules
         // 
         // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
-        match check_type_id() {
+        let args = load_script()?.args();
+        let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice()).map_err(|_| Error::MoleculeVerificationError)?;
+        match validate_type_id(connected_type_id.type_id().into()) {
             Ok(_) => fallback()?,
             Err(err) => {
                 debug!("Contract execution failed with error: {:?}", err);

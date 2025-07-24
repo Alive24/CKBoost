@@ -7,7 +7,8 @@ pub mod helper {
     use ckboost_shared::types::protocol::ProtocolDataReader;
     use molecule::prelude::Reader;
 
-    // Validate a protocol cell's data against expected campaign code hash
+    // 1.Validate a protocol cell's data against expected campaign code hash
+    // 2. Validate connection to campaign type
     pub fn validate_protocol_cell(
         data: &[u8],
         expected_code_hash: &[u8],

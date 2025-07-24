@@ -96,7 +96,7 @@ pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
 }
 
 
-pub fn check_type_id() -> Result<(), Error> {
+pub fn check_type_id_from_script_args() -> Result<(), Error> {
     let type_id = load_type_id_from_script_args(0)?;
     validate_type_id(type_id)?;
     Ok(())
