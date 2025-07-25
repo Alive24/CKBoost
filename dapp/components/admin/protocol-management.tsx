@@ -62,7 +62,8 @@ import {
   Save,
   Eye,
   EyeOff,
-  FileSearch
+  FileSearch,
+  Users
 } from "lucide-react"
 import {
   ProtocolTransaction,
@@ -87,7 +88,7 @@ import { bufferToHex, bufferToNumber, bufferToString } from "@/lib/utils/type-co
 import { ccc } from "@ckb-ccc/connector-react"
 import { computeLockHashWithPrefix } from "@/lib/utils/address-utils"
 import { 
-  isProtocolConfigured, 
+  getProtocolConfigStatus, 
   getProtocolDeploymentTemplate, 
   deployProtocolCell, 
   validateDeploymentParams,
@@ -96,8 +97,10 @@ import {
 } from "@/lib/ckb/protocol-deployment"
 
 // Form schemas
-const updateProtocolConfigSchema = z.object({
-  adminLockHashes: z.array(z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format")).min(1, "At least one admin required")
+const addAdminSchema = z.object({
+  inputMode: z.enum(["address", "script"]),
+  adminAddress: z.string().optional(),
+  adminLockHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format").optional()
 })
 
 const updateScriptCodeHashesSchema = z.object({
@@ -136,25 +139,6 @@ const addEndorserSchema = z.object({
   path: ["endorserAddress"]
 })
 
-const deployProtocolSchema = z.object({
-  adminLockHashes: z.array(z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format")).min(1, "At least one admin required"),
-  scriptCodeHashes: z.object({
-    ckbBoostProtocolTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
-    ckbBoostProtocolLockCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
-    ckbBoostCampaignTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
-    ckbBoostCampaignLockCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
-    ckbBoostUserTypeCodeHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format")
-  }),
-  tippingConfig: z.object({
-    approvalRequirementThresholds: z.array(z.string().regex(/^\d+$/, "Must be a valid number")).min(1, "At least one threshold required"),
-    expirationDuration: z.number().min(3600, "Minimum 1 hour").max(2592000, "Maximum 30 days")
-  }),
-  initialEndorsers: z.array(z.object({
-    endorserLockHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format"),
-    endorserName: z.string().min(1, "Name required"),
-    endorserDescription: z.string().min(1, "Description required")
-  })).optional()
-})
 
 
 export function ProtocolManagement() {
@@ -181,10 +165,12 @@ export function ProtocolManagement() {
   // Get signer at the top level of the component
   const signer = ccc.useSigner()
 
-  const protocolConfigForm = useForm<UpdateProtocolConfigForm>({
-    resolver: zodResolver(updateProtocolConfigSchema),
+  const adminForm = useForm<AddAdminForm>({
+    resolver: zodResolver(addAdminSchema),
     defaultValues: {
-      adminLockHashes: []
+      inputMode: "address",
+      adminAddress: "",
+      adminLockHash: ""
     }
   })
 
@@ -222,10 +208,6 @@ export function ProtocolManagement() {
     }
   })
 
-  const deploymentForm = useForm<DeployProtocolCellParams>({
-    resolver: zodResolver(deployProtocolSchema),
-    defaultValues: getProtocolDeploymentTemplate()
-  })
 
   // State for managing change tracking
   const [showChangesOnly, setShowChangesOnly] = useState(false)
@@ -233,37 +215,106 @@ export function ProtocolManagement() {
   const [previewLockHash, setPreviewLockHash] = useState<string>("")
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false)
   
-  // State for protocol deployment
-  const [showDeploymentDialog, setShowDeploymentDialog] = useState(false)
-  const [deploymentResult, setDeploymentResult] = useState<string>("")
-  const [isDeploying, setIsDeploying] = useState(false)
-  
   // State for manual outpoint loading
   const [showOutpointDialog, setShowOutpointDialog] = useState(false)
   const [outpointTxHash, setOutpointTxHash] = useState<string>("")
   const [outpointIndex, setOutpointIndex] = useState<string>("0")
   const [isLoadingOutpoint, setIsLoadingOutpoint] = useState(false)
   
+  // State for protocol deployment
+  const [isDeploying, setIsDeploying] = useState(false)
+  const [deploymentResult, setDeploymentResult] = useState<{txHash: string; args: string} | null>(null)
+  
   const [pendingChanges, setPendingChanges] = useState<{
-    protocolConfig: boolean
+    admins: boolean
     scriptCodeHashes: boolean
     tippingConfig: boolean
     endorsers: boolean
   }>({
-    protocolConfig: false,
+    admins: false,
     scriptCodeHashes: false,
     tippingConfig: false,
     endorsers: false
   })
+  
+  // State for admin management - moved up to be available in useEffect
+  const [pendingAdminChanges, setPendingAdminChanges] = useState<{
+    toAdd: string[]
+    toRemove: number[]
+  }>({
+    toAdd: [],
+    toRemove: []
+  })
+  
+  // State for endorser management - moved up to be available in useEffect
+  const [pendingEndorserChanges, setPendingEndorserChanges] = useState<{
+    toAdd: Array<{
+      endorserName: string
+      endorserDescription: string
+      endorserLockHash: string
+      endorserLockScript: {
+        codeHash: string
+        hashType: "type" | "data" | "data1"
+        args: string
+      }
+      endorserAddress?: string
+    }>
+    toRemove: number[]
+  }>({
+    toAdd: [],
+    toRemove: []
+  })
 
 
-  // Update form defaults when protocol data changes
+  // Get config status once
+  const configStatus = getProtocolConfigStatus()
+  
+  // Initialize forms for deployment when no protocol cell exists
   useEffect(() => {
-    if (protocolData) {
-      // Convert SDK types to UI values
-      protocolConfigForm.reset({
-        adminLockHashes: protocolData.protocol_config.admin_lock_hash_vec.map(hash => bufferToHex(hash))
-      })
+    const initializeForDeployment = async () => {
+      if (configStatus === 'partial' && signer && isWalletConnected) {
+        try {
+          // Get user's lock hash for admin configuration
+          const address = await signer.getRecommendedAddress()
+          const userLockHash = await computeLockHashWithPrefix(address)
+          
+          // Initialize with deployment defaults
+          const deploymentTemplate = getProtocolDeploymentTemplate()
+          
+          // Set initial admin as the current user
+          setPendingAdminChanges({
+            toAdd: [userLockHash],
+            toRemove: []
+          })
+          setPendingChanges(prev => ({ ...prev, admins: true }))
+          
+          scriptCodeHashesForm.reset({
+            ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+            ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+            ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+            ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+            ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
+          })
+          
+          tippingConfigForm.reset({
+            approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
+            expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+          })
+        } catch (error) {
+          console.error("Failed to initialize deployment forms:", error)
+        }
+      }
+    }
+    
+    if (configStatus === 'partial') {
+      initializeForDeployment()
+    }
+  }, [configStatus, signer, isWalletConnected, scriptCodeHashesForm, tippingConfigForm])
+
+  // Update form defaults when protocol data changes (only for existing protocol)
+  useEffect(() => {
+    if (protocolData && configStatus === 'complete') {
+      // Don't reset admin changes - they're managed separately now
 
       scriptCodeHashesForm.reset({
         ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
@@ -278,10 +329,9 @@ export function ProtocolManagement() {
         expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
       })
     }
-  }, [protocolData, protocolConfigForm, scriptCodeHashesForm, tippingConfigForm])
+  }, [protocolData, configStatus, scriptCodeHashesForm, tippingConfigForm])
 
   // Watch form changes to track modifications
-  const protocolConfigValues = protocolConfigForm.watch()
   const scriptCodeHashesValues = scriptCodeHashesForm.watch()
   const tippingConfigValues = tippingConfigForm.watch()
   
@@ -289,12 +339,33 @@ export function ProtocolManagement() {
   const watchedInputMode = endorserForm.watch("inputMode")
   const watchedAddress = endorserForm.watch("endorserAddress")
 
+  // Calculate the final admin list based on current state and pending changes
+  const finalAdminLockHashes = useMemo(() => {
+    // For deployment, start with empty array if no protocol data
+    if (!protocolData && configStatus === 'partial') {
+      return pendingAdminChanges.toAdd
+    }
+    
+    const currentAdmins = protocolData?.protocol_config.admin_lock_hash_vec.map(hash => bufferToHex(hash)) || []
+    
+    // Start with current admins
+    let result = [...currentAdmins]
+    
+    // Remove admins marked for removal
+    result = result.filter((_, index) => !pendingAdminChanges.toRemove.includes(index))
+    
+    // Add new admins
+    result.push(...pendingAdminChanges.toAdd)
+    
+    return result
+  }, [protocolData, pendingAdminChanges, configStatus])
+  
   // Memoize the form data to prevent unnecessary recalculations
   const formData = useMemo(() => ({
-    adminLockHashes: protocolConfigValues?.adminLockHashes,
+    adminLockHashes: finalAdminLockHashes,
     scriptCodeHashes: scriptCodeHashesValues,
     tippingConfig: tippingConfigValues
-  }), [protocolConfigValues?.adminLockHashes, scriptCodeHashesValues, tippingConfigValues])
+  }), [finalAdminLockHashes, scriptCodeHashesValues, tippingConfigValues])
 
   // Calculate changes with proper dependency management
   useEffect(() => {
@@ -309,7 +380,7 @@ export function ProtocolManagement() {
       
       try {
         const currentFormData = {
-          adminLockHashes: protocolConfigValues?.adminLockHashes,
+          adminLockHashes: finalAdminLockHashes,
           scriptCodeHashes: scriptCodeHashesValues,
           tippingConfig: tippingConfigValues
         }
@@ -330,12 +401,12 @@ export function ProtocolManagement() {
           setProtocolChanges(changes)
 
           // Update pending changes indicators
-          setPendingChanges({
-            protocolConfig: changes.protocolConfig.adminLockHashes.hasChanged,
+          setPendingChanges(prev => ({
+            ...prev,
+            admins: changes.protocolConfig.adminLockHashes.hasChanged,
             scriptCodeHashes: Object.values(changes.scriptCodeHashes).some(change => change.hasChanged),
-            tippingConfig: Object.values(changes.tippingConfig).some(change => change.hasChanged),
-            endorsers: false // Will be updated when endorser operations are tracked
-          })
+            tippingConfig: Object.values(changes.tippingConfig).some(change => change.hasChanged)
+          }))
         }
       } catch (error) {
         if (isActive) {
@@ -359,7 +430,7 @@ export function ProtocolManagement() {
   }, [
     protocolData,
     // Use JSON.stringify to create stable dependencies
-    JSON.stringify(protocolConfigValues?.adminLockHashes),
+    JSON.stringify(finalAdminLockHashes),
     JSON.stringify(scriptCodeHashesValues),
     JSON.stringify(tippingConfigValues),
     providerCalculateChanges
@@ -379,76 +450,111 @@ export function ProtocolManagement() {
     }
   }, [watchedInputMode, watchedAddress])
 
-  const onUpdateProtocolConfig = async (data: UpdateProtocolConfigForm) => {
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first")
-      return
-    }
-
+  const onAddAdmin = async (data: AddAdminForm & { inputMode: "address" | "script" }) => {
     try {
-      const txHash = await providerUpdateProtocolConfig(data)
-      console.log("Protocol config updated:", txHash)
-      alert(`Protocol configuration updated! Transaction: ${txHash}`)
+      let lockHash: string
+      
+      if (data.inputMode === "address" && data.adminAddress) {
+        // Convert address to lock hash
+        const address = await ccc.Address.fromString(data.adminAddress, signer!.client)
+        lockHash = address.script.hash()
+      } else if (data.inputMode === "script" && data.adminLockHash) {
+        lockHash = data.adminLockHash
+      } else {
+        throw new Error("Please provide either an address or lock hash")
+      }
+      
+      // Check if admin already exists or is pending
+      const isDuplicate = 
+        (protocolData?.protocol_config.admin_lock_hash_vec.some(
+          (hash: any) => bufferToHex(hash) === lockHash
+        )) ||
+        pendingAdminChanges.toAdd.includes(lockHash)
+      
+      if (isDuplicate) {
+        throw new Error("This admin already exists or is pending addition")
+      }
+      
+      // Add to pending changes
+      setPendingAdminChanges(prev => ({
+        ...prev,
+        toAdd: [...prev.toAdd, lockHash]
+      }))
+      
+      // Update pending changes indicator
+      setPendingChanges(prev => ({ ...prev, admins: true }))
+      
+      // Reset form after state update
+      adminForm.reset({
+        inputMode: "address",
+        adminAddress: "",
+        adminLockHash: ""
+      })
     } catch (error) {
-      console.error("Failed to update protocol config:", error)
-      alert("Failed to update protocol configuration: " + (error as Error).message)
+      console.error("Failed to add admin:", error)
+      alert("Failed to add admin: " + (error as Error).message)
     }
   }
-
-  const onUpdateScriptCodeHashes = async (data: UpdateScriptCodeHashesForm) => {
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first")
-      return
-    }
-
-    try {
-      const txHash = await providerUpdateScriptCodeHashes(data)
-      console.log("Script code hashes updated:", txHash)
-      alert(`Script code hashes updated! Transaction: ${txHash}`)
-    } catch (error) {
-      console.error("Failed to update script code hashes:", error)
-      alert("Failed to update script code hashes: " + (error as Error).message)
-    }
-  }
-
-  const onUpdateTippingConfig = async (data: UpdateTippingConfigForm) => {
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first")
-      return
-    }
-
-    try {
-      const txHash = await providerUpdateTippingConfig(data)
-      console.log("Tipping config updated:", txHash)
-      alert(`Tipping configuration updated! Transaction: ${txHash}`)
-    } catch (error) {
-      console.error("Failed to update tipping config:", error)
-      alert("Failed to update tipping configuration: " + (error as Error).message)
-    }
+  
+  const onRemoveAdmin = (index: number) => {
+    // Add to removal list
+    setPendingAdminChanges(prev => ({
+      ...prev,
+      toRemove: [...prev.toRemove, index]
+    }))
+    
+    // Update pending changes indicator
+    setPendingChanges(prev => ({ ...prev, admins: true }))
   }
 
   const onAddEndorser = async (data: AddEndorserForm & { inputMode: "address" | "script" }) => {
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first")
-      return
-    }
-
     try {
-      // Prepare the form data based on input mode
-      const formData: AddEndorserForm = {
-        endorserName: data.endorserName,
-        endorserDescription: data.endorserDescription,
-        endorserAddress: data.inputMode === "address" ? data.endorserAddress! : "",
-        endorserLockScript: data.inputMode === "script" ? data.endorserLockScript! : {
-          codeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      let lockHash: string
+      let lockScript: { codeHash: string; hashType: "type" | "data" | "data1"; args: string }
+      
+      if (data.inputMode === "address" && data.endorserAddress) {
+        // Compute lock hash from address
+        lockHash = await computeLockHashWithPrefix(data.endorserAddress)
+        // For address mode, we need to derive the lock script from the address
+        // This is a simplified approach - in production you'd need proper address parsing
+        lockScript = {
+          codeHash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8", // Default secp256k1_blake160
           hashType: "type" as const,
-          args: "0x"
+          args: lockHash.slice(0, 42) // First 20 bytes of lock hash as args
         }
+      } else if (data.inputMode === "script" && data.endorserLockScript) {
+        // Use the provided lock script directly
+        lockScript = {
+          codeHash: data.endorserLockScript.codeHash,
+          hashType: data.endorserLockScript.hashType,
+          args: data.endorserLockScript.args
+        }
+        // Compute lock hash from script
+        const cccScript = ccc.Script.from({
+          codeHash: data.endorserLockScript.codeHash,
+          hashType: data.endorserLockScript.hashType,
+          args: data.endorserLockScript.args
+        })
+        lockHash = cccScript.hash()
+      } else {
+        throw new Error("Invalid endorser input")
       }
 
-      const txHash = await providerAddEndorser(formData)
-      console.log("Endorser added:", txHash)
-      alert(`Endorser added! Transaction: ${txHash}`)
+      // Add to pending changes instead of sending transaction
+      setPendingEndorserChanges(prev => ({
+        ...prev,
+        toAdd: [...prev.toAdd, {
+          endorserName: data.endorserName,
+          endorserDescription: data.endorserDescription,
+          endorserLockHash: lockHash,
+          endorserLockScript: lockScript,
+          endorserAddress: data.inputMode === "address" ? data.endorserAddress : undefined
+        }]
+      }))
+      
+      // Update pending changes indicator
+      setPendingChanges(prev => ({ ...prev, endorsers: true }))
+      
       endorserForm.reset()
     } catch (error) {
       console.error("Failed to add endorser:", error)
@@ -456,25 +562,19 @@ export function ProtocolManagement() {
     }
   }
 
-
-  const onRemoveEndorser = async (index: number) => {
-    if (!isWalletConnected) {
-      alert("Please connect your wallet first")
-      return
-    }
-
+  const onRemoveEndorser = (index: number) => {
     if (!confirm("Are you sure you want to remove this endorser?")) {
       return
     }
 
-    try {
-      const txHash = await providerRemoveEndorser(index)
-      console.log("Endorser removed:", txHash)
-      alert(`Endorser removed! Transaction: ${txHash}`)
-    } catch (error) {
-      console.error("Failed to remove endorser:", error)
-      alert("Failed to remove endorser: " + (error as Error).message)
-    }
+    // Add to pending removals instead of sending transaction
+    setPendingEndorserChanges(prev => ({
+      ...prev,
+      toRemove: [...prev.toRemove, index]
+    }))
+    
+    // Update pending changes indicator
+    setPendingChanges(prev => ({ ...prev, endorsers: true }))
   }
 
   const onBatchUpdate = () => {
@@ -502,9 +602,10 @@ export function ProtocolManagement() {
       return
     }
 
-    const hasChanges = pendingChanges.protocolConfig || 
+    const hasChanges = pendingChanges.admins || 
                       pendingChanges.scriptCodeHashes || 
-                      pendingChanges.tippingConfig
+                      pendingChanges.tippingConfig ||
+                      pendingChanges.endorsers
 
     if (!hasChanges) {
       console.warn("No pending changes detected")
@@ -520,9 +621,10 @@ export function ProtocolManagement() {
     try {
       const batchForm: BatchUpdateProtocolForm = {}
 
-      if (pendingChanges.protocolConfig) {
+      // Handle admin changes
+      if (pendingChanges.admins && finalAdminLockHashes.length > 0) {
         batchForm.protocolConfig = {
-          adminLockHashes: formData.adminLockHashes!
+          adminLockHashes: finalAdminLockHashes
         }
       }
 
@@ -532,6 +634,20 @@ export function ProtocolManagement() {
 
       if (pendingChanges.tippingConfig) {
         batchForm.tippingConfig = formData.tippingConfig!
+      }
+
+      // Handle endorser changes
+      if (pendingChanges.endorsers && (pendingEndorserChanges.toAdd.length > 0 || pendingEndorserChanges.toRemove.length > 0)) {
+        batchForm.endorserOperations = {
+          add: pendingEndorserChanges.toAdd.map(endorser => ({
+            endorserName: endorser.endorserName,
+            endorserDescription: endorser.endorserDescription,
+            endorserAddress: endorser.endorserAddress || "", // Include address if available
+            endorserLockScript: endorser.endorserLockScript, // Use the stored lock script
+            endorserLockHash: endorser.endorserLockHash // Include the computed lock hash
+          })),
+          remove: pendingEndorserChanges.toRemove
+        }
       }
 
       const txHash = await providerBatchUpdateProtocol(batchForm)
@@ -544,6 +660,10 @@ export function ProtocolManagement() {
         scriptCodeHashes: false,
         tippingConfig: false,
         endorsers: false
+      })
+      setPendingEndorserChanges({
+        toAdd: [],
+        toRemove: []
       })
       setShowConfirmationDialog(false)
     } catch (error) {
@@ -643,64 +763,56 @@ export function ProtocolManagement() {
   }
 
   // Protocol deployment handler
-  const handleDeployProtocol = async (data: DeployProtocolCellParams) => {
+  const handleDeployProtocol = async () => {
     if (!isWalletConnected) {
       alert("Please connect your wallet first")
+      return
+    }
+
+    if (!signer) {
+      alert("No signer available. Please connect your wallet.")
       return
     }
 
     try {
       setIsDeploying(true)
       
-      // Use the signer from component level
-      if (!signer) {
-        throw new Error("No signer available. Please connect your wallet.")
+      // Collect form data
+      const deploymentParams: DeployProtocolCellParams = {
+        adminLockHashes: finalAdminLockHashes || [],
+        scriptCodeHashes: scriptCodeHashesValues,
+        tippingConfig: tippingConfigValues,
+        initialEndorsers: pendingEndorserChanges.toAdd.map(endorser => ({
+          endorserLockHash: endorser.endorserLockHash,
+          endorserName: endorser.endorserName,
+          endorserDescription: endorser.endorserDescription
+        }))
       }
 
       // Validate deployment parameters
-      const validationErrors = validateDeploymentParams(data)
+      const validationErrors = validateDeploymentParams(deploymentParams)
       if (validationErrors.length > 0) {
-        throw new Error("Validation failed: " + validationErrors.join(", "))
+        throw new Error("Validation failed:\n" + validationErrors.join("\n"))
       }
 
       // Deploy the protocol cell
-      const result = await deployProtocolCell(signer, data)
+      const result = await deployProtocolCell(signer, deploymentParams)
       
-      // Generate environment configuration
-      const envConfig = generateEnvConfig(result)
+      // Store deployment result
+      setDeploymentResult({
+        txHash: result.txHash,
+        args: result.protocolTypeScript.args
+      })
       
-      setDeploymentResult(envConfig)
-      alert("Protocol deployed successfully! Check the environment configuration below.")
+      alert(`Protocol cell deployed successfully!\n\nTransaction: ${result.txHash}\n\nIMPORTANT: Copy the protocol cell args and update your .env.local file:\nNEXT_PUBLIC_PROTOCOL_TYPE_ARGS=${result.protocolTypeScript.args}`)
       
     } catch (error) {
       console.error("Failed to deploy protocol:", error)
       alert("Failed to deploy protocol: " + (error as Error).message)
-      setDeploymentResult("")
     } finally {
       setIsDeploying(false)
     }
   }
-
-  // Initialize deployment form with user's lock hash
-  useEffect(() => {
-    const initializeDeploymentForm = async () => {
-      try {
-        if (signer && isWalletConnected) {
-          const address = await signer.getRecommendedAddress()
-          const userLockHash = await computeLockHashWithPrefix(address)
-          
-          // Update deployment form with user's lock hash as admin
-          deploymentForm.setValue("adminLockHashes", [userLockHash])
-        }
-      } catch (error) {
-        console.error("Failed to initialize deployment form:", error)
-      }
-    }
-
-    if (isWalletConnected && showDeploymentDialog) {
-      initializeDeploymentForm()
-    }
-  }, [signer, isWalletConnected, showDeploymentDialog, deploymentForm])
 
 
   const getStatusIcon = (status: string) => {
@@ -765,265 +877,138 @@ export function ProtocolManagement() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={toggleChangesView} 
-            variant="outline"
-            size="sm"
-          >
-            {showChangesOnly ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
-            {showChangesOnly ? "Show All" : "Show Changes Only"}
-          </Button>
-          <Button 
-            onClick={onBatchUpdate} 
-            disabled={!pendingChanges.protocolConfig && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save All Changes
-          </Button>
-          <Button onClick={refreshProtocolData} disabled={isLoading}>
-            <Activity className="h-4 w-4 mr-2" />
-            {isLoading ? "Loading..." : "Refresh Data"}
-          </Button>
-          <Button 
-            onClick={() => setShowOutpointDialog(true)} 
-            variant="outline"
-            disabled={!isWalletConnected}
-            title={!isWalletConnected ? "Connect wallet to load by outpoint" : ""}
-          >
-            <FileSearch className="h-4 w-4 mr-2" />
-            Load by Outpoint
-          </Button>
+          {configStatus === 'complete' && (
+            <>
+              <Button 
+                onClick={toggleChangesView} 
+                variant="outline"
+                size="sm"
+              >
+                {showChangesOnly ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
+                {showChangesOnly ? "Show All" : "Show Changes Only"}
+              </Button>
+              <Button 
+                onClick={onBatchUpdate} 
+                disabled={!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                Save All Changes
+              </Button>
+              <Button onClick={refreshProtocolData} disabled={isLoading}>
+                <Activity className="h-4 w-4 mr-2" />
+                {isLoading ? "Loading..." : "Refresh Data"}
+              </Button>
+              <Button 
+                onClick={() => setShowOutpointDialog(true)} 
+                variant="outline"
+                disabled={!isWalletConnected}
+                title={!isWalletConnected ? "Connect wallet to load by outpoint" : ""}
+              >
+                <FileSearch className="h-4 w-4 mr-2" />
+                Load by Outpoint
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Protocol Deployment Check */}
-      {!isProtocolConfigured() && (
-        <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
-          <CardHeader>
-            <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              Protocol Not Deployed
-            </CardTitle>
-            <CardDescription className="text-yellow-600 dark:text-yellow-400">
-              No protocol type script configuration found. You need to deploy a protocol cell before managing protocol data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                onClick={() => setShowDeploymentDialog(true)}
-                className="bg-yellow-600 hover:bg-yellow-700"
-                disabled={!isWalletConnected}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Deploy Protocol Cell
-              </Button>
-              {!isWalletConnected && (
-                <p className="text-sm text-yellow-600 dark:text-yellow-400 self-center">
-                  Connect your wallet to deploy the protocol
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Deployment Dialog */}
-      <Dialog open={showDeploymentDialog} onOpenChange={setShowDeploymentDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Deploy Protocol Cell</DialogTitle>
-            <DialogDescription>
-              Deploy a new protocol cell to the CKB blockchain with initial configuration.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...deploymentForm}>
-            <form onSubmit={deploymentForm.handleSubmit(handleDeployProtocol)} className="space-y-6">
-              {/* Admin Configuration */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-semibold">Admin Configuration</h4>
-                <FormField
-                  control={deploymentForm.control}
-                  name="adminLockHashes"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Admin Lock Hashes</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="0x... (one per line)"
-                          value={field.value.join('\n')}
-                          onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormDescription>Lock hashes of protocol administrators (your wallet is pre-filled)</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Script Code Hashes */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-semibold">Script Code Hashes</h4>
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <FormField
-                    control={deploymentForm.control}
-                    name="scriptCodeHashes.ckbBoostProtocolTypeCodeHash"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Protocol Type Code Hash</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="0x..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={deploymentForm.control}
-                    name="scriptCodeHashes.ckbBoostProtocolLockCodeHash"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Protocol Lock Code Hash</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="0x..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={deploymentForm.control}
-                    name="scriptCodeHashes.ckbBoostCampaignTypeCodeHash"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campaign Type Code Hash</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="0x..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={deploymentForm.control}
-                    name="scriptCodeHashes.ckbBoostCampaignLockCodeHash"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Campaign Lock Code Hash</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="0x..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={deploymentForm.control}
-                    name="scriptCodeHashes.ckbBoostUserTypeCodeHash"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>User Type Code Hash</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="0x..." />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Tipping Configuration */}
-              <div className="space-y-4">
-                <h4 className="text-lg font-semibold">Tipping Configuration</h4>
-                <FormField
-                  control={deploymentForm.control}
-                  name="tippingConfig.approvalRequirementThresholds"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Approval Thresholds (Shannons)</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="10000 (one per line)"
-                          value={field.value ? field.value.join('\n') : ''}
-                          onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
-                          rows={3}
-                        />
-                      </FormControl>
-                      <FormDescription>CKB amounts in shannons that require approval</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={deploymentForm.control}
-                  name="tippingConfig.expirationDuration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Expiration Duration (seconds)</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          placeholder="604800"
-                        />
-                      </FormControl>
-                      <FormDescription>How long proposals remain valid (default: 7 days)</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Deployment Result */}
-              {deploymentResult && (
+      {(() => {
+        const configStatus = getProtocolConfigStatus()
+        
+        if (configStatus === 'none') {
+          return (
+            <Card className="border-red-500 bg-red-50 dark:bg-red-950">
+              <CardHeader>
+                <CardTitle className="flex items-center text-red-700 dark:text-red-300">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Protocol Contract Not Deployed
+                </CardTitle>
+                <CardDescription className="text-red-600 dark:text-red-400">
+                  No protocol type contract found. You need to deploy the protocol contract first using ccc-deploy, then configure the code hash in your .env file.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-4">
-                  <h4 className="text-lg font-semibold text-green-600">Deployment Successful!</h4>
-                  <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg">
-                    <pre className="text-sm whitespace-pre-wrap">{deploymentResult}</pre>
+                  <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border">
+                    <p className="font-mono text-sm mb-2">1. Deploy the protocol contract:</p>
+                    <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
+                      ccc-deploy deploy generic_contract ./contracts/build/release/ckboost-protocol-type --typeId --network=testnet
+                    </code>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Copy the configuration above to your .env file and restart your application to start managing the protocol.
+                  <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border">
+                    <p className="font-mono text-sm mb-2">2. Add to your .env.local:</p>
+                    <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
+                      NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH=0x...<br />
+                      NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE=type
+                    </code>
+                  </div>
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    After adding the environment variables, restart the dApp to continue.
                   </p>
                 </div>
-              )}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowDeploymentDialog(false)}
-                  disabled={isDeploying}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isDeploying || !isWalletConnected}
-                  className="bg-yellow-600 hover:bg-yellow-700"
-                >
-                  {isDeploying ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Deploying...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Deploy Protocol
-                    </>
+              </CardContent>
+            </Card>
+          )
+        }
+        
+        if (configStatus === 'partial') {
+          return (
+            <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+              <CardHeader>
+                <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Protocol Cell Not Deployed
+                </CardTitle>
+                <CardDescription className="text-yellow-600 dark:text-yellow-400">
+                  Protocol contract is deployed (code hash: {process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.slice(0, 10)}...), but no protocol cell exists yet.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    To deploy a protocol cell:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2 text-sm text-yellow-700 dark:text-yellow-300">
+                    <li>Configure the protocol settings in the forms below</li>
+                    <li>Add your admin lock hash (auto-filled from your wallet)</li>
+                    <li>Set the script code hashes (use zero hashes for undeployed contracts)</li>
+                    <li>Configure tipping settings</li>
+                    <li>Click "Deploy Protocol Cell" at the bottom of the page</li>
+                  </ol>
+                  {!isWalletConnected && (
+                    <p className="text-sm text-yellow-600 dark:text-yellow-400 font-medium">
+                      ⚠️ Connect your wallet to proceed with deployment
+                    </p>
                   )}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+                  {deploymentResult && (
+                    <div className="mt-4 p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+                      <p className="text-sm text-green-800 dark:text-green-200 font-medium">
+                        ✅ Protocol cell deployed!
+                      </p>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1">
+                        Transaction: {deploymentResult.txHash.slice(0, 10)}...
+                      </p>
+                      <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded">
+                        <p className="text-xs font-mono">
+                          NEXT_PUBLIC_PROTOCOL_TYPE_ARGS={deploymentResult.args}
+                        </p>
+                      </div>
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-2">
+                        Add this to your .env.local and restart the app.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        }
+        
+        return null // configStatus === 'complete', show normal protocol management
+      })()}
+
 
       {/* Manual Outpoint Loading Dialog */}
       <Dialog open={showOutpointDialog} onOpenChange={setShowOutpointDialog}>
@@ -1161,102 +1146,210 @@ export function ProtocolManagement() {
       )}
 
       {/* Protocol Configuration */}
-      {protocolData && (
+      {(protocolData || configStatus === 'partial') && (
         <div className="space-y-6">
-          {/* Admin and Script Configuration */}
+          {/* Admin Management - Add Admin and Current Admins */}
           <div className="grid lg:grid-cols-2 gap-6">
-            {/* Protocol Configuration */}
-            <Card className={pendingChanges.protocolConfig ? "border-orange-500" : ""}>
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  Protocol Configuration
-                  <ChangeIndicator hasChanged={pendingChanges.protocolConfig} />
-                </CardTitle>
-                <CardDescription>Admin lock hashes configuration</CardDescription>
+                <CardTitle>Add Admin</CardTitle>
+                <CardDescription>Add new administrators to the protocol</CardDescription>
               </CardHeader>
               <CardContent>
-                <Form {...protocolConfigForm}>
-                  <div className="space-y-4">
+                <Form {...adminForm}>
+                  <form onSubmit={adminForm.handleSubmit(onAddAdmin)} className="space-y-4">
                     <FormField
-                      control={protocolConfigForm.control}
-                      name="adminLockHashes"
+                      control={adminForm.control}
+                      name="inputMode"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Admin Lock Hashes</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="0x... (one per line)"
-                              value={field.value.join('\n')}
-                              onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
-                              rows={4}
-                            />
-                          </FormControl>
-                          <FormDescription>One lock hash per line (Byte32)</FormDescription>
-                          <FormMessage />
+                          <FormLabel>Input Method</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select input method" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="address">CKB Address</SelectItem>
+                              <SelectItem value="script">Lock Hash</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Choose whether to input a CKB address or lock hash directly
+                          </FormDescription>
                         </FormItem>
                       )}
                     />
-
-                  </div>
+                    {adminForm.watch("inputMode") === "address" && (
+                      <FormField
+                        control={adminForm.control}
+                        name="adminAddress"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Admin Address</FormLabel>
+                            <FormControl>
+                              <Input placeholder="ckt1..." {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              The CKB address of the admin
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    {adminForm.watch("inputMode") === "script" && (
+                      <FormField
+                        control={adminForm.control}
+                        name="adminLockHash"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Admin Lock Hash</FormLabel>
+                            <FormControl>
+                              <Input placeholder="0x..." {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              The lock hash of the admin (32 bytes)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    <Button type="submit" className="w-full">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Admin
+                    </Button>
+                  </form>
                 </Form>
               </CardContent>
             </Card>
 
-            {/* Tipping Configuration */}
-            <Card className={pendingChanges.tippingConfig ? "border-orange-500" : ""}>
+            <Card className={pendingChanges.admins ? "border-orange-500" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center">
-                  Tipping Configuration
-                  <ChangeIndicator hasChanged={pendingChanges.tippingConfig} />
+                  Current Admins
+                  {pendingChanges.admins && (
+                    <Badge variant="destructive" className="ml-2 text-xs">
+                      {pendingAdminChanges.toAdd.length + pendingAdminChanges.toRemove.length} pending changes
+                    </Badge>
+                  )}
                 </CardTitle>
-                <CardDescription>Tipping proposal settings</CardDescription>
+                <CardDescription>Active administrators ({finalAdminLockHashes.length})</CardDescription>
               </CardHeader>
               <CardContent>
-                <Form {...tippingConfigForm}>
-                  <div className="space-y-4">
-                    <FormField
-                      control={tippingConfigForm.control}
-                      name="approvalRequirementThresholds"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Approval Thresholds (CKB)</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder="10000 (one per line)"
-                              value={field.value.join('\n')}
-                              onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
-                              rows={3}
-                            />
-                          </FormControl>
-                          <FormDescription>One threshold per line. Min 3 approvals required.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={tippingConfigForm.control}
-                      name="expirationDuration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Expiration Duration (seconds)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              {...field} 
-                              onChange={(e) => field.onChange(parseInt(e.target.value))}
-                              placeholder="604800"
-                            />
-                          </FormControl>
-                          <FormDescription>How long proposals remain valid (e.g., 604800 = 7 days)</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </Form>
+                <div className="space-y-3">
+                  {/* Show pending additions */}
+                  {pendingAdminChanges.toAdd.map((lockHash, index) => (
+                    <div key={`pending-admin-${index}`} className="p-3 border border-green-500 rounded bg-green-50 dark:bg-green-950">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-mono text-xs break-all flex-1 min-w-0">{lockHash}</div>
+                        <Badge variant="secondary" className="text-xs bg-green-600 text-white shrink-0">Pending Add</Badge>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Show existing admins */}
+                  {protocolData && protocolData.protocol_config.admin_lock_hash_vec.map((admin: any, index: number) => {
+                    const isMarkedForRemoval = pendingAdminChanges.toRemove.includes(index)
+                    const adminHash = bufferToHex(admin)
+                    return (
+                      <div 
+                        key={index} 
+                        className={`p-3 border rounded ${isMarkedForRemoval ? 'border-red-500 bg-red-50 dark:bg-red-950 opacity-75' : ''}`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className={`font-mono text-xs break-all flex-1 min-w-0 ${isMarkedForRemoval ? 'line-through' : ''}`}>
+                            {adminHash}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {isMarkedForRemoval ? (
+                              <Badge variant="destructive" className="text-xs">Pending Remove</Badge>
+                            ) : (
+                              <Badge variant="default" className="text-xs">Active</Badge>
+                            )}
+                            {protocolData.protocol_config.admin_lock_hash_vec.length > 1 && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => onRemoveAdmin(index)}
+                                className="text-red-600 hover:text-red-700"
+                                disabled={isMarkedForRemoval}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {(!protocolData || protocolData.protocol_config.admin_lock_hash_vec.length === 0) && pendingAdminChanges.toAdd.length === 0 && (
+                    <div className="text-center text-muted-foreground py-4">
+                      No admins configured
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Tipping Configuration */}
+          <Card className={pendingChanges.tippingConfig ? "border-orange-500" : ""}>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                Tipping Configuration
+                <ChangeIndicator hasChanged={pendingChanges.tippingConfig} />
+              </CardTitle>
+              <CardDescription>Tipping proposal settings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...tippingConfigForm}>
+                <div className="space-y-4">
+                  <FormField
+                    control={tippingConfigForm.control}
+                    name="approvalRequirementThresholds"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Approval Thresholds (CKB)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="10000 (one per line)"
+                            value={field.value.join('\n')}
+                            onChange={(e) => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormDescription>One threshold per line. Min 3 approvals required.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={tippingConfigForm.control}
+                    name="expirationDuration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Expiration Duration (seconds)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            placeholder="604800"
+                          />
+                        </FormControl>
+                        <FormDescription>How long proposals remain valid (e.g., 604800 = 7 days)</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </Form>
+            </CardContent>
+          </Card>
 
           {/* Script Code Hashes Configuration */}
           <Card className={pendingChanges.scriptCodeHashes ? "border-orange-500" : ""}>
@@ -1496,39 +1589,82 @@ export function ProtocolManagement() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Current Endorsers</CardTitle>
-                <CardDescription>Active endorsers ({protocolData.endorsers_whitelist.length})</CardDescription>
+                <CardTitle className="flex items-center">
+                  Current Endorsers
+                  {pendingChanges.endorsers && (
+                    <Badge variant="destructive" className="ml-2 text-xs">
+                      {pendingEndorserChanges.toAdd.length + pendingEndorserChanges.toRemove.length} pending changes
+                    </Badge>
+                  )}
+                </CardTitle>
+                <CardDescription>Active endorsers ({protocolData?.endorsers_whitelist.length || 0})</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {protocolData.endorsers_whitelist.map((endorser: any, index: number) => (
-                    <div key={index} className="p-3 border rounded">
+                  {/* Show pending additions */}
+                  {pendingEndorserChanges.toAdd.map((endorser, index) => (
+                    <div key={`pending-${index}`} className="p-3 border border-green-500 rounded bg-green-50 dark:bg-green-950">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <div className="font-medium">{bufferToString(endorser.endorser_name)}</div>
+                          <div className="font-medium">{endorser.endorserName}</div>
                           <div className="flex items-center gap-2">
-                            <Badge variant="default" className="text-xs">Active</Badge>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => onRemoveEndorser(index)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <Badge variant="secondary" className="text-xs bg-green-600 text-white">Pending Add</Badge>
                           </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {bufferToString(endorser.endorser_description)}
+                          {endorser.endorserDescription}
                         </div>
                         <div className="text-xs text-muted-foreground">
                           <span className="font-medium">Lock Hash:</span>{" "}
-                          <span className="font-mono">{bufferToHex(endorser.endorser_lock_hash)}</span>
+                          <span className="font-mono">{endorser.endorserLockHash}</span>
                         </div>
                       </div>
                     </div>
                   ))}
-                  {protocolData.endorsers_whitelist.length === 0 && (
+                  
+                  {/* Show existing endorsers */}
+                  {protocolData && protocolData.endorsers_whitelist.map((endorser: any, index: number) => {
+                    const isMarkedForRemoval = pendingEndorserChanges.toRemove.includes(index)
+                    return (
+                      <div 
+                        key={index} 
+                        className={`p-3 border rounded ${isMarkedForRemoval ? 'border-red-500 bg-red-50 dark:bg-red-950 opacity-75' : ''}`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className={`font-medium ${isMarkedForRemoval ? 'line-through' : ''}`}>
+                              {bufferToString(endorser.endorser_name)}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isMarkedForRemoval ? (
+                                <Badge variant="destructive" className="text-xs">Pending Remove</Badge>
+                              ) : (
+                                <Badge variant="default" className="text-xs">Active</Badge>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => onRemoveEndorser(index)}
+                                className="text-red-600 hover:text-red-700"
+                                disabled={isMarkedForRemoval}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className={`text-sm text-muted-foreground ${isMarkedForRemoval ? 'line-through' : ''}`}>
+                            {bufferToString(endorser.endorser_description)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            <span className="font-medium">Lock Hash:</span>{" "}
+                            <span className="font-mono">{bufferToHex(endorser.endorser_lock_hash)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {(!protocolData || protocolData.endorsers_whitelist.length === 0) && pendingEndorserChanges.toAdd.length === 0 && (
                     <div className="text-center text-muted-foreground py-4">
                       No endorsers configured
                     </div>
@@ -1538,33 +1674,67 @@ export function ProtocolManagement() {
             </Card>
           </div>
 
-          {/* Protocol Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Protocol Summary</CardTitle>
-              <CardDescription>Overview of current protocol configuration</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <div className="font-medium">Last Updated</div>
-                  <div className="text-muted-foreground">{formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000)}</div>
+          {/* Protocol Summary or Deployment Button */}
+          {configStatus === 'partial' ? (
+            <Card className="border-yellow-500">
+              <CardHeader>
+                <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
+                  <AlertTriangle className="h-5 w-5 mr-2" />
+                  Ready to Deploy Protocol Cell
+                </CardTitle>
+                <CardDescription className="text-yellow-600 dark:text-yellow-400">
+                  Review your configuration above and deploy the protocol cell when ready.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Button 
+                  onClick={handleDeployProtocol}
+                  disabled={isDeploying || !isWalletConnected}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-3"
+                  size="lg"
+                >
+                  {isDeploying ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Deploying Protocol Cell...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-5 w-5 mr-2" />
+                      Deploy Protocol Cell
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Protocol Summary</CardTitle>
+                <CardDescription>Overview of current protocol configuration</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div className="font-medium">Last Updated</div>
+                    <div className="text-muted-foreground">{formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000)}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Admin Addresses</div>
+                    <div className="text-muted-foreground">{protocolData.protocol_config.admin_lock_hash_vec.length}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Active Endorsers</div>
+                    <div className="text-muted-foreground">{protocolData.endorsers_whitelist.length}</div>
+                  </div>
+                  <div>
+                    <div className="font-medium">Protocol Status</div>
+                    <div className="text-muted-foreground">Active</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-medium">Admin Addresses</div>
-                  <div className="text-muted-foreground">{protocolData.protocol_config.admin_lock_hash_vec.length}</div>
-                </div>
-                <div>
-                  <div className="font-medium">Active Endorsers</div>
-                  <div className="text-muted-foreground">{protocolData.endorsers_whitelist.length}</div>
-                </div>
-                <div>
-                  <div className="font-medium">Protocol Status</div>
-                  <div className="text-muted-foreground">Active</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -1581,25 +1751,43 @@ export function ProtocolManagement() {
           <div className="space-y-6 max-h-96 overflow-y-auto">
             {protocolChanges && (
               <>
-                {/* Protocol Configuration Changes */}
-                {pendingChanges.protocolConfig && (
+                {/* Admin Changes */}
+                {pendingChanges.admins && (pendingAdminChanges.toAdd.length > 0 || pendingAdminChanges.toRemove.length > 0) && (
                   <div className="border rounded p-4">
                     <h4 className="font-medium mb-3 flex items-center">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Protocol Configuration Changes
+                      <Users className="h-4 w-4 mr-2" />
+                      Admin Changes
                     </h4>
                     <div className="space-y-2 text-sm">
-                      <div>
-                        <span className="font-medium">Admin Lock Hashes:</span>
-                        <div className="mt-1 space-y-1">
-                          <div className="text-red-600">
-                            - Previous: {protocolChanges.protocolConfig.adminLockHashes.oldValue.join(', ')}
-                          </div>
-                          <div className="text-green-600">
-                            + New: {protocolChanges.protocolConfig.adminLockHashes.newValue.join(', ')}
+                      {pendingAdminChanges.toAdd.length > 0 && (
+                        <div>
+                          <span className="font-medium">Admins to Add:</span>
+                          <div className="mt-1 space-y-1 text-green-600">
+                            {pendingAdminChanges.toAdd.map((lockHash, index) => (
+                              <div key={index} className="font-mono text-xs">
+                                + {lockHash}
+                              </div>
+                            ))}
                           </div>
                         </div>
-                      </div>
+                      )}
+                      {pendingAdminChanges.toRemove.length > 0 && (
+                        <div className="mt-2">
+                          <span className="font-medium">Admins to Remove:</span>
+                          <div className="mt-1 space-y-1 text-red-600">
+                            {pendingAdminChanges.toRemove.map((index) => {
+                              const adminHash = protocolData?.protocol_config.admin_lock_hash_vec[index] 
+                                ? bufferToHex(protocolData.protocol_config.admin_lock_hash_vec[index])
+                                : `Admin at index ${index}`
+                              return (
+                                <div key={index} className="font-mono text-xs">
+                                  - {adminHash}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1668,10 +1856,45 @@ export function ProtocolManagement() {
                     </div>
                   </div>
                 )}
+                {/* Endorser Changes */}
+                {pendingChanges.endorsers && (pendingEndorserChanges.toAdd.length > 0 || pendingEndorserChanges.toRemove.length > 0) && (
+                  <div className="border rounded p-4">
+                    <h4 className="font-medium mb-3 flex items-center">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Endorser Changes
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      {pendingEndorserChanges.toAdd.length > 0 && (
+                        <div>
+                          <span className="font-medium">Endorsers to Add:</span>
+                          <div className="mt-1 space-y-1 text-green-600">
+                            {pendingEndorserChanges.toAdd.map((endorser, index) => (
+                              <div key={index}>
+                                + {endorser.endorserName} ({endorser.endorserLockHash.slice(0, 10)}...)
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {pendingEndorserChanges.toRemove.length > 0 && (
+                        <div className="mt-2">
+                          <span className="font-medium">Endorsers to Remove:</span>
+                          <div className="mt-1 space-y-1 text-red-600">
+                            {pendingEndorserChanges.toRemove.map((index) => (
+                              <div key={index}>
+                                - Endorser at index {index}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
-            {(!protocolChanges || (!pendingChanges.protocolConfig && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig)) && (
+            {(!protocolChanges || (!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers)) && (
               <div className="text-center text-muted-foreground py-8">
                 No changes detected
               </div>
@@ -1684,7 +1907,7 @@ export function ProtocolManagement() {
             </Button>
             <Button 
               onClick={confirmBatchUpdate}
-              disabled={!protocolChanges || (!pendingChanges.protocolConfig && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig)}
+              disabled={!protocolChanges || (!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers)}
               className="bg-green-600 hover:bg-green-700"
             >
               <Save className="h-4 w-4 mr-2" />

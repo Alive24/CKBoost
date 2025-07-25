@@ -67,6 +67,7 @@ export interface UpdateTippingConfigForm {
 export interface AddEndorserForm {
   endorserAddress: string
   endorserLockScript: Script
+  endorserLockHash?: string // Computed lock hash
   endorserName: string
   endorserDescription: string
 }

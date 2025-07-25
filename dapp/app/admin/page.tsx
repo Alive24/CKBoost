@@ -30,13 +30,13 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 
-// Mock user data - in real app, this would come from authentication
+// Campaign admin configuration
 const CURRENT_USER = {
   id: 1,
-  name: "Campaign Creator",
-  email: "creator@example.com",
-  address: "0x1234...abcd",
-  avatar: "CC",
+  name: "Campaign Administrator",
+  email: "admin@ckboost.com",
+  address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+  avatar: "CA",
   role: "campaign_admin", // or "platform_admin" or "both"
   permissions: ["manage_campaigns", "review_quests", "manage_staff"]
 }
@@ -46,8 +46,8 @@ const CAMPAIGN_STAFF = [
   {
     id: 1,
     name: "Review Manager",
-    email: "reviewer@example.com",
-    address: "0x5678...efgh",
+    email: "reviewer@ckboost.com",
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     avatar: "RM",
     role: "reviewer",
     campaignIds: [1, 2],
@@ -57,8 +57,8 @@ const CAMPAIGN_STAFF = [
   {
     id: 2,
     name: "Community Manager",
-    email: "community@example.com", 
-    address: "0x9abc...ijkl",
+    email: "community@ckboost.com", 
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     avatar: "CM",
     role: "moderator",
     campaignIds: [1],
@@ -554,7 +554,7 @@ export default function CampaignAdminDashboard() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="staff@example.com"
+                          placeholder="staff@ckboost.com"
                           value={staffForm.email}
                           onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                         />

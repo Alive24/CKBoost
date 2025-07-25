@@ -925,6 +925,20 @@
           "type": "Uint8"
         }
       ]
+    },
+    {
+      "type": "table",
+      "name": "ConnectedTypeID",
+      "fields": [
+        {
+          "name": "type_id",
+          "type": "Byte32"
+        },
+        {
+          "name": "connected_type_hash",
+          "type": "Byte32"
+        }
+      ]
     }
   ]
 }

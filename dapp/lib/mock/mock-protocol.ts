@@ -162,8 +162,8 @@ export function getMockProtocolData(): ProtocolDataType {
     last_updated: numberToUint64(Math.floor(Date.now() / 1000)),
     protocol_config: {
       admin_lock_hash_vec: [
-        hexToBuffer("0x36c329ed630d6ce750712a477543672adab57f4c36c329ed630d6ce750712a47"),
-        hexToBuffer("0x4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b")
+        hexToBuffer("0x02c93173368ec56f72ec023f63148461b80e7698eddd62cbd9dbe31a13f2b330"), // Hub Admin
+        hexToBuffer("0x4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b") // Secondary admin
       ],
       script_code_hashes: {
         ckb_boost_protocol_type_code_hash: hexToBuffer("0x0000000000000000000000000000000000000000000000000000000000000001"),

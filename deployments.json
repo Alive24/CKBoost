@@ -1,0 +1,33 @@
+{
+  "current": {
+    "testnet": {
+      "protocolType": {
+        "transactionHash": "0x515c496d5c7192b6bf1ba80e687cc213c15bbba069643b844d2e21d55d9a43c0",
+        "index": 0,
+        "codeHash": "0x8bed7ce362f1817292c0173ce9854ec359f3bca621882618d28392643f58c6c6",
+        "hashType": "type",
+        "deployedAt": "2025-07-24T08:21:02.765Z",
+        "contractName": "ckboost-protocol-type"
+      }
+    },
+    "mainnet": {
+      "protocolType": null
+    }
+  },
+  "history": {
+    "testnet": [
+      {
+        "contractName": "ckboost-protocol-type",
+        "transactionHash": "0x515c496d5c7192b6bf1ba80e687cc213c15bbba069643b844d2e21d55d9a43c0",
+        "index": 0,
+        "codeHash": "0x8bed7ce362f1817292c0173ce9854ec359f3bca621882618d28392643f58c6c6",
+        "hashType": "type",
+        "deployedAt": "2025-07-24T08:21:02.765Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x9405c9e5ad771f8d5db1992264281e38d2573b8ca2e1e5812f0200e2d3c4bca5",
+        "contractSize": 270832
+      }
+    ],
+    "mainnet": []
+  }
+}

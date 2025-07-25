@@ -3,6 +3,41 @@
 
 import { ccc } from "@ckb-ccc/connector-react"
 import { SerializeProtocolData, types } from "ssri-ckboost"
+import { deploymentManager, DeploymentManager } from "./deployment-manager"
+
+// Utility function to safely stringify objects with BigInt values
+function safeStringify(obj: any, space?: number): string {
+  return JSON.stringify(obj, (key, value) => 
+    typeof value === 'bigint' ? value.toString() : value, space)
+}
+
+/**
+ * Get the protocol type code cell outpoint from deployment information
+ * @returns The outpoint of the cell containing the protocol code or null
+ */
+function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number } } | null {
+  try {
+    // Get current network
+    const network = DeploymentManager.getCurrentNetwork()
+    
+    // Get deployment info from deployment manager
+    const outPoint = deploymentManager.getContractOutPoint(network, 'protocolType')
+    
+    if (!outPoint) {
+      throw new Error(
+        `Protocol type contract not found in deployments.json for ${network}. ` +
+        `Please ensure the contract is deployed and recorded in deployments.json`
+      )
+    }
+    
+    console.log(`Using protocol type code cell from deployments.json:`, outPoint)
+    
+    return { outPoint }
+  } catch (error) {
+    console.error("Failed to get protocol type code outpoint:", error)
+    return null
+  }
+}
 
 // Helper function to convert number to bytes
 function numToBytes(num: number, length: number): Uint8Array {
@@ -62,10 +97,26 @@ export interface DeploymentResult {
 }
 
 /**
- * Check if protocol type script is configured in environment
+ * Check protocol configuration status
+ * @returns 'none' | 'partial' | 'complete'
  */
-export function isProtocolConfigured(): boolean {
-  return !!process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH
+export function getProtocolConfigStatus(): 'none' | 'partial' | 'complete' {
+  // First check if protocol type contract is deployed
+  const network = DeploymentManager.getCurrentNetwork()
+  const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
+  
+  if (!protocolTypeDeployment) {
+    return 'none' // No protocol contract deployed
+  }
+  
+  // Then check if protocol cell exists (via args)
+  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS
+  
+  if (!args || args === '') {
+    return 'partial' // Protocol contract deployed but no protocol cell
+  }
+  
+  return 'complete' // Both protocol contract and cell are configured
 }
 
 /**
@@ -76,7 +127,11 @@ export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
     adminLockHashes: [], // To be filled by user's lock hash
     scriptCodeHashes: {
       // These would need to be replaced with actual deployed script code hashes
-      ckbBoostProtocolTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ckbBoostProtocolTypeCodeHash: (() => {
+        const network = DeploymentManager.getCurrentNetwork()
+        const deployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
+        return deployment?.codeHash || "0x0000000000000000000000000000000000000000000000000000000000000000"
+      })(),
       ckbBoostProtocolLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000", 
       ckbBoostCampaignTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
       ckbBoostCampaignLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -183,55 +238,149 @@ export async function deployProtocolCell(
     // Serialize protocol data using generated Molecule code
     const protocolDataBytes = SerializeProtocolData(protocolData)
     
-    // Create protocol type script
+    // Get protocol type code hash from deployments.json
+    const network = DeploymentManager.getCurrentNetwork()
+    const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
+    
+    if (!protocolTypeDeployment) {
+      throw new Error("Protocol type contract not found in deployments.json. Deploy the protocol contract first.")
+    }
+    
+    const protocolTypeCodeHash = protocolTypeDeployment.codeHash
+    
+    // Use Type ID system script
+    const typeIdScript = await signer.client.getKnownScript(ccc.KnownScript.TypeId)
+    if (!typeIdScript) {
+      throw new Error("Type ID system script not found")
+    }
+    
+    // Create type script using Type ID
     const protocolTypeScript = {
-      codeHash: params.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
-      hashType: "type" as const,
-      args: "0x" // Could be derived from admin lock hash or random
+      codeHash: typeIdScript.codeHash,
+      hashType: typeIdScript.hashType,
+      args: "0x" // Will be calculated
     }
     
     // Get deployer's address and script
     const deployerAddress = await signer.getRecommendedAddress()
     const deployerScript = (await ccc.Address.fromString(deployerAddress, signer.client)).script
     
-    // Calculate minimum capacity needed for the cell
-    // Base capacity (61 CKB) + data capacity + type script capacity
-    const dataCapacity = ccc.fixedPointFrom(protocolDataBytes.byteLength.toString())
-    const baseCapacity = ccc.fixedPointFrom("61") // Minimum cell capacity
-    const minCapacity = baseCapacity + dataCapacity + ccc.fixedPointFrom("1") // Extra buffer
+    // Get the outpoint of the cell containing the protocol type script code
+    // We need to add it as a cell dependency for the type script to be available
+    const protocolTypeCodeCell = await getProtocolTypeCodeOutPoint()
+    if (!protocolTypeCodeCell) {
+      throw new Error("Protocol type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.")
+    }
     
-    // Build deployment transaction
+    // Calculate required capacity for the protocol cell
+    // CKB cell structure overhead:
+    // - capacity: 8 bytes
+    // - lock script: 1 + 32 + 1 + 20 = 54 bytes (code_hash + hash_type + args)  
+    // - type script: 1 + 32 + 1 + 32 = 66 bytes (code_hash + hash_type + args for Type ID)
+    // - data: actual protocol data size
+    const dataSize = protocolDataBytes.byteLength
+    const cellOverhead = 8 + 54 + 66 // More accurate overhead calculation
+    const requiredBytes = cellOverhead + dataSize
+    
+    // Convert to CKB capacity (1 CKB = 10^8 Shannon, 1 byte = 10^8 Shannon)
+    // Add 20% buffer for safety (Type ID args might change size)
+    const requiredCapacity = BigInt(Math.ceil(requiredBytes * 1.2)) * BigInt(100000000)
+    
+    console.log("Capacity calculation:", {
+      dataSize,
+      cellOverhead,
+      requiredBytes,
+      requiredCapacity: requiredCapacity.toString(),
+      requiredCKB: (Number(requiredCapacity) / 100000000).toFixed(8)
+    })
+    
+    // Build deployment transaction with explicit capacity
     const tx = ccc.Transaction.from({
       inputs: [],
       outputs: [
         {
-          capacity: ccc.fixedPointToString(minCapacity),
           lock: deployerScript,
-          type: protocolTypeScript
+          type: protocolTypeScript,
+          capacity: requiredCapacity
         }
       ],
       outputsData: ["0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('')],
       cellDeps: [
-        // TODO: Add necessary cell deps for protocol scripts when available
+        {
+          outPoint: protocolTypeCodeCell.outPoint,
+          depType: "code" as const
+        }
       ],
       headerDeps: [],
       witnesses: []
     })
     
-    // Complete transaction with inputs and fees
-    await tx.completeInputsByCapacity(signer)
-    await tx.completeFeeBy(signer, 1000) // 1000 shannon/byte fee rate
+    // Add Type ID system script as cell dependency
+    if (typeIdScript.cellDep) {
+      tx.cellDeps.push({
+        outPoint: typeIdScript.cellDep.outPoint,
+        depType: typeIdScript.cellDep.depType
+      })
+    }
     
-    // Send transaction
-    const txHash = await signer.sendTransaction(tx)
+    // First, use completeInputsAtLeastOne to get at least one input
+    await tx.completeInputsAtLeastOne(signer)
     
-    return {
-      txHash,
-      protocolTypeScript,
-      protocolCellOutPoint: {
-        txHash,
-        index: 0 // Protocol cell is the first output
+    // Now calculate Type ID using the first input
+    if (tx.inputs.length > 0) {
+      const firstInput = tx.inputs[0]
+      
+      console.log("Debug first input structure:", {
+        firstInput: safeStringify(firstInput, 2),
+        hasOutPoint: !!firstInput.outPoint,
+        hasPreviousOutput: !!firstInput.previousOutput,
+        inputKeys: Object.keys(firstInput)
+      })
+      
+      // The hashTypeId function expects the full CellInput object, not just the OutPoint
+      // According to the error, it calls CellInput.from() internally
+      
+      console.log("Using full input for hashTypeId:", {
+        firstInput: safeStringify(firstInput, 2)
+      })
+      
+      // Validate that the input has the required structure
+      if (!firstInput) {
+        throw new Error("No input available for Type ID calculation")
       }
+      
+      // Use the full firstInput object with CCC's hashTypeId
+      // The function signature is: hashTypeId(input: CellInput, outputIndex: number)
+      const typeIdHash = ccc.hashTypeId(firstInput, 0)
+      
+      console.log("Calculated Type ID:", {
+        typeIdHash
+      })
+      
+      // Update type script with calculated Type ID
+      tx.outputs[0].type!.args = typeIdHash
+      
+      // Complete inputs by capacity after setting Type ID
+      await tx.completeInputsByCapacity(signer)
+      
+      // Complete fees and send
+      await tx.completeFeeBy(signer, 1000)
+      const txHash = await signer.sendTransaction(tx)
+      
+      return {
+        txHash,
+        protocolTypeScript: {
+          codeHash: tx.outputs[0].type!.codeHash,
+          hashType: tx.outputs[0].type!.hashType,
+          args: tx.outputs[0].type!.args
+        },
+        protocolCellOutPoint: {
+          txHash,
+          index: 0
+        }
+      }
+    } else {
+      throw new Error("No inputs found after completeInputsAtLeastOne")
     }
     
   } catch (error) {

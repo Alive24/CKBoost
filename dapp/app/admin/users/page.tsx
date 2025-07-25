@@ -31,9 +31,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 const ACTIVE_USERS = [
   {
     id: 1,
-    pubkey: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     displayName: "CKBMaster",
-    email: "ckbmaster@example.com",
+    email: "ckbmaster@ckboost.com",
     firstActivity: "2023-10-15",
     lastActive: "2024-02-28",
     status: "active",
@@ -69,9 +69,9 @@ const ACTIVE_USERS = [
   },
   {
     id: 2,
-    pubkey: "ckb1qyqf8h8jqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqj",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     displayName: "BlockchainBee",
-    email: "bee@blockchain.com",
+    email: "bee@ckboost.com",
     firstActivity: "2023-11-02",
     lastActive: "2024-02-27",
     status: "active",
@@ -106,9 +106,9 @@ const ACTIVE_USERS = [
   },
   {
     id: 3,
-    pubkey: "ckb1qyqg9h9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     displayName: "CryptoNinja",
-    email: "ninja@crypto.dev",
+    email: "ninja@ckboost.com",
     firstActivity: "2023-12-10",
     lastActive: "2024-02-26",
     status: "active",
@@ -145,9 +145,9 @@ const ACTIVE_USERS = [
 const PENDING_VERIFICATIONS = [
   {
     id: 101,
-    pubkey: "ckb1qyqh0h0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq289vl7splj5lz7lq2hc0z0kw97mp9a0jtlq4vwy",
     displayName: "NewUser123",
-    email: "newuser@example.com",
+    email: "newuser@ckboost.com",
     verificationMethod: "manual",
     submittedAt: "2024-02-25T14:30:00Z",
     application:
@@ -157,9 +157,9 @@ const PENDING_VERIFICATIONS = [
   },
   {
     id: 102,
-    pubkey: "ckb1qyqi1i1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqwku7gvfmqc9vkqqufnzp08nqdkw7ll0u7fcwmvvp",
     displayName: "CommunityHelper",
-    email: "helper@community.org",
+    email: "helper@ckboost.com",
     verificationMethod: "telegram",
     submittedAt: "2024-02-27T09:15:00Z",
     telegramUsername: "@community_helper_official",
@@ -296,7 +296,7 @@ export default function UserManagement() {
                     <Input
                       id="email"
                       type="email"
-                      placeholder="user@example.com"
+                      placeholder="user@ckboost.com"
                       value={newUserData.email}
                       onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value })}
                     />

@@ -39,14 +39,15 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { ProtocolManagement } from "@/components/admin/protocol-management"
+import { useProtocol } from "@/lib/providers/protocol-provider"
 
-// Mock current user - in real app, this would come from authentication
+// Hub Admin configuration
 const CURRENT_USER = {
   id: 1,
-  name: "Platform Administrator",
+  name: "Hub Administrator",
   email: "admin@ckboost.com",
-  address: "0x1234...abcd",
-  avatar: "PA",
+  address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+  avatar: "HA",
   role: "platform_admin",
   permissions: ["review_campaigns", "manage_users", "review_tips", "manage_leaderboard"]
 }
@@ -307,9 +308,9 @@ const LEADERBOARD_REWARDS = [
 const PLATFORM_USERS = [
   {
     id: 1,
-    pubkey: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     displayName: "CKBMaster",
-    email: "ckbmaster@example.com",
+    email: "ckbmaster@ckboost.com",
     firstActivity: "2023-10-15",
     lastActive: "2024-02-28",
     status: "active",
@@ -351,9 +352,9 @@ const PLATFORM_USERS = [
   },
   {
     id: 2,
-    pubkey: "ckb1qyqf8h8jqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqj",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     displayName: "BlockchainBee",
-    email: "bee@blockchain.com",
+    email: "bee@ckboost.com",
     firstActivity: "2023-11-02",
     lastActive: "2024-02-27",
     status: "active",
@@ -394,9 +395,9 @@ const PLATFORM_USERS = [
   },
   {
     id: 3,
-    pubkey: "ckb1qyqg9h9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k9k",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     displayName: "CryptoNinja",
-    email: "ninja@crypto.dev",
+    email: "ninja@ckboost.com",
     firstActivity: "2023-12-10",
     lastActive: "2024-02-26",
     status: "active",
@@ -436,9 +437,9 @@ const PLATFORM_USERS = [
   },
   {
     id: 4,
-    pubkey: "ckb1qyqh0h0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq289vl7splj5lz7lq2hc0z0kw97mp9a0jtlq4vwy",
     displayName: "SuspiciousUser",
-    email: "suspicious@example.com",
+    email: "suspicious@ckboost.com",
     firstActivity: "2024-01-22",
     lastActive: "2024-02-28",
     status: "flagged",
@@ -481,9 +482,9 @@ const PLATFORM_USERS = [
 const PENDING_VERIFICATIONS = [
   {
     id: 101,
-    pubkey: "ckb1qyqh0h0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l0l",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq289vl7splj5lz7lq2hc0z0kw97mp9a0jtlq4vwy",
     displayName: "NewUser123",
-    email: "newuser@example.com",
+    email: "newuser@ckboost.com",
     verificationMethod: "manual",
     submittedAt: "2024-02-25T14:30:00Z",
     application:
@@ -493,9 +494,9 @@ const PENDING_VERIFICATIONS = [
   },
   {
     id: 102,
-    pubkey: "ckb1qyqi1i1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m1m",
+    pubkey: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqwku7gvfmqc9vkqqufnzp08nqdkw7ll0u7fcwmvvp",
     displayName: "CommunityHelper",
-    email: "helper@community.org",
+    email: "helper@ckboost.com",
     verificationMethod: "telegram",
     submittedAt: "2024-02-27T09:15:00Z",
     telegramUsername: "@community_helper_official",
@@ -505,6 +506,7 @@ const PENDING_VERIFICATIONS = [
 ]
 
 export default function PlatformAdminDashboard() {
+  const { protocolData } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isRewardDialogOpen, setIsRewardDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -737,17 +739,19 @@ export default function PlatformAdminDashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback className="bg-gradient-to-br from-red-200 to-purple-200">
-                      {CURRENT_USER.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="text-sm">
-                    <div className="font-medium">{CURRENT_USER.name}</div>
-                    <div className="text-muted-foreground">{CURRENT_USER.address}</div>
+                {protocolData && (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-gradient-to-br from-red-200 to-purple-200">
+                        {CURRENT_USER.avatar}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-sm">
+                      <div className="font-medium">{CURRENT_USER.name}</div>
+                      <div className="text-muted-foreground">{CURRENT_USER.address}</div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>

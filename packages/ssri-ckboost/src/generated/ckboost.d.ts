@@ -286,6 +286,11 @@ export interface TokenRewardInfoType {
   decimals: Uint8Type;
 }
 
+export interface ConnectedTypeIDType {
+  type_id: Byte32Type;
+  connected_type_hash: Byte32Type;
+}
+
 export declare class Uint32 {
   constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
   validate(compatible?: boolean): void;
@@ -790,5 +795,12 @@ export declare class TokenRewardInfo {
   getUdtScript(): Script;
   getSymbol(): Bytes;
   getDecimals(): Uint8;
+}
+
+export declare class ConnectedTypeID {
+  constructor(reader: CanCastToArrayBuffer, options?: CreateOptions);
+  validate(compatible?: boolean): void;
+  getTypeId(): Byte32;
+  getConnectedTypeHash(): Byte32;
 }
 

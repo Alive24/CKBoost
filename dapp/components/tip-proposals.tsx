@@ -66,7 +66,7 @@ const MOCK_PROPOSALS: TipProposal[] = [
     contributionType: "analysis",
     contributionUrl: "https://forum.nervos.org/t/ckb-consensus-analysis/123",
     recipientName: "CKBExpert",
-    recipientAddress: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    recipientAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     proposedBy: "DevMaster",
     justification:
       "This analysis provides exceptional value to our community by making complex technical concepts accessible to both developers and users. The detailed explanations and visual aids help everyone understand the upgrade's impact on the ecosystem.",

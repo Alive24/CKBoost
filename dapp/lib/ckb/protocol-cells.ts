@@ -12,6 +12,35 @@ import { getMockProtocolData } from "../mock/mock-protocol";
 import { 
   bufferToNumber
 } from "../utils/type-converters";
+import { deploymentManager, DeploymentManager } from "./deployment-manager";
+
+/**
+ * Get the protocol type code cell outpoint from deployment information
+ * @returns The outpoint of the cell containing the protocol code or null
+ */
+function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number } } | null {
+  try {
+    // Get current network
+    const network = DeploymentManager.getCurrentNetwork()
+    
+    // Get deployment info from deployment manager
+    const outPoint = deploymentManager.getContractOutPoint(network, 'protocolType')
+    
+    if (!outPoint) {
+      throw new Error(
+        `Protocol type contract not found in deployments.json for ${network}. ` +
+        `Please ensure the contract is deployed and recorded in deployments.json`
+      )
+    }
+    
+    console.log(`Using protocol type code cell from deployments.json:`, outPoint)
+    
+    return { outPoint }
+  } catch (error) {
+    console.error("Failed to get protocol type code outpoint:", error)
+    return null
+  }
+}
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
 // import type {
 //   ProtocolDataType,
@@ -25,22 +54,22 @@ import {
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = false; // Set to true when blockchain is available
 
-// Get protocol type script from environment variables
+// Get protocol type script from deployments.json and environment variables
 const getProtocolTypeScript = () => {
-  const codeHash = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH;
-  const hashType = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE as
-    | "type"
-    | "data"
-    | "data1";
-  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x";
-
-  if (!codeHash) {
-    throw new Error("Protocol type script configuration missing");
+  // Get code hash from deployments.json
+  const network = DeploymentManager.getCurrentNetwork();
+  const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType');
+  
+  if (!protocolTypeDeployment) {
+    throw new Error("Protocol type contract not found in deployments.json");
   }
 
+  // Get args from environment (protocol cell specific)
+  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x";
+
   return {
-    codeHash,
-    hashType: hashType || "type",
+    codeHash: protocolTypeDeployment.codeHash,
+    hashType: protocolTypeDeployment.hashType,
     args,
   };
 };
@@ -386,7 +415,14 @@ export async function updateProtocolCell(
     // Generate new protocol data
     const newCellData = generateProtocolData(newData);
 
+    // Get the outpoint of the cell containing the protocol type script code
+    const protocolTypeCodeCell = await getProtocolTypeCodeOutPoint()
+    if (!protocolTypeCodeCell) {
+      throw new Error("Protocol type contract code cell not found. Make sure deployment information is available.")
+    }
+
     // Build transaction to update protocol cell
+    // Don't specify capacity - let CCC calculate it based on the actual data size
     const tx = ccc.Transaction.from({
       inputs: [
         {
@@ -399,17 +435,33 @@ export async function updateProtocolCell(
       ],
       outputs: [
         {
-          capacity: currentCell.output.capacity,
           lock: currentCell.output.lock,
           type: currentCell.output.type,
         },
       ],
       outputsData: [newCellData],
-      cellDeps: [],
+      cellDeps: [
+        {
+          outPoint: protocolTypeCodeCell.outPoint,
+          depType: "code",
+        },
+      ],
       headerDeps: [],
       witnesses: [],
     });
 
+    // Add Type ID system script as a cell dependency if the protocol uses Type ID
+    if (currentCell.output.type?.hashType === "type") {
+      const typeIdScript = await signer.client.getKnownScript(ccc.KnownScript.TypeId);
+      if (typeIdScript && typeIdScript.cellDep) {
+        const typeIdCellDep = {
+          outPoint: typeIdScript.cellDep.outPoint,
+          depType: typeIdScript.cellDep.depType as "code" | "depGroup",
+        };
+        tx.cellDeps.push(typeIdCellDep);
+      }
+    }
+    
     // Complete transaction (add capacity, fees, etc.)
     await tx.completeInputsByCapacity(signer);
     await tx.completeFeeBy(signer, 1000); // 1000 shannon/byte fee rate

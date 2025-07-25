@@ -3001,3 +3001,39 @@ export function SerializeTokenRewardInfo(value) {
   return serializeTable(buffers);
 }
 
+export class ConnectedTypeID {
+  constructor(reader, { validate = true } = {}) {
+    this.view = new DataView(assertArrayBuffer(reader));
+    if (validate) {
+      this.validate();
+    }
+  }
+
+  validate(compatible = false) {
+    const offsets = verifyAndExtractOffsets(this.view, 0, true);
+    new Byte32(this.view.buffer.slice(offsets[0], offsets[1]), { validate: false }).validate();
+    new Byte32(this.view.buffer.slice(offsets[1], offsets[2]), { validate: false }).validate();
+  }
+
+  getTypeId() {
+    const start = 4;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.getUint32(start + 4, true);
+    return new Byte32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+
+  getConnectedTypeHash() {
+    const start = 8;
+    const offset = this.view.getUint32(start, true);
+    const offset_end = this.view.byteLength;
+    return new Byte32(this.view.buffer.slice(offset, offset_end), { validate: false });
+  }
+}
+
+export function SerializeConnectedTypeID(value) {
+  const buffers = [];
+  buffers.push(SerializeByte32(value.type_id));
+  buffers.push(SerializeByte32(value.connected_type_hash));
+  return serializeTable(buffers);
+}
+

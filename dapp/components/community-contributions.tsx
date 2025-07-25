@@ -51,7 +51,7 @@ const MOCK_CONTRIBUTIONS: Contribution[] = [
   {
     id: "contrib-1",
     author: "CKBExpert",
-    authorAddress: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    authorAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     content:
       "Great analysis on the latest CKB upgrade! The technical breakdown of the new consensus mechanism really helps the community understand the improvements. I particularly appreciate how you explained the impact on transaction throughput and security.",
     type: "comment",
@@ -80,7 +80,7 @@ const MOCK_CONTRIBUTIONS: Contribution[] = [
   {
     id: "contrib-2",
     author: "SmartContractGuru",
-    authorAddress: "ckb1qyqf4kxy7t5n8cjvs6h9p2w3e4r5t6y7u8i9o0p1q2",
+    authorAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     content:
       "Just published a comprehensive tutorial on building dApps with CKB Script. Covers everything from basic cell model concepts to advanced scripting patterns. Hope this helps newcomers get started!",
     type: "tutorial",
@@ -101,7 +101,7 @@ const MOCK_CONTRIBUTIONS: Contribution[] = [
   {
     id: "contrib-3",
     author: "DAOContributor",
-    authorAddress: "ckb1qyqg5fxy8t6n9ckvs7h0p3w4e5r6t7y8u9i0o1p2q3",
+    authorAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     content:
       "Proposal: Implement cross-chain bridge improvements for better interoperability. This would significantly enhance CKB's ecosystem connectivity and user experience. I've outlined the technical specifications and implementation timeline.",
     type: "proposal",
@@ -118,7 +118,7 @@ const MOCK_TIP_PROPOSALS: TipProposal[] = [
     type: "community",
     contributionId: "contrib-1",
     recipientName: "CKBExpert",
-    recipientAddress: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    recipientAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     initiatedBy: "DevMaster",
     amount: 50,
     reason:
@@ -136,7 +136,7 @@ const MOCK_TIP_PROPOSALS: TipProposal[] = [
     type: "personal",
     contributionId: "contrib-2",
     recipientName: "SmartContractGuru",
-    recipientAddress: "ckb1qyqf4kxy7t5n8cjvs6h9p2w3e4r5t6y7u8i9o0p1q2",
+    recipientAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     initiatedBy: "TechEnthusiast",
     amount: 25,
     message:
@@ -151,7 +151,7 @@ const MOCK_TIP_PROPOSALS: TipProposal[] = [
     type: "community",
     contributionId: "contrib-3",
     recipientName: "DAOContributor",
-    recipientAddress: "ckb1qyqg5fxy8t6n9ckvs7h0p3w4e5r6t7y8u9i0o1p2q3",
+    recipientAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     initiatedBy: "BridgeBuilder",
     amount: 50,
     reason:

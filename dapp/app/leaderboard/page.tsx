@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 const LEADERBOARD_DATA = [
   {
     rank: 1,
-    address: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     displayName: "CKBMaster",
     points: 2450,
     questsCompleted: 18,
@@ -23,7 +23,7 @@ const LEADERBOARD_DATA = [
   },
   {
     rank: 2,
-    address: "ckb1qyqf8h8jqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqjqj",
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     displayName: "BlockchainBee",
     points: 2180,
     questsCompleted: 15,
@@ -34,7 +34,7 @@ const LEADERBOARD_DATA = [
   },
   {
     rank: 3,
-    address: "ckb1qyqg9h9kqkqkqkqkqkqkqkqkqkqkqkqkqkqkqkqkqk",
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq0pvz74lmr3u3qmg83ppm9f0wdk358fzel4a8x",
     displayName: "QuestHunter",
     points: 1950,
     questsCompleted: 14,
@@ -45,7 +45,7 @@ const LEADERBOARD_DATA = [
   },
   {
     rank: 4,
-    address: "ckb1qyqh0i0lqlqlqlqlqlqlqlqlqlqlqlqlqlqlqlqlqlql",
+    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq289vl7splj5lz7lq2hc0z0kw97mp9a0jtlq4vwy",
     displayName: "CryptoNinja",
     points: 1720,
     questsCompleted: 12,

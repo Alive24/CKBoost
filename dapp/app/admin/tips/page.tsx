@@ -21,7 +21,7 @@ const MOCK_TIPS = [
   {
     id: 1,
     recipient: "CKBExpert",
-    recipientAddress: "ckb1qyqd5eyygtdmwdr7ge736zw6z0ju6wsw7rshn8fcx7",
+    recipientAddress: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqds6ed78yze6eyfyvd537z66ur620n96rtsfrf67g",
     initiatedBy: "DevMaster",
     amount: 50,
     status: "pending",

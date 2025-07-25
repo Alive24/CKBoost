@@ -71,7 +71,8 @@ export const {
   ProtocolConfig,
   ProtocolData,
   UserProgressData,
-  TokenRewardInfo
+  TokenRewardInfo,
+  ConnectedTypeID
 } = ckboost;
 
 // Export all serialize/deserialize functions
@@ -137,7 +138,8 @@ export const {
   SerializeProtocolConfig,
   SerializeProtocolData,
   SerializeUserProgressData,
-  SerializeTokenRewardInfo
+  SerializeTokenRewardInfo,
+  SerializeConnectedTypeID
 } = ckboost;
 
 // Default export for convenience

@@ -190,9 +190,24 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
+      // Compute lock hash
+      let lockHashBuffer: ArrayBuffer
+      if (form.endorserLockHash) {
+        // Use the provided lock hash directly
+        lockHashBuffer = hexToBuffer(form.endorserLockHash)
+      } else {
+        // Fallback: compute lock hash from script using CCC
+        const cccScript = ccc.Script.from({
+          codeHash: form.endorserLockScript.codeHash,
+          hashType: form.endorserLockScript.hashType,
+          args: form.endorserLockScript.args
+        })
+        lockHashBuffer = hexToBuffer(cccScript.hash())
+      }
+      
       // Create new endorser
       const newEndorser: EndorserInfo = {
-        endorser_lock_hash: hexToBuffer(form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args),
+        endorser_lock_hash: lockHashBuffer,
         endorser_name: stringToBuffer(form.endorserName),
         endorser_description: stringToBuffer(form.endorserDescription),
         // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
@@ -224,9 +239,24 @@ export class ProtocolService {
         throw new Error("Invalid endorser index")
       }
 
+      // Compute lock hash
+      let lockHashBuffer: ArrayBuffer
+      if (form.endorserLockHash) {
+        // Use the provided lock hash directly
+        lockHashBuffer = hexToBuffer(form.endorserLockHash)
+      } else {
+        // Fallback: compute lock hash from script using CCC
+        const cccScript = ccc.Script.from({
+          codeHash: form.endorserLockScript.codeHash,
+          hashType: form.endorserLockScript.hashType,
+          args: form.endorserLockScript.args
+        })
+        lockHashBuffer = hexToBuffer(cccScript.hash())
+      }
+      
       const updatedEndorsers = [...currentData.endorsers_whitelist]
       updatedEndorsers[form.index] = {
-        endorser_lock_hash: hexToBuffer(form.endorserLockScript.codeHash + form.endorserLockScript.hashType + form.endorserLockScript.args),
+        endorser_lock_hash: lockHashBuffer,
         endorser_name: stringToBuffer(form.endorserName),
         endorser_description: stringToBuffer(form.endorserDescription),
         // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
@@ -331,8 +361,23 @@ export class ProtocolService {
         if (form.endorserOperations.edit) {
           for (const edit of form.endorserOperations.edit) {
             if (edit.index >= 0 && edit.index < endorsers.length) {
+              let lockHashBuffer: ArrayBuffer
+              
+              if (edit.endorserLockHash) {
+                // Use the provided lock hash directly
+                lockHashBuffer = hexToBuffer(edit.endorserLockHash)
+              } else {
+                // Fallback: compute lock hash from script using CCC
+                const cccScript = ccc.Script.from({
+                  codeHash: edit.endorserLockScript.codeHash,
+                  hashType: edit.endorserLockScript.hashType,
+                  args: edit.endorserLockScript.args
+                })
+                lockHashBuffer = hexToBuffer(cccScript.hash())
+              }
+              
               endorsers[edit.index] = {
-                endorser_lock_hash: hexToBuffer(edit.endorserLockScript.codeHash + edit.endorserLockScript.hashType + edit.endorserLockScript.args),
+                endorser_lock_hash: lockHashBuffer,
                 endorser_name: stringToBuffer(edit.endorserName),
                 endorser_description: stringToBuffer(edit.endorserDescription),
                 // endorser_address: stringToBuffer(edit.endorserAddress) // Field not in type
@@ -344,8 +389,23 @@ export class ProtocolService {
         // Add new endorsers
         if (form.endorserOperations.add) {
           for (const add of form.endorserOperations.add) {
+            let lockHashBuffer: ArrayBuffer
+            
+            if (add.endorserLockHash) {
+              // Use the provided lock hash directly
+              lockHashBuffer = hexToBuffer(add.endorserLockHash)
+            } else {
+              // Fallback: compute lock hash from script using CCC
+              const cccScript = ccc.Script.from({
+                codeHash: add.endorserLockScript.codeHash,
+                hashType: add.endorserLockScript.hashType,
+                args: add.endorserLockScript.args
+              })
+              lockHashBuffer = hexToBuffer(cccScript.hash())
+            }
+            
             endorsers.push({
-              endorser_lock_hash: hexToBuffer(add.endorserLockScript.codeHash + add.endorserLockScript.hashType + add.endorserLockScript.args),
+              endorser_lock_hash: lockHashBuffer,
               endorser_name: stringToBuffer(add.endorserName),
               endorser_description: stringToBuffer(add.endorserDescription),
               // endorser_address: stringToBuffer(add.endorserAddress) // Field not in type
