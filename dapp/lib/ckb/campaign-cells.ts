@@ -6,7 +6,7 @@ import { Campaign, CKBCampaignCell, UserProgress, CKBUserProgressCell } from '..
 import { getAllMockCampaigns, getMockCampaignById } from '../mock/mock-campaigns'
 
 // Development flag - set to true to use blockchain, false to use mock data
-const USE_BLOCKCHAIN = false // Set to true when blockchain is available
+const USE_BLOCKCHAIN = true // Set to true when blockchain is available
 
 // CKB Script Configuration - Replace with actual deployed script hashes
 const CAMPAIGN_TYPE_SCRIPT = {

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useCallback, useMemo } from "react"
+import React, { useState, useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -63,27 +62,21 @@ import {
   Eye,
   EyeOff,
   FileSearch,
-  Users
+  Users,
+  RotateCcw
 } from "lucide-react"
 import {
-  ProtocolTransaction,
-  ProtocolMetrics,
-  UpdateProtocolConfigForm,
   UpdateScriptCodeHashesForm,
   UpdateTippingConfigForm,
   AddEndorserForm,
-  EditEndorserForm,
   Script,
   BatchUpdateProtocolForm,
   ProtocolChanges
 } from "@/lib/types/protocol"
 import { 
-  formatTimestamp, 
-  getCampaignStatusText,
-  getQuestStatusText 
+  formatTimestamp
 } from "@/lib/services/protocol-service"
-import { useProtocol, useProtocolAdmin } from "@/lib/providers/protocol-provider"
-import type { ProtocolDataType } from "ssri-ckboost/types"
+import { useProtocol } from "@/lib/providers/protocol-provider"
 import { bufferToHex, bufferToNumber, bufferToString } from "@/lib/utils/type-converters"
 import { ccc } from "@ckb-ccc/connector-react"
 import { computeLockHashWithPrefix } from "@/lib/utils/address-utils"
@@ -92,9 +85,15 @@ import {
   getProtocolDeploymentTemplate, 
   deployProtocolCell, 
   validateDeploymentParams,
-  generateEnvConfig,
   type DeployProtocolCellParams 
 } from "@/lib/ckb/protocol-deployment"
+
+// Form types
+type AddAdminForm = {
+  inputMode: "address" | "script"
+  adminAddress?: string
+  adminLockHash?: string
+}
 
 // Form schemas
 const addAdminSchema = z.object({
@@ -177,19 +176,19 @@ export function ProtocolManagement() {
   const scriptCodeHashesForm = useForm<UpdateScriptCodeHashesForm>({
     resolver: zodResolver(updateScriptCodeHashesSchema),
     defaultValues: {
-      ckbBoostProtocolTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ckbBoostProtocolLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ckbBoostCampaignTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ckbBoostCampaignLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      ckbBoostUserTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000"
+      ckbBoostProtocolTypeCodeHash: "",
+      ckbBoostProtocolLockCodeHash: "",
+      ckbBoostCampaignTypeCodeHash: "",
+      ckbBoostCampaignLockCodeHash: "",
+      ckbBoostUserTypeCodeHash: ""
     }
   })
 
   const tippingConfigForm = useForm<UpdateTippingConfigForm>({
     resolver: zodResolver(updateTippingConfigSchema),
     defaultValues: {
-      approvalRequirementThresholds: ["10000", "50000", "100000"],
-      expirationDuration: 604800 // 7 days
+      approvalRequirementThresholds: [],
+      expirationDuration: 0
     }
   })
 
@@ -224,6 +223,15 @@ export function ProtocolManagement() {
   // State for protocol deployment
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploymentResult, setDeploymentResult] = useState<{txHash: string; args: string} | null>(null)
+  
+  // Track the baseline values that forms were reset to, to prevent false change detection
+  const [baselineValues, setBaselineValues] = useState<{
+    scriptCodeHashes: UpdateScriptCodeHashesForm | null
+    tippingConfig: UpdateTippingConfigForm | null
+  }>({
+    scriptCodeHashes: null,
+    tippingConfig: null
+  })
   
   const [pendingChanges, setPendingChanges] = useState<{
     admins: boolean
@@ -288,17 +296,26 @@ export function ProtocolManagement() {
           })
           setPendingChanges(prev => ({ ...prev, admins: true }))
           
-          scriptCodeHashesForm.reset({
+          const scriptHashesValues = {
             ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
             ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
             ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
             ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
             ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
-          })
+          }
           
-          tippingConfigForm.reset({
+          const tippingValues = {
             approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
             expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+          }
+
+          scriptCodeHashesForm.reset(scriptHashesValues)
+          tippingConfigForm.reset(tippingValues)
+
+          // Set baseline values to prevent false change detection
+          setBaselineValues({
+            scriptCodeHashes: scriptHashesValues,
+            tippingConfig: tippingValues
           })
         } catch (error) {
           console.error("Failed to initialize deployment forms:", error)
@@ -316,17 +333,26 @@ export function ProtocolManagement() {
     if (protocolData && configStatus === 'complete') {
       // Don't reset admin changes - they're managed separately now
 
-      scriptCodeHashesForm.reset({
+      const scriptHashesValues = {
         ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
         ckbBoostProtocolLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
         ckbBoostCampaignTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
         ckbBoostCampaignLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
         ckbBoostUserTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash)
-      })
+      }
 
-      tippingConfigForm.reset({
+      const tippingValues = {
         approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds.map(t => bufferToNumber(t).toString()),
         expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
+      }
+
+      scriptCodeHashesForm.reset(scriptHashesValues)
+      tippingConfigForm.reset(tippingValues)
+
+      // Set baseline values to prevent false change detection
+      setBaselineValues({
+        scriptCodeHashes: scriptHashesValues,
+        tippingConfig: tippingValues
       })
     }
   }, [protocolData, configStatus, scriptCodeHashesForm, tippingConfigForm])
@@ -369,7 +395,22 @@ export function ProtocolManagement() {
 
   // Calculate changes with proper dependency management
   useEffect(() => {
-    if (!protocolData) return
+    if (!protocolData || !baselineValues.scriptCodeHashes || !baselineValues.tippingConfig) return
+    
+    // Check if current values match baseline values (no changes)
+    const scriptHashesEqual = JSON.stringify(scriptCodeHashesValues) === JSON.stringify(baselineValues.scriptCodeHashes)
+    const tippingEqual = JSON.stringify(tippingConfigValues) === JSON.stringify(baselineValues.tippingConfig)
+    
+    if (scriptHashesEqual && tippingEqual) {
+      // No changes detected, clear pending changes
+      setPendingChanges(prev => ({
+        ...prev,
+        scriptCodeHashes: false,
+        tippingConfig: false
+      }))
+      setProtocolChanges(null)
+      return
+    }
     
     // Use a flag to prevent setting state if component unmounted
     let isActive = true
@@ -414,7 +455,7 @@ export function ProtocolManagement() {
           // Reset changes on error
           setProtocolChanges(null)
           setPendingChanges({
-            protocolConfig: false,
+            admins: false,
             scriptCodeHashes: false,
             tippingConfig: false,
             endorsers: false
@@ -433,6 +474,7 @@ export function ProtocolManagement() {
     JSON.stringify(finalAdminLockHashes),
     JSON.stringify(scriptCodeHashesValues),
     JSON.stringify(tippingConfigValues),
+    JSON.stringify(baselineValues),
     providerCalculateChanges
   ])
 
@@ -526,7 +568,7 @@ export function ProtocolManagement() {
         // Use the provided lock script directly
         lockScript = {
           codeHash: data.endorserLockScript.codeHash,
-          hashType: data.endorserLockScript.hashType,
+          hashType: data.endorserLockScript.hashType as "type" | "data" | "data1",
           args: data.endorserLockScript.args
         }
         // Compute lock hash from script
@@ -596,12 +638,6 @@ export function ProtocolManagement() {
       return
     }
 
-    if (!protocolChanges) {
-      console.error("No protocol changes available")
-      alert("No changes detected")
-      return
-    }
-
     const hasChanges = pendingChanges.admins || 
                       pendingChanges.scriptCodeHashes || 
                       pendingChanges.tippingConfig ||
@@ -610,6 +646,14 @@ export function ProtocolManagement() {
     if (!hasChanges) {
       console.warn("No pending changes detected")
       alert("No changes to update")
+      return
+    }
+
+    // For endorser-only changes, protocolChanges might be null, which is OK
+    const hasFormChanges = pendingChanges.admins || pendingChanges.scriptCodeHashes || pendingChanges.tippingConfig
+    if (hasFormChanges && !protocolChanges) {
+      console.error("No protocol changes available for form modifications")
+      alert("Unable to process form changes. Please try again.")
       return
     }
 
@@ -628,12 +672,12 @@ export function ProtocolManagement() {
         }
       }
 
-      if (pendingChanges.scriptCodeHashes) {
-        batchForm.scriptCodeHashes = formData.scriptCodeHashes!
+      if (pendingChanges.scriptCodeHashes && formData.scriptCodeHashes) {
+        batchForm.scriptCodeHashes = formData.scriptCodeHashes
       }
 
-      if (pendingChanges.tippingConfig) {
-        batchForm.tippingConfig = formData.tippingConfig!
+      if (pendingChanges.tippingConfig && formData.tippingConfig) {
+        batchForm.tippingConfig = formData.tippingConfig
       }
 
       // Handle endorser changes
@@ -656,7 +700,7 @@ export function ProtocolManagement() {
       
       // Reset pending changes and close dialog
       setPendingChanges({
-        protocolConfig: false,
+        admins: false,
         scriptCodeHashes: false,
         tippingConfig: false,
         endorsers: false
@@ -675,6 +719,94 @@ export function ProtocolManagement() {
 
   const toggleChangesView = () => {
     setShowChangesOnly(!showChangesOnly)
+  }
+
+  const resetAllChanges = () => {
+    if (!confirm("Are you sure you want to reset all changes? This will discard all modifications.")) {
+      return
+    }
+
+    try {
+      // Clear baseline values to allow proper re-initialization
+      setBaselineValues({
+        scriptCodeHashes: null,
+        tippingConfig: null
+      })
+      
+      // Reset all pending change states
+      setPendingChanges({
+        admins: false,
+        scriptCodeHashes: false,
+        tippingConfig: false,
+        endorsers: false
+      })
+
+      // Reset admin changes
+      setPendingAdminChanges({
+        toAdd: [],
+        toRemove: []
+      })
+
+      // Reset endorser changes
+      setPendingEndorserChanges({
+        toAdd: [],
+        toRemove: []
+      })
+
+      // Reset form values to original state
+      if (protocolData) {
+        // For existing protocol data, reset to current protocol values
+        scriptCodeHashesForm.reset({
+          ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
+          ckbBoostProtocolLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
+          ckbBoostCampaignTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
+          ckbBoostCampaignLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
+          ckbBoostUserTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash)
+        })
+
+        tippingConfigForm.reset({
+          approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds.map(t => bufferToNumber(t).toString()),
+          expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
+        })
+      } else if (configStatus === 'partial') {
+        // For deployment mode, reset to template defaults but don't mark as changed
+        const deploymentTemplate = getProtocolDeploymentTemplate()
+        
+        scriptCodeHashesForm.reset({
+          ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+          ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+          ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+          ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+          ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
+        })
+        
+        tippingConfigForm.reset({
+          approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
+          expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+        })
+      }
+
+      // Reset admin form
+      adminForm.reset({
+        inputMode: "address",
+        adminAddress: "",
+        adminLockHash: ""
+      })
+
+      // Reset endorser form
+      endorserForm.reset()
+
+      // Clear protocol changes
+      setProtocolChanges(null)
+
+      // Re-initialization will happen automatically via the useEffect hooks
+      // when baseline values are cleared and forms are reset
+
+      console.log("All changes have been reset")
+    } catch (error) {
+      console.error("Failed to reset changes:", error)
+      alert("Failed to reset changes: " + (error as Error).message)
+    }
   }
   
   const handleLoadByOutpoint = async () => {
@@ -815,27 +947,6 @@ export function ProtocolManagement() {
   }
 
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case "pending":
-        return <Clock className="h-4 w-4 text-yellow-500" />
-      case "failed":
-        return <XCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <Activity className="h-4 w-4 text-gray-500" />
-    }
-  }
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      confirmed: "default",
-      pending: "secondary",
-      failed: "destructive"
-    }
-    return <Badge variant={variants[status] || "outline"}>{status}</Badge>
-  }
 
   if (isLoading) {
     return (
@@ -845,7 +956,11 @@ export function ProtocolManagement() {
     )
   }
 
-  if (error) {
+  // Handle "Protocol cell not found" error specially - allow UI to continue
+  // so that deployment form can be shown
+  const isProtocolNotFoundError = error?.includes('Protocol cell not found on blockchain')
+  
+  if (error && !isProtocolNotFoundError) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center space-y-4">
@@ -870,7 +985,7 @@ export function ProtocolManagement() {
         <div>
           <h2 className="text-2xl font-bold">Protocol Management</h2>
           <p className="text-muted-foreground">Manage CKB protocol configuration and data</p>
-          {(pendingChanges.protocolConfig || pendingChanges.scriptCodeHashes || pendingChanges.tippingConfig) && (
+          {(pendingChanges.admins || pendingChanges.scriptCodeHashes || pendingChanges.tippingConfig || pendingChanges.endorsers) && (
             <p className="text-orange-600 text-sm font-medium mt-1">
               ⚠️ You have unsaved changes
             </p>
@@ -886,6 +1001,16 @@ export function ProtocolManagement() {
               >
                 {showChangesOnly ? <Eye className="h-4 w-4 mr-2" /> : <EyeOff className="h-4 w-4 mr-2" />}
                 {showChangesOnly ? "Show All" : "Show Changes Only"}
+              </Button>
+              <Button 
+                onClick={resetAllChanges} 
+                variant="outline"
+                size="sm"
+                disabled={!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset Changes
               </Button>
               <Button 
                 onClick={onBatchUpdate} 
@@ -967,6 +1092,16 @@ export function ProtocolManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
+                  {isProtocolNotFoundError && (
+                    <div className="p-3 bg-red-100 dark:bg-red-900 rounded-lg space-y-2">
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ⚠️ Protocol cell search failed
+                      </p>
+                      <pre className="text-xs text-red-700 dark:text-red-300 font-mono whitespace-pre-wrap">
+                        {error}
+                      </pre>
+                    </div>
+                  )}
                   <p className="text-sm text-yellow-700 dark:text-yellow-300">
                     To deploy a protocol cell:
                   </p>
@@ -1686,7 +1821,7 @@ export function ProtocolManagement() {
                   Review your configuration above and deploy the protocol cell when ready.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex justify-center">
+              <CardContent className="flex justify-center gap-4">
                 <Button 
                   onClick={handleDeployProtocol}
                   disabled={isDeploying || !isWalletConnected}
@@ -1705,6 +1840,16 @@ export function ProtocolManagement() {
                     </>
                   )}
                 </Button>
+                <Button
+                  onClick={resetAllChanges}
+                  disabled={isDeploying}
+                  variant="destructive"
+                  size="lg"
+                  className="px-8 py-3"
+                >
+                  <RotateCcw className="h-5 w-5 mr-2" />
+                  Reset Changes
+                </Button>
               </CardContent>
             </Card>
           ) : (
@@ -1717,15 +1862,15 @@ export function ProtocolManagement() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="font-medium">Last Updated</div>
-                    <div className="text-muted-foreground">{formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000)}</div>
+                    <div className="text-muted-foreground">{protocolData ? formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000) : 'N/A'}</div>
                   </div>
                   <div>
                     <div className="font-medium">Admin Addresses</div>
-                    <div className="text-muted-foreground">{protocolData.protocol_config.admin_lock_hash_vec.length}</div>
+                    <div className="text-muted-foreground">{protocolData?.protocol_config.admin_lock_hash_vec.length || 0}</div>
                   </div>
                   <div>
                     <div className="font-medium">Active Endorsers</div>
-                    <div className="text-muted-foreground">{protocolData.endorsers_whitelist.length}</div>
+                    <div className="text-muted-foreground">{protocolData?.endorsers_whitelist.length || 0}</div>
                   </div>
                   <div>
                     <div className="font-medium">Protocol Status</div>
@@ -1793,7 +1938,7 @@ export function ProtocolManagement() {
                 )}
 
                 {/* Script Code Hashes Changes */}
-                {pendingChanges.scriptCodeHashes && (
+                {pendingChanges.scriptCodeHashes && protocolChanges && (
                   <div className="border rounded p-4">
                     <h4 className="font-medium mb-3 flex items-center">
                       <Settings className="h-4 w-4 mr-2" />
@@ -1820,7 +1965,7 @@ export function ProtocolManagement() {
                 )}
 
                 {/* Tipping Configuration Changes */}
-                {pendingChanges.tippingConfig && (
+                {pendingChanges.tippingConfig && protocolChanges && (
                   <div className="border rounded p-4">
                     <h4 className="font-medium mb-3 flex items-center">
                       <Settings className="h-4 w-4 mr-2" />
@@ -1894,7 +2039,7 @@ export function ProtocolManagement() {
               </>
             )}
 
-            {(!protocolChanges || (!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers)) && (
+            {(!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers) && (
               <div className="text-center text-muted-foreground py-8">
                 No changes detected
               </div>
@@ -1907,7 +2052,7 @@ export function ProtocolManagement() {
             </Button>
             <Button 
               onClick={confirmBatchUpdate}
-              disabled={!protocolChanges || (!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers)}
+              disabled={!pendingChanges.admins && !pendingChanges.scriptCodeHashes && !pendingChanges.tippingConfig && !pendingChanges.endorsers}
               className="bg-green-600 hover:bg-green-700"
             >
               <Save className="h-4 w-4 mr-2" />

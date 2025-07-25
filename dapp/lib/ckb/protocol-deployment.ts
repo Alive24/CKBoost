@@ -97,6 +97,81 @@ export interface DeploymentResult {
 }
 
 /**
+ * Create a TransactionRecipe witness for protocol operations
+ * @param methodName - The method name (e.g., "updateProtocol")
+ * @param argument - The argument for the method (usually the new protocol data)
+ * @returns Hex-encoded witness data
+ */
+function createTransactionRecipeWitness(methodName: string, argument: Uint8Array): string {
+  // TransactionRecipe molecule structure:
+  // table TransactionRecipe {
+  //   method_path: Bytes,
+  //   argument: Bytes,
+  // }
+  
+  // Bytes in Molecule is: [length: 4 bytes][data: length bytes]
+  // Table in Molecule is: [total_size: 4 bytes][offset1: 4 bytes][offset2: 4 bytes]...[field1_data][field2_data]...
+  
+  const methodBytes = new TextEncoder().encode(methodName)
+  
+  // Calculate sizes
+  const methodBytesSize = 4 + methodBytes.length // Bytes = length prefix + data
+  const argumentBytesSize = 4 + argument.length   // Bytes = length prefix + data
+  const headerSize = 4 + 4 + 4 // total_size + offset1 + offset2
+  const totalSize = headerSize + methodBytesSize + argumentBytesSize
+  
+  console.log("TransactionRecipe witness construction:", {
+    methodName,
+    methodBytesLength: methodBytes.length,
+    argumentLength: argument.length,
+    methodBytesSize,
+    argumentBytesSize,
+    headerSize,
+    totalSize
+  })
+  
+  // Create buffer with the correct size
+  const buffer = new ArrayBuffer(totalSize)
+  const view = new DataView(buffer)
+  const uint8View = new Uint8Array(buffer)
+  
+  let offset = 0
+  
+  // Write header
+  view.setUint32(offset, totalSize - 4, true) // total_size (excluding itself)
+  offset += 4
+  
+  // Write offsets (relative to start of table data, after total_size)
+  view.setUint32(offset, headerSize - 4, true) // offset to method_path
+  offset += 4
+  view.setUint32(offset, headerSize - 4 + methodBytesSize, true) // offset to argument
+  offset += 4
+  
+  console.log("After header, offset:", offset, "should be:", headerSize)
+  
+  // Write method_path as Bytes
+  view.setUint32(offset, methodBytes.length, true) // length prefix
+  offset += 4
+  uint8View.set(methodBytes, offset)
+  offset += methodBytes.length
+  
+  console.log("After method_path, offset:", offset, "should be:", headerSize + methodBytesSize)
+  
+  // Write argument as Bytes
+  view.setUint32(offset, argument.length, true) // length prefix
+  offset += 4
+  uint8View.set(argument, offset)
+  offset += argument.length
+  
+  console.log("After argument, offset:", offset, "should be:", totalSize)
+  
+  const result = "0x" + Array.from(uint8View).map(b => b.toString(16).padStart(2, '0')).join('')
+  console.log("TransactionRecipe witness hex:", result)
+  
+  return result
+}
+
+/**
  * Check protocol configuration status
  * @returns 'none' | 'partial' | 'complete'
  */
@@ -112,10 +187,13 @@ export function getProtocolConfigStatus(): 'none' | 'partial' | 'complete' {
   // Then check if protocol cell exists (via args)
   const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS
   
-  if (!args || args === '') {
+  if (!args || args === '' || args === '0x') {
     return 'partial' // Protocol contract deployed but no protocol cell
   }
   
+  // NOTE: Even if args are set, the actual protocol cell might not exist on blockchain
+  // This function returns config status based on environment, not blockchain state
+  // The actual cell existence is checked when fetching data
   return 'complete' // Both protocol contract and cell are configured
 }
 
@@ -248,17 +326,11 @@ export async function deployProtocolCell(
     
     const protocolTypeCodeHash = protocolTypeDeployment.codeHash
     
-    // Use Type ID system script
-    const typeIdScript = await signer.client.getKnownScript(ccc.KnownScript.TypeId)
-    if (!typeIdScript) {
-      throw new Error("Type ID system script not found")
-    }
-    
-    // Create type script using Type ID
+    // Create type script using the deployed protocol type contract
     const protocolTypeScript = {
-      codeHash: typeIdScript.codeHash,
-      hashType: typeIdScript.hashType,
-      args: "0x" // Will be calculated
+      codeHash: protocolTypeCodeHash,
+      hashType: "type" as const,
+      args: "0x" // Will be calculated with Type ID later
     }
     
     // Get deployer's address and script
@@ -315,13 +387,11 @@ export async function deployProtocolCell(
       witnesses: []
     })
     
-    // Add Type ID system script as cell dependency
-    if (typeIdScript.cellDep) {
-      tx.cellDeps.push({
-        outPoint: typeIdScript.cellDep.outPoint,
-        depType: typeIdScript.cellDep.depType
-      })
-    }
+    // Create TransactionRecipe witness for the updateProtocol method
+    // The protocol type script expects this witness to validate the transaction
+    const recipeWitness = createTransactionRecipeWitness("updateProtocol", protocolDataBytes)
+    
+    // No need to add Type ID system script as we're using the protocol type script directly
     
     // First, use completeInputsAtLeastOne to get at least one input
     await tx.completeInputsAtLeastOne(signer)
@@ -362,6 +432,20 @@ export async function deployProtocolCell(
       
       // Complete inputs by capacity after setting Type ID
       await tx.completeInputsByCapacity(signer)
+      
+      // Add the TransactionRecipe witness
+      // The witness needs to be at the same position as the first input
+      // CKB requires witnesses to align with inputs
+      if (tx.witnesses.length === 0) {
+        tx.witnesses.push(recipeWitness)
+      } else {
+        tx.witnesses[0] = recipeWitness
+      }
+      
+      // Pad witnesses to match the number of inputs
+      while (tx.witnesses.length < tx.inputs.length) {
+        tx.witnesses.push("0x")
+      }
       
       // Complete fees and send
       await tx.completeFeeBy(signer, 1000)

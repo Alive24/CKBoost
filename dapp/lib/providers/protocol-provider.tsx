@@ -99,16 +99,23 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         setTransactions(transactionsData)
         
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load protocol data')
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load protocol data'
+        setError(errorMessage)
         console.error('Failed to initialize protocol data:', err)
         
-        // Try to load default data as fallback
-        try {
-          const service = new ProtocolService()
-          const defaultData = await service.getDefaultProtocolData()
-          setProtocolData(defaultData)
-        } catch (fallbackErr) {
-          console.error('Failed to load fallback data:', fallbackErr)
+        // For protocol cell not found errors, set data to null but keep the error
+        // This allows the UI to show the deployment form
+        if (errorMessage.includes('Protocol cell not found on blockchain')) {
+          setProtocolData(null)
+        } else {
+          // Try to load default data as fallback for other errors
+          try {
+            const service = new ProtocolService()
+            const defaultData = await service.getDefaultProtocolData()
+            setProtocolData(defaultData)
+          } catch (fallbackErr) {
+            console.error('Failed to load fallback data:', fallbackErr)
+          }
         }
       } finally {
         setIsLoading(false)

@@ -13,6 +13,7 @@ import {
   bufferToNumber
 } from "../utils/type-converters";
 import { deploymentManager, DeploymentManager } from "./deployment-manager";
+import { SerializeProtocolData } from "ssri-ckboost";
 
 /**
  * Get the protocol type code cell outpoint from deployment information
@@ -52,7 +53,7 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
 
 
 // Development flag - set to true to use blockchain, false to use mock data
-const USE_BLOCKCHAIN = false; // Set to true when blockchain is available
+const USE_BLOCKCHAIN = true; // Set to true when blockchain is available
 
 // Get protocol type script from deployments.json and environment variables
 const getProtocolTypeScript = () => {
@@ -159,6 +160,12 @@ export async function fetchProtocolCell(
     const client = signer.client;
     const protocolTypeScript = getProtocolTypeScript();
 
+    console.log("Searching for protocol cell with type script:", {
+      codeHash: protocolTypeScript.codeHash,
+      hashType: protocolTypeScript.hashType,
+      args: protocolTypeScript.args
+    });
+
     // Search for protocol cell by type script
     const cellsGenerator = client.findCells({
       script: protocolTypeScript,
@@ -168,7 +175,10 @@ export async function fetchProtocolCell(
 
     // Get first cell from async generator
     const firstCell = await cellsGenerator.next();
+    console.log("Cell search result:", { done: firstCell.done, hasValue: !!firstCell.value });
+    
     if (firstCell.done || !firstCell.value) {
+      console.warn("No protocol cell found on blockchain with the configured type script");
       return null;
     }
 
@@ -246,13 +256,14 @@ export function parseProtocolData(cellData: string): ProtocolData {
  */
 export function generateProtocolData(data: ProtocolData): string {
   try {
-    // For now, return a simple serialized format
-    // TODO: Implement proper Molecule serialization once the generated code is fixed
-    console.warn(
-      "Using mock protocol data serialization due to generated code syntax errors"
-    );
-
-    // Return a minimal hex representation for now
+    // Use proper Molecule serialization
+    const protocolDataBytes = SerializeProtocolData(data);
+    return "0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (error) {
+    console.error("Failed to generate ProtocolData with Molecule serialization:", error);
+    
+    // Fallback to JSON serialization for development
+    console.warn("Falling back to JSON serialization");
     const jsonData = JSON.stringify(data);
     const buffer = new TextEncoder().encode(jsonData);
     return (
@@ -261,9 +272,6 @@ export function generateProtocolData(data: ProtocolData): string {
         .map((b) => b.toString(16).padStart(2, "0"))
         .join("")
     );
-  } catch (error) {
-    console.error("Failed to generate ProtocolData:", error);
-    throw new Error("Failed to serialize protocol data");
   }
 }
 
@@ -300,7 +308,9 @@ export async function fetchProtocolData(
 
   const cell = await fetchProtocolCell(signer);
   if (!cell) {
-    throw new Error("Protocol cell not found on blockchain");
+    const protocolTypeScript = getProtocolTypeScript();
+    const errorMessage = `Protocol cell not found on blockchain.\n\nSearched for cell with type script:\n- Code Hash: ${protocolTypeScript.codeHash}\n- Hash Type: ${protocolTypeScript.hashType}\n- Args: ${protocolTypeScript.args}\n\nPlease deploy a new protocol cell using the Protocol Management interface.`;
+    throw new Error(errorMessage);
   }
   return parseProtocolData(cell.data);
 }
@@ -416,7 +426,7 @@ export async function updateProtocolCell(
     const newCellData = generateProtocolData(newData);
 
     // Get the outpoint of the cell containing the protocol type script code
-    const protocolTypeCodeCell = await getProtocolTypeCodeOutPoint()
+    const protocolTypeCodeCell = getProtocolTypeCodeOutPoint()
     if (!protocolTypeCodeCell) {
       throw new Error("Protocol type contract code cell not found. Make sure deployment information is available.")
     }
@@ -453,12 +463,8 @@ export async function updateProtocolCell(
     // Add Type ID system script as a cell dependency if the protocol uses Type ID
     if (currentCell.output.type?.hashType === "type") {
       const typeIdScript = await signer.client.getKnownScript(ccc.KnownScript.TypeId);
-      if (typeIdScript && typeIdScript.cellDep) {
-        const typeIdCellDep = {
-          outPoint: typeIdScript.cellDep.outPoint,
-          depType: typeIdScript.cellDep.depType as "code" | "depGroup",
-        };
-        tx.cellDeps.push(typeIdCellDep);
+      if (typeIdScript && typeIdScript.cellDeps && typeIdScript.cellDeps.length > 0) {
+        tx.cellDeps.push(...typeIdScript.cellDeps);
       }
     }
     
