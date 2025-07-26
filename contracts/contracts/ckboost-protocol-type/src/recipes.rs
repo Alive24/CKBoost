@@ -389,10 +389,15 @@ pub mod update_tipping_proposal {
                     // Since we're checking existing proposals, if it still exists with enough approvals,
                     // that's a violation
                     if i < output_proposals.len() {
-                        if let Some(output_proposal) = output_proposals.get(i) {
-                            // Compare to see if it's the same proposal
-                            if input_proposal.as_slice() == output_proposal.as_slice() {
-                                return Err(DeterministicError::BusinessRuleViolation);
+                        match output_proposals.get(i) {
+                            Some(output_proposal) => {
+                                // Compare to see if it's the same proposal
+                                if input_proposal.as_slice() == output_proposal.as_slice() {
+                                    return Err(DeterministicError::BusinessRuleViolation);
+                                }
+                            }
+                            None => {
+                                // Index out of bounds, skip
                             }
                         }
                     }

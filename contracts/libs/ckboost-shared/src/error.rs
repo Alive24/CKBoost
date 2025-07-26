@@ -93,6 +93,7 @@ pub enum Error {
     QuestLimitExceeded,
     UnauthorizedOperation,
     InvalidTransaction,
+    MissingTransactionInput,
     
     // SSRI parsing errors
     ArgumentNotFound,

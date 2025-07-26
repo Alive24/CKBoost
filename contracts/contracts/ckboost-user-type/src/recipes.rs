@@ -37,23 +37,29 @@ pub mod common {
 
         // For each user cell, verify lock and type hashes remain unchanged
         for (i, input_cell) in input_user_cells.iter().enumerate() {
-            if let Some(output_cell) = output_user_cells.get(i) {
-                // Verify lock hash immutability
-                expect(&input_cell.lock_hash)
-                    .to_equal(&output_cell.lock_hash)
-                    .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+            match output_user_cells.get(i) {
+                Some(output_cell) => {
+                    // Verify lock hash immutability
+                    expect(&input_cell.lock_hash)
+                        .to_equal(&output_cell.lock_hash)
+                        .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
 
-                // Verify type hash immutability
-                match (&input_cell.type_hash, &output_cell.type_hash) {
-                    (Some(input_hash), Some(output_hash)) => {
-                        expect(&input_hash)
-                            .to_equal(&output_hash)
-                            .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+                    // Verify type hash immutability
+                    match (&input_cell.type_hash, &output_cell.type_hash) {
+                        (Some(input_hash), Some(output_hash)) => {
+                            expect(&input_hash)
+                                .to_equal(&output_hash)
+                                .map_err(|_| DeterministicError::CellRelationshipRuleViolation)?;
+                        }
+                        _ => {
+                            // Either input or output user cell has no type hash - this is not allowed
+                            return Err(DeterministicError::CellRelationshipRuleViolation);
+                        }
                     }
-                    _ => {
-                        // Either input or output user cell has no type hash - this is not allowed
-                        return Err(DeterministicError::CellRelationshipRuleViolation);
-                    }
+                }
+                None => {
+                    // Missing corresponding output cell
+                    return Err(DeterministicError::CellCountViolation);
                 }
             }
         }

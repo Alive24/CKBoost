@@ -16,11 +16,13 @@ fn has_type_id_cell(index: usize, source: Source) -> bool {
         Ok(_) => true,
         Err(e) => {
             // just confirm cell presence, no data needed
-            if let SysError::LengthNotEnough(_) = e {
-                return true;
+            match e {
+                SysError::LengthNotEnough(_) => true,
+                _ => {
+                    debug!("load cell err: {:?}", e);
+                    false
+                }
             }
-            debug!("load cell err: {:?}", e);
-            false
         }
     }
 }

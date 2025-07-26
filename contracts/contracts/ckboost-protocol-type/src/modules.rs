@@ -1,14 +1,16 @@
 use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
+    create_recipe_with_reference, create_recipe_with_args, serialize_transaction_recipe,
 };
 use ckb_std::{
     debug,
     high_level::load_script,
+    ckb_constants::Source,
     ckb_types::{
         packed::{
             Transaction, TransactionBuilder, RawTransactionBuilder,
             CellInput, CellInputVecBuilder, CellOutputBuilder, CellOutputVecBuilder,
-            BytesVecBuilder, CellDepVecBuilder, Byte32Vec, BytesVec,
+            BytesVecBuilder, CellDepVecBuilder, Byte32Vec,
             ScriptOptBuilder, ScriptBuilder,
         },
         prelude::*,
@@ -21,10 +23,12 @@ use ckboost_shared::{
     Error,
 };
 use ckboost_shared::types::Byte32 as SharedByte32;
+use alloc::vec;
 
 pub struct CKBoostProtocolType;
 
 use crate::{recipes, ssri::CKBoostProtocol};
+
 
 impl CKBoostProtocol for CKBoostProtocolType {
     fn update_protocol(
@@ -99,15 +103,21 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 
                 // Protocol creation case - need type ID
                 // For type ID calculation, we need at least one input
-                let (first_input, output_index) = if let Some(ref tx) = tx {
-                    // Use existing transaction's first input and next output index
-                    let first_input = tx.raw().inputs().get(0)
-                        .ok_or(Error::InvalidTransaction)?;
-                    (first_input, tx.raw().outputs().len())
-                } else {
+                let (first_input, output_index) = match tx {
+                    Some(ref tx) => {
+                        // Use existing transaction's first input and next output index
+                        let first_input = tx.raw().inputs().get(0)
+                            .ok_or_else(|| {
+                                debug!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
+                                Error::MissingTransactionInput
+                            })?;
+                        (first_input, tx.raw().outputs().len())
+                    }
+                    None => {
                     // No transaction provided - we cannot create a protocol cell without inputs
-                    // The caller must provide a transaction with at least one input
-                    return Err(Error::InvalidTransaction);
+                        debug!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
+                        return Err(Error::MissingTransactionInput);
+                    }
                 };
                 
                 // Calculate type ID based on first input and output index
@@ -148,6 +158,51 @@ impl CKBoostProtocol for CKBoostProtocolType {
         let protocol_data_bytes = protocol_data.as_bytes();
         outputs_data_builder = outputs_data_builder.push(protocol_data_bytes.pack());
         
+        // Create the recipe witness using ckb_deterministic's helper function
+        // The witness will contain a reference to the output data index
+        let output_data_index = tx.as_ref().map(|t| t.raw().outputs_data().len()).unwrap_or(0) as u32;
+        
+        // Create recipe with output data reference
+        let recipe = create_recipe_with_args(
+            "CKBoostProtocol.updateProtocol",
+            vec![create_recipe_with_reference(Source::Output, output_data_index)]
+        )?;
+        
+        // Serialize the recipe to bytes for witness data
+        let recipe_witness = serialize_transaction_recipe(&recipe);
+        
+        // Build witnesses vector
+        let witnesses_builder = match tx {
+            Some(ref tx) => {
+                // Clone existing witnesses and replace/add the first one
+                let mut builder = BytesVecBuilder::default();
+                let witnesses = tx.witnesses();
+                
+
+                
+                // Add remaining witnesses (skip first if it existed)
+                for i in 1..witnesses.len() {
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            // This should not happen as we're iterating within bounds
+                            continue;
+                        }
+                    }
+                }
+                // Add recipe witness as last witness
+                builder = builder.push(recipe_witness.pack());
+                
+                builder
+            }
+            None => {
+                // No existing transaction, just add the recipe witness
+                BytesVecBuilder::default().push(recipe_witness.pack())
+            }
+        };
+        
         // Build the complete transaction
         Ok(tx_builder
             .raw(
@@ -168,11 +223,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
                     .outputs_data(outputs_data_builder.build())
                     .build(),
             )
-            .witnesses(
-                tx.clone()
-                    .map(|t| t.witnesses())
-                    .unwrap_or_else(|| BytesVec::default()),
-            )
+            .witnesses(witnesses_builder.build())
             .build())
     }
 
@@ -180,7 +231,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
         debug!("Starting verify_update_protocol");
-
+        
         // Use the recipe validation rules - they will check method path internally
         let validation_rules = recipes::update_protocol::get_rules();
         validation_rules.validate(&context)?;
