@@ -1,0 +1,112 @@
+import { describe, it, expect } from '@jest/globals';
+import { ccc } from '@ckb-ccc/core';
+import { Protocol } from './index';
+import type { ProtocolDataInput } from '../types';
+
+describe('Protocol Simple Tests', () => {
+  const mockCodeOutPoint = {
+    txHash: '0x' + '00'.repeat(32),
+    index: 0
+  };
+  
+  const mockScript: ccc.ScriptLike = {
+    codeHash: '0x' + '11'.repeat(32),
+    hashType: 'type' as const,
+    args: '0x' + '22'.repeat(32)
+  };
+
+  describe('constructor', () => {
+    it('should create Protocol instance with required parameters', () => {
+      const protocol = new Protocol(mockCodeOutPoint, mockScript);
+      
+      expect(protocol).toBeDefined();
+      expect(protocol).toBeInstanceOf(Protocol);
+    });
+
+    it('should create Protocol instance with executor', () => {
+      const protocol = new Protocol(mockCodeOutPoint, mockScript, {
+        executor: undefined // We can pass undefined for now
+      });
+      
+      expect(protocol).toBeDefined();
+    });
+  });
+
+  describe('createProtocolData', () => {
+    it('should convert input data to protocol data type', () => {
+      const input: ProtocolDataInput = {
+        campaignsApproved: [],
+        tippingProposals: [],
+        tippingConfig: {
+          approvalRequirementThresholds: [BigInt(100)],
+          expirationDuration: 86400
+        },
+        endorsersWhitelist: [],
+        lastUpdated: Date.now(),
+        protocolConfig: {
+          adminLockHashes: ['0x' + '33'.repeat(32)],
+          scriptCodeHashes: {
+            ckbBoostProtocolTypeCodeHash: '0x' + '44'.repeat(32),
+            ckbBoostProtocolLockCodeHash: '0x' + '55'.repeat(32),
+            ckbBoostCampaignTypeCodeHash: '0x' + '66'.repeat(32),
+            ckbBoostCampaignLockCodeHash: '0x' + '77'.repeat(32),
+            ckbBoostUserTypeCodeHash: '0x' + '88'.repeat(32),
+            acceptedUdtTypeCodeHashes: [],
+            acceptedDobTypeCodeHashes: []
+          }
+        }
+      };
+
+      const protocolData = Protocol.createProtocolData(input);
+      
+      expect(protocolData).toBeDefined();
+      expect(protocolData.campaigns_approved).toEqual([]);
+      expect(protocolData.tipping_proposals).toEqual([]);
+      expect(protocolData.tipping_config).toBeDefined();
+      expect(protocolData.protocol_config).toBeDefined();
+    });
+
+    it('should handle minimal input', () => {
+      const input: ProtocolDataInput = {
+        tippingConfig: {
+          approvalRequirementThresholds: [],
+          expirationDuration: 0
+        },
+        protocolConfig: {
+          adminLockHashes: [],
+          scriptCodeHashes: {
+            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
+            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
+            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
+            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
+            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+          }
+        }
+      };
+
+      const protocolData = Protocol.createProtocolData(input);
+      
+      expect(protocolData).toBeDefined();
+      expect(protocolData.campaigns_approved).toBeDefined();
+      expect(protocolData.tipping_proposals).toBeDefined();
+    });
+  });
+
+
+  describe('createEndorserInfo', () => {
+    it('should create endorser info from input', () => {
+      const input = {
+        lockHash: '0x' + 'ff'.repeat(32),
+        name: 'Test Endorser',
+        description: 'Test Description'
+      };
+
+      const endorserInfo = Protocol.createEndorserInfo(input);
+      
+      expect(endorserInfo).toBeDefined();
+      expect(endorserInfo.endorser_lock_hash).toBeDefined();
+      expect(endorserInfo.endorser_name).toBeDefined();
+      expect(endorserInfo.endorser_description).toBeDefined();
+    });
+  });
+});

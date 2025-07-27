@@ -6,7 +6,7 @@ export type * from './ckboost';
 
 // Export the JavaScript implementation (runtime classes)
 // Note: We need to be careful about module/CommonJS compatibility
-const ckboost = require('./ckboost.js');
+const ckboost = require('./ckboost-cjs.js');
 
 // Re-export all JavaScript classes
 export const {

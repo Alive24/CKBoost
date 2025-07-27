@@ -191,7 +191,7 @@ export type * from './ckboost';
 
 // Export the JavaScript implementation (runtime classes)
 // Note: We need to be careful about module/CommonJS compatibility
-const ckboost = require('./ckboost.js');
+const ckboost = require('./ckboost-cjs.js');
 
 // Re-export all JavaScript classes
 export const {
@@ -249,6 +249,80 @@ export default ckboost;
 `;
 
   return output;
+}
+
+function generateCommonJSWrapper() {
+  const wrapperContent = `// CommonJS wrapper for the ES module ckboost.js
+// This file provides CommonJS compatibility for Jest and other tools
+
+// Read the ES module file and convert exports to CommonJS
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+// Read the ES module source
+const esModuleSource = fs.readFileSync(path.join(__dirname, 'ckboost.js'), 'utf8');
+
+// Create a module context
+const moduleExports = {};
+const moduleContext = {
+  exports: moduleExports,
+  module: { exports: moduleExports },
+  require: require,
+  __dirname: __dirname,
+  __filename: __filename,
+  console: console,
+  process: process,
+  Buffer: Buffer,
+  ArrayBuffer: ArrayBuffer,
+  Uint8Array: Uint8Array,
+  DataView: DataView,
+  Error: Error,
+  Object: Object,
+  Function: Function,
+  Number: Number,
+  Boolean: Boolean,
+  String: String,
+  Array: Array
+};
+
+// Convert ES module exports to CommonJS
+const cjsSource = esModuleSource
+  .replace(/export\\s+class\\s+(\\w+)/g, 'class $1')
+  .replace(/export\\s+function\\s+(\\w+)/g, 'function $1')
+  .replace(/export\\s+(?:const|let|var)\\s+(\\w+)/g, 'const $1')
+  .replace(/export\\s*\\{([^}]+)\\}/g, '');
+
+// Add exports at the end
+const exportStatements = [];
+const classMatches = esModuleSource.match(/export\\s+class\\s+(\\w+)/g) || [];
+const functionMatches = esModuleSource.match(/export\\s+function\\s+(\\w+)/g) || [];
+
+classMatches.forEach(match => {
+  const className = match.replace(/export\\s+class\\s+/, '');
+  exportStatements.push(\`exports.\${className} = \${className};\`);
+});
+
+functionMatches.forEach(match => {
+  const funcName = match.replace(/export\\s+function\\s+/, '');
+  exportStatements.push(\`exports.\${funcName} = \${funcName};\`);
+});
+
+// Create the final CommonJS module
+const finalSource = cjsSource + '\\n\\n' + exportStatements.join('\\n');
+
+// Execute in VM context
+try {
+  vm.runInNewContext(finalSource, moduleContext);
+  
+  // Export everything from the module
+  Object.assign(exports, moduleContext.exports);
+} catch (error) {
+  console.error('Failed to load ckboost.js as CommonJS:', error);
+  throw error;
+}
+`;
+  return wrapperContent;
 }
 
 // Main execution with comprehensive error handling
@@ -317,11 +391,23 @@ function main() {
       throw new Error(`Failed to generate index file: ${error.message}`);
     }
 
-    console.log('✅ TypeScript declarations and index file generated successfully!');
+    // Generate CommonJS wrapper
+    console.log('Generating CommonJS wrapper...');
+    try {
+      const wrapperPath = path.join(__dirname, '../src/generated/ckboost-cjs.js');
+      const wrapperContent = generateCommonJSWrapper();
+      fs.writeFileSync(wrapperPath, wrapperContent);
+      console.log(`✓ Generated ${wrapperPath}`);
+    } catch (error) {
+      throw new Error(`Failed to generate CommonJS wrapper: ${error.message}`);
+    }
+
+    console.log('✅ TypeScript declarations, index file, and CommonJS wrapper generated successfully!');
     
     // Validate generated files
     console.log('Validating generated files...');
-    if (!fs.existsSync(outputPath) || !fs.existsSync(indexPath)) {
+    const wrapperPath = path.join(__dirname, '../src/generated/ckboost-cjs.js');
+    if (!fs.existsSync(outputPath) || !fs.existsSync(indexPath) || !fs.existsSync(wrapperPath)) {
       console.warn('⚠️  Warning: Some generated files are missing');
     } else {
       console.log('✓ All files generated successfully');

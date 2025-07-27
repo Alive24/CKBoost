@@ -147,20 +147,40 @@ export class Protocol extends ssri.Trait {
       // Convert protocolData to bytes
       const protocolDataBytes = SerializeProtocolData(protocolData);
 
-      const res = await this.executor.runScriptTry(
-        this.code,
-        "CKBoostProtocol.update_protocol",
-        [
-          txReq.toBytes(),
-          protocolDataBytes,
-        ],
-        {
-          script: this.script,
-        },
-      );
+      // Convert to hex strings as expected by the contract
+      const txHex = ccc.hexFrom(txReq.toBytes());
+      const protocolDataHex = ccc.hexFrom(protocolDataBytes);
+
+      console.log('Running SSRI executor with:', {
+        codeOutpoint: this.code,
+        method: "CKBoostProtocol.update_protocol",
+        scriptCodeHash: this.script.codeHash,
+        scriptHashType: this.script.hashType,
+        scriptArgs: this.script.args,
+        txHex: txHex.slice(0, 100) + '...', // Log first 100 chars
+        protocolDataHex: protocolDataHex.slice(0, 100) + '...'
+      });
       
-      if (res) {
-        resTx = res.map((res) => ccc.Transaction.fromBytes(res));
+      try {
+        const res = await this.executor.runScriptTry(
+          this.code,
+          "CKBoostProtocol.update_protocol",
+          [
+            txHex,
+            protocolDataHex,
+          ],
+          {
+            script: this.script,
+          },
+        );
+        
+        if (res) {
+          resTx = res.map((res) => ccc.Transaction.fromBytes(res));
+        }
+      } catch (error) {
+        console.error('SSRI executor error:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        throw error;
       }
     }
 

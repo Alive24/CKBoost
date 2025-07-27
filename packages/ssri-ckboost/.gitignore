@@ -7,6 +7,7 @@ dist.commonjs/
 
 # Generated files (keep .js, .d.ts, and index.ts for TypeScript)
 src/generated/ckboost.json
+src/generated/ckboost-cjs.js
 
 # IDE
 .vscode/
@@ -18,3 +19,6 @@ src/generated/ckboost.json
 # Logs
 *.log
 npm-debug.log*
+
+# Test environment
+.env.test
