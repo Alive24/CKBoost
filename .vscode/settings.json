@@ -1,0 +1,56 @@
+{
+  "search.exclude": {
+    "**/.next": true
+  },
+  "jest.jestCommandLine": "/Volumes/Bohemialive/GitHub/CKBoost/jest-runner.sh",
+  "jest.runMode": {
+    "type": "on-demand"
+  },
+  "jest.nodeEnv": {
+    "NODE_ENV": "test",
+    "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  },
+  "jest.autoRun": {
+    "watch": false,
+    "onSave": "test-file"
+  },
+  "jest.showCoverageOnLoad": false,
+  "jest.debugMode": true,
+  "jest.debugCodeLens.showWhenTestStateIn": ["fail", "pass", "skip", "unknown"],
+  "jest.monitorLongRun": 300000,
+  "jest.rootPath": ".",
+  // "jest.virtualFolders": [
+  //   {
+  //     "name": "ssri-ckboost",
+  //     "rootPath": "packages/ssri-ckboost",
+  //     "jestCommandLine": "pnpm --dir packages/ssri-ckboost test --",
+  //     "runMode": {
+  //       "type": "on-demand"
+  //     }
+  //   }
+  // ],
+  "jest.shell": "/bin/bash",
+  "terminal.integrated.env.osx": {
+    "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+  },
+  "terminal.integrated.automationShell.osx": "/bin/bash",
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/dist": true,
+    "**/dist.commonjs": true
+  },
+  "debug.javascript.autoAttachFilter": "disabled",
+  "debug.javascript.terminalOptions": {
+    "skipFiles": [
+      "<node_internals>/**",
+      "node_modules/**"
+    ]
+  },
+  "testing.automaticallyOpenPeekView": "never"
+}

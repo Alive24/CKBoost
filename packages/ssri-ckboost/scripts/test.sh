@@ -69,13 +69,13 @@ fi
 # Install dependencies if needed
 if [ ! -d "node_modules" ]; then
     echo "Installing dependencies..."
-    npm install
+    pnpm install
 fi
 
 # Build the project
 echo
 echo "Building project..."
-npm run build
+pnpm run build
 
 # Parse command line arguments
 TEST_TYPE="all"
@@ -125,22 +125,22 @@ echo "Running tests..."
 case $TEST_TYPE in
     unit)
         echo "Running unit tests only..."
-        SKIP_INTEGRATION_TESTS=true npm test
+        pnpm test -- --testPathIgnorePatterns=integration
         ;;
     integration)
         echo "Running integration tests only..."
-        npm test -- protocol.integration.test.ts
+        pnpm test -- protocol.integration.test.ts
         ;;
     watch)
         echo "Running tests in watch mode..."
         # Disable auto cleanup for watch mode
         trap - EXIT
         echo -e "${YELLOW}Note: Docker container will be kept running in watch mode${NC}"
-        npm run test:watch
+        pnpm run test:watch
         ;;
     *)
         echo "Running all tests..."
-        npm test
+        pnpm test
         ;;
 esac
 

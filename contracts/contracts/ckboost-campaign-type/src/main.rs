@@ -8,7 +8,7 @@ use alloc::borrow::Cow;
 use ckb_std::high_level::load_script;
 use ckboost_shared::type_id::validate_type_id;
 use ckboost_shared::types::ConnectedTypeID;
-use ckboost_shared::{type_id::check_type_id_from_script_args, Error};
+use ckboost_shared::Error;
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;

@@ -1,0 +1,74 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Rust Components",
+            "type": "shell",
+            "command": "rustup",
+            "args": [
+                "component",
+                "add",
+                "rust-analysis",
+                "rust-src",
+                "rust-analyzer",
+                "--toolchain",
+                "nightly-aarch64-apple-darwin"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "ssri-ckboost: start docker",
+            "type": "shell",
+            "command": "docker ps | grep -q ckb-ssri-server-test || docker run -d --name ckb-ssri-server-test -p 9090:9090 hanssen0/ckb-ssri-server",
+            "options": {
+                "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "ssri-ckboost: stop docker",
+            "type": "shell",
+            "command": "docker stop ckb-ssri-server-test && docker rm ckb-ssri-server-test",
+            "options": {
+                "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "silent"
+            }
+        },
+        {
+            "label": "ssri-ckboost: build",
+            "type": "shell",
+            "command": "pnpm",
+            "args": ["run", "build"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+            },
+            "group": {
+                "kind": "build"
+            },
+            "problemMatcher": ["$tsc"]
+        },
+        {
+            "label": "ssri-ckboost: generate types",
+            "type": "shell",
+            "command": "pnpm",
+            "args": ["run", "generate"],
+            "options": {
+                "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+            },
+            "problemMatcher": []
+        }
+    ]
+} 

@@ -1,0 +1,151 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: Current File",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "${fileBasenameNoExtension}",
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand",
+        "--detectOpenHandles"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: Current Test",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "${fileBasenameNoExtension}",
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand",
+        "--detectOpenHandles",
+        "--testNamePattern",
+        "${selectedText}"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: All Tests",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: Unit Tests Only",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand",
+        "--testPathIgnorePatterns",
+        "integration"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: Integration Tests",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "integration",
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand",
+        "--detectOpenHandles"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost",
+      "preLaunchTask": "ssri-ckboost: start docker"
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "SSRI-CKBoost: Debug with Breakpoints",
+      "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js",
+      "args": [
+        "${fileBasenameNoExtension}",
+        "--config",
+        "${workspaceFolder}/packages/ssri-ckboost/jest.config.js",
+        "--runInBand",
+        "--no-coverage"
+      ],
+      "stopOnEntry": false,
+      "sourceMaps": true,
+      "smartStep": true,
+      "runtimeArgs": [
+        "--inspect-brk",
+        "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      ],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "disableOptimisticBPs": true,
+      "windows": {
+        "program": "${workspaceFolder}/packages/ssri-ckboost/node_modules/jest/bin/jest.js"
+      },
+      "env": {
+        "NODE_ENV": "test"
+      },
+      "cwd": "${workspaceFolder}/packages/ssri-ckboost"
+    }
+  ]
+}

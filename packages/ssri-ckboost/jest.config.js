@@ -18,7 +18,9 @@ module.exports = {
         target: 'es2020',
         module: 'commonjs',
         allowJs: true,
-        esModuleInterop: true
+        esModuleInterop: true,
+        sourceMap: true,
+        inlineSourceMap: true
       }
     }],
     // Transform the generated JS file
@@ -35,5 +37,7 @@ module.exports = {
     'node_modules/(?!@ckb-ccc)'
     // Remove the ignore for ckboost.js so it gets transformed
   ],
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node']
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  // Add debugging support
+  testTimeout: 300000 // 5 minutes for debugging
 };

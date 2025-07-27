@@ -25,6 +25,7 @@
     "test:unit": "./scripts/test.sh unit",
     "test:integration": "./scripts/test.sh integration",
     "test:docker": "./scripts/test.sh --keep",
+    "test:debug": "echo 'Open VS Code/Cursor and click Debug above any test. See DEBUG_QUICKSTART.md'",
     "load-deployments": "node scripts/load-deployments.js"
   },
   "dependencies": {

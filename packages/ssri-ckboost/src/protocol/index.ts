@@ -141,7 +141,7 @@ export class Protocol extends ssri.Trait {
       const txReq = ccc.Transaction.from(tx ?? {});
       // Ensure at least one input for the transaction
       if (txReq.inputs.length === 0) {
-        await txReq.completeInputsAll(signer);
+        await txReq.completeInputsAtLeastOne(signer);
       }
 
       // Convert protocolData to bytes
