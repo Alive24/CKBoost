@@ -72,19 +72,49 @@ fn create_protocol_data(admin_lock_hash: [u8; 32], _tipping_proposal: Option<Vec
     protocol_data.as_bytes()
 }
 
-/// Helper to create transaction recipe witness format
+/// Helper to create transaction recipe witness format with inline data
 fn create_recipe_witness(method_path: &str, args: Vec<&[u8]>) -> Bytes {
-    use ckb_deterministic::generated::{TransactionRecipe, Bytes as DeterministicBytes, BytesVec};
+    use ckb_deterministic::generated::{TransactionRecipe, Bytes as DeterministicBytes, RecipeArgument, RecipeArgumentVec};
     
     // Build method_path as Bytes
     let method_path_bytes = DeterministicBytes::from(method_path.as_bytes().to_vec());
     
-    // Build arguments as BytesVec
+    // Build arguments as RecipeArgumentVec with inline data
     let mut arguments = Vec::new();
     for arg in args {
-        arguments.push(DeterministicBytes::from(arg.to_vec()));
+        let arg_data = DeterministicBytes::from(arg.to_vec());
+        let recipe_arg = RecipeArgument::new_builder()
+            .arg_type(0u8) // 0 = inline_data
+            .data(arg_data)
+            .build();
+        arguments.push(recipe_arg);
     }
-    let arguments_vec = BytesVec::from(arguments);
+    let arguments_vec = RecipeArgumentVec::from(arguments);
+    
+    // Build TransactionRecipe with the proper builder API
+    let recipe = TransactionRecipe::new_builder()
+        .method_path(method_path_bytes)
+        .arguments(arguments_vec)
+        .build();
+    
+    Bytes::from(recipe.as_bytes())
+}
+
+/// Helper to create transaction recipe witness format with output reference
+fn create_recipe_witness_with_output_ref(method_path: &str, output_index: u32) -> Bytes {
+    use ckb_deterministic::generated::{TransactionRecipe, Bytes as DeterministicBytes, RecipeArgument, RecipeArgumentVec};
+    
+    // Build method_path as Bytes
+    let method_path_bytes = DeterministicBytes::from(method_path.as_bytes().to_vec());
+    
+    // Build arguments as RecipeArgumentVec with output reference
+    let index_bytes = output_index.to_le_bytes();
+    let arg_data = DeterministicBytes::from(index_bytes.to_vec());
+    let recipe_arg = RecipeArgument::new_builder()
+        .arg_type(2u8) // 2 = output_data_reference (matches Source::Output)
+        .data(arg_data)
+        .build();
+    let arguments_vec = RecipeArgumentVec::from(vec![recipe_arg]);
     
     // Build TransactionRecipe with the proper builder API
     let recipe = TransactionRecipe::new_builder()
@@ -146,10 +176,9 @@ fn test_update_protocol_with_transaction_context() {
         .type_(Some(protocol_type_script.clone()).pack())
         .build();
     
-    // Create transaction recipe witness for initial creation
-    let creation_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![
-        b"initial_protocol_config"
-    ]);
+    // Create transaction recipe witness for initial creation with output reference
+    // The protocol data is at output index 0
+    let creation_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
     
     let creation_tx = TransactionBuilder::default()
         .input(initial_input)
@@ -189,10 +218,9 @@ fn test_update_protocol_with_transaction_context() {
         .type_(Some(protocol_type_script.clone()).pack()) // Keep same type script
         .build();
     
-    // Create transaction recipe witness for update
-    let update_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![
-        b"updated_protocol_config"
-    ]);
+    // Create transaction recipe witness for update with output reference
+    // The updated protocol data is at output index 0
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
     
     let update_tx = TransactionBuilder::default()
         .input(update_input)
@@ -264,9 +292,8 @@ fn test_update_protocol_invalid_admin_lock_change() {
         .type_(Some(protocol_type_script).pack())
         .build();
     
-    let update_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![
-        b"malicious_update"
-    ]);
+    // The protocol data is at output index 0
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
     
     let tx = TransactionBuilder::default()
         .input(input)
@@ -334,9 +361,8 @@ fn test_update_protocol_invalid_type_script_change() {
         .type_(Some(different_type_script).pack()) // Different type script!
         .build();
     
-    let update_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![
-        b"type_script_change_attempt"
-    ]);
+    // The protocol data is at output index 0
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
     
     let tx = TransactionBuilder::default()
         .input(input)
@@ -437,9 +463,8 @@ fn test_update_protocol_with_complex_transaction() {
     ];
     
     // Create transaction recipe witness
-    let update_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![
-        b"complex_transaction_update"
-    ]);
+    // The protocol data is at output index 1 (after the normal cell)
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 1);
     
     let mut tx_builder = TransactionBuilder::default()
         .witness(update_witness.pack());
