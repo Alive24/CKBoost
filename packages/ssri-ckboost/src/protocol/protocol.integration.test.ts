@@ -72,6 +72,7 @@ describe('Protocol Integration Tests', () => {
 
   afterAll(async () => {
     // Cleanup if needed
+    // Close any open connections
   });
 
   describe('updateProtocol with real executor', () => {
@@ -115,13 +116,13 @@ describe('Protocol Integration Tests', () => {
       };
 
       const protocolDataType = Protocol.createProtocolData(protocolData);
-      
+      console.log('Calling updateProtocol');
       // Create the update transaction
       const { res: tx } = await protocol.updateProtocol(
         signer,
         protocolDataType
       );
-
+      console.log('result', tx);
       // Verify transaction structure
       expect(tx).toBeInstanceOf(ccc.Transaction);
       // Note: If no protocol cells exist on chain, inputs might be empty

@@ -39,5 +39,9 @@ module.exports = {
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   // Add debugging support
-  testTimeout: 300000 // 5 minutes for debugging
+  testTimeout: 300000, // 5 minutes for debugging
+  // Force Jest to exit after test run
+  forceExit: true,
+  // Detect open handles
+  detectOpenHandles: true
 };

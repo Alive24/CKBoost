@@ -2,7 +2,8 @@
   "search.exclude": {
     "**/.next": true
   },
-  "jest.jestCommandLine": "/Volumes/Bohemialive/GitHub/CKBoost/jest-runner.sh",
+  "jest.jestCommandLine": "node_modules/.bin/jest",
+  "jest.rootPath": "packages/ssri-ckboost",
   "jest.runMode": {
     "type": "on-demand"
   },
@@ -18,17 +19,11 @@
   "jest.debugMode": true,
   "jest.debugCodeLens.showWhenTestStateIn": ["fail", "pass", "skip", "unknown"],
   "jest.monitorLongRun": 300000,
-  "jest.rootPath": ".",
-  // "jest.virtualFolders": [
-  //   {
-  //     "name": "ssri-ckboost",
-  //     "rootPath": "packages/ssri-ckboost",
-  //     "jestCommandLine": "pnpm --dir packages/ssri-ckboost test --",
-  //     "runMode": {
-  //       "type": "on-demand"
-  //     }
-  //   }
-  // ],
+  "jest.disabledWorkspaceFolders": [
+    "dapp",
+    "dapp/.netlify",
+    "dapp/.next"
+  ],
   "jest.shell": "/bin/bash",
   "terminal.integrated.env.osx": {
     "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"

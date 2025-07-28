@@ -19,7 +19,7 @@
     "build": "rimraf ./dist && rimraf ./dist.commonjs && tsc && tsc --project tsconfig.commonjs.json && cp src/generated/ckboost.js src/generated/ckboost.d.ts src/generated/ckboost-cjs.js dist/generated/",
     "lint": "eslint ./src",
     "format": "prettier --write . && eslint --fix ./src",
-    "test": "jest",
+    "test": "jest --forceExit",
     "test:watch": "jest --watch",
     "test:all": "./scripts/test.sh",
     "test:unit": "./scripts/test.sh unit",

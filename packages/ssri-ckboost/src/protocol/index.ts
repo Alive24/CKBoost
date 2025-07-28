@@ -151,7 +151,7 @@ export class Protocol extends ssri.Trait {
       const txHex = ccc.hexFrom(txReq.toBytes());
       const protocolDataHex = ccc.hexFrom(protocolDataBytes);
 
-      console.log('Running SSRI executor with:', {
+      console.log('Calling SSRI executor with:', {
         codeOutpoint: this.code,
         method: "CKBoostProtocol.update_protocol",
         scriptCodeHash: this.script.codeHash,

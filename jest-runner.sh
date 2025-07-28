@@ -10,5 +10,5 @@ cd "$SCRIPT_DIR/packages/ssri-ckboost" || exit 1
 # Export PATH to ensure pnpm is found
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-# Run pnpm test with all arguments
-exec pnpm test -- "$@"
+# Run pnpm test with all arguments and force exit
+exec pnpm test -- --forceExit "$@"
