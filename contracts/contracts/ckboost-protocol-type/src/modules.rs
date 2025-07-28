@@ -11,7 +11,7 @@ use ckb_std::{
             Transaction, TransactionBuilder, RawTransactionBuilder,
             CellInput, CellInputVecBuilder, CellOutputBuilder, CellOutputVecBuilder,
             BytesVecBuilder, CellDepVecBuilder, Byte32Vec,
-            ScriptOptBuilder, ScriptBuilder,
+            ScriptOptBuilder, ScriptBuilder, WitnessArgsBuilder, BytesOpt,
         },
         prelude::*,
     },
@@ -69,12 +69,38 @@ impl CKBoostProtocol for CKBoostProtocolType {
         };
         
         // Try to find existing protocol cell or create new one
+        debug!("load_script");
         let current_script = load_script()?;
-        let protocol_result = find_out_point_by_type(current_script.clone());
+        debug!("current_script: {:?}", current_script);
+        debug!("current_script args length: {}", current_script.args().len());
         
+        // Track the index where the protocol cell will be in the inputs
+        let protocol_input_index: usize;
+        
+        // Track if we have a protocol output and at what index
+        let mut protocol_output_index: Option<usize> = None;
+        
+        // If the arg of current script is empty, we're creating a new protocol cell
+        // Otherwise, try to find the existing one
+        let protocol_result: Result<ckb_std::ckb_types::packed::OutPoint, ckb_std::error::SysError> = if current_script.args().len() == 0 {
+            debug!("Script args empty - creating new protocol cell");
+            Err(ckb_std::error::SysError::Unknown(0))
+        } else {
+            debug!("Script args present - looking for existing protocol cell");
+            debug!("find_out_point_by_type");
+            // TODO (ckb-ssri-std): This might not be able to properly propagate the error if not found
+            let result = find_out_point_by_type(current_script.clone());
+            debug!("find_out_point_by_type done");
+            debug!("protocol_result: {:?}", result);
+            result
+        };
+
         match protocol_result {
             Ok(protocol_outpoint) => {
                 debug!("Found existing protocol cell, updating it");
+                
+                // The protocol cell will be added at the current end of inputs
+                protocol_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
                 
                 // Add protocol cell as input
                 let protocol_input = CellInput::new_builder()
@@ -85,6 +111,9 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 // Get the current protocol cell to preserve lock script
                 let current_protocol_cell = find_cell_by_out_point(protocol_outpoint)
                     .map_err(|_| Error::ProtocolCellNotFound)?;
+                
+                // Track that we're adding a protocol output at the current output count
+                protocol_output_index = Some(tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0));
                 
                 // Create output protocol cell with updated data
                 let new_protocol_output = CellOutputBuilder::default()
@@ -100,6 +129,11 @@ impl CKBoostProtocol for CKBoostProtocolType {
             }
             Err(_) => {
                 debug!("No protocol cell found. Creating a new protocol cell.");
+                
+                // In creation case, protocol cell doesn't exist as input
+                // But we still need a witness for the first input (used for type ID calculation)
+                // So the witness will be at index 0
+                protocol_input_index = 0;
                 
                 // Protocol creation case - need type ID
                 // For type ID calculation, we need at least one input
@@ -140,6 +174,9 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 let first_input_outpoint = first_input.previous_output();
                 let first_input_cell = find_cell_by_out_point(first_input_outpoint)?;
                 
+                // Track that we're adding a protocol output at the current output count
+                protocol_output_index = Some(tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0));
+                
                 // Create new protocol cell
                 let new_protocol_output = CellOutputBuilder::default()
                     .type_(
@@ -168,38 +205,72 @@ impl CKBoostProtocol for CKBoostProtocolType {
             vec![create_recipe_with_reference(Source::Output, output_data_index)]
         )?;
         
-        // Serialize the recipe to bytes for witness data
-        let recipe_witness = serialize_transaction_recipe(&recipe);
+        // Serialize the recipe to bytes
+        let recipe_bytes = serialize_transaction_recipe(&recipe);
         
-        // Build witnesses vector
+        // Create WitnessArgs with recipe in output_type field
+        let witness_args = WitnessArgsBuilder::default()
+            .lock(BytesOpt::default())  // Lock field will be filled by signing
+            .input_type(BytesOpt::default())  // Not used
+            .output_type(BytesOpt::new_builder().set(Some(recipe_bytes.pack())).build())  // Recipe goes here!
+            .build();
+        
+        // Determine where to place the witness:
+        // Prefer output index if we have a protocol output, otherwise use input index
+        let witness_index = if let Some(output_idx) = protocol_output_index {
+            debug!("Placing recipe witness at output index: {}", output_idx);
+            output_idx
+        } else {
+            debug!("No protocol output, placing recipe witness at input index: {}", protocol_input_index);
+            protocol_input_index
+        };
+        
+        // Build witnesses vector with recipe witness at the correct index
         let witnesses_builder = match tx {
             Some(ref tx) => {
-                // Clone existing witnesses and replace/add the first one
                 let mut builder = BytesVecBuilder::default();
                 let witnesses = tx.witnesses();
                 
-
+                // We need to ensure witnesses for all inputs
+                let total_inputs = cell_input_vec_builder.build().len();
                 
-                // Add remaining witnesses (skip first if it existed)
-                for i in 1..witnesses.len() {
-                    match witnesses.get(i) {
-                        Some(witness) => {
-                            builder = builder.push(witness);
-                        }
-                        None => {
-                            // This should not happen as we're iterating within bounds
-                            continue;
-                        }
+                // Copy existing witnesses or create empty ones up to witness_index
+                for i in 0..witness_index {
+                    if let Some(witness) = witnesses.get(i) {
+                        builder = builder.push(witness);
+                    } else {
+                        // Create empty WitnessArgs for missing witnesses
+                        let empty_witness = WitnessArgsBuilder::default().build();
+                        builder = builder.push(empty_witness.as_bytes().pack());
                     }
                 }
-                // Add recipe witness as last witness
-                builder = builder.push(recipe_witness.pack());
+                
+                // Add the recipe witness at witness_index
+                builder = builder.push(witness_args.as_bytes().pack());
+                
+                // Add remaining witnesses after witness_index
+                for i in (witness_index + 1)..total_inputs {
+                    if let Some(witness) = witnesses.get(i) {
+                        builder = builder.push(witness);
+                    } else {
+                        // Create empty WitnessArgs for missing witnesses
+                        let empty_witness = WitnessArgsBuilder::default().build();
+                        builder = builder.push(empty_witness.as_bytes().pack());
+                    }
+                }
+                
+                // Add any extra witnesses that might exist beyond input count
+                for i in total_inputs..witnesses.len() {
+                    if let Some(witness) = witnesses.get(i) {
+                        builder = builder.push(witness);
+                    }
+                }
                 
                 builder
             }
             None => {
-                // No existing transaction, just add the recipe witness
-                BytesVecBuilder::default().push(recipe_witness.pack())
+                // No existing transaction, just add the WitnessArgs with recipe
+                BytesVecBuilder::default().push(witness_args.as_bytes().pack())
             }
         };
         
