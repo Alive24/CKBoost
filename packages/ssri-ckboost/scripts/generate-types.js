@@ -152,6 +152,14 @@ export interface UnionType {
     }
   });
 
+  // Add serialize/deserialize function declarations
+  output += '\n// Serialize functions\n';
+  schema.declarations.forEach(decl => {
+    if (decl.name) {
+      output += `export declare function Serialize${decl.name}(value: ${decl.name}Type): Uint8Array;\n`;
+    }
+  });
+
   return output;
 }
 
@@ -189,62 +197,11 @@ function generateIndexFile(jsonSchema) {
 // Export all TypeScript types
 export type * from './ckboost';
 
-// Export the JavaScript implementation (runtime classes)
-// Note: We need to be careful about module/CommonJS compatibility
-const ckboost = require('./ckboost-cjs.js');
+// Import and re-export everything from the ES module
+export * from './ckboost.js';
 
-// Re-export all JavaScript classes
-export const {
-`;
-
-  // Add all the class exports from the schema with error handling
-  const validDeclarations = schema.declarations.filter(decl => {
-    if (!decl.name) {
-      console.warn('Warning: Skipping declaration without name:', decl);
-      return false;
-    }
-    return true;
-  });
-
-  validDeclarations.forEach((decl, index) => {
-    const isLast = index === validDeclarations.length - 1;
-    output += `  ${decl.name}${isLast ? '' : ','}\n`;
-  });
-
-  output += `} = ckboost;
-
-// Export all serialize/deserialize functions
-export const {`;
-
-  // Get all the serialize functions from the JavaScript file with error handling
-  // Updated path for SDK structure
-  const jsPath = path.join(__dirname, '../src/generated/ckboost.js');
-  let functionNames = [];
-  
-  try {
-    if (fs.existsSync(jsPath)) {
-      const jsContent = fs.readFileSync(jsPath, 'utf8');
-      const functionMatches = jsContent.match(/export function (Serialize\w+|Deserialize\w+)/g) || [];
-      functionNames = functionMatches.map(match => match.replace('export function ', ''));
-      
-      if (functionNames.length === 0) {
-        console.warn('Warning: No serialize/deserialize functions found in generated JS file');
-      }
-    } else {
-      console.warn(`Warning: Generated JS file not found at ${jsPath}`);
-    }
-  } catch (error) {
-    console.warn(`Warning: Failed to read serialize functions: ${error.message}`);
-  }
-  
-  functionNames.forEach((funcName, index) => {
-    const isLast = index === functionNames.length - 1;
-    output += `\n  ${funcName}${isLast ? '' : ','}`; 
-  });
-
-  output += `\n} = ckboost;
-
-// Default export for convenience
+// For CommonJS compatibility, also provide a namespace import
+import * as ckboost from './ckboost.js';
 export default ckboost;
 `;
 

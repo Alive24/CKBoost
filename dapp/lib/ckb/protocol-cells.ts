@@ -25,7 +25,7 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
     const network = DeploymentManager.getCurrentNetwork()
     
     // Get deployment info from deployment manager
-    const outPoint = deploymentManager.getContractOutPoint(network, 'protocolType')
+    const outPoint = deploymentManager.getContractOutPoint(network, 'ckboostProtocolType')
     
     if (!outPoint) {
       throw new Error(
@@ -55,24 +55,25 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true; // Set to true when blockchain is available
 
-// Get protocol type script from deployments.json and environment variables
+// Get protocol type script from deployments.json
 const getProtocolTypeScript = () => {
-  // Get code hash from deployments.json
   const network = DeploymentManager.getCurrentNetwork();
-  const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType');
+  const typeScript = deploymentManager.getContractTypeScript(network, 'ckboostProtocolType');
   
-  if (!protocolTypeDeployment) {
-    throw new Error("Protocol type contract not found in deployments.json");
+  if (!typeScript) {
+    throw new Error(`Protocol type contract not found in deployments.json for ${network}`);
   }
 
-  // Get args from environment (protocol cell specific)
-  const args = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x";
+  // Override args from environment if provided (for specific protocol cell)
+  const envArgs = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS;
+  if (envArgs) {
+    return {
+      ...typeScript,
+      args: envArgs
+    };
+  }
 
-  return {
-    codeHash: protocolTypeDeployment.codeHash,
-    hashType: protocolTypeDeployment.hashType,
-    args,
-  };
+  return typeScript;
 };
 
 /**
@@ -140,13 +141,7 @@ export async function fetchProtocolCell(
           hashType: "type",
           args: "0x",
         },
-        type: {
-          codeHash:
-            process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH ||
-            "0x0000000000000000000000000000000000000000000000000000000000000000",
-          hashType: "type",
-          args: "0x",
-        },
+        type: getProtocolTypeScript(),
       },
       data: generateProtocolData(mockData), // Convert to hex for consistency
     };
@@ -450,21 +445,26 @@ export async function updateProtocolCell(
         },
       ],
       outputsData: [newCellData],
-      cellDeps: [
-        {
-          outPoint: protocolTypeCodeCell.outPoint,
-          depType: "code",
-        },
-      ],
+      cellDeps: [],
       headerDeps: [],
       witnesses: [],
     });
+
+    // Add protocol type code cell dependency
+    tx.cellDeps.push(ccc.CellDep.from({
+      outPoint: protocolTypeCodeCell.outPoint,
+      depType: "code",
+    }));
 
     // Add Type ID system script as a cell dependency if the protocol uses Type ID
     if (currentCell.output.type?.hashType === "type") {
       const typeIdScript = await signer.client.getKnownScript(ccc.KnownScript.TypeId);
       if (typeIdScript && typeIdScript.cellDeps && typeIdScript.cellDeps.length > 0) {
-        tx.cellDeps.push(...typeIdScript.cellDeps);
+        // The cellDeps from getKnownScript are CellDepInfo objects
+        // which contain the actual CellDep in their cellDep property
+        for (const cellDepInfo of typeIdScript.cellDeps) {
+          tx.cellDeps.push(cellDepInfo.cellDep);
+        }
       }
     }
     

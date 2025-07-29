@@ -5,26 +5,45 @@ import deploymentsData from '../../../deployments.json'
 
 export type Network = 'testnet' | 'mainnet'
 
+export interface TypeScript {
+  codeHash: string
+  hashType: 'type' | 'data' | 'data1'
+  args: string
+}
+
 export interface DeploymentRecord {
   transactionHash: string
   index: number
-  codeHash: string
-  hashType: 'type' | 'data' | 'data1'
   deployedAt: string
   contractName: string
   deployerAddress?: string
   dataHash?: string
   contractSize?: number
+  tag?: string
+  isUpgrade?: boolean
+  previousDeployment?: {
+    transactionHash: string
+    index: number
+    deployedAt: string
+    tag?: string
+  }
+  typeScript?: TypeScript
+  isTypeId?: boolean
+  typeHash?: string
+  // Legacy fields for backward compatibility
+  codeHash?: string
+  hashType?: 'type' | 'data' | 'data1'
 }
 
 export interface DeploymentHistory {
   current: {
     testnet: {
-      protocolType: DeploymentRecord | null
+      ckboostProtocolType: DeploymentRecord | null
       // Add other contract types as needed
     }
     mainnet: {
-      protocolType: DeploymentRecord | null
+      ckboostProtocolType?: DeploymentRecord | null
+      protocolType?: DeploymentRecord | null // Legacy field name
       // Add other contract types as needed
     }
   }
@@ -45,14 +64,22 @@ export class DeploymentManager {
   /**
    * Get the current deployment for a specific contract on a network
    */
-  getCurrentDeployment(network: Network, contractType: 'protocolType'): DeploymentRecord | null {
-    return this.data.current[network][contractType]
+  getCurrentDeployment(network: Network, contractType: 'ckboostProtocolType'): DeploymentRecord | null {
+    const networkData = this.data.current[network]
+    
+    // For mainnet, check both the new and legacy field names
+    if (network === 'mainnet') {
+      const mainnetData = networkData as typeof this.data.current.mainnet
+      return mainnetData.ckboostProtocolType || mainnetData.protocolType || null
+    }
+    
+    return networkData[contractType] || null
   }
 
   /**
    * Get the outpoint for a deployed contract
    */
-  getContractOutPoint(network: Network, contractType: 'protocolType'): { txHash: string; index: number } | null {
+  getContractOutPoint(network: Network, contractType: 'ckboostProtocolType'): { txHash: string; index: number } | null {
     const deployment = this.getCurrentDeployment(network, contractType)
     if (!deployment) return null
     
@@ -60,6 +87,30 @@ export class DeploymentManager {
       txHash: deployment.transactionHash,
       index: deployment.index
     }
+  }
+
+  /**
+   * Get the type script for a deployed contract
+   */
+  getContractTypeScript(network: Network, contractType: 'ckboostProtocolType'): TypeScript | null {
+    const deployment = this.getCurrentDeployment(network, contractType)
+    if (!deployment) return null
+    
+    // Use the typeScript field if available (new format)
+    if (deployment.typeScript) {
+      return deployment.typeScript
+    }
+    
+    // Fallback to legacy fields
+    if (deployment.codeHash && deployment.hashType) {
+      return {
+        codeHash: deployment.codeHash,
+        hashType: deployment.hashType,
+        args: '0x' // Default args for legacy format
+      }
+    }
+    
+    return null
   }
 
   /**
@@ -74,7 +125,7 @@ export class DeploymentManager {
    * Note: In a browser environment, this would need to be handled differently
    * as we can't write to files directly
    */
-  addDeployment(network: Network, contractType: 'protocolType', deployment: DeploymentRecord): void {
+  addDeployment(network: Network, contractType: 'ckboostProtocolType', deployment: DeploymentRecord): void {
     // Update current deployment
     this.data.current[network][contractType] = deployment
     
