@@ -123,7 +123,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
                             .build(),
                     )
                     .lock(current_protocol_cell.lock())
-                    .capacity(current_protocol_cell.capacity())
+                    .capacity(0u64.pack())
                     .build();
                 cell_output_vec_builder = cell_output_vec_builder.push(new_protocol_output);
             }
@@ -185,7 +185,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
                             .build(),
                     )
                     .lock(first_input_cell.lock())
-                    .capacity(first_input_cell.capacity())
+                    .capacity(0u64.pack())
                     .build();
                 cell_output_vec_builder = cell_output_vec_builder.push(new_protocol_output);
             }

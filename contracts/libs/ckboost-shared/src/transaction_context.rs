@@ -15,15 +15,8 @@ pub fn create_transaction_context() -> Result<TransactionContext<RuleBasedClassi
     let collector = ckb_deterministic::cell_classifier::CellCollector::new(classifier);
     
     // Create transaction context using the collector
-    let context = TransactionContext::new(collector)
-        .map_err(|e| match e {
-            DeterministicError::IndexOutOfBound => Error::IndexOutOfBound,
-            DeterministicError::ItemMissing => Error::ItemMissing,
-            DeterministicError::LengthNotEnough => Error::LengthNotEnough,
-            DeterministicError::Encoding => Error::Encoding,
-            DeterministicError::UnidentifiedCells => Error::DetectedUnidentifiedCells,
-            _ => Error::RecipeError,
-        })?;
+    let context = TransactionContext::new(collector)?;
+
     
     Ok(context)
 }
