@@ -11,7 +11,7 @@ import { deploymentManager, DeploymentManager, DeploymentRecord } from "./deploy
  * Get the protocol type code cell outpoint from deployment information
  * @returns The outpoint of the cell containing the protocol code or null
  */
-function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number }, deployment: DeploymentRecord } | null {
+function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: ccc.Hex; index: ccc.Num }, deployment: DeploymentRecord } | null {
   try {
     // Get current network
     const network = DeploymentManager.getCurrentNetwork()
@@ -39,40 +39,40 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
 
 export interface DeployProtocolCellParams {
   // Initial protocol configuration
-  adminLockHashes: string[]
+  adminLockHashes: ccc.Hex[]
   
   // Script code hashes for the protocol
   scriptCodeHashes: {
-    ckbBoostProtocolTypeCodeHash: string
-    ckbBoostProtocolLockCodeHash: string
-    ckbBoostCampaignTypeCodeHash: string
-    ckbBoostCampaignLockCodeHash: string
-    ckbBoostUserTypeCodeHash: string
+    ckbBoostProtocolTypeCodeHash: ccc.Hex
+    ckbBoostProtocolLockCodeHash: ccc.Hex
+    ckbBoostCampaignTypeCodeHash: ccc.Hex
+    ckbBoostCampaignLockCodeHash: ccc.Hex
+    ckbBoostUserTypeCodeHash: ccc.Hex
   }
   
   // Initial tipping configuration
   tippingConfig: {
-    approvalRequirementThresholds: string[]
-    expirationDuration: number
+    approvalRequirementThresholds: ccc.Num[]
+    expirationDuration: ccc.Num
   }
   
   // Optional initial endorsers
   initialEndorsers?: Array<{
-    lockHash: string
+    lockHash: ccc.Hex
     name: string
     description: string
   }>
 }
 
 export interface DeploymentResult {
-  txHash: string
+  txHash: ccc.Hex
   protocolTypeScript: {
-    codeHash: string
-    hashType: "type" | "data" | "data1"
-    args: string
+    codeHash: ccc.Hex
+    hashType: ccc.HashType
+    args: ccc.Hex
   }
   protocolCellOutPoint: {
-    txHash: string
+    txHash: ccc.Hex
     index: number
   }
 }
@@ -122,8 +122,8 @@ export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
       ckbBoostUserTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000"
     },
     tippingConfig: {
-      approvalRequirementThresholds: ["10000", "50000", "100000"], // 0.1, 0.5, 1 CKB
-      expirationDuration: 7 * 24 * 60 * 60 // 7 days in seconds
+      approvalRequirementThresholds: [ccc.numFrom(10000), ccc.numFrom(50000), ccc.numFrom(100000)], // 0.1, 0.5, 1 CKB
+      expirationDuration: BigInt(7 * 24 * 60 * 60) // 7 days in seconds
     },
     initialEndorsers: []
   }
@@ -188,7 +188,7 @@ export async function deployProtocolCell(
           expirationDuration: params.tippingConfig.expirationDuration
         },
         endorsersWhitelist: params.initialEndorsers || [],
-        lastUpdated: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
+        lastUpdated: BigInt(Math.floor(Date.now() / 1000)), // Unix timestamp in seconds
         protocolConfig: {
           adminLockHashes: params.adminLockHashes,
           scriptCodeHashes: {
@@ -383,13 +383,37 @@ export async function deployProtocolCell(
       try {
         const txHash = await signer.sendTransaction(tx)
         console.log("Transaction sent successfully! TxHash:", txHash)
+        
+        // Extract the protocol cell's type script from the transaction
+        // The protocol cell should be the first output with a type script
+        let protocolTypeScript: {
+          codeHash: ccc.Hex
+          hashType: ccc.HashType
+          args: ccc.Hex
+        } = {
+          codeHash: deployment?.typeHash || "0x",
+          hashType: "type" as ccc.HashType,
+          args: "0x"
+        }
+        
+        // Find the protocol cell in outputs (it should have a type script)
+        for (let i = 0; i < tx.outputs.length; i++) {
+          const output = tx.outputs[i]
+          if (output.type) {
+            // This should be the protocol cell with the calculated Type ID
+            protocolTypeScript = {
+              codeHash: ccc.hexFrom(output.type.codeHash),
+              hashType: output.type.hashType,
+              args: ccc.hexFrom(output.type.args)
+            }
+            console.log("Found protocol cell type script:", protocolTypeScript)
+            break
+          }
+        }
+        
         return {
           txHash,
-          protocolTypeScript: {
-            codeHash: "0x",
-            hashType: "type" as const,
-            args: "0x"
-          },
+          protocolTypeScript,
           protocolCellOutPoint: {
             txHash,
             index: 0
@@ -507,7 +531,7 @@ export function validateDeploymentParams(params: DeployProtocolCellParams): stri
   }
   
   params.tippingConfig.approvalRequirementThresholds.forEach((threshold, index) => {
-    if (!/^\d+$/.test(threshold)) {
+    if (!/^\d+$/.test(threshold.toString())) {
       errors.push(`Approval threshold ${index + 1} must be a valid number`)
     }
   })

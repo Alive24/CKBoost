@@ -2,7 +2,9 @@
 // This file contains types specific to protocol operations, forms, cells, transactions, and metrics
 
 // Import the generated type from ssri-ckboost
+import { ccc, mol } from '@ckb-ccc/connector-react'
 import type { types } from 'ssri-ckboost'
+
 
 // Basic Script interface for UI usage
 export interface Script {
@@ -15,7 +17,7 @@ export interface Script {
 export interface ProtocolCell {
   outPoint: {
     txHash: string
-    index: number
+    index: ccc.Num
   }
   output: {
     capacity: string
@@ -23,7 +25,7 @@ export interface ProtocolCell {
     type: Script | null
   }
   data: string // Hex-encoded cell data that will be parsed into ProtocolDataType
-  blockNumber?: number
+  blockNumber?: ccc.Num
 }
 
 // Transaction types for protocol operations
@@ -33,16 +35,16 @@ export interface ProtocolTransaction {
   description: string
   status: "pending" | "confirmed" | "failed"
   timestamp: string
-  blockNumber?: number
+  blockNumber?: ccc.Num
 }
 
 // Platform metrics derived from protocol data
 export interface ProtocolMetrics {
-  totalCampaigns: number
-  activeCampaigns: number
-  totalTippingProposals: number
-  pendingTippingProposals: number
-  totalEndorsers: number
+  totalCampaigns: ccc.Num
+  activeCampaigns: ccc.Num
+  totalTippingProposals: ccc.Num
+  pendingTippingProposals: ccc.Num
+  totalEndorsers: ccc.Num
   lastUpdated: string
 }
 
@@ -60,8 +62,8 @@ export interface UpdateScriptCodeHashesForm {
 }
 
 export interface UpdateTippingConfigForm {
-  approvalRequirementThresholds: string[]
-  expirationDuration: number
+  approvalRequirementThresholds: ccc.Num[]
+  expirationDuration: ccc.Num
 }
 
 export interface AddEndorserForm {
@@ -73,7 +75,7 @@ export interface AddEndorserForm {
 }
 
 export interface EditEndorserForm extends AddEndorserForm {
-  index: number // Index in the endorsersWhitelist array
+  index: ccc.Num // Index in the endorsersWhitelist array
 }
 
 // Change tracking types for protocol updates
@@ -101,8 +103,8 @@ export interface ProtocolChanges {
   }
   endorsers: {
     added: any[] // Will be properly typed when SDK exports are fixed
-    updated: Array<{ index: number, endorser: any }>
-    removed: number[] // indices of removed endorsers
+    updated: Array<{ index: ccc.Num, endorser: any }>
+    removed: ccc.Num[] // indices of removed endorsers
   }
 }
 
@@ -113,7 +115,7 @@ export interface BatchUpdateProtocolForm {
   endorserOperations?: {
     add?: AddEndorserForm[]
     edit?: EditEndorserForm[]
-    remove?: number[]
+    remove?: ccc.Num[]
   }
 }
 
@@ -138,7 +140,7 @@ export interface ProtocolContextType {
   updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<void>
   addEndorser: (form: AddEndorserForm) => Promise<void>
   editEndorser: (form: EditEndorserForm) => Promise<void>
-  removeEndorser: (index: number) => Promise<void>
+  removeEndorser: (index: ccc.Num) => Promise<void>
   batchUpdateProtocol: (form: BatchUpdateProtocolForm) => Promise<void>
   
   // Query functions

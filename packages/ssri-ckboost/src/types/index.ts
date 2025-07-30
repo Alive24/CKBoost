@@ -2,6 +2,7 @@
 // This provides a clean interface for the SDK types
 
 // Import everything from generated
+import { ccc } from "@ckb-ccc/core";
 import type {
   ProtocolDataType as GeneratedProtocolDataType,
   ProtocolConfigType as GeneratedProtocolConfigType,
@@ -53,32 +54,32 @@ export interface ProtocolDataInput {
   tippingProposals?: TippingProposalDataType[];
   tippingConfig: TippingConfigInput;
   endorsersWhitelist?: EndorserInfoInput[];
-  lastUpdated?: number;
+  lastUpdated?: ccc.Num;
   protocolConfig: ProtocolConfigInput;
 }
 
 export interface TippingConfigInput {
-  approvalRequirementThresholds: (string | number | bigint)[];
-  expirationDuration: number;
+  approvalRequirementThresholds: ccc.Num[];
+  expirationDuration: ccc.Num;
 }
 
 export interface ProtocolConfigInput {
-  adminLockHashes: string[];
+  adminLockHashes: ccc.Hex[];
   scriptCodeHashes: ScriptCodeHashesInput;
 }
 
 export interface ScriptCodeHashesInput {
-  ckbBoostProtocolTypeCodeHash: string;
-  ckbBoostProtocolLockCodeHash: string;
-  ckbBoostCampaignTypeCodeHash: string;
-  ckbBoostCampaignLockCodeHash: string;
-  ckbBoostUserTypeCodeHash: string;
-  acceptedUdtTypeCodeHashes?: string[];
-  acceptedDobTypeCodeHashes?: string[];
+  ckbBoostProtocolTypeCodeHash: ccc.Hex;
+  ckbBoostProtocolLockCodeHash: ccc.Hex;
+  ckbBoostCampaignTypeCodeHash: ccc.Hex;
+  ckbBoostCampaignLockCodeHash: ccc.Hex;
+  ckbBoostUserTypeCodeHash: ccc.Hex;
+  acceptedUdtTypeCodeHashes?: ccc.Hex[];
+  acceptedDobTypeCodeHashes?: ccc.Hex[];
 }
 
 export interface EndorserInfoInput {
-  lockHash: string;
+  lockHash: ccc.Hex;
   name: string;
   description: string;
 }

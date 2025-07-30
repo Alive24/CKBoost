@@ -1,13 +1,6 @@
 // MOCK DATA - Replace this with real CKB blockchain data fetching
 
 import type { ProtocolDataType } from 'ssri-ckboost/types'
-import { 
-  hexToBuffer, 
-  stringToBuffer, 
-  numberToUint64, 
-  numberToUint32, 
-  numberToUint8 
-} from '../utils/type-converters'
 
 // Mock endorsers data - using SDK format
 const MOCK_ENDORSERS = [

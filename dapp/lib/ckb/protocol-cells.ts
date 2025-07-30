@@ -8,9 +8,6 @@ import {
   ProtocolMetrics,
   ProtocolTransaction,
 } from "../types/protocol";
-import { 
-  bufferToNumber
-} from "../utils/type-converters";
 import { deploymentManager, DeploymentManager } from "./deployment-manager";
 import { SerializeProtocolData } from "ssri-ckboost";
 
@@ -18,7 +15,7 @@ import { SerializeProtocolData } from "ssri-ckboost";
  * Get the protocol type code cell outpoint from deployment information
  * @returns The outpoint of the cell containing the protocol code or null
  */
-function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number } } | null {
+function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: ccc.Hex; index: ccc.Num } } | null {
   try {
     // Get current network
     const network = DeploymentManager.getCurrentNetwork()
@@ -70,7 +67,7 @@ const getProtocolTypeScript = () => {
  */
 export async function fetchProtocolCellByOutPoint(
   signer: ccc.Signer,
-  outPoint: { txHash: string; index: number }
+  outPoint: { txHash: ccc.Hex; index: ccc.Num }
 ): Promise<ProtocolCell | null> {
   try {
     const client = signer.client;
@@ -85,7 +82,7 @@ export async function fetchProtocolCellByOutPoint(
     return {
       outPoint: {
         txHash: cell.outPoint.txHash,
-        index: Number(cell.outPoint.index),
+        index: cell.outPoint.index,
       },
       output: {
         capacity: cell.cellOutput.capacity.toString(),
@@ -170,7 +167,7 @@ export async function fetchProtocolCell(
     return {
       outPoint: {
         txHash: cell.outPoint.txHash,
-        index: Number(cell.outPoint.index),
+        index: cell.outPoint.index,
       },
       output: {
         capacity: cell.cellOutput.capacity.toString(),
@@ -205,13 +202,48 @@ export async function fetchProtocolCell(
  */
 export function parseProtocolData(cellData: string): ProtocolData {
   try {
-    if (cellData === "0x" || !cellData || cellData.length < 4) {
-      throw new Error("Invalid or empty protocol data");
+    // For empty or minimal protocol cells, return default structure
+    // This allows the app to function while the protocol cell is being deployed
+    if (cellData === "0x" || !cellData || cellData.length < 10) {
+      console.log("Protocol cell is empty or minimal, returning default structure");
+      
+      // Create default values using the new type system
+      // For Uint64Type - use bigint
+      const defaultTimestamp = BigInt(Date.now());
+      
+      // For Byte32Type - use ccc.Hex
+      const defaultByte32: ccc.Hex = "0x" + "00".repeat(32) as ccc.Hex;
+      
+      // Return a default ProtocolData structure that matches the SDK type
+      const defaultProtocolData: ProtocolData = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [], // Empty Uint128Vec
+          expiration_duration: defaultTimestamp // Uint64 as bigint
+        },
+        endorsers_whitelist: [],
+        last_updated: defaultTimestamp, // Uint64 as bigint
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: defaultByte32,
+            ckb_boost_protocol_lock_code_hash: defaultByte32,
+            ckb_boost_campaign_type_code_hash: defaultByte32,
+            ckb_boost_campaign_lock_code_hash: defaultByte32,
+            ckb_boost_user_type_code_hash: defaultByte32,
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
+          }
+        }
+      };
+      
+      return defaultProtocolData;
     }
 
-    // TODO: Implement proper Molecule parsing once we have the correct deserialize functions
-    // For now, throw an error to indicate parsing is not yet implemented
-    throw new Error("Protocol data parsing not yet implemented. Please deploy a new protocol cell.");
+    // For actual protocol data, we would parse it here
+    // But since the current cell is empty, this code path won't be reached yet
+    throw new Error("Protocol data parsing not yet implemented for non-empty cells");
   } catch (error) {
     console.error("Failed to parse ProtocolData:", error);
     throw error;
@@ -242,7 +274,7 @@ export function generateProtocolData(data: ProtocolData): string {
  */
 export async function fetchProtocolDataByOutPoint(
   signer: ccc.Signer,
-  outPoint: { txHash: string; index: number }
+  outPoint: { txHash: ccc.Hex; index: ccc.Num }
 ): Promise<ProtocolData> {
   const cell = await fetchProtocolCellByOutPoint(signer, outPoint);
   if (!cell) {
@@ -282,7 +314,23 @@ export async function fetchProtocolMetrics(
     // Convert timestamp and validate
     let timestamp: number;
     try {
-      timestamp = bufferToNumber(data.last_updated);
+      // The new type system uses bigint for Uint64
+      // Convert bigint timestamp to seconds
+      if (data.last_updated && typeof data.last_updated === 'bigint') {
+        // Assume the bigint is in milliseconds if it's a reasonable JavaScript timestamp
+        const timestampBigInt = data.last_updated;
+        
+        // Check if it looks like milliseconds (> year 2000 in ms)
+        if (timestampBigInt > 946684800000n) {
+          timestamp = Number(timestampBigInt / 1000n);
+        } else {
+          // Otherwise assume it's already in seconds
+          timestamp = Number(timestampBigInt);
+        }
+      } else {
+        timestamp = Math.floor(Date.now() / 1000);
+      }
+      
       // Validate timestamp is reasonable (between year 2020 and 2100)
       const minTimestamp = 1577836800; // Jan 1, 2020
       const maxTimestamp = 4102444800; // Jan 1, 2100
@@ -297,14 +345,14 @@ export async function fetchProtocolMetrics(
     }
 
     return {
-      totalCampaigns: data.campaigns_approved.length,
-      activeCampaigns: data.campaigns_approved.filter((c: any) => c.status === 4)
-        .length,
-      totalTippingProposals: data.tipping_proposals.length,
-      pendingTippingProposals: data.tipping_proposals.filter(
+      totalCampaigns: BigInt(data.campaigns_approved.length),
+      activeCampaigns: BigInt(data.campaigns_approved.filter((c: any) => c.status === 4)
+        .length),
+      totalTippingProposals: BigInt(data.tipping_proposals.length),
+      pendingTippingProposals: BigInt(data.tipping_proposals.filter(
         (p: any) => !p.tipping_transaction_hash
-      ).length,
-      totalEndorsers: data.endorsers_whitelist.length,
+      ).length),
+      totalEndorsers: BigInt(data.endorsers_whitelist.length),
       lastUpdated: new Date(timestamp * 1000).toISOString(),
     };
   } catch (error) {
@@ -320,7 +368,7 @@ export async function fetchProtocolMetrics(
  * @returns Array of protocol transactions
  */
 export async function fetchProtocolTransactions(
-  signer?: ccc.Signer,
+  _signer?: ccc.Signer,
   _limit: number = 50
 ): Promise<ProtocolTransaction[]> {
 

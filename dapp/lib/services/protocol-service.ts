@@ -3,13 +3,6 @@
 
 import { ccc } from "@ckb-ccc/connector-react"
 import { ProtocolData, EndorserInfo } from "../types"
-import { 
-  hexToBuffer, 
-  stringToBuffer, 
-  numberToUint64,
-  bufferToHex,
-  bufferToString
-} from "../utils/type-converters"
 import {
   ProtocolMetrics,
   ProtocolTransaction,
@@ -58,7 +51,7 @@ export class ProtocolService {
    * @param outPoint - Specific outpoint to fetch
    * @returns ProtocolData from the specified cell
    */
-  async getProtocolDataByOutPoint(outPoint: { txHash: string; index: number }): Promise<ProtocolData> {
+  async getProtocolDataByOutPoint(outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<ProtocolData> {
     if (!this.signer) {
       throw new Error("Signer required for fetching by outpoint")
     }
@@ -108,13 +101,26 @@ export class ProtocolService {
       
       // Since ProtocolData is now SDK type, we need to handle it properly
       // This is a simplified update - in production, you'd need to serialize properly
+      // Convert admin lock hashes to ArrayBuffer
+      const adminLockHashVec = form.adminLockHashes.map(hash => {
+        const bytes = ccc.bytesFrom(hash, "hex");
+        const buffer = new ArrayBuffer(32);
+        new Uint8Array(buffer).set(bytes);
+        return buffer;
+      });
+      
+      // Convert timestamp to ArrayBuffer
+      const timestampBytes = ccc.numLeToBytes(Math.floor(Date.now() / 1000), 8);
+      const timestampBuffer = new ArrayBuffer(8);
+      new Uint8Array(timestampBuffer).set(timestampBytes);
+      
       const updatedData: any = {
         ...currentData,
         protocol_config: {
           ...currentData.protocol_config,
-          admin_lock_hash_vec: form.adminLockHashes.map(hash => hexToBuffer(hash))
+          admin_lock_hash_vec: adminLockHashVec
         },
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: timestampBuffer
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -129,7 +135,7 @@ export class ProtocolService {
    * @param form - Script code hashes form data
    * @returns Transaction hash
    */
-  async updateScriptCodeHashes(form: UpdateScriptCodeHashesForm): Promise<string> {
+  async updateScriptCodeHashes(_form: UpdateScriptCodeHashesForm): Promise<string> {
     try {
       const currentData = await this.getProtocolData()
       
@@ -145,7 +151,7 @@ export class ProtocolService {
             accepted_dob_type_code_hashes: []
           }
         },
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: BigInt(Date.now())
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -168,10 +174,12 @@ export class ProtocolService {
         ...currentData,
         tipping_config: {
           ...currentData.tipping_config,
-          approval_requirement_thresholds: form.approvalRequirementThresholds.map(threshold => numberToUint64(Number(threshold))),
-          expiration_duration: numberToUint64(form.expirationDuration)
+          approval_requirement_thresholds: form.approvalRequirementThresholds.map(threshold => 
+            BigInt(threshold)
+          ),
+          expiration_duration: BigInt(form.expirationDuration)
         },
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: BigInt(Date.now())
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -191,10 +199,10 @@ export class ProtocolService {
       const currentData = await this.getProtocolData()
       
       // Compute lock hash
-      let lockHashBuffer: ArrayBuffer
+      let lockHashHex: ccc.Hex
       if (form.endorserLockHash) {
         // Use the provided lock hash directly
-        lockHashBuffer = hexToBuffer(form.endorserLockHash)
+        lockHashHex = form.endorserLockHash as ccc.Hex;
       } else {
         // Fallback: compute lock hash from script using CCC
         const cccScript = ccc.Script.from({
@@ -202,21 +210,25 @@ export class ProtocolService {
           hashType: form.endorserLockScript.hashType,
           args: form.endorserLockScript.args
         })
-        lockHashBuffer = hexToBuffer(cccScript.hash())
+        lockHashHex = cccScript.hash();
       }
       
       // Create new endorser
+      // Convert strings to hex for the new type system
+      const nameHex = ccc.hexFrom(ccc.bytesFrom(form.endorserName, "utf8"));
+      const descHex = ccc.hexFrom(ccc.bytesFrom(form.endorserDescription, "utf8"));
+      
       const newEndorser: EndorserInfo = {
-        endorser_lock_hash: lockHashBuffer,
-        endorser_name: stringToBuffer(form.endorserName),
-        endorser_description: stringToBuffer(form.endorserDescription),
+        endorser_lock_hash: lockHashHex,
+        endorser_name: nameHex,
+        endorser_description: descHex,
         // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
       }
 
       const updatedData: ProtocolData = {
         ...currentData,
         endorsers_whitelist: [...currentData.endorsers_whitelist, newEndorser],
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: BigInt(Date.now())
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -240,10 +252,10 @@ export class ProtocolService {
       }
 
       // Compute lock hash
-      let lockHashBuffer: ArrayBuffer
+      let lockHashHex: ccc.Hex
       if (form.endorserLockHash) {
         // Use the provided lock hash directly
-        lockHashBuffer = hexToBuffer(form.endorserLockHash)
+        lockHashHex = form.endorserLockHash as ccc.Hex;
       } else {
         // Fallback: compute lock hash from script using CCC
         const cccScript = ccc.Script.from({
@@ -251,21 +263,25 @@ export class ProtocolService {
           hashType: form.endorserLockScript.hashType,
           args: form.endorserLockScript.args
         })
-        lockHashBuffer = hexToBuffer(cccScript.hash())
+        lockHashHex = cccScript.hash();
       }
       
+      // Convert strings to hex for the new type system
+      const nameHex = ccc.hexFrom(ccc.bytesFrom(form.endorserName, "utf8"));
+      const descHex = ccc.hexFrom(ccc.bytesFrom(form.endorserDescription, "utf8"));
+      
       const updatedEndorsers = [...currentData.endorsers_whitelist]
-      updatedEndorsers[form.index] = {
-        endorser_lock_hash: lockHashBuffer,
-        endorser_name: stringToBuffer(form.endorserName),
-        endorser_description: stringToBuffer(form.endorserDescription),
+      updatedEndorsers[Number(form.index)] = {
+        endorser_lock_hash: lockHashHex,
+        endorser_name: nameHex,
+        endorser_description: descHex,
         // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
       }
 
       const updatedData: ProtocolData = {
         ...currentData,
         endorsers_whitelist: updatedEndorsers,
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: BigInt(Date.now())
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -293,7 +309,7 @@ export class ProtocolService {
       const updatedData: ProtocolData = {
         ...currentData,
         endorsers_whitelist: updatedEndorsers,
-        last_updated: numberToUint64(Math.floor(Date.now() / 1000))
+        last_updated: BigInt(Date.now())
       }
 
       return await updateProtocolCell(this.signer, updatedData)
@@ -317,7 +333,9 @@ export class ProtocolService {
       if (form.protocolConfig) {
         updatedData.protocol_config = {
           ...updatedData.protocol_config,
-          admin_lock_hash_vec: form.protocolConfig.adminLockHashes.map(hash => hexToBuffer(hash))
+          admin_lock_hash_vec: form.protocolConfig.adminLockHashes.map(hash => 
+            hash as ccc.Hex
+          )
         }
       }
 
@@ -338,8 +356,10 @@ export class ProtocolService {
       if (form.tippingConfig) {
         updatedData.tipping_config = {
           ...updatedData.tipping_config,
-          approval_requirement_thresholds: form.tippingConfig.approvalRequirementThresholds.map(threshold => numberToUint64(Number(threshold))),
-          expiration_duration: numberToUint64(form.tippingConfig.expirationDuration)
+          approval_requirement_thresholds: form.tippingConfig.approvalRequirementThresholds.map(threshold => 
+            BigInt(Number(threshold))
+          ),
+          expiration_duration: BigInt(form.tippingConfig.expirationDuration)
         }
       }
 
@@ -349,10 +369,10 @@ export class ProtocolService {
 
         // Remove endorsers (process in reverse order to maintain indices)
         if (form.endorserOperations.remove) {
-          const sortedIndices = form.endorserOperations.remove.sort((a, b) => b - a)
+          const sortedIndices = form.endorserOperations.remove.sort((a, b) => Number(b) - Number(a))
           for (const index of sortedIndices) {
             if (index >= 0 && index < endorsers.length) {
-              endorsers.splice(index, 1)
+              endorsers.splice(Number(index), 1)
             }
           }
         }
@@ -360,12 +380,12 @@ export class ProtocolService {
         // Edit endorsers
         if (form.endorserOperations.edit) {
           for (const edit of form.endorserOperations.edit) {
-            if (edit.index >= 0 && edit.index < endorsers.length) {
-              let lockHashBuffer: ArrayBuffer
-              
+            if (Number(edit.index) >= 0 && Number(edit.index) < endorsers.length) {
+              // Compute lock hash
+              let lockHashHex: ccc.Hex
               if (edit.endorserLockHash) {
                 // Use the provided lock hash directly
-                lockHashBuffer = hexToBuffer(edit.endorserLockHash)
+                lockHashHex = edit.endorserLockHash as ccc.Hex;
               } else {
                 // Fallback: compute lock hash from script using CCC
                 const cccScript = ccc.Script.from({
@@ -373,13 +393,17 @@ export class ProtocolService {
                   hashType: edit.endorserLockScript.hashType,
                   args: edit.endorserLockScript.args
                 })
-                lockHashBuffer = hexToBuffer(cccScript.hash())
+                lockHashHex = cccScript.hash();
               }
               
-              endorsers[edit.index] = {
-                endorser_lock_hash: lockHashBuffer,
-                endorser_name: stringToBuffer(edit.endorserName),
-                endorser_description: stringToBuffer(edit.endorserDescription),
+              // Convert strings to hex for the new type system
+              const nameHex = ccc.hexFrom(ccc.bytesFrom(edit.endorserName, "utf8"));
+              const descHex = ccc.hexFrom(ccc.bytesFrom(edit.endorserDescription, "utf8"));
+              
+              endorsers[Number(edit.index)] = {
+                endorser_lock_hash: lockHashHex,
+                endorser_name: nameHex,
+                endorser_description: descHex,
                 // endorser_address: stringToBuffer(edit.endorserAddress) // Field not in type
               }
             }
@@ -389,11 +413,11 @@ export class ProtocolService {
         // Add new endorsers
         if (form.endorserOperations.add) {
           for (const add of form.endorserOperations.add) {
-            let lockHashBuffer: ArrayBuffer
-            
+            // Compute lock hash
+            let lockHashHex: ccc.Hex
             if (add.endorserLockHash) {
               // Use the provided lock hash directly
-              lockHashBuffer = hexToBuffer(add.endorserLockHash)
+              lockHashHex = add.endorserLockHash as ccc.Hex;
             } else {
               // Fallback: compute lock hash from script using CCC
               const cccScript = ccc.Script.from({
@@ -401,13 +425,17 @@ export class ProtocolService {
                 hashType: add.endorserLockScript.hashType,
                 args: add.endorserLockScript.args
               })
-              lockHashBuffer = hexToBuffer(cccScript.hash())
+              lockHashHex = cccScript.hash();
             }
             
+            // Convert strings to hex for the new type system
+            const nameHex = ccc.hexFrom(ccc.bytesFrom(add.endorserName, "utf8"));
+            const descHex = ccc.hexFrom(ccc.bytesFrom(add.endorserDescription, "utf8"));
+            
             endorsers.push({
-              endorser_lock_hash: lockHashBuffer,
-              endorser_name: stringToBuffer(add.endorserName),
-              endorser_description: stringToBuffer(add.endorserDescription),
+              endorser_lock_hash: lockHashHex,
+              endorser_name: nameHex,
+              endorser_description: descHex,
               // endorser_address: stringToBuffer(add.endorserAddress) // Field not in type
             })
           }
@@ -416,7 +444,7 @@ export class ProtocolService {
         updatedData.endorsers_whitelist = endorsers
       }
 
-      updatedData.last_updated = numberToUint64(Math.floor(Date.now() / 1000))
+      updatedData.last_updated = BigInt(Date.now())
 
       return await updateProtocolCell(this.signer, updatedData)
     } catch (error) {
@@ -438,8 +466,8 @@ export class ProtocolService {
       protocolConfig: {
         adminLockHashes: this.createFieldChange(
           'protocol_config.admin_lock_hash_vec',
-          currentData.protocol_config.admin_lock_hash_vec.map(buf => bufferToHex(buf)),
-          formData.adminLockHashes || currentData.protocol_config.admin_lock_hash_vec.map(buf => bufferToHex(buf))
+          currentData.protocol_config.admin_lock_hash_vec,
+          formData.adminLockHashes || currentData.protocol_config.admin_lock_hash_vec
         )
       },
       scriptCodeHashes: {

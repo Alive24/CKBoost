@@ -56,7 +56,7 @@ export class Protocol extends ssri.Trait {
    * @returns ProtocolDataType object ready for serialization
    */
   static createProtocolData(data: ProtocolDataInput): ProtocolDataType {
-    // Convert to the format expected by Molecule
+    // The new types expect bigint for Uint64
     const protocolDataType: ProtocolDataType = {
       campaigns_approved: data.campaignsApproved || [],
       tipping_proposals: data.tippingProposals || [],
@@ -64,40 +64,13 @@ export class Protocol extends ssri.Trait {
       endorsers_whitelist: (data.endorsersWhitelist || []).map(e => 
         Protocol.createEndorserInfo(e)
       ),
-      last_updated: data.lastUpdated 
-        ? Protocol.numberToUint64Buffer(data.lastUpdated)
-        : Protocol.numberToUint64Buffer(Date.now()),
+      last_updated: data.lastUpdated || BigInt(Date.now()),
       protocol_config: Protocol.createProtocolConfig(data.protocolConfig)
     };
     
     return protocolDataType;
   }
 
-  /**
-   * Helper to convert number to Uint64 ArrayBuffer (little-endian)
-   */
-  private static numberToUint64Buffer(num: number): ArrayBuffer {
-    const buffer = new ArrayBuffer(8);
-    const view = new DataView(buffer);
-    view.setBigUint64(0, BigInt(num), true); // little-endian
-    return buffer;
-  }
-
-  /**
-   * Helper to convert hex string to Byte32 ArrayBuffer
-   */
-  private static hexToBytes32Buffer(hex: string): ArrayBuffer {
-    const cleanHex = hex.startsWith('0x') ? hex.slice(2) : hex;
-    if (cleanHex.length !== 64) {
-      throw new Error('Invalid hex string length for Byte32');
-    }
-    const buffer = new ArrayBuffer(32);
-    const view = new Uint8Array(buffer);
-    for (let i = 0; i < 32; i++) {
-      view[i] = parseInt(cleanHex.substring(i * 2, i * 2 + 2), 16);
-    }
-    return buffer;
-  }
 
   /**
    * Updates the protocol data on-chain.
@@ -208,11 +181,12 @@ export class Protocol extends ssri.Trait {
    * Helper to create a TippingConfig with proper type conversions
    */
   static createTippingConfig(config: TippingConfigInput): TippingConfigType {
+    // The new types expect bigint for numeric values
     return {
       approval_requirement_thresholds: config.approvalRequirementThresholds.map(threshold => 
-        Protocol.bigintToUint128Buffer(BigInt(threshold))
+        BigInt(threshold)
       ),
-      expiration_duration: Protocol.numberToUint64Buffer(config.expirationDuration)
+      expiration_duration: config.expirationDuration
     };
   }
 
@@ -220,46 +194,34 @@ export class Protocol extends ssri.Trait {
    * Helper to create a ProtocolConfig with proper type conversions
    */
   static createProtocolConfig(config: ProtocolConfigInput): ProtocolConfigType {
+    // The new types expect ccc.Hex for Byte32 values
     return {
-      admin_lock_hash_vec: config.adminLockHashes.map(hash => 
-        Protocol.hexToBytes32Buffer(hash)
-      ),
+      admin_lock_hash_vec: config.adminLockHashes,
       script_code_hashes: {
-        ckb_boost_protocol_type_code_hash: Protocol.hexToBytes32Buffer(config.scriptCodeHashes.ckbBoostProtocolTypeCodeHash),
-        ckb_boost_protocol_lock_code_hash: Protocol.hexToBytes32Buffer(config.scriptCodeHashes.ckbBoostProtocolLockCodeHash),
-        ckb_boost_campaign_type_code_hash: Protocol.hexToBytes32Buffer(config.scriptCodeHashes.ckbBoostCampaignTypeCodeHash),
-        ckb_boost_campaign_lock_code_hash: Protocol.hexToBytes32Buffer(config.scriptCodeHashes.ckbBoostCampaignLockCodeHash),
-        ckb_boost_user_type_code_hash: Protocol.hexToBytes32Buffer(config.scriptCodeHashes.ckbBoostUserTypeCodeHash),
-        accepted_udt_type_code_hashes: (config.scriptCodeHashes.acceptedUdtTypeCodeHashes || []).map(hash => 
-          Protocol.hexToBytes32Buffer(hash)
-        ),
-        accepted_dob_type_code_hashes: (config.scriptCodeHashes.acceptedDobTypeCodeHashes || []).map(hash => 
-          Protocol.hexToBytes32Buffer(hash)
-        ),
+        ckb_boost_protocol_type_code_hash: config.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+        ckb_boost_protocol_lock_code_hash: config.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+        ckb_boost_campaign_type_code_hash: config.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+        ckb_boost_campaign_lock_code_hash: config.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+        ckb_boost_user_type_code_hash: config.scriptCodeHashes.ckbBoostUserTypeCodeHash,
+        accepted_udt_type_code_hashes: config.scriptCodeHashes.acceptedUdtTypeCodeHashes || [],
+        accepted_dob_type_code_hashes: config.scriptCodeHashes.acceptedDobTypeCodeHashes || [],
       }
     };
-  }
-
-  /**
-   * Helper to convert bigint to Uint128 ArrayBuffer (little-endian)
-   */
-  private static bigintToUint128Buffer(value: bigint): ArrayBuffer {
-    const buffer = new ArrayBuffer(16); // 128 bits = 16 bytes
-    const view = new DataView(buffer);
-    // Write as little-endian
-    view.setBigUint64(0, value & BigInt('0xFFFFFFFFFFFFFFFF'), true);
-    view.setBigUint64(8, (value >> BigInt(64)) & BigInt('0xFFFFFFFFFFFFFFFF'), true);
-    return buffer;
   }
 
   /**
    * Helper to create an EndorserInfo with proper type conversions
    */
   static createEndorserInfo(endorser: EndorserInfoInput): EndorserInfoType {
+    // The new types expect ccc.Hex for Byte32 and Bytes values
+    // For string fields (name, description), we need to convert to hex
+    const nameHex = ccc.hexFrom(ccc.bytesFrom(endorser.name, "utf8"));
+    const descHex = ccc.hexFrom(ccc.bytesFrom(endorser.description, "utf8"));
+
     return {
-      endorser_lock_hash: Protocol.hexToBytes32Buffer(endorser.lockHash),
-      endorser_name: new TextEncoder().encode(endorser.name).buffer as ArrayBuffer,
-      endorser_description: new TextEncoder().encode(endorser.description).buffer as ArrayBuffer
+      endorser_lock_hash: endorser.lockHash,
+      endorser_name: nameHex,
+      endorser_description: descHex
     };
   }
 

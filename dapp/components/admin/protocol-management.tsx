@@ -77,9 +77,7 @@ import {
   formatTimestamp
 } from "@/lib/services/protocol-service"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { bufferToHex, bufferToNumber, bufferToString } from "@/lib/utils/type-converters"
 import { ccc } from "@ckb-ccc/connector-react"
-import { computeLockHashWithPrefix } from "@/lib/utils/address-utils"
 import { 
   getProtocolConfigStatus, 
   getProtocolDeploymentTemplate, 
@@ -87,6 +85,7 @@ import {
   validateDeploymentParams,
   type DeployProtocolCellParams 
 } from "@/lib/ckb/protocol-deployment"
+import { Byte32, Uint128, Uint64 } from "ssri-ckboost/types"
 
 // Form types
 type AddAdminForm = {
@@ -190,8 +189,8 @@ export function ProtocolManagement() {
   const tippingConfigForm = useForm<UpdateTippingConfigForm>({
     resolver: zodResolver(updateTippingConfigSchema),
     defaultValues: {
-      approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
-      expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+      approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds.map(t => ccc.numFrom(t)),
+      expirationDuration: ccc.numFrom(deploymentTemplate.tippingConfig.expirationDuration)
     }
   })
 
@@ -219,8 +218,8 @@ export function ProtocolManagement() {
   
   // State for manual outpoint loading
   const [showOutpointDialog, setShowOutpointDialog] = useState(false)
-  const [outpointTxHash, setOutpointTxHash] = useState<string>("")
-  const [outpointIndex, setOutpointIndex] = useState<string>("0")
+  const [outpointTxHash, setOutpointTxHash] = useState<ccc.Hex>("0x")
+  const [outpointIndex, setOutpointIndex] = useState<ccc.Num>(0n)
   const [isLoadingOutpoint, setIsLoadingOutpoint] = useState(false)
   
   // State for protocol deployment
@@ -250,8 +249,8 @@ export function ProtocolManagement() {
   
   // State for admin management - moved up to be available in useEffect
   const [pendingAdminChanges, setPendingAdminChanges] = useState<{
-    toAdd: string[]
-    toRemove: number[]
+    toAdd: ccc.Hex[]
+    toRemove: ccc.Hex[]
   }>({
     toAdd: [],
     toRemove: []
@@ -270,7 +269,7 @@ export function ProtocolManagement() {
       }
       endorserAddress?: string
     }>
-    toRemove: number[]
+    toRemove: ccc.Num[]
   }>({
     toAdd: [],
     toRemove: []
@@ -287,7 +286,7 @@ export function ProtocolManagement() {
         try {
           // Get user's lock hash for admin configuration
           const address = await signer.getRecommendedAddress()
-          const userLockHash = await computeLockHashWithPrefix(address)
+          const userLockHash = (await ccc.Address.fromString(address, signer.client)).script.hash()
           
           // Set initial admin as the current user
           setPendingAdminChanges({
@@ -307,8 +306,8 @@ export function ProtocolManagement() {
               ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
             },
             tippingConfig: {
-              approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
-              expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+              approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds.map(t => ccc.numFrom(t)),
+              expirationDuration: ccc.numFrom(deploymentTemplate.tippingConfig.expirationDuration)
             }
           })
         } catch (error) {
@@ -328,16 +327,16 @@ export function ProtocolManagement() {
       // Don't reset admin changes - they're managed separately now
 
       const scriptHashesValues = {
-        ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
-        ckbBoostProtocolLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
-        ckbBoostCampaignTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
-        ckbBoostCampaignLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
-        ckbBoostUserTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash)
+        ckbBoostProtocolTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash,
+        ckbBoostProtocolLockCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash,
+        ckbBoostCampaignTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash,
+        ckbBoostCampaignLockCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
+        ckbBoostUserTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash
       }
 
       const tippingValues = {
-        approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds.map(t => bufferToNumber(t).toString()),
-        expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
+        approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds,
+        expirationDuration: protocolData.tipping_config.expiration_duration
       }
 
       scriptCodeHashesForm.reset(scriptHashesValues)
@@ -366,16 +365,16 @@ export function ProtocolManagement() {
       return pendingAdminChanges.toAdd
     }
     
-    const currentAdmins = protocolData?.protocol_config.admin_lock_hash_vec.map(hash => bufferToHex(hash)) || []
+    const currentAdmins = protocolData?.protocol_config.admin_lock_hash_vec.map(hash => ccc.hexFrom(hash as ccc.BytesLike)) || []
     
     // Start with current admins
     let result = [...currentAdmins]
     
     // Remove admins marked for removal
-    result = result.filter((_, index) => !pendingAdminChanges.toRemove.includes(index))
+    result = result.filter((val, _index) => !pendingAdminChanges.toRemove.includes(val as ccc.Hex))
     
     // Add new admins
-    result.push(...pendingAdminChanges.toAdd)
+    result.push(...pendingAdminChanges.toAdd as ccc.Hex[])
     
     return result
   }, [protocolData, pendingAdminChanges, configStatus])
@@ -503,9 +502,9 @@ export function ProtocolManagement() {
       // Check if admin already exists or is pending
       const isDuplicate = 
         (protocolData?.protocol_config.admin_lock_hash_vec.some(
-          (hash: any) => bufferToHex(hash) === lockHash
+          (hash: any) => ccc.hexFrom(hash as ccc.BytesLike) === lockHash
         )) ||
-        pendingAdminChanges.toAdd.includes(lockHash)
+        pendingAdminChanges.toAdd.includes(lockHash as ccc.Hex)
       
       if (isDuplicate) {
         throw new Error("This admin already exists or is pending addition")
@@ -514,7 +513,7 @@ export function ProtocolManagement() {
       // Add to pending changes
       setPendingAdminChanges(prev => ({
         ...prev,
-        toAdd: [...prev.toAdd, lockHash]
+        toAdd: [...prev.toAdd, lockHash as ccc.Hex]
       }))
       
       // Update pending changes indicator
@@ -536,7 +535,7 @@ export function ProtocolManagement() {
     // Add to removal list
     setPendingAdminChanges(prev => ({
       ...prev,
-      toRemove: [...prev.toRemove, index]
+      toRemove: [...prev.toRemove , `0x${index.toString(16)}` as `0x${string}`]
     }))
     
     // Update pending changes indicator
@@ -550,7 +549,7 @@ export function ProtocolManagement() {
       
       if (data.inputMode === "address" && data.endorserAddress) {
         // Compute lock hash from address
-        lockHash = await computeLockHashWithPrefix(data.endorserAddress)
+        lockHash = (await ccc.Address.fromString(data.endorserAddress, signer!.client)).script.hash()
         // For address mode, we need to derive the lock script from the address
         // This is a simplified approach - in production you'd need proper address parsing
         lockScript = {
@@ -606,7 +605,7 @@ export function ProtocolManagement() {
     // Add to pending removals instead of sending transaction
     setPendingEndorserChanges(prev => ({
       ...prev,
-      toRemove: [...prev.toRemove, index]
+      toRemove: [...prev.toRemove, BigInt(index)]
     }))
     
     // Update pending changes indicator
@@ -684,7 +683,7 @@ export function ProtocolManagement() {
             endorserLockScript: endorser.endorserLockScript, // Use the stored lock script
             endorserLockHash: endorser.endorserLockHash // Include the computed lock hash
           })),
-          remove: pendingEndorserChanges.toRemove
+          remove: pendingEndorserChanges.toRemove as ccc.Num[]
         }
       }
 
@@ -751,16 +750,16 @@ export function ProtocolManagement() {
       if (protocolData) {
         // For existing protocol data, reset to current protocol values
         scriptCodeHashesForm.reset({
-          ckbBoostProtocolTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
-          ckbBoostProtocolLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
-          ckbBoostCampaignTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
-          ckbBoostCampaignLockCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
-          ckbBoostUserTypeCodeHash: bufferToHex(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash)
+          ckbBoostProtocolTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash,
+          ckbBoostProtocolLockCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash,
+          ckbBoostCampaignTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash,
+          ckbBoostCampaignLockCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
+          ckbBoostUserTypeCodeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash
         })
 
         tippingConfigForm.reset({
-          approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds.map(t => bufferToNumber(t).toString()),
-          expirationDuration: bufferToNumber(protocolData.tipping_config.expiration_duration)
+          approvalRequirementThresholds: protocolData.tipping_config.approval_requirement_thresholds,
+          expirationDuration: protocolData.tipping_config.expiration_duration
         })
       } else if (configStatus === 'partial') {
         // For deployment mode, reset to template defaults but don't mark as changed
@@ -810,12 +809,12 @@ export function ProtocolManagement() {
     setIsLoadingOutpoint(true)
     try {
       await providerLoadProtocolDataByOutPoint({
-        txHash: outpointTxHash.startsWith('0x') ? outpointTxHash : `0x${outpointTxHash}`,
-        index: parseInt(outpointIndex)
+        txHash: outpointTxHash.startsWith('0x') ? outpointTxHash as ccc.Hex : `0x${outpointTxHash}`,
+        index: BigInt(outpointIndex)
       })
       setShowOutpointDialog(false)
-      setOutpointTxHash("")
-      setOutpointIndex("0")
+      setOutpointTxHash("0x")
+      setOutpointIndex(0n)
       alert("Protocol data loaded successfully from the specified outpoint")
     } catch (error) {
       console.error("Failed to load protocol data by outpoint:", error)
@@ -862,7 +861,10 @@ export function ProtocolManagement() {
     }
 
     try {
-      return await computeLockHashWithPrefix(address)
+      if (!signer) return "Connect wallet to preview lock hash"
+      const addr = await ccc.Address.fromString(address, signer.client)
+      const script = addr.script
+      return script.hash()
     } catch (error) {
       console.error("Failed to parse address:", error)
       return "Invalid address format"
@@ -904,10 +906,19 @@ export function ProtocolManagement() {
       // Collect form data
       const deploymentParams: DeployProtocolCellParams = {
         adminLockHashes: finalAdminLockHashes || [],
-        scriptCodeHashes: scriptCodeHashesValues,
-        tippingConfig: tippingConfigValues,
+        scriptCodeHashes: {
+          ckbBoostProtocolTypeCodeHash: scriptCodeHashesValues.ckbBoostProtocolTypeCodeHash as `0x${string}`,
+          ckbBoostProtocolLockCodeHash: scriptCodeHashesValues.ckbBoostProtocolLockCodeHash as `0x${string}`,
+          ckbBoostCampaignTypeCodeHash: scriptCodeHashesValues.ckbBoostCampaignTypeCodeHash as `0x${string}`,
+          ckbBoostCampaignLockCodeHash: scriptCodeHashesValues.ckbBoostCampaignLockCodeHash as `0x${string}`,
+          ckbBoostUserTypeCodeHash: scriptCodeHashesValues.ckbBoostUserTypeCodeHash as `0x${string}`
+        },
+        tippingConfig: {
+          approvalRequirementThresholds: tippingConfigValues.approvalRequirementThresholds.map(t => BigInt(t)),
+          expirationDuration: BigInt(tippingConfigValues.expirationDuration)
+        },
         initialEndorsers: pendingEndorserChanges.toAdd.map(endorser => ({
-          lockHash: endorser.endorserLockHash,
+          lockHash: endorser.endorserLockHash as `0x${string}`,
           name: endorser.endorserName,
           description: endorser.endorserDescription
         }))
@@ -1140,11 +1151,11 @@ export function ProtocolManagement() {
                       <p className="text-sm text-green-800 dark:text-green-200 font-medium">
                         ✅ Protocol cell deployed!
                       </p>
-                      <p className="text-xs text-green-700 dark:text-green-300 mt-1">
-                        Transaction: {deploymentResult.txHash.slice(0, 10)}...
+                      <p className="text-xs text-green-700 dark:text-green-300 mt-1 font-mono break-all">
+                        Transaction: {deploymentResult.txHash}
                       </p>
                       <div className="mt-2 p-2 bg-white dark:bg-gray-800 rounded">
-                        <p className="text-xs font-mono">
+                        <p className="text-xs font-mono break-all">
                           NEXT_PUBLIC_PROTOCOL_TYPE_ARGS={deploymentResult.args}
                         </p>
                       </div>
@@ -1182,7 +1193,7 @@ export function ProtocolManagement() {
                 id="txHash"
                 placeholder="0x..."
                 value={outpointTxHash}
-                onChange={(e) => setOutpointTxHash(e.target.value)}
+                onChange={(e) => setOutpointTxHash(e.target.value as ccc.Hex)}
                 disabled={isLoadingOutpoint}
               />
               <p className="text-xs text-muted-foreground">
@@ -1198,8 +1209,8 @@ export function ProtocolManagement() {
                 id="index"
                 type="number"
                 placeholder="0"
-                value={outpointIndex}
-                onChange={(e) => setOutpointIndex(e.target.value)}
+                value={outpointIndex.toString()}
+                onChange={(e) => setOutpointIndex(BigInt(e.target.value))}
                 disabled={isLoadingOutpoint}
                 min="0"
               />
@@ -1405,8 +1416,8 @@ export function ProtocolManagement() {
                   
                   {/* Show existing admins */}
                   {protocolData && protocolData.protocol_config.admin_lock_hash_vec.map((admin: any, index: number) => {
-                    const isMarkedForRemoval = pendingAdminChanges.toRemove.includes(index)
-                    const adminHash = bufferToHex(admin)
+                    const isMarkedForRemoval = pendingAdminChanges.toRemove.includes(`0x${index.toString(16)}` as `0x${string}`)
+                    const adminHash = ccc.hexFrom(new Uint8Array(admin as ArrayBuffer))
                     return (
                       <div 
                         key={index} 
@@ -1489,8 +1500,9 @@ export function ProtocolManagement() {
                         <FormControl>
                           <Input 
                             type="number" 
-                            {...field} 
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            {...field}
+                            value={field.value ? field.value.toString() : ''}
+                            onChange={(e) => field.onChange(BigInt(e.target.value || 0))}
                             placeholder="604800"
                           />
                         </FormControl>
@@ -1777,7 +1789,7 @@ export function ProtocolManagement() {
                   
                   {/* Show existing endorsers */}
                   {protocolData && protocolData.endorsers_whitelist.map((endorser: any, index: number) => {
-                    const isMarkedForRemoval = pendingEndorserChanges.toRemove.includes(index)
+                    const isMarkedForRemoval = pendingEndorserChanges.toRemove.includes(BigInt(index))
                     return (
                       <div 
                         key={index} 
@@ -1786,7 +1798,7 @@ export function ProtocolManagement() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className={`font-medium ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                              {bufferToString(endorser.endorser_name)}
+                              {new TextDecoder().decode(new Uint8Array(endorser.endorser_name as ArrayBuffer))}
                             </div>
                             <div className="flex items-center gap-2">
                               {isMarkedForRemoval ? (
@@ -1806,11 +1818,11 @@ export function ProtocolManagement() {
                             </div>
                           </div>
                           <div className={`text-sm text-muted-foreground ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                            {bufferToString(endorser.endorser_description)}
+                            {new TextDecoder().decode(new Uint8Array(endorser.endorser_description as ArrayBuffer))}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             <span className="font-medium">Lock Hash:</span>{" "}
-                            <span className="font-mono">{bufferToHex(endorser.endorser_lock_hash)}</span>
+                            <span className="font-mono">{ccc.hexFrom(new Uint8Array(endorser.endorser_lock_hash as ArrayBuffer))}</span>
                           </div>
                         </div>
                       </div>
@@ -1880,7 +1892,7 @@ export function ProtocolManagement() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <div className="font-medium">Last Updated</div>
-                    <div className="text-muted-foreground">{protocolData ? formatTimestamp(bufferToNumber(protocolData.last_updated) * 1000) : 'N/A'}</div>
+                    <div className="text-muted-foreground">{protocolData ? formatTimestamp(Number(protocolData.last_updated / 1000n) * 1000) : 'N/A'}</div>
                   </div>
                   <div>
                     <div className="font-medium">Admin Addresses</div>
@@ -1939,9 +1951,9 @@ export function ProtocolManagement() {
                           <span className="font-medium">Admins to Remove:</span>
                           <div className="mt-1 space-y-1 text-red-600">
                             {pendingAdminChanges.toRemove.map((index) => {
-                              const adminHash = protocolData?.protocol_config.admin_lock_hash_vec[index] 
-                                ? bufferToHex(protocolData.protocol_config.admin_lock_hash_vec[index])
-                                : `Admin at index ${index}`
+                              const numIndex = parseInt(index.slice(2), 16) // Convert hex string back to number
+                              const adminHash = protocolData?.protocol_config.admin_lock_hash_vec[numIndex] 
+                                || `Admin at index ${numIndex}`
                               return (
                                 <div key={index} className="font-mono text-xs">
                                   - {adminHash}

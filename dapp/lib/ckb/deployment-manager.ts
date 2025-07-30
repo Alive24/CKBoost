@@ -2,37 +2,38 @@
 // This module handles reading and updating deployment information
 
 import deploymentsData from '../../../deployments.json'
+import { ccc } from '@ckb-ccc/connector-react'
 
 export type Network = 'testnet' | 'mainnet'
 
 export interface TypeScript {
-  codeHash: string
-  hashType: 'type' | 'data' | 'data1'
-  args: string
+  codeHash: ccc.Hex
+  hashType: ccc.HashType
+  args: ccc.Hex
 }
 
 export interface DeploymentRecord {
-  transactionHash: string
-  index: number
-  deployedAt: string
+  transactionHash: ccc.Hex
+  index: ccc.Num,
+  deployedAt: ccc.Num,
   contractName: string
-  deployerAddress?: string
-  dataHash?: string
-  contractSize?: number
+  deployerAddress?: ccc.Hex
+  dataHash?: ccc.Hex
+  contractSize?: ccc.Num
   tag?: string
   isUpgrade?: boolean
   previousDeployment?: {
-    transactionHash: string
-    index: number
-    deployedAt: string
+    transactionHash: ccc.Hex
+    index: ccc.Num
+    deployedAt: ccc.Num
     tag?: string
   }
   typeScript?: TypeScript
   isTypeId?: boolean
-  typeHash?: string
+  typeHash?: ccc.Hex
   // Legacy fields for backward compatibility
-  codeHash?: string
-  hashType?: 'type' | 'data' | 'data1'
+  codeHash?: ccc.Hex
+  hashType?: ccc.HashType
 }
 
 export interface DeploymentHistory {
@@ -58,7 +59,7 @@ export class DeploymentManager {
 
   constructor() {
     // Load deployment data from JSON file
-    this.data = deploymentsData as DeploymentHistory
+    this.data = deploymentsData as unknown as DeploymentHistory
   }
 
   /**
@@ -79,7 +80,7 @@ export class DeploymentManager {
   /**
    * Get the outpoint for a deployed contract
    */
-  getContractOutPoint(network: Network, contractType: 'ckboostProtocolType'): { txHash: string; index: number } | null {
+  getContractOutPoint(network: Network, contractType: 'ckboostProtocolType'): { txHash: ccc.Hex; index: ccc.Num } | null {
     const deployment = this.getCurrentDeployment(network, contractType)
     if (!deployment) return null
     
@@ -106,7 +107,7 @@ export class DeploymentManager {
       return {
         codeHash: deployment.codeHash,
         hashType: deployment.hashType,
-        args: '0x' // Default args for legacy format
+        args: '0x' as ccc.Hex // Default args for legacy format
       }
     }
     

@@ -20,7 +20,6 @@ import {
   ProtocolChanges
 } from '../types/protocol'
 import { ProtocolService } from '../services/protocol-service'
-import { bufferToHex } from '../utils/type-converters'
 
 // Types for protocol provider
 interface ProtocolContextType {
@@ -33,7 +32,7 @@ interface ProtocolContextType {
   
   // Protocol operations
   refreshProtocolData: () => Promise<void>
-  loadProtocolDataByOutPoint: (outPoint: { txHash: string; index: number }) => Promise<void>
+  loadProtocolDataByOutPoint: (outPoint: { txHash: ccc.Hex; index: ccc.Num }) => Promise<void>
   updateProtocolConfig: (form: UpdateProtocolConfigForm) => Promise<string>
   updateScriptCodeHashes: (form: UpdateScriptCodeHashesForm) => Promise<string>
   updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<string>
@@ -155,7 +154,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
           const userLockHash = addr // Simplified - would need proper conversion
           const isUserAdmin = protocolData.protocol_config.admin_lock_hash_vec.some(
             (adminHash: any) => {
-              const hashHex = typeof adminHash === 'string' ? adminHash : bufferToHex(adminHash)
+              const hashHex = typeof adminHash === 'string' ? adminHash : ccc.hexFrom(new Uint8Array(adminHash))
               return hashHex.toLowerCase().includes(userLockHash.toLowerCase())
             }
           )
@@ -195,7 +194,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const loadProtocolDataByOutPoint = async (outPoint: { txHash: string; index: number }): Promise<void> => {
+  const loadProtocolDataByOutPoint = async (outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<void> => {
     if (!signer) {
       throw new Error("Wallet connection required to load by outpoint")
     }

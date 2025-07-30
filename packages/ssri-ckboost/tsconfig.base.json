@@ -28,5 +28,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "dist.commonjs", "src/generated/ckboost.js"]
+  "exclude": ["node_modules", "dist"]
 }
