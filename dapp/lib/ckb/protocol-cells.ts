@@ -1,5 +1,5 @@
-// CKB Protocol Cells - Blockchain data integration with development mocking
-// This file handles fetching protocol data from CKB blockchain with fallback to mock data
+// CKB Protocol Cells - Blockchain data integration
+// This file handles fetching protocol data from CKB blockchain
 
 import { ccc } from "@ckb-ccc/connector-react";
 import { ProtocolData } from "../types";
@@ -8,7 +8,6 @@ import {
   ProtocolMetrics,
   ProtocolTransaction,
 } from "../types/protocol";
-import { getMockProtocolData } from "../mock/mock-protocol";
 import { 
   bufferToNumber
 } from "../utils/type-converters";
@@ -43,37 +42,24 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
   }
 }
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
-// import type {
-//   ProtocolDataType,
-//   EndorserInfoType,
-//   TippingConfigType,
-//   ProtocolConfigType,
-//   ScriptCodeHashesType
-// } from "../types/molecule"
-
-
-// Development flag - set to true to use blockchain, false to use mock data
-const USE_BLOCKCHAIN = true; // Set to true when blockchain is available
-
 // Get protocol type script from deployments.json
 const getProtocolTypeScript = () => {
   const network = DeploymentManager.getCurrentNetwork();
-  const typeScript = deploymentManager.getContractTypeScript(network, 'ckboostProtocolType');
+  const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType');
   
-  if (!typeScript) {
+  if (!deployment || !deployment.typeHash) {
     throw new Error(`Protocol type contract not found in deployments.json for ${network}`);
   }
 
-  // Override args from environment if provided (for specific protocol cell)
-  const envArgs = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS;
-  if (envArgs) {
-    return {
-      ...typeScript,
-      args: envArgs
-    };
-  }
+  // For protocol cells, we need to use the actual protocol contract code hash (typeHash)
+  // not the Type ID script code hash
+  const protocolTypeScript = {
+    codeHash: deployment.typeHash,
+    hashType: "type" as const,
+    args: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x" // Empty args to search for any protocol cell
+  };
 
-  return typeScript;
+  return protocolTypeScript;
 };
 
 /**
@@ -110,50 +96,42 @@ export async function fetchProtocolCellByOutPoint(
     };
   } catch (error) {
     console.error("Failed to fetch protocol cell by outpoint:", error);
-    throw new Error("Failed to fetch protocol cell by outpoint");
+    throw new Error("Failed to fetch protocol cell by outpoint. The cell may not exist or has been consumed.");
   }
 }
 
 /**
- * Fetch protocol cell from CKB blockchain or return mock cell
- * @param signer - CCC signer instance (optional when using mock data)
+ * Fetch protocol cell from CKB blockchain
+ * @param signer - CCC signer instance
  * @returns Protocol cell or null if not found
  */
 export async function fetchProtocolCell(
   signer?: ccc.Signer
 ): Promise<ProtocolCell | null> {
-  if (!USE_BLOCKCHAIN) {
-    // Return mock protocol cell for development
-    console.log("Using mock protocol cell data for development");
-    const mockData = getMockProtocolData();
-
-    return {
-      outPoint: {
-        txHash:
-          "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
-        index: 0,
-      },
-      output: {
-        capacity: "100000000000", // 1000 CKB
-        lock: {
-          codeHash:
-            "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8",
-          hashType: "type",
-          args: "0x",
-        },
-        type: getProtocolTypeScript(),
-      },
-      data: generateProtocolData(mockData), // Convert to hex for consistency
-    };
-  }
-
-  if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true");
-  }
 
   try {
+    // Check if signer is properly initialized
+    if (!signer) {
+      throw new Error("Signer is not initialized. Please connect your wallet first.");
+    }
+    
+    if (!signer.client) {
+      throw new Error("Signer client is not initialized. Please ensure your wallet is properly connected.");
+    }
+
     const client = signer.client;
-    const protocolTypeScript = getProtocolTypeScript();
+    
+    // Get protocol type script
+    let protocolTypeScript;
+    try {
+      protocolTypeScript = getProtocolTypeScript();
+    } catch (error) {
+      throw new Error(
+        `Protocol contract not found in deployments.json. ` +
+        `Please ensure the CKBoost protocol contract is deployed on-chain first using the deployment scripts. ` +
+        `Error: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     console.log("Searching for protocol cell with type script:", {
       codeHash: protocolTypeScript.codeHash,
@@ -174,7 +152,18 @@ export async function fetchProtocolCell(
     
     if (firstCell.done || !firstCell.value) {
       console.warn("No protocol cell found on blockchain with the configured type script");
-      return null;
+      // Provide more specific guidance based on the type script args
+      if (protocolTypeScript.args === "0x") {
+        throw new Error(
+          "No protocol cell exists on the blockchain yet. " +
+          "Please deploy a new protocol cell using the Protocol Management interface."
+        );
+      } else {
+        throw new Error(
+          `No protocol cell found with type script args: ${protocolTypeScript.args}. ` +
+          "The protocol cell may have been consumed or the configuration may be incorrect."
+        );
+      }
     }
 
     const cell = firstCell.value;
@@ -192,12 +181,25 @@ export async function fetchProtocolCell(
     };
   } catch (error) {
     console.error("Failed to fetch protocol cell:", error);
-    throw new Error("Failed to fetch protocol data from blockchain");
+    
+    // Re-throw with the original error message if it's already descriptive
+    if (error instanceof Error && (
+      error.message.includes("Signer") || 
+      error.message.includes("protocol") ||
+      error.message.includes("deploy")
+    )) {
+      throw error;
+    }
+    
+    // Otherwise, provide a generic error
+    throw new Error(
+      `Failed to fetch protocol data from blockchain: ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 
 /**
- * Parse ProtocolData from cell data using Molecule schema or return mock data
+ * Parse ProtocolData from cell data using Molecule schema
  * @param cellData - Hex-encoded cell data
  * @returns Parsed ProtocolData
  */
@@ -207,40 +209,12 @@ export function parseProtocolData(cellData: string): ProtocolData {
       throw new Error("Invalid or empty protocol data");
     }
 
-    if (!USE_BLOCKCHAIN) {
-      // Check if this is our mock data by trying to parse it as JSON first
-      try {
-        // Remove hex prefix and convert to string
-        const hexWithoutPrefix = cellData.startsWith("0x")
-          ? cellData.slice(2)
-          : cellData;
-        const buffer = new Uint8Array(hexWithoutPrefix.length / 2);
-        for (let i = 0; i < hexWithoutPrefix.length; i += 2) {
-          buffer[i / 2] = parseInt(hexWithoutPrefix.substring(i, i + 2), 16);
-        }
-        const jsonString = new TextDecoder().decode(buffer);
-        const parsedData = JSON.parse(jsonString);
-
-        console.log("Successfully parsed mock protocol data from cell");
-        return parsedData as ProtocolData;
-      } catch (jsonError) {
-        console.warn("Failed to parse as JSON, falling back to mock data");
-      }
-
-      // If JSON parsing fails, return fresh mock data
-      return getMockProtocolData();
-    }
-
-    // For blockchain data, implement proper Molecule parsing
-    // TODO: Implement proper Molecule parsing once the generated code is fixed
-    console.warn(
-      "Using fallback mock protocol data parsing due to generated code syntax errors"
-    );
-
-    return getMockProtocolData();
+    // TODO: Implement proper Molecule parsing once we have the correct deserialize functions
+    // For now, throw an error to indicate parsing is not yet implemented
+    throw new Error("Protocol data parsing not yet implemented. Please deploy a new protocol cell.");
   } catch (error) {
     console.error("Failed to parse ProtocolData:", error);
-    throw new Error("Invalid protocol data format");
+    throw error;
   }
 }
 
@@ -256,17 +230,7 @@ export function generateProtocolData(data: ProtocolData): string {
     return "0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     console.error("Failed to generate ProtocolData with Molecule serialization:", error);
-    
-    // Fallback to JSON serialization for development
-    console.warn("Falling back to JSON serialization");
-    const jsonData = JSON.stringify(data);
-    const buffer = new TextEncoder().encode(jsonData);
-    return (
-      "0x" +
-      Array.from(buffer)
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("")
-    );
+    throw new Error("Failed to serialize protocol data. Please ensure the data structure is valid.");
   }
 }
 
@@ -282,25 +246,19 @@ export async function fetchProtocolDataByOutPoint(
 ): Promise<ProtocolData> {
   const cell = await fetchProtocolCellByOutPoint(signer, outPoint);
   if (!cell) {
-    throw new Error("Protocol cell not found at specified outpoint");
+    throw new Error("Protocol cell not found at specified outpoint. Please ensure the outpoint is correct or deploy a new protocol cell using the Protocol Management interface.");
   }
   return parseProtocolData(cell.data);
 }
 
 /**
- * Fetch current protocol data from blockchain or return mock data
- * @param signer - CCC signer instance (optional when using mock data)
+ * Fetch current protocol data from blockchain
+ * @param signer - CCC signer instance
  * @returns Current ProtocolData
  */
 export async function fetchProtocolData(
   signer?: ccc.Signer
 ): Promise<ProtocolData> {
-  if (!USE_BLOCKCHAIN) {
-    console.log("Fetching mock protocol data for development");
-    // Return mock data directly (already in SDK format)
-    return getMockProtocolData();
-  }
-
   const cell = await fetchProtocolCell(signer);
   if (!cell) {
     const protocolTypeScript = getProtocolTypeScript();
@@ -311,8 +269,8 @@ export async function fetchProtocolData(
 }
 
 /**
- * Get protocol metrics from blockchain data or mock data
- * @param signer - CCC signer instance (optional when using mock data)
+ * Get protocol metrics from blockchain data
+ * @param signer - CCC signer instance
  * @returns Protocol metrics
  */
 export async function fetchProtocolMetrics(
@@ -357,7 +315,7 @@ export async function fetchProtocolMetrics(
 
 /**
  * Get protocol transaction history
- * @param signer - CCC signer instance (optional when using mock data)
+ * @param signer - CCC signer instance
  * @param limit - Maximum number of transactions to fetch
  * @returns Array of protocol transactions
  */
@@ -365,14 +323,6 @@ export async function fetchProtocolTransactions(
   signer?: ccc.Signer,
   _limit: number = 50
 ): Promise<ProtocolTransaction[]> {
-  if (!USE_BLOCKCHAIN) {
-    console.log("Returning empty transaction history for mock data");
-    return [];
-  }
-
-  if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true");
-  }
 
   try {
     // TODO: Implement real transaction history fetching
@@ -387,34 +337,25 @@ export async function fetchProtocolTransactions(
 }
 
 /**
- * Update protocol cell with new data or simulate update for mock data
- * @param signer - CCC signer instance (optional when using mock data)
+ * Update protocol cell with new data
+ * @param signer - CCC signer instance
  * @param newData - New ProtocolData to store
- * @returns Transaction hash (mock hash when using mock data)
+ * @returns Transaction hash
  */
 export async function updateProtocolCell(
   signer: ccc.Signer | undefined,
   newData: ProtocolData
 ): Promise<string> {
-  if (!USE_BLOCKCHAIN) {
-    console.log("Simulating protocol cell update with mock data");
-    // In a real application, you might want to persist this to localStorage or a mock database
-    // For now, just return a mock transaction hash
-    const mockTxHash =
-      "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890";
-    console.log("Mock protocol cell updated, mock tx:", mockTxHash);
-    return mockTxHash;
-  }
-
-  if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true");
-  }
 
   try {
+    if (!signer) {
+      throw new Error("Signer is required to update protocol cell");
+    }
+
     // Get current protocol cell
     const currentCell = await fetchProtocolCell(signer);
     if (!currentCell) {
-      throw new Error("Protocol cell not found");
+      throw new Error("Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface.");
     }
 
     // Generate new protocol data

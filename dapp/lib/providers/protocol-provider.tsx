@@ -81,6 +81,16 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   // Initialize protocol data
   useEffect(() => {
     const initializeProtocol = async () => {
+      // If no signer, set loading to false and return
+      if (!signer) {
+        setIsLoading(false)
+        setError("Please connect your wallet to view protocol data")
+        setProtocolData(null)
+        setMetrics(null)
+        setTransactions([])
+        return
+      }
+
       try {
         setIsLoading(true)
         setError(null)
@@ -105,17 +115,11 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         
         // For protocol cell not found errors, set data to null but keep the error
         // This allows the UI to show the deployment form
-        if (errorMessage.includes('Protocol cell not found on blockchain')) {
+        if (errorMessage.includes('Protocol cell not found on blockchain') || 
+            errorMessage.includes('No protocol cell exists')) {
           setProtocolData(null)
-        } else {
-          // Try to load default data as fallback for other errors
-          try {
-            const service = new ProtocolService()
-            const defaultData = await service.getDefaultProtocolData()
-            setProtocolData(defaultData)
-          } catch (fallbackErr) {
-            console.error('Failed to load fallback data:', fallbackErr)
-          }
+          setMetrics(null)
+          setTransactions([])
         }
       } finally {
         setIsLoading(false)

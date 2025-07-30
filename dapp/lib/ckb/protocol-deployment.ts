@@ -2,28 +2,25 @@
 // This file handles deploying a new protocol cell when none exists
 
 import { ccc } from "@ckb-ccc/connector-react"
-import { SerializeProtocolData, types } from "ssri-ckboost"
-import { deploymentManager, DeploymentManager } from "./deployment-manager"
+import { Protocol } from "ssri-ckboost"
+import { ssri } from "@ckb-ccc/ssri"
+import { deploymentManager, DeploymentManager, DeploymentRecord } from "./deployment-manager"
 
-// Utility function to safely stringify objects with BigInt values
-function safeStringify(obj: any, space?: number): string {
-  return JSON.stringify(obj, (key, value) => 
-    typeof value === 'bigint' ? value.toString() : value, space)
-}
 
 /**
  * Get the protocol type code cell outpoint from deployment information
  * @returns The outpoint of the cell containing the protocol code or null
  */
-function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number } } | null {
+function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: number }, deployment: DeploymentRecord } | null {
   try {
     // Get current network
     const network = DeploymentManager.getCurrentNetwork()
     
     // Get deployment info from deployment manager
-    const outPoint = deploymentManager.getContractOutPoint(network, 'protocolType')
+    const outPoint = deploymentManager.getContractOutPoint(network, 'ckboostProtocolType')
+    const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType')
     
-    if (!outPoint) {
+    if (!outPoint || !deployment) {
       throw new Error(
         `Protocol type contract not found in deployments.json for ${network}. ` +
         `Please ensure the contract is deployed and recorded in deployments.json`
@@ -32,29 +29,13 @@ function getProtocolTypeCodeOutPoint(): { outPoint: { txHash: string; index: num
     
     console.log(`Using protocol type code cell from deployments.json:`, outPoint)
     
-    return { outPoint }
+    return { outPoint, deployment }
   } catch (error) {
     console.error("Failed to get protocol type code outpoint:", error)
     return null
   }
 }
 
-// Helper function to convert number to bytes
-function numToBytes(num: number, length: number): Uint8Array {
-  const buffer = new ArrayBuffer(length)
-  const view = new DataView(buffer)
-  
-  if (length === 8) {
-    // For 64-bit numbers, use BigInt
-    view.setBigUint64(0, BigInt(num), true) // little-endian
-  } else if (length === 4) {
-    view.setUint32(0, num, true) // little-endian
-  } else {
-    throw new Error(`Unsupported byte length: ${length}`)
-  }
-  
-  return new Uint8Array(buffer)
-}
 
 export interface DeployProtocolCellParams {
   // Initial protocol configuration
@@ -77,9 +58,9 @@ export interface DeployProtocolCellParams {
   
   // Optional initial endorsers
   initialEndorsers?: Array<{
-    endorserLockHash: string
-    endorserName: string
-    endorserDescription: string
+    lockHash: string
+    name: string
+    description: string
   }>
 }
 
@@ -96,80 +77,6 @@ export interface DeploymentResult {
   }
 }
 
-/**
- * Create a TransactionRecipe witness for protocol operations
- * @param methodName - The method name (e.g., "updateProtocol")
- * @param argument - The argument for the method (usually the new protocol data)
- * @returns Hex-encoded witness data
- */
-function createTransactionRecipeWitness(methodName: string, argument: Uint8Array): string {
-  // TransactionRecipe molecule structure:
-  // table TransactionRecipe {
-  //   method_path: Bytes,
-  //   argument: Bytes,
-  // }
-  
-  // Bytes in Molecule is: [length: 4 bytes][data: length bytes]
-  // Table in Molecule is: [total_size: 4 bytes][offset1: 4 bytes][offset2: 4 bytes]...[field1_data][field2_data]...
-  
-  const methodBytes = new TextEncoder().encode(methodName)
-  
-  // Calculate sizes
-  const methodBytesSize = 4 + methodBytes.length // Bytes = length prefix + data
-  const argumentBytesSize = 4 + argument.length   // Bytes = length prefix + data
-  const headerSize = 4 + 4 + 4 // total_size + offset1 + offset2
-  const totalSize = headerSize + methodBytesSize + argumentBytesSize
-  
-  console.log("TransactionRecipe witness construction:", {
-    methodName,
-    methodBytesLength: methodBytes.length,
-    argumentLength: argument.length,
-    methodBytesSize,
-    argumentBytesSize,
-    headerSize,
-    totalSize
-  })
-  
-  // Create buffer with the correct size
-  const buffer = new ArrayBuffer(totalSize)
-  const view = new DataView(buffer)
-  const uint8View = new Uint8Array(buffer)
-  
-  let offset = 0
-  
-  // Write header
-  view.setUint32(offset, totalSize - 4, true) // total_size (excluding itself)
-  offset += 4
-  
-  // Write offsets (relative to start of table data, after total_size)
-  view.setUint32(offset, headerSize - 4, true) // offset to method_path
-  offset += 4
-  view.setUint32(offset, headerSize - 4 + methodBytesSize, true) // offset to argument
-  offset += 4
-  
-  console.log("After header, offset:", offset, "should be:", headerSize)
-  
-  // Write method_path as Bytes
-  view.setUint32(offset, methodBytes.length, true) // length prefix
-  offset += 4
-  uint8View.set(methodBytes, offset)
-  offset += methodBytes.length
-  
-  console.log("After method_path, offset:", offset, "should be:", headerSize + methodBytesSize)
-  
-  // Write argument as Bytes
-  view.setUint32(offset, argument.length, true) // length prefix
-  offset += 4
-  uint8View.set(argument, offset)
-  offset += argument.length
-  
-  console.log("After argument, offset:", offset, "should be:", totalSize)
-  
-  const result = "0x" + Array.from(uint8View).map(b => b.toString(16).padStart(2, '0')).join('')
-  console.log("TransactionRecipe witness hex:", result)
-  
-  return result
-}
 
 /**
  * Check protocol configuration status
@@ -178,7 +85,7 @@ function createTransactionRecipeWitness(methodName: string, argument: Uint8Array
 export function getProtocolConfigStatus(): 'none' | 'partial' | 'complete' {
   // First check if protocol type contract is deployed
   const network = DeploymentManager.getCurrentNetwork()
-  const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
+  const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType')
   
   if (!protocolTypeDeployment) {
     return 'none' // No protocol contract deployed
@@ -201,15 +108,14 @@ export function getProtocolConfigStatus(): 'none' | 'partial' | 'complete' {
  * Get protocol deployment template with sensible defaults
  */
 export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
+  const network = DeploymentManager.getCurrentNetwork()
+  const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType')
+  
   return {
     adminLockHashes: [], // To be filled by user's lock hash
     scriptCodeHashes: {
-      // These would need to be replaced with actual deployed script code hashes
-      ckbBoostProtocolTypeCodeHash: (() => {
-        const network = DeploymentManager.getCurrentNetwork()
-        const deployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
-        return deployment?.codeHash || "0x0000000000000000000000000000000000000000000000000000000000000000"
-      })(),
+      // Use the typeHash which is the actual protocol contract code hash
+      ckbBoostProtocolTypeCodeHash: deployment?.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
       ckbBoostProtocolLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000", 
       ckbBoostCampaignTypeCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
       ckbBoostCampaignLockCodeHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -223,79 +129,18 @@ export function getProtocolDeploymentTemplate(): DeployProtocolCellParams {
   }
 }
 
-/**
- * Generate initial protocol data for deployment
- */
-function generateInitialProtocolData(params: DeployProtocolCellParams): types.ProtocolDataType {
-  // Convert string thresholds to Uint128 ArrayBuffers
-  const thresholds = params.tippingConfig.approvalRequirementThresholds.map(threshold => {
-    const value = BigInt(threshold)
-    const buffer = new ArrayBuffer(16) // 128 bits = 16 bytes
-    const view = new DataView(buffer)
-    // Write as little-endian
-    view.setBigUint64(0, value & BigInt('0xFFFFFFFFFFFFFFFF'), true)
-    view.setBigUint64(8, (value >> BigInt(64)) & BigInt('0xFFFFFFFFFFFFFFFF'), true)
-    return buffer
-  })
-
-  // Convert admin lock hashes to Byte32 ArrayBuffers
-  const adminHashes = params.adminLockHashes.map(hash => {
-    // Remove 0x prefix if present
-    const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash
-    const buffer = new ArrayBuffer(32)
-    const view = new Uint8Array(buffer)
-    for (let i = 0; i < 32; i++) {
-      view[i] = parseInt(cleanHash.substring(i * 2, i * 2 + 2), 16)
-    }
-    return buffer
-  })
-
-  // Convert script code hashes to Byte32 ArrayBuffers
-  const convertHashToBytes = (hash: string): ArrayBuffer => {
-    const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash
-    const buffer = new ArrayBuffer(32)
-    const view = new Uint8Array(buffer)
-    for (let i = 0; i < 32; i++) {
-      view[i] = parseInt(cleanHash.substring(i * 2, i * 2 + 2), 16)
-    }
-    return buffer
-  }
-
-  // Convert endorser data
-  const endorsers = (params.initialEndorsers || []).map(endorser => ({
-    endorser_lock_hash: convertHashToBytes(endorser.endorserLockHash),
-    endorser_name: new TextEncoder().encode(endorser.endorserName).buffer as ArrayBuffer,
-    endorser_description: new TextEncoder().encode(endorser.endorserDescription).buffer as ArrayBuffer
-  }))
-
-  const protocolData: types.ProtocolDataType = {
-    campaigns_approved: [],
-    tipping_proposals: [],
-    tipping_config: {
-      approval_requirement_thresholds: thresholds,
-      expiration_duration: numToBytes(params.tippingConfig.expirationDuration, 8).buffer as ArrayBuffer
-    },
-    endorsers_whitelist: endorsers,
-    last_updated: numToBytes(Date.now(), 8).buffer as ArrayBuffer,
-    protocol_config: {
-      admin_lock_hash_vec: adminHashes,
-      script_code_hashes: {
-        ckb_boost_protocol_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostProtocolTypeCodeHash),
-        ckb_boost_protocol_lock_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostProtocolLockCodeHash),
-        ckb_boost_campaign_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignTypeCodeHash),
-        ckb_boost_campaign_lock_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostCampaignLockCodeHash),
-        ckb_boost_user_type_code_hash: convertHashToBytes(params.scriptCodeHashes.ckbBoostUserTypeCodeHash),
-        accepted_udt_type_code_hashes: [],
-        accepted_dob_type_code_hashes: []
-      }
-    }
-  }
-
-  return protocolData
-}
 
 /**
- * Deploy a new protocol cell to the CKB blockchain
+ * Deploy a new protocol cell to the CKB blockchain using ssri-ckboost
+ * 
+ * Flow:
+ * 1. SSRI creates a transaction with the protocol data and TransactionRecipe in witness
+ * 2. We add capacity inputs from the user's wallet
+ * 3. We prepare witnesses for the new inputs (while preserving SSRI's recipe witness)
+ * 4. We complete the transaction with fees
+ * 5. The wallet signs the transaction (SSRI doesn't sign, it only provides the recipe)
+ * 6. We send the signed transaction to the network
+ * 
  * @param signer - CCC signer instance
  * @param params - Protocol deployment parameters
  * @returns Deployment result with transaction hash and cell info
@@ -305,166 +150,300 @@ export async function deployProtocolCell(
   params: DeployProtocolCellParams
 ): Promise<DeploymentResult> {
   try {
+    console.log("=== Starting Protocol Cell Deployment ===")
+    console.log("Signer info:", {
+      isConnected: !!signer,
+      hasClient: !!signer.client,
+      signerType: signer.constructor.name
+    })
+    
     // Validate parameters
     if (!params.adminLockHashes || params.adminLockHashes.length === 0) {
       throw new Error("At least one admin lock hash is required")
     }
 
-    // Generate initial protocol data
-    const protocolData = generateInitialProtocolData(params)
-    
-    // Serialize protocol data using generated Molecule code
-    const protocolDataBytes = SerializeProtocolData(protocolData)
-    
-    // Get protocol type code hash from deployments.json
-    const network = DeploymentManager.getCurrentNetwork()
-    const protocolTypeDeployment = deploymentManager.getCurrentDeployment(network, 'protocolType')
-    
-    if (!protocolTypeDeployment) {
-      throw new Error("Protocol type contract not found in deployments.json. Deploy the protocol contract first.")
-    }
-    
-    const protocolTypeCodeHash = protocolTypeDeployment.codeHash
-    
-    // Create type script using the deployed protocol type contract
-    const protocolTypeScript = {
-      codeHash: protocolTypeCodeHash,
-      hashType: "type" as const,
-      args: "0x" // Will be calculated with Type ID later
-    }
-    
-    // Get deployer's address and script
-    const deployerAddress = await signer.getRecommendedAddress()
-    const deployerScript = (await ccc.Address.fromString(deployerAddress, signer.client)).script
-    
-    // Get the outpoint of the cell containing the protocol type script code
-    // We need to add it as a cell dependency for the type script to be available
-    const protocolTypeCodeCell = await getProtocolTypeCodeOutPoint()
-    if (!protocolTypeCodeCell) {
+    // Get protocol type code outpoint from deployments.json
+    const protocolTypeCodeCellInfo = getProtocolTypeCodeOutPoint()
+    if (!protocolTypeCodeCellInfo) {
       throw new Error("Protocol type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.")
     }
     
-    // Calculate required capacity for the protocol cell
-    // CKB cell structure overhead:
-    // - capacity: 8 bytes
-    // - lock script: 1 + 32 + 1 + 20 = 54 bytes (code_hash + hash_type + args)  
-    // - type script: 1 + 32 + 1 + 32 = 66 bytes (code_hash + hash_type + args for Type ID)
-    // - data: actual protocol data size
-    const dataSize = protocolDataBytes.byteLength
-    const cellOverhead = 8 + 54 + 66 // More accurate overhead calculation
-    const requiredBytes = cellOverhead + dataSize
-    
-    // Convert to CKB capacity (1 CKB = 10^8 Shannon, 1 byte = 10^8 Shannon)
-    // Add 20% buffer for safety (Type ID args might change size)
-    const requiredCapacity = BigInt(Math.ceil(requiredBytes * 1.2)) * BigInt(100000000)
-    
-    console.log("Capacity calculation:", {
-      dataSize,
-      cellOverhead,
-      requiredBytes,
-      requiredCapacity: requiredCapacity.toString(),
-      requiredCKB: (Number(requiredCapacity) / 100000000).toFixed(8)
+    const { outPoint: protocolTypeCodeCell, deployment } = protocolTypeCodeCellInfo
+
+    // Create initial protocol data using ssri-ckboost Protocol class
+    // Note: The Protocol.createProtocolData expects camelCase properties
+    console.log("Creating protocol data with params:", {
+      adminLockHashes: params.adminLockHashes,
+      tippingConfigThresholds: params.tippingConfig.approvalRequirementThresholds,
+      endorsersCount: params.initialEndorsers?.length || 0
     })
     
-    // Build deployment transaction with explicit capacity
-    const tx = ccc.Transaction.from({
-      inputs: [],
-      outputs: [
-        {
-          lock: deployerScript,
-          type: protocolTypeScript,
-          capacity: requiredCapacity
-        }
-      ],
-      outputsData: ["0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('')],
-      cellDeps: [
-        {
-          outPoint: protocolTypeCodeCell.outPoint,
-          depType: "code" as const
-        }
-      ],
-      headerDeps: [],
-      witnesses: []
-    })
-    
-    // Create TransactionRecipe witness for the updateProtocol method
-    // The protocol type script expects this witness to validate the transaction
-    const recipeWitness = createTransactionRecipeWitness("updateProtocol", protocolDataBytes)
-    
-    // No need to add Type ID system script as we're using the protocol type script directly
-    
-    // First, use completeInputsAtLeastOne to get at least one input
-    await tx.completeInputsAtLeastOne(signer)
-    
-    // Now calculate Type ID using the first input
-    if (tx.inputs.length > 0) {
-      const firstInput = tx.inputs[0]
-      
-      console.log("Debug first input structure:", {
-        firstInput: safeStringify(firstInput, 2),
-        hasOutPoint: !!firstInput.outPoint,
-        hasPreviousOutput: !!firstInput.previousOutput,
-        inputKeys: Object.keys(firstInput)
-      })
-      
-      // The hashTypeId function expects the full CellInput object, not just the OutPoint
-      // According to the error, it calls CellInput.from() internally
-      
-      console.log("Using full input for hashTypeId:", {
-        firstInput: safeStringify(firstInput, 2)
-      })
-      
-      // Validate that the input has the required structure
-      if (!firstInput) {
-        throw new Error("No input available for Type ID calculation")
-      }
-      
-      // Use the full firstInput object with CCC's hashTypeId
-      // The function signature is: hashTypeId(input: CellInput, outputIndex: number)
-      const typeIdHash = ccc.hashTypeId(firstInput, 0)
-      
-      console.log("Calculated Type ID:", {
-        typeIdHash
-      })
-      
-      // Update type script with calculated Type ID
-      tx.outputs[0].type!.args = typeIdHash
-      
-      // Complete inputs by capacity after setting Type ID
-      await tx.completeInputsByCapacity(signer)
-      
-      // Add the TransactionRecipe witness
-      // The witness needs to be at the same position as the first input
-      // CKB requires witnesses to align with inputs
-      if (tx.witnesses.length === 0) {
-        tx.witnesses.push(recipeWitness)
-      } else {
-        tx.witnesses[0] = recipeWitness
-      }
-      
-      // Pad witnesses to match the number of inputs
-      while (tx.witnesses.length < tx.inputs.length) {
-        tx.witnesses.push("0x")
-      }
-      
-      // Complete fees and send
-      await tx.completeFeeBy(signer, 1000)
-      const txHash = await signer.sendTransaction(tx)
-      
-      return {
-        txHash,
-        protocolTypeScript: {
-          codeHash: tx.outputs[0].type!.codeHash,
-          hashType: tx.outputs[0].type!.hashType,
-          args: tx.outputs[0].type!.args
+    let protocolData;
+    try {
+      protocolData = Protocol.createProtocolData({
+        campaignsApproved: [],
+        tippingProposals: [],
+        tippingConfig: {
+          approvalRequirementThresholds: params.tippingConfig.approvalRequirementThresholds,
+          expirationDuration: params.tippingConfig.expirationDuration
         },
-        protocolCellOutPoint: {
-          txHash,
-          index: 0
+        endorsersWhitelist: params.initialEndorsers || [],
+        lastUpdated: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
+        protocolConfig: {
+          adminLockHashes: params.adminLockHashes,
+          scriptCodeHashes: {
+            ckbBoostProtocolTypeCodeHash: params.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+            ckbBoostProtocolLockCodeHash: params.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+            ckbBoostCampaignTypeCodeHash: params.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+            ckbBoostCampaignLockCodeHash: params.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+            ckbBoostUserTypeCodeHash: params.scriptCodeHashes.ckbBoostUserTypeCodeHash,
+            acceptedUdtTypeCodeHashes: [],
+            acceptedDobTypeCodeHashes: []
+          }
+        }
+      })
+    } catch (createError) {
+      console.error("Failed to create protocol data:", createError)
+      throw new Error(`Failed to create protocol data: ${createError instanceof Error ? createError.message : String(createError)}`)
+    }
+    
+    if (!protocolData) {
+      throw new Error("Protocol.createProtocolData returned undefined")
+    }
+    
+    console.log("Protocol data created successfully:", {
+      hasData: !!protocolData,
+      dataType: typeof protocolData
+    })
+
+    // For new protocol cell creation, we need the actual protocol type script
+    // Use the typeHash from deployment as the code hash
+    const protocolTypeScript = {
+      codeHash: deployment?.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
+      hashType: "type" as const,
+      args: "0x" // Empty args - SSRI will calculate and fill the Type ID
+    }
+    
+    // Create SSRI executor for protocol operations
+    // The executor URL should be configured based on environment
+    const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090"
+    const executor = new ssri.ExecutorJsonRpc(executorUrl)
+    
+    // Create Protocol instance with executor
+    // Pass the type script of the protocol cell (with empty args)
+    const protocol = new Protocol(protocolTypeCodeCell, protocolTypeScript, {
+      executor: executor
+    })
+    
+    // Use the Protocol's updateProtocol method to create the transaction
+    // This method will handle all the complex transaction building
+    let tx: ccc.Transaction;
+    
+    console.log("Calling SSRI updateProtocol with executor:", executorUrl)
+    console.log("Protocol type script:", protocolTypeScript)
+    
+    // Only try to log protocol data properties if it exists
+    if (protocolData && typeof protocolData === 'object') {
+      // Log the entire protocolData to see its structure
+      console.log("Full protocol data:", protocolData)
+      
+      // Try different property access patterns
+      const props = Object.keys(protocolData);
+      console.log("Protocol data properties:", props)
+      
+      console.log("Protocol data preview:", {
+        adminLockHashes: protocolData.protocol_config?.admin_lock_hash_vec || 'N/A',
+        lastUpdated: protocolData.last_updated || 'N/A',
+        hasEndorsers: protocolData.endorsers_whitelist?.length > 0 || false
+      })
+    }
+    
+    try {
+      const response = await protocol.updateProtocol(signer, protocolData)
+      tx = response.res
+      
+      console.log("SSRI response received successfully")
+      console.log("Transaction in Hex:")
+      console.log(ccc.hexFrom(tx.toBytes()))
+    } catch (error) {
+      console.error("SSRI updateProtocol failed:", error)
+      
+      // Check if it's an executor error
+      if (error instanceof Error && (error.message.includes('executor') || error.message.includes('fetch'))) {
+        // Provide guidance when SSRI executor is not ready
+        throw new Error(
+          `SSRI executor is not ready or not configured.\n\n` +
+          `To deploy a protocol cell, you need:\n` +
+          `1. The protocol type contract deployed (found in deployments.json)\n` +
+          `2. A running SSRI executor server at: ${executorUrl}\n` +
+          `3. Sufficient CKB balance in your wallet\n\n` +
+          `Please check:\n` +
+          `- Your SSRI executor server is running at ${executorUrl}\n` +
+          `- Set NEXT_PUBLIC_SSRI_EXECUTOR_URL env variable if using a different URL\n` +
+          `- Your wallet is connected and has sufficient balance\n` +
+          `- The protocol type contract is properly deployed\n` +
+          `- Try refreshing the page if the issue persists`
+        )
+      }
+      throw error
+    }
+    
+    // Since this is a new deployment, we need to ensure it creates a Type ID cell
+    // The transaction from updateProtocol should have the protocol cell as an output
+    if (!tx || !tx.outputs || tx.outputs.length === 0) {
+      throw new Error("Transaction does not include any outputs")
+    }
+    
+    // For new cell creation, we need to ensure the transaction has inputs for capacity
+    // The transaction needs inputs to pay for the new cell
+    // Let's add capacity inputs
+    await tx.completeInputsByCapacity(signer)
+    
+    // The fee rate is already in the correct unit (shannon/byte)
+    // Ensure minimum of 1000 shannon/KB (1 shannon/byte)
+    await tx.completeFeeBy(signer);
+
+    // Convert transaction to hex for debugging
+    const txHex = ccc.hexFrom(tx.toBytes())
+    
+    // Always print transaction hex for debugging
+    console.log("=== Transaction Generated ===")
+    console.log("Transaction hex:")
+    console.log(txHex)
+    console.log("\nTo debug this transaction offline, run:")
+    console.log(`cd contracts/utils && cargo run -- "${txHex}"`)
+    console.log("=============================\n")
+    
+    // Check if transaction is ready for signing
+    if (!tx.inputs || tx.inputs.length === 0) {
+      console.error("WARNING: Transaction has no inputs!")
+    }
+    if (!tx.outputs || tx.outputs.length === 0) {
+      console.error("WARNING: Transaction has no outputs!")
+    }
+    if (!tx.witnesses || tx.witnesses.length === 0) {
+      console.error("WARNING: Transaction has no witnesses!")
+    }
+    
+    try {
+      // Send the transaction
+      console.log("Sending transaction to network...")
+      console.log("This should trigger wallet signing...")
+      console.log("Signer state before send:", {
+        isConnected: !!signer,
+        hasClient: !!signer.client,
+        signerType: signer.constructor.name,
+        addressAvailable: !!(await signer.getRecommendedAddress())
+      })
+      
+      // Log transaction details
+      console.log("Transaction summary:", {
+        inputsCount: tx.inputs.length,
+        outputsCount: tx.outputs.length,
+        witnessesCount: tx.witnesses.length,
+        cellDepsCount: tx.cellDeps.length,
+        hasSignatures: tx.witnesses.some(w => w && w.length > 0)
+      })
+      
+      console.log("About to call signer.sendTransaction...")
+      
+      // SSRI provides the TransactionRecipe in the witness but doesn't sign the transaction
+      // We need to sign the transaction with the wallet
+      console.log("Transaction has witness with TransactionRecipe, needs wallet signing...")
+      
+      // Check witness structure
+      if (tx.witnesses && tx.witnesses.length > 0) {
+        console.log("Witness count:", tx.witnesses.length)
+        for (let i = 0; i < tx.witnesses.length; i++) {
+          const witness = tx.witnesses[i]
+          console.log(`Witness ${i}:`, {
+            length: witness?.length || 0,
+            hex: witness ? ccc.hexFrom(witness.slice(0, Math.min(100, witness.length))) + '...' : 'empty'
+          })
+          
+          // Try to parse as WitnessArgs
+          try {
+            if (witness && witness.length > 0) {
+              const witnessArgs = ccc.WitnessArgs.decode(witness)
+              console.log(`  WitnessArgs ${i}:`, {
+                lock: witnessArgs.lock ? `${witnessArgs.lock.length} bytes` : 'empty',
+                inputType: witnessArgs.inputType ? `${witnessArgs.inputType.length} bytes` : 'empty',
+                outputType: witnessArgs.outputType ? `${witnessArgs.outputType.length} bytes` : 'empty'
+              })
+            }
+          } catch (e) {
+            console.log(`  Not a valid WitnessArgs structure`)
+          }
         }
       }
-    } else {
-      throw new Error("No inputs found after completeInputsAtLeastOne")
+      
+      // Sign and send the transaction
+      console.log("Requesting wallet to sign transaction...")
+      
+      try {
+        const txHash = await signer.sendTransaction(tx)
+        console.log("Transaction sent successfully! TxHash:", txHash)
+        return {
+          txHash,
+          protocolTypeScript: {
+            codeHash: "0x",
+            hashType: "type" as const,
+            args: "0x"
+          },
+          protocolCellOutPoint: {
+            txHash,
+            index: 0
+          }
+        }
+      } catch (sendError: any) {
+        console.error("Transaction send failed:", sendError)
+        
+        // Check if it's a ScriptNotFound error
+        if (sendError.message?.includes('ScriptNotFound')) {
+          const match = sendError.message.match(/code_hash: Byte32\((0x[a-fA-F0-9]+)\)/);
+          const missingCodeHash = match ? match[1] : 'unknown';
+          
+          if (missingCodeHash === '0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8') {
+            throw new Error(
+              'System script not found: secp256k1_blake160.\n\n' +
+              'This is the default lock script that needs to be deployed on your network.\n' +
+              'If you are using a local devnet, make sure to deploy system scripts.\n\n' +
+              'Possible solutions:\n' +
+              '1. Use CKB devnet with pre-deployed system scripts\n' +
+              '2. Deploy the secp256k1_blake160 script manually\n' +
+              '3. Configure SSRI to use a different lock script'
+            );
+          } else {
+            throw new Error(
+              `Script not found on chain: ${missingCodeHash}\n\n` +
+              'The transaction references a script that is not deployed on the current network.\n' +
+              'Please ensure all required scripts are deployed before attempting this operation.'
+            );
+          }
+        }
+        
+        // Check if it's a signing error
+        if (sendError.message?.includes('sign') || sendError.message?.includes('wallet')) {
+          console.error("Wallet signing error. Transaction hex for debugging:")
+          console.error(txHex)
+          throw new Error(
+            `Wallet signing failed: ${sendError.message}\n\n` +
+            'Please check:\n' +
+            '1. Your wallet is connected and unlocked\n' +
+            '2. You have sufficient CKB balance\n' +
+            '3. The transaction is properly formatted'
+          );
+        }
+        
+        throw sendError
+      }
+    } catch (sendError) {
+      // If transaction fails, print the hex for debugging
+      console.error("Transaction failed to send. Transaction hex for debugging:")
+      console.error(txHex)
+      console.error("\nTo debug this transaction, run:")
+      console.error(`cd contracts/utils && cargo run -- "${txHex}"`)
+      throw sendError
     }
     
   } catch (error) {

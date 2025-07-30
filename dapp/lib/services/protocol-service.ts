@@ -505,13 +505,11 @@ export class ProtocolService {
    * @returns Default protocol data from the cell layer
    */
   async getDefaultProtocolData(): Promise<ProtocolData> {
-    try {
-      // Fetch protocol data without signer to get default/mock data
-      return await fetchProtocolData()
-    } catch (error) {
-      console.error("Failed to get default protocol data:", error)
-      throw error
-    }
+    // Cannot fetch protocol data without a signer
+    throw new Error(
+      "Cannot fetch protocol data without a connected wallet. " +
+      "Please connect your wallet to view protocol data."
+    )
   }
 
   /**

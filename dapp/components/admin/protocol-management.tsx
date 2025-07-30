@@ -173,22 +173,25 @@ export function ProtocolManagement() {
     }
   })
 
+  // Get initial values from deployment template for forms
+  const deploymentTemplate = useMemo(() => getProtocolDeploymentTemplate(), [])
+  
   const scriptCodeHashesForm = useForm<UpdateScriptCodeHashesForm>({
     resolver: zodResolver(updateScriptCodeHashesSchema),
     defaultValues: {
-      ckbBoostProtocolTypeCodeHash: "",
-      ckbBoostProtocolLockCodeHash: "",
-      ckbBoostCampaignTypeCodeHash: "",
-      ckbBoostCampaignLockCodeHash: "",
-      ckbBoostUserTypeCodeHash: ""
+      ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+      ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+      ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+      ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+      ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
     }
   })
 
   const tippingConfigForm = useForm<UpdateTippingConfigForm>({
     resolver: zodResolver(updateTippingConfigSchema),
     defaultValues: {
-      approvalRequirementThresholds: [],
-      expirationDuration: 0
+      approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
+      expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
     }
   })
 
@@ -286,9 +289,6 @@ export function ProtocolManagement() {
           const address = await signer.getRecommendedAddress()
           const userLockHash = await computeLockHashWithPrefix(address)
           
-          // Initialize with deployment defaults
-          const deploymentTemplate = getProtocolDeploymentTemplate()
-          
           // Set initial admin as the current user
           setPendingAdminChanges({
             toAdd: [userLockHash],
@@ -296,26 +296,20 @@ export function ProtocolManagement() {
           })
           setPendingChanges(prev => ({ ...prev, admins: true }))
           
-          const scriptHashesValues = {
-            ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
-            ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
-            ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
-            ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
-            ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
-          }
-          
-          const tippingValues = {
-            approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
-            expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
-          }
-
-          scriptCodeHashesForm.reset(scriptHashesValues)
-          tippingConfigForm.reset(tippingValues)
-
           // Set baseline values to prevent false change detection
+          // Forms already have the correct default values from deploymentTemplate
           setBaselineValues({
-            scriptCodeHashes: scriptHashesValues,
-            tippingConfig: tippingValues
+            scriptCodeHashes: {
+              ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
+              ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
+              ckbBoostCampaignTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignTypeCodeHash,
+              ckbBoostCampaignLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostCampaignLockCodeHash,
+              ckbBoostUserTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostUserTypeCodeHash
+            },
+            tippingConfig: {
+              approvalRequirementThresholds: deploymentTemplate.tippingConfig.approvalRequirementThresholds,
+              expirationDuration: deploymentTemplate.tippingConfig.expirationDuration
+            }
           })
         } catch (error) {
           console.error("Failed to initialize deployment forms:", error)
@@ -326,7 +320,7 @@ export function ProtocolManagement() {
     if (configStatus === 'partial') {
       initializeForDeployment()
     }
-  }, [configStatus, signer, isWalletConnected, scriptCodeHashesForm, tippingConfigForm])
+  }, [configStatus, signer, isWalletConnected, deploymentTemplate])
 
   // Update form defaults when protocol data changes (only for existing protocol)
   useEffect(() => {
@@ -770,8 +764,6 @@ export function ProtocolManagement() {
         })
       } else if (configStatus === 'partial') {
         // For deployment mode, reset to template defaults but don't mark as changed
-        const deploymentTemplate = getProtocolDeploymentTemplate()
-        
         scriptCodeHashesForm.reset({
           ckbBoostProtocolTypeCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash,
           ckbBoostProtocolLockCodeHash: deploymentTemplate.scriptCodeHashes.ckbBoostProtocolLockCodeHash,
@@ -915,9 +907,9 @@ export function ProtocolManagement() {
         scriptCodeHashes: scriptCodeHashesValues,
         tippingConfig: tippingConfigValues,
         initialEndorsers: pendingEndorserChanges.toAdd.map(endorser => ({
-          endorserLockHash: endorser.endorserLockHash,
-          endorserName: endorser.endorserName,
-          endorserDescription: endorser.endorserDescription
+          lockHash: endorser.endorserLockHash,
+          name: endorser.endorserName,
+          description: endorser.endorserDescription
         }))
       }
 
@@ -958,8 +950,10 @@ export function ProtocolManagement() {
 
   // Handle "Protocol cell not found" error specially - allow UI to continue
   // so that deployment form can be shown
-  const isProtocolNotFoundError = error?.includes('Protocol cell not found on blockchain')
+  const isProtocolNotFoundError = error?.includes('Protocol cell not found on blockchain') || 
+                                  error?.includes('No protocol cell exists on the blockchain')
   
+  // Only show error page for non-protocol-not-found errors
   if (error && !isProtocolNotFoundError) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -972,6 +966,23 @@ export function ProtocolManagement() {
               <Activity className="h-4 w-4 mr-2" />
               Retry
             </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Check wallet connection first
+  if (!isWalletConnected) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center">
+            <AlertTriangle className="h-8 w-8 text-orange-600 dark:text-orange-300" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold">Wallet Connection Required</h3>
+            <p className="text-muted-foreground">Please connect your wallet to access Protocol Management</p>
           </div>
         </div>
       </div>
@@ -1051,26 +1062,24 @@ export function ProtocolManagement() {
                   Protocol Contract Not Deployed
                 </CardTitle>
                 <CardDescription className="text-red-600 dark:text-red-400">
-                  No protocol type contract found. You need to deploy the protocol contract first using ccc-deploy, then configure the code hash in your .env file.
+                  The CKBoost protocol contract (Type Script) has not been deployed on-chain yet. This is the smart contract code that defines protocol behavior.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border">
-                    <p className="font-mono text-sm mb-2">1. Deploy the protocol contract:</p>
+                    <p className="font-mono text-sm mb-2">1. Deploy the protocol contract on-chain:</p>
                     <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
+                      # This deploys the actual smart contract code to the blockchain
                       ccc-deploy deploy generic_contract ./contracts/build/release/ckboost-protocol-type --typeId --network=testnet
                     </code>
                   </div>
                   <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border">
-                    <p className="font-mono text-sm mb-2">2. Add to your .env.local:</p>
-                    <code className="block bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
-                      NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH=0x...<br />
-                      NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE=type
-                    </code>
+                    <p className="font-mono text-sm mb-2">2. Record the deployment in deployments.json</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">The deployment information should be automatically recorded</p>
                   </div>
                   <p className="text-sm text-red-600 dark:text-red-400">
-                    After adding the environment variables, restart the dApp to continue.
+                    After deploying the contract, restart the dApp to continue.
                   </p>
                 </div>
               </CardContent>
@@ -1083,11 +1092,13 @@ export function ProtocolManagement() {
             <Card className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
               <CardHeader>
                 <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
-                  <AlertTriangle className="h-5 w-5 mr-2" />
-                  Protocol Cell Not Deployed
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Protocol Contract Deployed - Cell Creation Required
                 </CardTitle>
                 <CardDescription className="text-yellow-600 dark:text-yellow-400">
-                  Protocol contract is deployed (code hash: {process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.slice(0, 10)}...), but no protocol cell exists yet.
+                  ✓ Protocol contract is deployed on-chain (type hash: {deploymentTemplate.scriptCodeHashes.ckbBoostProtocolTypeCodeHash?.slice(0, 10)}...)
+                  <br />
+                  ✗ No protocol cell exists yet - you need to create one to store protocol data
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1102,13 +1113,20 @@ export function ProtocolManagement() {
                       </pre>
                     </div>
                   )}
-                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                    To deploy a protocol cell:
+                  <div className="bg-white dark:bg-gray-900 p-4 rounded-lg border">
+                    <h4 className="text-sm font-semibold mb-2">What's the difference?</h4>
+                    <ul className="text-xs space-y-1 text-gray-600 dark:text-gray-400">
+                      <li>• <strong>Protocol Contract</strong>: The smart contract code (Type Script) deployed on-chain</li>
+                      <li>• <strong>Protocol Cell</strong>: A data storage cell that uses the protocol contract and contains your protocol configuration</li>
+                    </ul>
+                  </div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium">
+                    To create your first protocol cell:
                   </p>
                   <ol className="list-decimal list-inside space-y-2 text-sm text-yellow-700 dark:text-yellow-300">
                     <li>Configure the protocol settings in the forms below</li>
-                    <li>Add your admin lock hash (auto-filled from your wallet)</li>
-                    <li>Set the script code hashes (use zero hashes for undeployed contracts)</li>
+                    <li>Your admin lock hash is auto-filled from your connected wallet</li>
+                    <li>Set the script code hashes (use zero hashes for contracts not yet deployed)</li>
                     <li>Configure tipping settings</li>
                     <li>Click "Deploy Protocol Cell" at the bottom of the page</li>
                   </ol>
@@ -1281,7 +1299,7 @@ export function ProtocolManagement() {
       )}
 
       {/* Protocol Configuration */}
-      {(protocolData || configStatus === 'partial') && (
+      {(protocolData || configStatus === 'partial' || isProtocolNotFoundError) && (
         <div className="space-y-6">
           {/* Admin Management - Add Admin and Current Admins */}
           <div className="grid lg:grid-cols-2 gap-6">

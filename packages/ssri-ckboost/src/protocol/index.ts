@@ -135,6 +135,7 @@ export class Protocol extends ssri.Trait {
     protocolData: ProtocolDataType,
     tx?: ccc.TransactionLike | null,
   ): Promise<ssri.ExecutorResponse<ccc.Transaction>> {
+    
     let resTx;
     
     if (this.executor) {
@@ -142,6 +143,7 @@ export class Protocol extends ssri.Trait {
       // Ensure at least one input for the transaction
       if (txReq.inputs.length === 0) {
         await txReq.completeInputsAtLeastOne(signer);
+        await txReq.completeInputsByCapacity(signer);
       }
 
       // Convert protocolData to bytes
@@ -157,9 +159,10 @@ export class Protocol extends ssri.Trait {
         scriptCodeHash: this.script.codeHash,
         scriptHashType: this.script.hashType,
         scriptArgs: this.script.args,
-        txHex: txHex.slice(0, 100) + '...', // Log first 100 chars
-        protocolDataHex: protocolDataHex.slice(0, 100) + '...'
       });
+
+      console.log('txHex', txHex);
+      console.log('protocolDataHex', protocolDataHex);
       
       try {
         const res = await this.executor.runScriptTry(
