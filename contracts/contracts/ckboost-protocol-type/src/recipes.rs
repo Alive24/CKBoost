@@ -70,7 +70,7 @@ pub mod update_protocol {
     };
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
-        TransactionValidationRules::new(b"update_protocol".to_vec())
+        TransactionValidationRules::new(b"CKBoostProtocol.update_protocol".to_vec())
             .with_arguments(1)
             // Protocol cells: exactly 1 in, 1 out (singleton pattern)
             .with_custom_cell(
