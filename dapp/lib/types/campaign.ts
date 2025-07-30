@@ -11,7 +11,7 @@ import type {
   AssetListType,
   UDTFundingType,
   ScriptType,
-  SponsorInfoType,
+  EndorserInfoType,
   UserProgressDataType,
   TokenRewardInfoType,
 } from 'ssri-ckboost/types'

@@ -143,14 +143,6 @@ export interface QuestDataType {
   completion_count: Uint32Type;
 }
 
-export interface SponsorInfoType {
-  name: BytesType;
-  description: BytesType;
-  website: BytesType;
-  social_links: BytesVecType;
-  verified: number;
-}
-
 export interface CampaignMetadataType {
   funding_info: AssetListVecType;
   created_at: Uint64Type;
@@ -173,7 +165,7 @@ export interface CampaignDataType {
   title: BytesType;
   short_description: BytesType;
   long_description: BytesType;
-  sponsor_info: SponsorInfoType;
+  endorser_info: EndorserInfoType;
   participants_count: Uint32Type;
   total_completions: Uint32Type;
 }
@@ -204,6 +196,9 @@ export interface EndorserInfoType {
   endorser_lock_hash: Byte32Type;
   endorser_name: BytesType;
   endorser_description: BytesType;
+  website: BytesType;
+  social_links: BytesVecType;
+  verified: number;
 }
 
 export interface TippingConfigType {
@@ -296,6 +291,16 @@ export const UncleBlock = mol.table({
 });
 
 export const UncleBlockVec = mol.vector(UncleBlock);
+export const EndorserInfo = mol.table({
+  endorser_lock_hash: CCCByte32,
+  endorser_name: CCCBytes,
+  endorser_description: CCCBytes,
+  website: CCCBytes,
+  social_links: CCCBytesVec,
+  verified: CCCUint8
+});
+
+export const EndorserInfoVec = mol.vector(EndorserInfo);
 export const BytesOptVec = mol.vector(CCCBytesOpt);
 export const Block = mol.table({
   header: Header,
@@ -365,14 +370,6 @@ export const QuestData = mol.table({
 });
 
 export const QuestDataVec = mol.vector(QuestData);
-export const SponsorInfo = mol.table({
-  name: CCCBytes,
-  description: CCCBytes,
-  website: CCCBytes,
-  social_links: CCCBytesVec,
-  verified: CCCUint8
-});
-
 export const CampaignMetadata = mol.table({
   funding_info: AssetListVec,
   created_at: CCCUint64,
@@ -395,7 +392,7 @@ export const CampaignData = mol.table({
   title: CCCBytes,
   short_description: CCCBytes,
   long_description: CCCBytes,
-  sponsor_info: SponsorInfo,
+  endorser_info: EndorserInfo,
   participants_count: CCCUint32,
   total_completions: CCCUint32
 });
@@ -424,13 +421,6 @@ export const TippingProposalData = mol.table({
 });
 
 export const TippingProposalDataVec = mol.vector(TippingProposalData);
-export const EndorserInfo = mol.table({
-  endorser_lock_hash: CCCByte32,
-  endorser_name: CCCBytes,
-  endorser_description: CCCBytes
-});
-
-export const EndorserInfoVec = mol.vector(EndorserInfo);
 export const TippingConfig = mol.table({
   approval_requirement_thresholds: CCCUint128Vec,
   expiration_duration: CCCUint64
@@ -543,9 +533,6 @@ export function SerializeQuestData(value: QuestDataType): Uint8Array {
 }
 export function SerializeQuestDataVec(value: QuestDataVecType): Uint8Array {
   return new Uint8Array(QuestDataVec.encode(value));
-}
-export function SerializeSponsorInfo(value: SponsorInfoType): Uint8Array {
-  return new Uint8Array(SponsorInfo.encode(value));
 }
 export function SerializeCampaignMetadata(value: CampaignMetadataType): Uint8Array {
   return new Uint8Array(CampaignMetadata.encode(value));

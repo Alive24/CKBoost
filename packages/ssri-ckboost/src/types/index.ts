@@ -18,7 +18,6 @@ import type {
   AssetListType as GeneratedAssetListType,
   UDTFundingType as GeneratedUDTFundingType,
   ScriptType as GeneratedScriptType,
-  SponsorInfoType as GeneratedSponsorInfoType,
   UserProgressDataType as GeneratedUserProgressDataType,
   TokenRewardInfoType as GeneratedTokenRewardInfoType,
   TippingProposalMetadataType as GeneratedTippingProposalMetadataType,
@@ -40,7 +39,6 @@ export type CampaignMetadataType = GeneratedCampaignMetadataType;
 export type AssetListType = GeneratedAssetListType;
 export type UDTFundingType = GeneratedUDTFundingType;
 export type ScriptType = GeneratedScriptType;
-export type SponsorInfoType = GeneratedSponsorInfoType;
 export type UserProgressDataType = GeneratedUserProgressDataType;
 export type TokenRewardInfoType = GeneratedTokenRewardInfoType;
 export type TippingProposalMetadataType = GeneratedTippingProposalMetadataType;
@@ -82,6 +80,9 @@ export interface EndorserInfoInput {
   lockHash: ccc.Hex;
   name: string;
   description: string;
+  website?: string;
+  socialLinks?: string[];
+  verified?: number;
 }
 
 // Type guards

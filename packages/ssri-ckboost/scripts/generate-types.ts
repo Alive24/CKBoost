@@ -195,7 +195,7 @@ function generateTypeScript(jsonSchema: string): string {
   
   // Define types that are used by other types early
   // We need to define them in dependency order
-  const earlyTypes = ['ProposalShortId', 'ProposalShortIdVec', 'RawTransaction', 'RawHeader', 'Header', 'UncleBlock', 'UncleBlockVec'];
+  const earlyTypes = ['ProposalShortId', 'ProposalShortIdVec', 'RawTransaction', 'RawHeader', 'Header', 'UncleBlock', 'UncleBlockVec', 'EndorserInfo', 'EndorserInfoVec'];
   const earlyTypesSet = new Set(earlyTypes);
   
   // Generate early types first in the specified order

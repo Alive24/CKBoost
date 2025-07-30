@@ -72,6 +72,9 @@ export interface AddEndorserForm {
   endorserLockHash?: string // Computed lock hash
   endorserName: string
   endorserDescription: string
+  website?: string
+  socialLinks?: string[]
+  verified?: number
 }
 
 export interface EditEndorserForm extends AddEndorserForm {

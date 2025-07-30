@@ -217,11 +217,18 @@ export class Protocol extends ssri.Trait {
     // For string fields (name, description), we need to convert to hex
     const nameHex = ccc.hexFrom(ccc.bytesFrom(endorser.name, "utf8"));
     const descHex = ccc.hexFrom(ccc.bytesFrom(endorser.description, "utf8"));
+    const websiteHex = ccc.hexFrom(ccc.bytesFrom(endorser.website || "", "utf8"));
+    const socialLinksHex = (endorser.socialLinks || []).map(link => 
+      ccc.hexFrom(ccc.bytesFrom(link, "utf8"))
+    );
 
     return {
       endorser_lock_hash: endorser.lockHash,
       endorser_name: nameHex,
-      endorser_description: descHex
+      endorser_description: descHex,
+      website: websiteHex,
+      social_links: socialLinksHex,
+      verified: endorser.verified || 0
     };
   }
 

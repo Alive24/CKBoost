@@ -222,7 +222,9 @@ export class ProtocolService {
         endorser_lock_hash: lockHashHex,
         endorser_name: nameHex,
         endorser_description: descHex,
-        // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
+        website: ccc.hexFrom(ccc.bytesFrom(form.website || "", "utf8")),
+        social_links: (form.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+        verified: form.verified || 0
       }
 
       const updatedData: ProtocolData = {
@@ -275,7 +277,9 @@ export class ProtocolService {
         endorser_lock_hash: lockHashHex,
         endorser_name: nameHex,
         endorser_description: descHex,
-        // endorser_address: stringToBuffer(form.endorserAddress) // Field not in type
+        website: ccc.hexFrom(ccc.bytesFrom(form.website || "", "utf8")),
+        social_links: (form.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+        verified: form.verified || 0
       }
 
       const updatedData: ProtocolData = {
@@ -404,7 +408,9 @@ export class ProtocolService {
                 endorser_lock_hash: lockHashHex,
                 endorser_name: nameHex,
                 endorser_description: descHex,
-                // endorser_address: stringToBuffer(edit.endorserAddress) // Field not in type
+                website: ccc.hexFrom(ccc.bytesFrom(edit.website || "", "utf8")),
+                social_links: (edit.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+                verified: edit.verified || 0
               }
             }
           }
@@ -436,7 +442,9 @@ export class ProtocolService {
               endorser_lock_hash: lockHashHex,
               endorser_name: nameHex,
               endorser_description: descHex,
-              // endorser_address: stringToBuffer(add.endorserAddress) // Field not in type
+              website: ccc.hexFrom(ccc.bytesFrom(add.website || "", "utf8")),
+              social_links: (add.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+              verified: add.verified || 0
             })
           }
         }

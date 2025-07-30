@@ -567,32 +567,6 @@
     },
     {
       "type": "table",
-      "name": "SponsorInfo",
-      "fields": [
-        {
-          "name": "name",
-          "type": "Bytes"
-        },
-        {
-          "name": "description",
-          "type": "Bytes"
-        },
-        {
-          "name": "website",
-          "type": "Bytes"
-        },
-        {
-          "name": "social_links",
-          "type": "BytesVec"
-        },
-        {
-          "name": "verified",
-          "type": "Uint8"
-        }
-      ]
-    },
-    {
-      "type": "table",
       "name": "CampaignMetadata",
       "fields": [
         {
@@ -674,8 +648,8 @@
           "type": "Bytes"
         },
         {
-          "name": "sponsor_info",
-          "type": "SponsorInfo"
+          "name": "endorser_info",
+          "type": "EndorserInfo"
         },
         {
           "name": "participants_count",
@@ -782,6 +756,18 @@
         {
           "name": "endorser_description",
           "type": "Bytes"
+        },
+        {
+          "name": "website",
+          "type": "Bytes"
+        },
+        {
+          "name": "social_links",
+          "type": "BytesVec"
+        },
+        {
+          "name": "verified",
+          "type": "Uint8"
         }
       ]
     },
