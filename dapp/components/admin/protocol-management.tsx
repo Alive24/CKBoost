@@ -391,8 +391,16 @@ export function ProtocolManagement() {
     if (!protocolData || !baselineValues.scriptCodeHashes || !baselineValues.tippingConfig) return
     
     // Check if current values match baseline values (no changes)
-    const scriptHashesEqual = JSON.stringify(scriptCodeHashesValues) === JSON.stringify(baselineValues.scriptCodeHashes)
-    const tippingEqual = JSON.stringify(tippingConfigValues) === JSON.stringify(baselineValues.tippingConfig)
+    const scriptHashesEqual = JSON.stringify(scriptCodeHashesValues, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    ) === JSON.stringify(baselineValues.scriptCodeHashes, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    )
+    const tippingEqual = JSON.stringify(tippingConfigValues, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    ) === JSON.stringify(baselineValues.tippingConfig, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    )
     
     if (scriptHashesEqual && tippingEqual) {
       // No changes detected, clear pending changes
@@ -465,9 +473,15 @@ export function ProtocolManagement() {
     protocolData,
     // Use JSON.stringify to create stable dependencies
     JSON.stringify(finalAdminLockHashes),
-    JSON.stringify(scriptCodeHashesValues),
-    JSON.stringify(tippingConfigValues),
-    JSON.stringify(baselineValues),
+    JSON.stringify(scriptCodeHashesValues, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    ),
+    JSON.stringify(tippingConfigValues, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    ),
+    JSON.stringify(baselineValues, (_, value) => 
+      typeof value === 'bigint' ? value.toString() : value
+    ),
     providerCalculateChanges
   ])
 
