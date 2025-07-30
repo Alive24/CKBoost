@@ -86,6 +86,7 @@ pub enum Error {
     InvalidProtocolVersion,
     ProtocolCellNotFound,
     ProtocolDataInvalid,
+    ProtocolDataNotLoaded,
     
     // Operation errors
     CampaignNotFound,

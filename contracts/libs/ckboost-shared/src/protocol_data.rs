@@ -89,14 +89,14 @@ pub trait ProtocolDataExt {
                                                     return Ok(protocol_data);
                                                 }
                                                 Err(_) => {
-                                                    debug!("Cell is not ProtocolData, continuing");
-                                                    continue;
+                                                    debug!("Found a protocol cell but the data is invalid. Should not happen.");
+                                                    return Err(crate::error::Error::ProtocolDataInvalid);
                                                 }
                                             }
                                         }
                                         Err(e) => {
                                             debug!("Failed to load cell data: {:?}", e);
-                                            continue;
+                                            return Err(crate::error::Error::ProtocolDataNotLoaded);
                                         }
                                     }
                                 }

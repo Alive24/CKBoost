@@ -19,18 +19,68 @@ import {
   fetchProtocolData,
   fetchProtocolDataByOutPoint,
   fetchProtocolMetrics,
-  fetchProtocolTransactions,
-  updateProtocolCell
+  fetchProtocolTransactions
 } from "../ckb/protocol-cells"
+import { Protocol } from "ssri-ckboost"
+import { deploymentManager, DeploymentManager } from "../ckb/deployment-manager"
 
 /**
  * Protocol service that provides high-level protocol operations
  */
 export class ProtocolService {
   private signer?: ccc.Signer
+  private protocol?: Protocol
 
   constructor(signer?: ccc.Signer) {
     this.signer = signer
+    
+    // Initialize Protocol instance with deployment config
+    if (signer) {
+      try {
+        // Get the protocol type code outpoint and deployment info
+        const network = DeploymentManager.getCurrentNetwork()
+        const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType')
+        const outPoint = deploymentManager.getContractOutPoint(network, 'ckboostProtocolType')
+        
+        if (!deployment || !outPoint) {
+          throw new Error("Protocol type contract not found in deployments.json")
+        }
+        
+        // Create the protocol type script
+        const protocolTypeScript = {
+          codeHash: deployment.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
+          hashType: "type" as const,
+          args: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x" // Protocol cell type args
+        }
+        
+        this.protocol = new Protocol(outPoint, protocolTypeScript)
+      } catch (error) {
+        console.warn("Failed to initialize Protocol instance:", error)
+      }
+    }
+  }
+
+  /**
+   * Helper method to update protocol using the SDK
+   */
+  private async updateProtocol(updatedData: ProtocolData): Promise<string> {
+    if (!this.signer) {
+      throw new Error("Signer is required to update protocol")
+    }
+    
+    if (!this.protocol) {
+      throw new Error("Protocol instance not initialized. Check deployment configuration.")
+    }
+
+    // Create the transaction using the SDK
+    const { res: tx } = await this.protocol.updateProtocol(this.signer, updatedData)
+    
+    // Complete fees and send transaction
+    await tx.completeFeeBy(this.signer, 1000)
+    const txHash = await this.signer.sendTransaction(tx)
+    
+    console.log("Protocol updated, tx:", txHash)
+    return txHash
   }
 
   /**
@@ -123,7 +173,7 @@ export class ProtocolService {
         last_updated: timestampBuffer
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to update protocol config:", error)
       throw error
@@ -154,7 +204,7 @@ export class ProtocolService {
         last_updated: BigInt(Date.now())
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to update script code hashes:", error)
       throw error
@@ -182,7 +232,7 @@ export class ProtocolService {
         last_updated: BigInt(Date.now())
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to update tipping config:", error)
       throw error
@@ -233,7 +283,7 @@ export class ProtocolService {
         last_updated: BigInt(Date.now())
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to add endorser:", error)
       throw error
@@ -288,7 +338,7 @@ export class ProtocolService {
         last_updated: BigInt(Date.now())
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to edit endorser:", error)
       throw error
@@ -316,7 +366,7 @@ export class ProtocolService {
         last_updated: BigInt(Date.now())
       }
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to remove endorser:", error)
       throw error
@@ -454,7 +504,7 @@ export class ProtocolService {
 
       updatedData.last_updated = BigInt(Date.now())
 
-      return await updateProtocolCell(this.signer, updatedData)
+      return await this.updateProtocol(updatedData)
     } catch (error) {
       console.error("Failed to batch update protocol:", error)
       throw error
