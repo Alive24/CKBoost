@@ -85,6 +85,7 @@ import {
   validateDeploymentParams,
   type DeployProtocolCellParams 
 } from "@/lib/ckb/protocol-deployment"
+import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
 import { Byte32, Uint128, Uint64 } from "ssri-ckboost/types"
 
 // Form types
@@ -225,6 +226,9 @@ export function ProtocolManagement() {
   // State for protocol deployment
   const [isDeploying, setIsDeploying] = useState(false)
   const [deploymentResult, setDeploymentResult] = useState<{txHash: string; args: string} | null>(null)
+  
+  // State for protocol cell information
+  const [protocolCell, setProtocolCell] = useState<any | null>(null)
   
   // Track the baseline values that forms were reset to, to prevent false change detection
   const [baselineValues, setBaselineValues] = useState<{
@@ -498,6 +502,23 @@ export function ProtocolManagement() {
       setPreviewLockHash("")
     }
   }, [watchedInputMode, watchedAddress])
+
+  // Effect to fetch protocol cell information
+  useEffect(() => {
+    const fetchCellInfo = async () => {
+      if (signer && configStatus === 'complete') {
+        try {
+          const cell = await fetchProtocolCell(signer)
+          setProtocolCell(cell)
+        } catch (error) {
+          console.error("Failed to fetch protocol cell:", error)
+          setProtocolCell(null)
+        }
+      }
+    }
+    
+    fetchCellInfo()
+  }, [signer, configStatus])
 
   const onAddAdmin = async (data: AddAdminForm & { inputMode: "address" | "script" }) => {
     try {
@@ -1431,7 +1452,7 @@ export function ProtocolManagement() {
                   {/* Show existing admins */}
                   {protocolData && protocolData.protocol_config.admin_lock_hash_vec.map((admin: any, index: number) => {
                     const isMarkedForRemoval = pendingAdminChanges.toRemove.includes(`0x${index.toString(16)}` as `0x${string}`)
-                    const adminHash = ccc.hexFrom(new Uint8Array(admin as ArrayBuffer))
+                    const adminHash = typeof admin === 'string' ? admin as ccc.Hex : ccc.hexFrom(admin)
                     return (
                       <div 
                         key={index} 
@@ -1812,7 +1833,16 @@ export function ProtocolManagement() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className={`font-medium ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                              {new TextDecoder().decode(new Uint8Array(endorser.endorser_name as ArrayBuffer))}
+                              {typeof endorser.endorser_name === 'string' 
+                                ? (() => {
+                                    try {
+                                      const bytes = ccc.bytesFrom(endorser.endorser_name, "hex");
+                                      return bytes.length > 0 ? new TextDecoder().decode(bytes) : endorser.endorser_name;
+                                    } catch {
+                                      return endorser.endorser_name;
+                                    }
+                                  })()
+                                : new TextDecoder().decode(new Uint8Array(endorser.endorser_name as ArrayBuffer))}
                             </div>
                             <div className="flex items-center gap-2">
                               {isMarkedForRemoval ? (
@@ -1832,11 +1862,22 @@ export function ProtocolManagement() {
                             </div>
                           </div>
                           <div className={`text-sm text-muted-foreground ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                            {new TextDecoder().decode(new Uint8Array(endorser.endorser_description as ArrayBuffer))}
+                            {typeof endorser.endorser_description === 'string' 
+                              ? (() => {
+                                  try {
+                                    const bytes = ccc.bytesFrom(endorser.endorser_description, "hex");
+                                    return bytes.length > 0 ? new TextDecoder().decode(bytes) : endorser.endorser_description;
+                                  } catch {
+                                    return endorser.endorser_description;
+                                  }
+                                })()
+                              : new TextDecoder().decode(new Uint8Array(endorser.endorser_description as ArrayBuffer))}
                           </div>
                           <div className="text-xs text-muted-foreground">
                             <span className="font-medium">Lock Hash:</span>{" "}
-                            <span className="font-mono">{ccc.hexFrom(new Uint8Array(endorser.endorser_lock_hash as ArrayBuffer))}</span>
+                            <span className="font-mono">{typeof endorser.endorser_lock_hash === 'string' 
+                              ? endorser.endorser_lock_hash as ccc.Hex 
+                              : ccc.hexFrom(new Uint8Array(endorser.endorser_lock_hash as ArrayBuffer))}</span>
                           </div>
                         </div>
                       </div>
@@ -1854,15 +1895,17 @@ export function ProtocolManagement() {
           </div>
 
           {/* Protocol Summary or Deployment Button */}
-          {configStatus === 'partial' ? (
+          {(configStatus === 'partial' || (error && (error.includes('corrupted') || error.includes('incompatible')))) ? (
             <Card className="border-yellow-500">
               <CardHeader>
                 <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
                   <AlertTriangle className="h-5 w-5 mr-2" />
-                  Ready to Deploy Protocol Cell
+                  {error && error.includes('corrupted') ? 'Redeploy Protocol Cell' : 'Ready to Deploy Protocol Cell'}
                 </CardTitle>
                 <CardDescription className="text-yellow-600 dark:text-yellow-400">
-                  Review your configuration above and deploy the protocol cell when ready.
+                  {error && error.includes('corrupted') 
+                    ? 'The existing protocol cell data is corrupted. Review your configuration and redeploy.'
+                    : 'Review your configuration above and deploy the protocol cell when ready.'}
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex justify-center gap-4">
@@ -1875,12 +1918,12 @@ export function ProtocolManagement() {
                   {isDeploying ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      Deploying Protocol Cell...
+                      {error && error.includes('corrupted') ? 'Redeploying Protocol Cell...' : 'Deploying Protocol Cell...'}
                     </>
                   ) : (
                     <>
                       <Plus className="h-5 w-5 mr-2" />
-                      Deploy Protocol Cell
+                      {error && error.includes('corrupted') ? 'Redeploy Protocol Cell' : 'Deploy Protocol Cell'}
                     </>
                   )}
                 </Button>
@@ -1903,22 +1946,91 @@ export function ProtocolManagement() {
                 <CardDescription>Overview of current protocol configuration</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <div className="font-medium">Last Updated</div>
-                    <div className="text-muted-foreground">{protocolData ? formatTimestamp(Number(protocolData.last_updated / 1000n) * 1000) : 'N/A'}</div>
+                <div className="space-y-6">
+                  {/* High-level Protocol Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <div className="font-medium">Last Updated</div>
+                      <div className="text-muted-foreground">
+                        {protocolData ? (() => {
+                          const timestamp = Number(protocolData.last_updated);
+                          // If timestamp looks like it's already in seconds, use it directly
+                          // If it's too small (like default fallback), show "Not set"
+                          if (timestamp < 1000000000) return 'Not set';
+                          // If timestamp is in milliseconds, convert to seconds
+                          const finalTimestamp = timestamp > 1000000000000 ? timestamp : timestamp * 1000;
+                          return formatTimestamp(finalTimestamp);
+                        })() : 'N/A'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Admin Addresses</div>
+                      <div className="text-muted-foreground">{protocolData?.protocol_config.admin_lock_hash_vec.length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Active Endorsers</div>
+                      <div className="text-muted-foreground">{protocolData?.endorsers_whitelist.length || 0}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium">Protocol Status</div>
+                      <div className="text-muted-foreground">Active</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium">Admin Addresses</div>
-                    <div className="text-muted-foreground">{protocolData?.protocol_config.admin_lock_hash_vec.length || 0}</div>
+
+                  {/* Protocol Cell Information */}
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Protocol Cell Info</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Transaction Hash</div>
+                        <div className="font-mono text-xs break-all mt-1">
+                          {protocolCell?.outPoint.txHash || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Output Index</div>
+                        <div className="mt-1">
+                          {protocolCell?.outPoint.index ?? 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Type Script Hash</div>
+                        <div className="font-mono text-xs break-all mt-1">
+                          {protocolCell?.output.type?.codeHash || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Type Script Args</div>
+                        <div className="font-mono text-xs break-all mt-1">
+                          {protocolCell?.output.type?.args || 'N/A'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-medium">Active Endorsers</div>
-                    <div className="text-muted-foreground">{protocolData?.endorsers_whitelist.length || 0}</div>
-                  </div>
-                  <div>
-                    <div className="font-medium">Protocol Status</div>
-                    <div className="text-muted-foreground">Active</div>
+
+                  {/* Activity Summary */}
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-3">Activity Summary</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Approved Campaigns</div>
+                        <div className="mt-1">
+                          {protocolData?.campaigns_approved.length || 0} campaigns
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Tipping Proposals</div>
+                        <div className="mt-1">
+                          {protocolData?.tipping_proposals.length || 0} proposals
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">Cell Capacity</div>
+                        <div className="mt-1">
+                          {protocolCell ? `${(Number(protocolCell.output.capacity) / 100000000).toFixed(2)} CKB` : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -9,7 +9,7 @@ import {
   ProtocolTransaction,
 } from "../types/protocol";
 import { deploymentManager, DeploymentManager } from "./deployment-manager";
-import { SerializeProtocolData } from "ssri-ckboost";
+import { SerializeProtocolData, types } from "ssri-ckboost";
 
 /**
  * Get the protocol type code cell outpoint from deployment information
@@ -241,9 +241,34 @@ export function parseProtocolData(cellData: string): ProtocolData {
       return defaultProtocolData;
     }
 
-    // For actual protocol data, we would parse it here
-    // But since the current cell is empty, this code path won't be reached yet
-    throw new Error("Protocol data parsing not yet implemented for non-empty cells");
+    // Parse actual protocol data using molecule codec
+    console.log("Parsing protocol data from cell:", cellData);
+    
+    try {
+      // Convert hex string to bytes for molecule parsing
+      const cellDataBytes = ccc.bytesFrom(cellData);
+      console.log("Cell data bytes length:", cellDataBytes.length);
+      
+      // Decode using the generated ProtocolData codec from types namespace
+      const protocolData = types.ProtocolData.decode(cellDataBytes);
+      
+      console.log("Successfully parsed protocol data");
+      
+      // Return the decoded data - cast through unknown to handle type differences
+      // The decoded data has the correct structure but some fields may have different types (bigint vs number)
+      // This is acceptable since the consuming code should handle these type variations
+      return protocolData as unknown as ProtocolData;
+    } catch (parseError) {
+      console.error("Failed to parse protocol data:", parseError);
+      console.error("Cell data that failed to parse:", cellData);
+      
+      // If we have non-empty cell data but can't parse it, the cell is corrupted
+      // Throw an error to trigger redeployment
+      throw new Error(
+        "Protocol cell data is corrupted or incompatible. " +
+        "Please redeploy the protocol cell using the Protocol Management interface."
+      );
+    }
   } catch (error) {
     console.error("Failed to parse ProtocolData:", error);
     throw error;

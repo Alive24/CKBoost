@@ -8,15 +8,19 @@ export type {
   EndorserInfoType as EndorserInfo,
   TippingProposalDataType as TippingProposalData,
   CampaignDataType as CampaignData,
+  ScriptCodeHashesType as ScriptCodeHashes,
+  ProtocolConfigType as ProtocolConfig,
+  TippingConfigType as TippingConfig,
 } from 'ssri-ckboost/types'
 
 // UI-specific protocol metrics
 export interface ProtocolMetrics {
-  totalCampaigns: number
-  activeCampaigns: number
-  totalTips: number
-  totalTipAmount: number
-  totalEndorsers: number
+  totalCampaigns: bigint
+  activeCampaigns: bigint
+  totalTippingProposals: bigint
+  pendingTippingProposals: bigint
+  totalEndorsers: bigint
+  lastUpdated: string // ISO date string
 }
 
 // Form-specific types for UI forms

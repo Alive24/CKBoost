@@ -112,10 +112,12 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         setError(errorMessage)
         console.error('Failed to initialize protocol data:', err)
         
-        // For protocol cell not found errors, set data to null but keep the error
+        // For protocol cell not found errors or corrupted data, set data to null but keep the error
         // This allows the UI to show the deployment form
         if (errorMessage.includes('Protocol cell not found on blockchain') || 
-            errorMessage.includes('No protocol cell exists')) {
+            errorMessage.includes('No protocol cell exists') ||
+            errorMessage.includes('Protocol cell data is corrupted') ||
+            errorMessage.includes('incompatible')) {
           setProtocolData(null)
           setMetrics(null)
           setTransactions([])
