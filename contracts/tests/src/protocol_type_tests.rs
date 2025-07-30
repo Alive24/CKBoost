@@ -79,7 +79,7 @@ fn test_protocol_type_id_creation() {
     
     // Create transaction recipe witness with output reference
     // The protocol data is at output index 0
-    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     // Build transaction
     let tx = TransactionBuilder::default()
@@ -147,7 +147,7 @@ fn test_protocol_type_id_validation_existing_cell() {
     
     // Create transaction recipe witness with output reference
     // The protocol data is at output index 0
-    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     // Build transaction
     let tx = TransactionBuilder::default()
@@ -387,7 +387,7 @@ fn test_protocol_ssri_update_protocol() {
     
     // Create transaction recipe witness with output reference
     // The protocol data is at output index 0
-    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let recipe_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     // Build transaction
     let tx = TransactionBuilder::default()

@@ -178,7 +178,7 @@ fn test_update_protocol_with_transaction_context() {
     
     // Create transaction recipe witness for initial creation with output reference
     // The protocol data is at output index 0
-    let creation_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let creation_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     let creation_tx = TransactionBuilder::default()
         .input(initial_input)
@@ -220,7 +220,7 @@ fn test_update_protocol_with_transaction_context() {
     
     // Create transaction recipe witness for update with output reference
     // The updated protocol data is at output index 0
-    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     let update_tx = TransactionBuilder::default()
         .input(update_input)
@@ -293,7 +293,7 @@ fn test_update_protocol_invalid_admin_lock_change() {
         .build();
     
     // The protocol data is at output index 0
-    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     let tx = TransactionBuilder::default()
         .input(input)
@@ -362,7 +362,7 @@ fn test_update_protocol_invalid_type_script_change() {
         .build();
     
     // The protocol data is at output index 0
-    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 0);
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 0);
     
     let tx = TransactionBuilder::default()
         .input(input)
@@ -464,7 +464,7 @@ fn test_update_protocol_with_complex_transaction() {
     
     // Create transaction recipe witness
     // The protocol data is at output index 1 (after the normal cell)
-    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.updateProtocol", 1);
+    let update_witness = create_recipe_witness_with_output_ref("CKBoostProtocol.update_protocol", 1);
     
     let mut tx_builder = TransactionBuilder::default()
         .witness(update_witness.pack());
@@ -598,7 +598,7 @@ fn test_update_protocol_missing_arguments() {
         .build();
     
     // Create transaction recipe witness with no arguments (should have at least 1)
-    let no_witness = create_recipe_witness("CKBoostProtocol.updateProtocol", vec![]);
+    let no_witness = create_recipe_witness("CKBoostProtocol.update_protocol", vec![]);
     
     let tx = TransactionBuilder::default()
         .input(input)

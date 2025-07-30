@@ -201,7 +201,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
         
         // Create recipe with output data reference
         let recipe = create_recipe_with_args(
-            "CKBoostProtocol.updateProtocol",
+            "CKBoostProtocol.update_protocol",
             vec![create_recipe_with_reference(Source::Output, output_data_index)]
         )?;
         

@@ -16,10 +16,10 @@ pub fn fallback() -> Result<(), Error> {
     debug!("Transaction context created successfully in fallback");
 
     match context.recipe.method_path_bytes().as_slice() {
-        b"CKBoostProtocol.updateProtocol" => {
+        b"CKBoostProtocol.update_protocol" => {
             CKBoostProtocolType::verify_update_protocol(&context)
         }
-        b"CKBoostProtocol.updateTippingProposal" => {
+        b"CKBoostProtocol.update_tipping_proposal" => {
             CKBoostProtocolType::verify_update_tipping_proposal(&context)
         }
         _ => Err(Error::SSRIMethodsNotImplemented)
