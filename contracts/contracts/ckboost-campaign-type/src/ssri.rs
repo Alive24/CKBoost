@@ -1,28 +1,27 @@
-use ckboost_shared::{
-    cell_collector::RuleBasedClassifier, transaction_context::TransactionContext, types::{CampaignData, QuestData}, Error
+use ckb_deterministic::{
+    cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
 };
-use ckb_std::ckb_types::packed::Script;
-use alloc::vec::Vec;
+use ckboost_shared::{
+    types::{CampaignData, QuestData, Byte32}, Error
+};
+use ckb_std::ckb_types::packed::Transaction;
 
 /// CKBoost Campaign SSRI trait for campaign management operations
-#[allow(dead_code)]
 pub trait CKBoostCampaign {
     /// Create or update a campaign
     /// 
     /// # Arguments
     /// 
-    /// * `campaign_id` - If None, creates a new campaign. If Some, updates existing campaign
+    /// * `tx` - Optional existing transaction to build upon
     /// * `campaign_data` - The campaign configuration and metadata
-    /// * `ckb_amount` - Optional CKB funding amount (in addition to occupied capacity)
-    /// * `nft_assets` - Optional NFT assets to lock in the campaign
-    /// * `udt_assets` - Optional UDT assets with amounts to lock in the campaign
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a transaction with the campaign cell created/updated
     fn update_campaign(
-        campaign_id: Option<u64>,
+        tx: Option<Transaction>,
         campaign_data: CampaignData,
-        ckb_amount: Option<u64>,
-        nft_assets: Option<Vec<Script>>,
-        udt_assets: Option<Vec<(Script, u64)>>,
-    ) -> Result<(), Error>;
+    ) -> Result<Transaction, Error>;
     
     /// Verify campaign update/creation transaction in Type Script
     /// This method is called automatically by the type script to validate transactions
@@ -30,32 +29,22 @@ pub trait CKBoostCampaign {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error>;
     
-    /// Fund an existing campaign with additional assets
-    /// Note: No need to verify fund, just lock the assets to the campaign cell
-    /// 
-    /// # Arguments
-    /// 
-    /// * `campaign_id` - The ID of the campaign to fund
-    /// * `ckb_amount` - Optional additional CKB funding
-    /// * `nft_assets` - Optional NFT assets to add
-    /// * `udt_assets` - Optional UDT assets with amounts to add
-    fn fund(
-        campaign_id: u64,
-        ckb_amount: Option<u64>,
-        nft_assets: Option<Vec<Script>>,
-        udt_assets: Option<Vec<(Script, u64)>>,
-    ) -> Result<(), Error>;
-    
     /// Approve quest completion and distribute rewards
     /// 
     /// # Arguments
     /// 
+    /// * `tx` - Optional existing transaction to build upon
     /// * `campaign_id` - The campaign that contains the quest
     /// * `quest_data` - The quest completion data including proof
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a transaction with the quest completion processed
     fn approve_completion(
-        campaign_id: u64,
+        tx: Option<Transaction>,
+        campaign_id: Byte32,
         quest_data: QuestData,
-    ) -> Result<(), Error>;
+    ) -> Result<Transaction, Error>;
     
     /// Verify quest completion approval transaction in Type Script
     /// This method is called automatically by the type script to validate transactions

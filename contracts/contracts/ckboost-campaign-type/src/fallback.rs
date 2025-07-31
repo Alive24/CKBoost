@@ -9,7 +9,7 @@ use ckboost_shared::{
 };
 use ckb_std::debug;
 
-use crate::{modules::CKBoostCampaignType, recipes, ssri::CKBoostCampaign};
+use crate::{modules::CKBoostCampaignType, ssri::CKBoostCampaign};
 
 /// Fallback validation implementation for CKBoost Campaign Type
 /// This executes when SSRI methods are not yet implemented
@@ -19,8 +19,15 @@ pub fn fallback() -> Result<(), Error> {
     let context = create_transaction_context()?;
     
     match context.recipe.method_path_bytes().as_slice() {
-        b"CKBoostCampaign.updateCampaign" => {
+        b"CKBoostCampaign.update_campaign" => {
             CKBoostCampaignType::verify_update_campaign(&context)
+        }
+        b"CKBoostCampaign.approve_completion" => {
+            CKBoostCampaignType::verify_approve_completion(&context)
+        }
+        b"CKBoostCampaign.completeQuest" => {
+            // Alternative method path for quest completion
+            CKBoostCampaignType::verify_approve_completion(&context)
         }
         _ => {
             debug!("No matching validation rules found for method path");

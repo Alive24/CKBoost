@@ -90,6 +90,7 @@ pub enum Error {
     
     // Operation errors
     CampaignNotFound,
+    CampaignCellNotFound,
     CampaignNotActive,
     InsufficientFunding,
     QuestLimitExceeded,
