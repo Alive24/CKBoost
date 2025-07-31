@@ -1825,6 +1825,38 @@ export function ProtocolManagement() {
                   {/* Show existing endorsers */}
                   {protocolData && protocolData.endorsers_whitelist.map((endorser: any, index: number) => {
                     const isMarkedForRemoval = pendingEndorserChanges.toRemove.includes(BigInt(index))
+                    
+                    // Helper function to decode Bytes field
+                    const decodeBytes = (bytesData: any): string => {
+                      if (!bytesData) return '';
+                      
+                      // If it's already a string (hex), convert to bytes first
+                      if (typeof bytesData === 'string') {
+                        try {
+                          // Remove 0x prefix if present
+                          const hexStr = bytesData.startsWith('0x') ? bytesData.slice(2) : bytesData;
+                          const bytes = new Uint8Array(hexStr.match(/.{1,2}/g)?.map(byte => parseInt(byte, 16)) || []);
+                          return new TextDecoder().decode(bytes);
+                        } catch {
+                          return bytesData; // Return original if decode fails
+                        }
+                      }
+                      
+                      // If it's a Uint8Array or ArrayBuffer
+                      if (bytesData instanceof Uint8Array) {
+                        return new TextDecoder().decode(bytesData);
+                      }
+                      if (bytesData instanceof ArrayBuffer) {
+                        return new TextDecoder().decode(new Uint8Array(bytesData));
+                      }
+                      
+                      return String(bytesData);
+                    };
+                    
+                    const endorserName = decodeBytes(endorser.endorser_name);
+                    const endorserDescription = decodeBytes(endorser.endorser_description);
+                    const website = decodeBytes(endorser.website);
+                    
                     return (
                       <div 
                         key={index} 
@@ -1833,16 +1865,7 @@ export function ProtocolManagement() {
                         <div className="space-y-2">
                           <div className="flex items-center justify-between">
                             <div className={`font-medium ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                              {typeof endorser.endorser_name === 'string' 
-                                ? (() => {
-                                    try {
-                                      const bytes = ccc.bytesFrom(endorser.endorser_name, "hex");
-                                      return bytes.length > 0 ? new TextDecoder().decode(bytes) : endorser.endorser_name;
-                                    } catch {
-                                      return endorser.endorser_name;
-                                    }
-                                  })()
-                                : new TextDecoder().decode(new Uint8Array(endorser.endorser_name as ArrayBuffer))}
+                              {endorserName || `Endorser ${index + 1}`}
                             </div>
                             <div className="flex items-center gap-2">
                               {isMarkedForRemoval ? (
@@ -1862,22 +1885,24 @@ export function ProtocolManagement() {
                             </div>
                           </div>
                           <div className={`text-sm text-muted-foreground ${isMarkedForRemoval ? 'line-through' : ''}`}>
-                            {typeof endorser.endorser_description === 'string' 
-                              ? (() => {
-                                  try {
-                                    const bytes = ccc.bytesFrom(endorser.endorser_description, "hex");
-                                    return bytes.length > 0 ? new TextDecoder().decode(bytes) : endorser.endorser_description;
-                                  } catch {
-                                    return endorser.endorser_description;
-                                  }
-                                })()
-                              : new TextDecoder().decode(new Uint8Array(endorser.endorser_description as ArrayBuffer))}
+                            {endorserDescription}
                           </div>
+                          {website && (
+                            <div className="text-xs text-muted-foreground">
+                              <span className="font-medium">Website:</span>{" "}
+                              <a href={website.startsWith('http') ? website : `https://${website}`} 
+                                 target="_blank" 
+                                 rel="noopener noreferrer"
+                                 className="text-blue-600 hover:underline">
+                                {website}
+                              </a>
+                            </div>
+                          )}
                           <div className="text-xs text-muted-foreground">
                             <span className="font-medium">Lock Hash:</span>{" "}
                             <span className="font-mono">{typeof endorser.endorser_lock_hash === 'string' 
                               ? endorser.endorser_lock_hash as ccc.Hex 
-                              : ccc.hexFrom(new Uint8Array(endorser.endorser_lock_hash as ArrayBuffer))}</span>
+                              : ccc.hexFrom(endorser.endorser_lock_hash)}</span>
                           </div>
                         </div>
                       </div>
