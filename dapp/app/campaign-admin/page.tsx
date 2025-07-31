@@ -201,18 +201,18 @@ export default function CampaignAdminDashboard() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
         <div className="mb-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-3">
                   <Crown className="w-8 h-8 text-amber-600" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Campaign Admin Dashboard
-            </h1>
-          </div>
-          <p className="text-lg text-muted-foreground">
+                  </h1>
+                </div>
+                <p className="text-base text-muted-foreground mb-3">
                   Manage your campaigns, quests, staff, and review submissions
                 </p>
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-2">
                   <Badge className="bg-amber-100 text-amber-800">
                     👑 Campaign Administrator
                   </Badge>
@@ -232,9 +232,11 @@ export default function CampaignAdminDashboard() {
                       {CURRENT_USER.avatar}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="text-sm">
+                  <div className="text-sm max-w-48">
                     <div className="font-medium">{CURRENT_USER.name}</div>
-                    <div className="text-muted-foreground">{CURRENT_USER.address}</div>
+                    <div className="text-muted-foreground truncate" title={CURRENT_USER.address}>
+                      {CURRENT_USER.address.slice(0, 12)}...{CURRENT_USER.address.slice(-8)}
+                    </div>
                   </div>
                 </div>
                 <Link href="/create-campaign">

@@ -155,7 +155,7 @@ export default function CreateCampaign() {
               <Link href="/">
                 <Button>View All Campaigns</Button>
               </Link>
-              <Link href="/admin">
+              <Link href="/campaign-admin">
                 <Button variant="outline">Go to Admin Dashboard</Button>
               </Link>
               <Button variant="outline" onClick={() => setIsSubmitted(false)}>

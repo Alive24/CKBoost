@@ -411,7 +411,7 @@ export default function QuestDetail() {
                         <Trophy className="w-4 h-4 mr-1" />
                         Manage Rewards
                       </Button>
-                      <Link href="/admin">
+                      <Link href="/campaign-admin">
                         <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
                           <Settings className="w-4 h-4 mr-1" />
                           Admin Dashboard

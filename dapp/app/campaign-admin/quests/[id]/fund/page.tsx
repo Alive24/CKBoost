@@ -74,7 +74,7 @@ export default function FundQuest() {
             <div className="text-6xl mb-4">❓</div>
             <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
             <p className="text-muted-foreground mb-4">The quest you're looking for doesn't exist.</p>
-            <Link href="/admin/quests">
+            <Link href="/campaign-admin/quests">
               <Button>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Quest Management
@@ -126,7 +126,7 @@ export default function FundQuest() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/admin/quests">
+            <Link href="/campaign-admin/quests">
               <Button variant="ghost" className="flex items-center gap-2 mb-4">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Quest Management

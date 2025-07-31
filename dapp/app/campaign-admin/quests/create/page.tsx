@@ -116,7 +116,7 @@ export default function CreateQuest() {
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/admin/quests">
+            <Link href="/campaign-admin/quests">
               <Button variant="ghost" className="flex items-center gap-2 mb-4">
                 <ArrowLeft className="w-4 h-4" />
                 Back to Quest Management
@@ -429,7 +429,7 @@ export default function CreateQuest() {
 
             {/* Submit */}
             <div className="flex items-center justify-between pt-6 border-t">
-              <Link href="/admin/quests">
+              <Link href="/campaign-admin/quests">
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>

@@ -210,7 +210,7 @@ export function WalletConnect() {
         {/* Admin Actions */}
         {hasPermission("campaign_admin") && (
           <DropdownMenuItem asChild>
-            <Link href="/admin" className="w-full">
+            <Link href="/campaign-admin" className="w-full">
               <Settings className="w-4 h-4 mr-2" />
               Campaign Admin
             </Link>

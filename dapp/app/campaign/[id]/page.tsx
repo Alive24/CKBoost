@@ -179,7 +179,7 @@ export default function CampaignDetail() {
                               <Edit className="w-4 h-4" />
                               Edit Campaign
                             </Button>
-                            <Link href="/admin">
+                            <Link href="/campaign-admin">
                               <Button variant="outline" size="sm" className="flex items-center gap-2">
                                 <Settings className="w-4 h-4" />
                                 Manage

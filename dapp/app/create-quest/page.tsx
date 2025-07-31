@@ -245,7 +245,7 @@ export default function CreateQuest() {
               <Button variant="outline" onClick={handleCreateCampaign}>
                 Create New Campaign
               </Button>
-              <Link href="/admin">
+              <Link href="/campaign-admin">
                 <Button variant="outline">
                   Go to Admin Dashboard
                 </Button>

@@ -124,25 +124,25 @@ export default function Dashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Link href="/admin">
+                    <Link href="/campaign-admin">
                       <Button variant="outline" className="w-full justify-start bg-transparent">
                         <UserCog className="w-4 h-4 mr-2" />
                         Admin Dashboard
                       </Button>
                     </Link>
-                    <Link href="/admin/users">
+                    <Link href="/campaign-admin/users">
                       <Button variant="outline" className="w-full justify-start bg-transparent">
                         <Users className="w-4 h-4 mr-2" />
                         User Management
                       </Button>
                     </Link>
-                    <Link href="/admin/quests">
+                    <Link href="/campaign-admin/quests">
                       <Button variant="outline" className="w-full justify-start bg-transparent">
                         <Target className="w-4 h-4 mr-2" />
                         Quest Management
                       </Button>
                     </Link>
-                    <Link href="/admin/tips">
+                    <Link href="/campaign-admin/tips">
                       <Button variant="outline" className="w-full justify-start bg-transparent">
                         <FileText className="w-4 h-4 mr-2" />
                         Tip Management

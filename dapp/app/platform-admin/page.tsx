@@ -731,7 +731,7 @@ export default function PlatformAdminDashboard() {
                   <Badge className="bg-red-100 text-red-800">
                     🛡️ Platform Administrator
                   </Badge>
-                  <Link href="/admin">
+                  <Link href="/campaign-admin">
                     <Badge variant="outline" className="bg-amber-100 text-amber-800 cursor-pointer hover:bg-amber-200">
                       👑 Campaign Admin Access
                     </Badge>
