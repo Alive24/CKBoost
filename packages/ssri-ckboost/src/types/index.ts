@@ -1,97 +1,42 @@
 // Re-export types from generated files with better organization
 // This provides a clean interface for the SDK types
 
-// Import everything from generated
-import { ccc } from "@ckb-ccc/core";
-import type {
-  ProtocolDataType as GeneratedProtocolDataType,
-  ProtocolConfigType as GeneratedProtocolConfigType,
-  TippingConfigType as GeneratedTippingConfigType,
-  EndorserInfoType as GeneratedEndorserInfoType,
-  TippingProposalDataType as GeneratedTippingProposalDataType,
-  CampaignDataType as GeneratedCampaignDataType,
-  ScriptCodeHashesType as GeneratedScriptCodeHashesType,
-  QuestDataType as GeneratedQuestDataType,
-  QuestSubTaskDataType as GeneratedQuestSubTaskDataType,
-  CompletionRecordType as GeneratedCompletionRecordType,
-  CampaignMetadataType as GeneratedCampaignMetadataType,
-  AssetListType as GeneratedAssetListType,
-  UDTFundingType as GeneratedUDTFundingType,
-  ScriptType as GeneratedScriptType,
-  UserProgressDataType as GeneratedUserProgressDataType,
-  TokenRewardInfoType as GeneratedTokenRewardInfoType,
-  TippingProposalMetadataType as GeneratedTippingProposalMetadataType,
-  UserVerificationDataType as GeneratedUserVerificationDataType
+// Import codecs and Like types from generated
+export {
+  ProtocolData,
+  ProtocolConfig,
+  TippingConfig,  
+  EndorserInfo,
+  TippingProposalData,
+  CampaignData,
+  CampaignDataVec,
+  ScriptCodeHashes,
+  QuestData,
+  QuestSubTaskData,
+  CompletionRecord,
+  CampaignMetadata,
+  AssetList,
+  UDTFunding,
+  UserProgressData,
+  TokenRewardInfo,
+  TippingProposalMetadata,
+  UserVerificationData,
+  type ProtocolDataLike,
+  type ProtocolConfigLike,
+  type TippingConfigLike,
+  type EndorserInfoLike,
+  type TippingProposalDataLike,
+  type CampaignDataLike,
+  type ScriptCodeHashesLike,
+  type QuestDataLike,
+  type QuestSubTaskDataLike,
+  type CompletionRecordLike,
+  type CampaignMetadataLike,
+  type AssetListLike,
+  type UDTFundingLike,
+  type UserProgressDataLike,
+  type TokenRewardInfoLike,
+  type TippingProposalMetadataLike,
+  type UserVerificationDataLike
 } from "../generated";
 
-// Re-export with cleaner names for SDK users
-export type ProtocolDataType = GeneratedProtocolDataType;
-export type ProtocolConfigType = GeneratedProtocolConfigType;
-export type TippingConfigType = GeneratedTippingConfigType;
-export type EndorserInfoType = GeneratedEndorserInfoType;
-export type TippingProposalDataType = GeneratedTippingProposalDataType;
-export type CampaignDataType = GeneratedCampaignDataType;
-export type ScriptCodeHashesType = GeneratedScriptCodeHashesType;
-export type QuestDataType = GeneratedQuestDataType;
-export type QuestSubTaskDataType = GeneratedQuestSubTaskDataType;
-export type CompletionRecordType = GeneratedCompletionRecordType;
-export type CampaignMetadataType = GeneratedCampaignMetadataType;
-export type AssetListType = GeneratedAssetListType;
-export type UDTFundingType = GeneratedUDTFundingType;
-export type ScriptType = GeneratedScriptType;
-export type UserProgressDataType = GeneratedUserProgressDataType;
-export type TokenRewardInfoType = GeneratedTokenRewardInfoType;
-export type TippingProposalMetadataType = GeneratedTippingProposalMetadataType;
-export type UserVerificationDataType = GeneratedUserVerificationDataType;
-
-// SDK-specific interfaces that provide a more user-friendly API
-// These use camelCase and more intuitive names
-
-export interface ProtocolDataInput {
-  campaignsApproved?: CampaignDataType[];
-  tippingProposals?: TippingProposalDataType[];
-  tippingConfig: TippingConfigInput;
-  endorsersWhitelist?: EndorserInfoInput[];
-  lastUpdated?: ccc.Num;
-  protocolConfig: ProtocolConfigInput;
-}
-
-export interface TippingConfigInput {
-  approvalRequirementThresholds: ccc.Num[];
-  expirationDuration: ccc.Num;
-}
-
-export interface ProtocolConfigInput {
-  adminLockHashes: ccc.Hex[];
-  scriptCodeHashes: ScriptCodeHashesInput;
-}
-
-export interface ScriptCodeHashesInput {
-  ckbBoostProtocolTypeCodeHash: ccc.Hex;
-  ckbBoostProtocolLockCodeHash: ccc.Hex;
-  ckbBoostCampaignTypeCodeHash: ccc.Hex;
-  ckbBoostCampaignLockCodeHash: ccc.Hex;
-  ckbBoostUserTypeCodeHash: ccc.Hex;
-  acceptedUdtTypeCodeHashes?: ccc.Hex[];
-  acceptedDobTypeCodeHashes?: ccc.Hex[];
-}
-
-export interface EndorserInfoInput {
-  lockHash: ccc.Hex;
-  name: string;
-  description: string;
-  website?: string;
-  socialLinks?: string[];
-  verified?: number;
-}
-
-// Type guards
-export function isProtocolDataType(data: any): data is ProtocolDataType {
-  return data && 
-    'campaigns_approved' in data &&
-    'tipping_proposals' in data &&
-    'tipping_config' in data &&
-    'endorsers_whitelist' in data &&
-    'last_updated' in data &&
-    'protocol_config' in data;
-}

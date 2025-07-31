@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import { ccc } from '@ckb-ccc/core';
 import { ssri } from '@ckb-ccc/ssri';
 import { Protocol } from './index';
-import type { ProtocolDataInput } from '../types';
+import type { ProtocolDataLike } from '../generated';
 
 // Mock SSRI executor for testing
 class MockExecutor extends ssri.Executor {
@@ -76,7 +76,7 @@ describe('Protocol', () => {
 
   describe('createProtocolData', () => {
     it('should create protocol data with all fields', () => {
-      const input: ProtocolDataInput = {
+      const input: ProtocolDataLike = {
         campaignsApproved: [],
         tippingProposals: [],
         tippingConfig: {
@@ -124,7 +124,7 @@ describe('Protocol', () => {
     });
 
     it('should use current timestamp when lastUpdated is not provided', () => {
-      const input: ProtocolDataInput = {
+      const input: ProtocolDataLike = {
         tippingConfig: {
           approvalRequirementThresholds: [],
           expirationDuration: 0

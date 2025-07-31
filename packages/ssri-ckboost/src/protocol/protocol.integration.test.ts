@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { ccc } from '@ckb-ccc/core';
 import { ssri } from '@ckb-ccc/ssri';
 import { Protocol } from './index';
-import type { ProtocolDataInput } from '../types';
+import type { ProtocolDataLike } from '../generated';
 
 // SSRI executor URL
 const SSRI_URL = process.env.SSRI_URL || 'http://127.0.0.1:9090';
