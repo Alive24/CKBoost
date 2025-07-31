@@ -147,7 +147,7 @@ export function CampaignCard({ campaign, onCategoryClick, onDifficultyClick, onS
           <div className="flex-1">
             <CardTitle className="text-lg mb-2">{campaign.title}</CardTitle>
             <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{campaign.shortDescription}</p>
-            <div className="text-xs text-muted-foreground">Sponsored by {campaign.sponsor.name}</div>
+            <div className="text-xs text-muted-foreground">Endorsed by {campaign.endorserName}</div>
           </div>
         </div>
       </CardHeader>

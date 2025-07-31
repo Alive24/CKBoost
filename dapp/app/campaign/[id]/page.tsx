@@ -144,11 +144,11 @@ export default function CampaignDetail() {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
-                      <div className="text-4xl">{campaign.sponsor.logo}</div>
+                      <div className="text-4xl">🏛️</div>
                       <div>
                         <div className="flex items-center gap-2 mb-2">
                           <h1 className="text-3xl font-bold">{campaign.title}</h1>
-                          {campaign.sponsor.verified && <CheckCircle className="w-5 h-5 text-blue-500 fill-current" />}
+                          <CheckCircle className="w-5 h-5 text-blue-500 fill-current" />
                           {isOwner && (
                             <Badge variant="outline" className="bg-blue-100 text-blue-800">
                               👑 Campaign Owner
@@ -156,7 +156,7 @@ export default function CampaignDetail() {
                           )}
                         </div>
                         <div className="text-muted-foreground mb-3">
-                          Sponsored by <span className="font-medium">{campaign.sponsor.name}</span>
+                          Endorsed by <span className="font-medium">{campaign.endorserName}</span>
                         </div>
                         <div className="flex items-center gap-2 mb-4">
                           <Badge variant={isActive ? "default" : "secondary"}>
@@ -505,42 +505,23 @@ export default function CampaignDetail() {
                 </CardContent>
               </Card>
 
-              {/* Sponsor Info */}
+              {/* Endorser Info */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    Sponsor
+                    Endorser
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl">{campaign.sponsor.logo}</div>
+                    <div className="text-2xl">🏛️</div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <div className="font-semibold">{campaign.sponsor.name}</div>
-                        {campaign.sponsor.verified && <CheckCircle className="w-4 h-4 text-blue-500 fill-current" />}
+                        <div className="font-semibold">{campaign.endorserName}</div>
+                        <CheckCircle className="w-4 h-4 text-blue-500 fill-current" />
                       </div>
-                      <div className="text-sm text-muted-foreground">{campaign.sponsor.description}</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <a
-                      href={campaign.sponsor.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      {campaign.sponsor.website}
-                    </a>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>🐦</span>
-                      {campaign.sponsor.social.twitter}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <span>💻</span>
-                      {campaign.sponsor.social.github}
+                      <div className="text-sm text-muted-foreground">Verified endorser from the protocol whitelist</div>
                     </div>
                   </div>
                 </CardContent>

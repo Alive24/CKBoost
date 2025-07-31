@@ -1,8 +1,8 @@
 // Main exports for the lib directory
 // This file provides a clean API for importing from lib
 
-// Types
-export * from './types/campaign'
+// UI-specific types only (for forms, metrics, components)
+export * from './types/index'
 
 // Providers
 export { CampaignProvider, useCampaigns, useCampaign } from './providers/campaign-provider'
@@ -10,7 +10,7 @@ export { CampaignProvider, useCampaigns, useCampaign } from './providers/campaig
 // Services  
 export { CampaignService } from './services/campaign-service'
 
-// Utils
+// Utils (campaign utilities)
 export * from './utils/campaign-utils'
 
 // CKB Integration (for advanced users)
@@ -18,3 +18,6 @@ export * from './ckb/campaign-cells'
 
 // Mock data (for development/testing)
 export * from './mock/mock-campaigns'
+
+// Re-export commonly used SSRI types for convenience
+export type { CampaignDataLike, QuestDataLike } from 'ssri-ckboost/types'

@@ -1,108 +1,29 @@
 // MOCK DATA - Replace this entire file with real CKB blockchain data fetching
 
-import { Campaign, Sponsor } from '../types/campaign'
-import type { CampaignDataLike, EndorserInfoLike } from 'ssri-ckboost/types'
+// For mock data, we'll create simple UI representations that will be converted to blockchain types
+// In production, this entire file would be replaced with blockchain data fetching
 
-// Mock sponsor data - In production, this could come from a sponsors registry on CKB
-const MOCK_SPONSORS: Record<string, Sponsor> = {
-  nervos: {
-    name: "Nervos Foundation",
-    logo: "🏛️",
-    verified: true,
-    description: "The official foundation supporting the Nervos Network ecosystem",
-    website: "https://nervos.org",
-    social: {
-      twitter: "@NervosNetwork",
-      github: "nervosnetwork",
-    },
-  },
-  defiAlliance: {
-    name: "DeFi Alliance",
-    logo: "🏦",
-    verified: true,
-    description: "Leading DeFi education platform for CKB ecosystem",
-    website: "https://defialliance.org",
-    social: {
-      twitter: "@CKBDeFi",
-      github: "ckb-defi",
-    },
-  },
-  communityDao: {
-    name: "Community DAO",
-    logo: "🤝",
-    verified: true,
-    description: "Decentralized community building organization",
-    website: "https://ckbcommunity.org",
-    social: {
-      twitter: "@CKBCommunity",
-      github: "ckb-community",
-    },
-  },
-  nftStudios: {
-    name: "NFT Studios",
-    logo: "🎨",
-    verified: true,
-    description: "Premier NFT creation platform on CKB",
-    website: "https://nftstudios.ckb",
-    social: {
-      twitter: "@NFTStudiosCKB",
-      github: "nft-studios-ckb",
-    },
-  },
-  securityAlliance: {
-    name: "Security Alliance",
-    logo: "🛡️",
-    verified: true,
-    description: "Blockchain security experts protecting the CKB ecosystem",
-    website: "https://securityalliance.ckb",
-    social: {
-      twitter: "@CKBSecurity",
-      github: "ckb-security",
-    },
-  },
-  marketingDao: {
-    name: "Marketing DAO",
-    logo: "📢",
-    verified: true,
-    description: "Community-driven marketing initiatives for CKB",
-    website: "https://marketingdao.ckb",
-    social: {
-      twitter: "@CKBMarketing",
-      github: "ckb-marketing",
-    },
-  },
-  devFoundation: {
-    name: "Dev Foundation",
-    logo: "💻",
-    verified: true,
-    description: "Supporting developer growth and tooling in CKB ecosystem",
-    website: "https://devfoundation.ckb",
-    social: {
-      twitter: "@CKBDevs",
-      github: "ckb-dev-foundation",
-    },
-  },
-  educationDao: {
-    name: "Education DAO",
-    logo: "🎓",
-    verified: true,
-    description: "Blockchain education for everyone",
-    website: "https://education.ckb",
-    social: {
-      twitter: "@CKBEducation",
-      github: "ckb-education",
-    },
-  },
+// Mock endorser names - In production, this would come from the protocol endorsers whitelist
+const MOCK_ENDORSER_NAMES = {
+  nervos: "Nervos Foundation",
+  defiAlliance: "DeFi Alliance", 
+  communityDao: "Community DAO",
+  nftStudios: "NFT Studios",
+  securityAlliance: "Security Alliance",
+  marketingDao: "Marketing DAO",
+  devFoundation: "Dev Foundation",
+  educationDao: "Education DAO",
 }
 
 // Mock campaign data - In production, this would be fetched from CKB blockchain
-export const MOCK_CAMPAIGNS: Campaign[] = [
+// Using any[] for mock data since this will be replaced with actual blockchain data
+export const MOCK_CAMPAIGNS: any[] = [
   {
     id: 1,
     title: "CKB Ecosystem Growth Initiative",
     shortDescription: "Help grow the CKB ecosystem through content creation, development, and community engagement",
     longDescription: "Help expand the CKB ecosystem through social engagement, development, and community building. This comprehensive campaign includes multiple quest types designed to onboard new users, increase developer adoption, and strengthen community bonds. Participate in various activities ranging from social media engagement to smart contract development, all while earning rewards and contributing to the growth of the Nervos Network.",
-    sponsor: MOCK_SPONSORS.nervos,
+    endorserName: MOCK_ENDORSER_NAMES.nervos,
     totalRewards: {
       points: 5000,
       tokens: [
@@ -239,7 +160,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "DeFi Education Campaign",
     shortDescription: "Learn and teach others about DeFi protocols, yield farming, and decentralized finance concepts",
     longDescription: "Learn and teach about DeFi concepts on CKB through tutorials and content creation. This campaign is designed to educate the community about decentralized finance, covering topics from basic concepts to advanced yield farming strategies. Create educational content, write tutorials, and help others understand the power of DeFi on the Nervos Network. Due to the high-value rewards and regulatory compliance requirements, this campaign requires KYC verification.",
-    sponsor: MOCK_SPONSORS.defiAlliance,
+    endorserName: MOCK_ENDORSER_NAMES.defiAlliance,
     totalRewards: {
       points: 3500,
       tokens: [
@@ -310,7 +231,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "Community Builder Program",
     shortDescription: "Build and engage communities around blockchain projects through events and social activities",
     longDescription: "Build and strengthen the CKB community through engagement and outreach. This program is designed for community leaders and enthusiasts who want to help grow the Nervos ecosystem. Organize events, create community content, moderate discussions, and help onboard new members. Your efforts will directly contribute to building a stronger, more vibrant CKB community. This campaign requires multiple verification methods to ensure genuine community participation.",
-    sponsor: MOCK_SPONSORS.communityDao,
+    endorserName: MOCK_ENDORSER_NAMES.communityDao,
     totalRewards: {
       points: 4200,
       tokens: [
@@ -381,7 +302,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "NFT Creator Bootcamp",
     shortDescription: "Create, mint, and promote NFT collections while learning about digital art and blockchain",
     longDescription: "Dive into the world of NFTs on the CKB blockchain. This comprehensive bootcamp will take you from NFT basics to advanced creation techniques. Learn how to design, mint, and market your NFT collections while understanding the underlying blockchain technology. You'll work with professional tools, learn about metadata standards, smart contract interactions, and build your own NFT portfolio. Perfect for artists, creators, and anyone interested in the intersection of art and blockchain technology.",
-    sponsor: MOCK_SPONSORS.nftStudios,
+    endorserName: MOCK_ENDORSER_NAMES.nftStudios,
     totalRewards: {
       points: 6000,
       tokens: [
@@ -456,7 +377,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "Bug Bounty Hunter",
     shortDescription: "Find and report bugs in CKB ecosystem projects. Earn rewards for discovering vulnerabilities",
     longDescription: "Join the elite ranks of security researchers protecting the CKB ecosystem. This bug bounty program rewards skilled developers and security experts who can identify vulnerabilities in CKB projects. You'll learn advanced security testing techniques, responsible disclosure practices, and contribute to making the ecosystem safer for everyone. Rewards are based on severity and impact of discovered vulnerabilities. This campaign requires both technical skills and ethical responsibility.",
-    sponsor: MOCK_SPONSORS.securityAlliance,
+    endorserName: MOCK_ENDORSER_NAMES.securityAlliance,
     totalRewards: {
       points: 2800,
       tokens: [
@@ -529,7 +450,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "Social Media Ambassador",
     shortDescription: "Promote CKB ecosystem on social media platforms. Create engaging content and grow the community",
     longDescription: "Become a voice for the CKB ecosystem across social media platforms. As a Social Media Ambassador, you'll create engaging content, share updates, educate followers about CKB technology, and help grow the community presence online. This campaign is perfect for content creators, influencers, and social media enthusiasts who want to combine their skills with blockchain advocacy. Learn best practices for crypto communication while building your personal brand in the Web3 space.",
-    sponsor: MOCK_SPONSORS.marketingDao,
+    endorserName: MOCK_ENDORSER_NAMES.marketingDao,
     totalRewards: {
       points: 1800,
       tokens: [
@@ -599,7 +520,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "Developer Documentation Sprint",
     shortDescription: "Improve developer documentation for CKB tools and libraries. Make onboarding easier for new developers",
     longDescription: "Help make CKB development more accessible by improving documentation. This sprint focuses on creating clear, comprehensive documentation for CKB tools, libraries, and development workflows. You'll review existing docs, identify gaps, write tutorials, create code examples, and ensure new developers can easily get started with CKB development. Your contributions will directly impact developer adoption and the growth of the CKB developer community. Technical writing skills and development experience are valuable for this campaign.",
-    sponsor: MOCK_SPONSORS.devFoundation,
+    endorserName: MOCK_ENDORSER_NAMES.devFoundation,
     totalRewards: {
       points: 2200,
       tokens: [
@@ -672,7 +593,7 @@ export const MOCK_CAMPAIGNS: Campaign[] = [
     title: "Learn Blockchain Basics",
     shortDescription: "Complete educational modules about blockchain fundamentals. Perfect for beginners to get started",
     longDescription: "Start your blockchain journey with this comprehensive educational campaign. Designed for complete beginners, you'll learn blockchain fundamentals, understand how CKB works, explore cryptocurrency basics, and gain hands-on experience with wallets and transactions. The campaign includes interactive tutorials, quizzes, and practical exercises to ensure you build a solid foundation. No prior technical knowledge required - just bring your curiosity and willingness to learn about the future of decentralized technology.",
-    sponsor: MOCK_SPONSORS.educationDao,
+    endorserName: MOCK_ENDORSER_NAMES.educationDao,
     totalRewards: {
       points: 1500,
       tokens: [

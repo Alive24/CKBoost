@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,62 +11,143 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Users } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { ccc } from "@ckb-ccc/connector-react"
+import { CampaignService } from "@/lib/services/campaign-service"
+import { useProtocol } from "@/lib/providers/protocol-provider"
+import type { CampaignDataLike } from "ssri-ckboost/types"
 
 export default function CreateCampaign() {
+  // Get CCC signer and protocol data
+  const signer = ccc.useSigner()
+  const { protocolData, isLoading: protocolLoading, error: protocolError } = useProtocol()
+  
   const [formData, setFormData] = useState({
     title: "",
-    description: "",
+    shortDescription: "",
+    longDescription: "",
     category: "",
     difficulty: "",
     startDate: "",
     endDate: "",
     totalPoints: "",
-    sponsorName: "",
-    sponsorDescription: "",
-    sponsorWebsite: "",
-    sponsorTwitter: "",
-    sponsorGithub: "",
     logo: "",
+    selectedEndorser: "", // Selected endorser from protocol whitelist
   })
 
   const [tokenRewards, setTokenRewards] = useState([{ symbol: "CKB", amount: "" }])
   const [rules, setRules] = useState([""])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [availableEndorsers, setAvailableEndorsers] = useState<any[]>([])
+  const [isWalletConnected, setIsWalletConnected] = useState(false)
+
+  // Check wallet connection status
+  useEffect(() => {
+    setIsWalletConnected(!!signer)
+  }, [signer])
+
+  // Load available endorsers when protocol data is available
+  useEffect(() => {
+    if (protocolData?.endorsers_whitelist) {
+      setAvailableEndorsers(protocolData.endorsers_whitelist)
+    }
+  }, [protocolData])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setSubmitError(null)
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      // Validate required fields
+      if (!formData.title || !formData.shortDescription || !formData.longDescription || 
+          !formData.category || !formData.difficulty || !formData.startDate || 
+          !formData.endDate || !formData.totalPoints || !formData.selectedEndorser) {
+        throw new Error("Please fill in all required fields")
+      }
 
-    setIsSubmitted(true)
-    setIsSubmitting(false)
+      if (!signer) {
+        throw new Error("Please connect your wallet to create a campaign")
+      }
 
-    // Reset form after delay
-    setTimeout(() => {
-      setFormData({
-        title: "",
-        description: "",
-        category: "",
-        difficulty: "",
-        startDate: "",
-        endDate: "",
-        totalPoints: "",
-        sponsorName: "",
-        sponsorDescription: "",
-        sponsorWebsite: "",
-        sponsorTwitter: "",
-        sponsorGithub: "",
-        logo: "",
-      })
-      setTokenRewards([{ symbol: "CKB", amount: "" }])
-      setRules([""])
-      setIsSubmitted(false)
-    }, 3000)
+      // Find selected endorser
+      const selectedEndorser = availableEndorsers.find(
+        endorser => endorser.endorser_lock_hash === formData.selectedEndorser
+      )
+
+      if (!selectedEndorser) {
+        throw new Error("Please select a valid endorser from the list")
+      }
+
+      // Create campaign data using SSRI types
+      const campaignData: Partial<CampaignDataLike> = {
+        id: ccc.hexFrom(ccc.bytesFrom(crypto.randomUUID(), "utf8")),
+        title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
+        short_description: ccc.hexFrom(ccc.bytesFrom(formData.shortDescription, "utf8")),
+        long_description: ccc.hexFrom(ccc.bytesFrom(formData.longDescription, "utf8")),
+        creator: (await signer.getRecommendedAddressObj()).script,
+        metadata: {
+          funding_info: [],
+          created_at: BigInt(Date.now()),
+          starting_time: BigInt(new Date(formData.startDate).getTime()),
+          ending_time: BigInt(new Date(formData.endDate).getTime()),
+          verification_requirements: 0, // No special requirements for now
+          last_updated: BigInt(Date.now()),
+          categories: [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))],
+          difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
+          image_cid: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
+          rules: rules.filter(rule => rule.trim()).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8")))
+        },
+        status: 0, // Created status
+        quests: [], // Empty for now
+        participants_count: 0,
+        total_completions: 0
+      }
+
+      // Create campaign using campaign service
+      const campaignService = new CampaignService(signer)
+      const txHash = await campaignService.createCampaign(
+        campaignData,
+        formData.selectedEndorser
+      )
+
+      console.log("Campaign created successfully:", txHash)
+      setIsSubmitted(true)
+
+      // Reset form after success
+      setTimeout(() => {
+        resetForm()
+      }, 5000)
+
+    } catch (error) {
+      console.error("Failed to create campaign:", error)
+      setSubmitError(error instanceof Error ? error.message : "Failed to create campaign")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      title: "",
+      shortDescription: "",
+      longDescription: "",
+      category: "",
+      difficulty: "",
+      startDate: "",
+      endDate: "",
+      totalPoints: "",
+      logo: "",
+      selectedEndorser: "",
+    })
+    setTokenRewards([{ symbol: "CKB", amount: "" }])
+    setRules([""])
+    setIsSubmitted(false)
+    setSubmitError(null)
   }
 
   const addTokenReward = () => {
@@ -129,6 +210,7 @@ export default function CreateCampaign() {
     }
   }
 
+  // Show success screen
   if (isSubmitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -138,17 +220,16 @@ export default function CreateCampaign() {
             <div className="text-6xl mb-6">🎉</div>
             <h1 className="text-3xl font-bold mb-4">Campaign Created Successfully!</h1>
             <p className="text-lg text-muted-foreground mb-6">
-              Your campaign has been submitted for review. It will be available to the community once approved by our
-              moderators. You can start adding quests to your campaign once it's live.
+              Your campaign has been created on the CKB blockchain! It will appear in the campaign list once the 
+              transaction is confirmed. You can now create individual quests for your campaign.
             </p>
-            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
-              <div className="flex items-center gap-2 text-blue-800 mb-2">
-                <Users className="w-5 h-5" />
-                <span className="font-semibold">Next Steps</span>
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200 mb-6">
+              <div className="flex items-center gap-2 text-green-800 mb-2">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-semibold">Campaign Created On-Chain</span>
               </div>
-              <div className="text-sm text-blue-700">
-                Once approved, you can create individual quests for your campaign and manage participant progress
-                through the admin dashboard.
+              <div className="text-sm text-green-700">
+                Your campaign is now live on the CKB blockchain. You can manage it through the campaign admin dashboard.
               </div>
             </div>
             <div className="flex gap-4 justify-center">
@@ -158,10 +239,83 @@ export default function CreateCampaign() {
               <Link href="/campaign-admin">
                 <Button variant="outline">Go to Admin Dashboard</Button>
               </Link>
-              <Button variant="outline" onClick={() => setIsSubmitted(false)}>
+              <Button variant="outline" onClick={resetForm}>
                 Create Another Campaign
               </Button>
             </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Show wallet connection requirement
+  if (!isWalletConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center py-12">
+            <div className="text-6xl mb-6">🔗</div>
+            <h1 className="text-3xl font-bold mb-4">Wallet Connection Required</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Please connect your CKB wallet to create a campaign. Your wallet will be used to sign the campaign 
+              creation transaction and manage campaign operations.
+            </p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+            >
+              Connect Wallet
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Show protocol loading state
+  if (protocolLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+            <h1 className="text-2xl font-bold mb-2">Loading Protocol Data</h1>
+            <p className="text-muted-foreground">
+              Loading available endorsers and protocol information...
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Show protocol error
+  if (protocolError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center py-12">
+            <div className="text-6xl mb-6">⚠️</div>
+            <h1 className="text-3xl font-bold mb-4">Protocol Not Available</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Unable to load protocol data. Please ensure the CKBoost protocol is deployed and accessible.
+            </p>
+            <Alert className="mb-6">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {protocolError}
+              </AlertDescription>
+            </Alert>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+            >
+              Retry
+            </Button>
           </div>
         </main>
       </div>
@@ -196,6 +350,16 @@ export default function CreateCampaign() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Form */}
             <div className="lg:col-span-2">
+              {/* Error Alert */}
+              {submitError && (
+                <Alert className="mb-6 border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    {submitError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Campaign Details */}
                 <Card>
@@ -228,12 +392,23 @@ export default function CreateCampaign() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="description">Campaign Description *</Label>
+                      <Label htmlFor="shortDescription">Short Description *</Label>
+                      <Input
+                        id="shortDescription"
+                        value={formData.shortDescription}
+                        onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
+                        placeholder="Brief one-line description for campaign cards"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="longDescription">Detailed Description *</Label>
                       <Textarea
-                        id="description"
-                        value={formData.description}
-                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Describe the campaign's goals, target audience, and expected outcomes"
+                        id="longDescription"
+                        value={formData.longDescription}
+                        onChange={(e) => setFormData({ ...formData, longDescription: e.target.value })}
+                        placeholder="Describe the campaign's goals, target audience, and expected outcomes in detail"
                         rows={4}
                         required
                       />
@@ -306,63 +481,41 @@ export default function CreateCampaign() {
                   </CardContent>
                 </Card>
 
-                {/* Sponsor Information */}
+
+                {/* Endorser Selection */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>Sponsor Information</CardTitle>
+                    <CardTitle>Campaign Endorser</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="sponsorName">Sponsor Name *</Label>
-                      <Input
-                        id="sponsorName"
-                        value={formData.sponsorName}
-                        onChange={(e) => setFormData({ ...formData, sponsorName: e.target.value })}
-                        placeholder="e.g., Nervos Foundation"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="sponsorDescription">Sponsor Description *</Label>
-                      <Textarea
-                        id="sponsorDescription"
-                        value={formData.sponsorDescription}
-                        onChange={(e) => setFormData({ ...formData, sponsorDescription: e.target.value })}
-                        placeholder="Brief description of the sponsoring organization"
-                        rows={2}
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="sponsorWebsite">Website</Label>
-                        <Input
-                          id="sponsorWebsite"
-                          type="url"
-                          value={formData.sponsorWebsite}
-                          onChange={(e) => setFormData({ ...formData, sponsorWebsite: e.target.value })}
-                          placeholder="https://example.com"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sponsorTwitter">Twitter Handle</Label>
-                        <Input
-                          id="sponsorTwitter"
-                          value={formData.sponsorTwitter}
-                          onChange={(e) => setFormData({ ...formData, sponsorTwitter: e.target.value })}
-                          placeholder="@username"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="sponsorGithub">GitHub</Label>
-                        <Input
-                          id="sponsorGithub"
-                          value={formData.sponsorGithub}
-                          onChange={(e) => setFormData({ ...formData, sponsorGithub: e.target.value })}
-                          placeholder="username"
-                        />
+                      <Label htmlFor="selectedEndorser">Select Endorser *</Label>
+                      <Select
+                        value={formData.selectedEndorser}
+                        onValueChange={(value) => setFormData({ ...formData, selectedEndorser: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose an endorsed partner" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableEndorsers.map((endorser, index) => (
+                            <SelectItem key={index} value={endorser.endorser_lock_hash}>
+                              {/* Convert hex to string for display */}
+                              {endorser.endorser_name ? 
+                                new TextDecoder().decode(new Uint8Array(Buffer.from(endorser.endorser_name.slice(2), 'hex'))) : 
+                                `Endorser ${index + 1}`
+                              }
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="text-sm text-muted-foreground">
+                        Campaigns must be endorsed by an approved partner to ensure quality and legitimacy.
+                        {availableEndorsers.length === 0 && (
+                          <div className="text-orange-600 mt-1">
+                            No endorsers currently available. Please ensure the protocol is properly configured.
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -402,7 +555,7 @@ export default function CreateCampaign() {
                             <SelectContent>
                               <SelectItem value="CKB">CKB</SelectItem>
                               <SelectItem value="SPORE">SPORE</SelectItem>
-                              <SelectItem value="DEFI">DEFI</SelectItem>
+                              <SelectItem value="DeFi">DeFi</SelectItem>
                               <SelectItem value="COMM">COMM</SelectItem>
                             </SelectContent>
                           </Select>
@@ -466,19 +619,19 @@ export default function CreateCampaign() {
                 <div className="flex justify-end">
                   <Button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || availableEndorsers.length === 0}
                     size="lg"
-                    className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        <Loader2 className="w-4 h-4 animate-spin mr-2" />
                         Creating Campaign...
                       </>
                     ) : (
                       <>
                         <Calendar className="w-4 h-4 mr-2" />
-                        Create Campaign
+                        Create Campaign On-Chain
                       </>
                     )}
                   </Button>
@@ -499,7 +652,12 @@ export default function CreateCampaign() {
                       <div className="text-2xl">{formData.logo || "❓"}</div>
                       <div>
                         <div className="font-semibold">{formData.title || "Campaign Title"}</div>
-                        <div className="text-sm text-muted-foreground">by {formData.sponsorName || "Sponsor Name"}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {availableEndorsers.find(e => e.endorser_lock_hash === formData.selectedEndorser) ?
+                            `Endorsed by ${new TextDecoder().decode(new Uint8Array(Buffer.from(availableEndorsers.find(e => e.endorser_lock_hash === formData.selectedEndorser)!.endorser_name.slice(2), 'hex')))}` :
+                            "Select an endorser"
+                          }
+                        </div>
                         <div className="flex items-center gap-2 mt-1">
                           {formData.category && (
                             <Badge variant="outline" className={getCategoryColor(formData.category)}>
@@ -514,7 +672,7 @@ export default function CreateCampaign() {
                         </div>
                       </div>
                     </div>
-                    {formData.description && <p className="text-sm text-muted-foreground">{formData.description}</p>}
+                    {formData.shortDescription && <p className="text-sm text-muted-foreground">{formData.shortDescription}</p>}
                     <div className="space-y-1">
                       {formData.totalPoints && (
                         <div className="text-yellow-600 font-semibold">🏆 {formData.totalPoints} points</div>

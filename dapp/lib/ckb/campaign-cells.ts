@@ -2,7 +2,7 @@
 // This file contains functions to interact with CKB blockchain for campaign data
 
 import { ccc } from "@ckb-ccc/core"
-import { Campaign, CKBCampaignCell, UserProgress, CKBUserProgressCell } from '../types/campaign'
+import type { CampaignDataLike, UserProgressDataLike } from "ssri-ckboost/types"
 import { getAllMockCampaigns, getMockCampaignById } from '../mock/mock-campaigns'
 
 // Development flag - set to true to use blockchain, false to use mock data

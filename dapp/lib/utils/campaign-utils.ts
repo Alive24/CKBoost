@@ -1,5 +1,5 @@
 // Campaign utility functions
-import { Campaign } from '../types/campaign'
+// These work with UI representations of campaigns
 
 /**
  * Calculate days until campaign end date
@@ -16,10 +16,10 @@ export function getDaysUntilEnd(endDate: string): number {
 
 /**
  * Get derived status based on end date and current status
- * @param campaign - Campaign object
+ * @param campaign - Campaign object with endDate and status
  * @returns Derived status string
  */
-export function getDerivedStatus(campaign: Campaign): string {
+export function getDerivedStatus(campaign: { endDate: string; status: string }): string {
   const daysLeft = getDaysUntilEnd(campaign.endDate)
   if (daysLeft <= 0) return "completed"
   if (daysLeft <= 30) return "ending-soon"
@@ -28,10 +28,10 @@ export function getDerivedStatus(campaign: Campaign): string {
 
 /**
  * Check if campaign is ending soon
- * @param campaign - Campaign object
+ * @param campaign - Campaign object with endDate and status
  * @returns Boolean indicating if campaign is ending soon
  */
-export function isEndingSoon(campaign: Campaign): boolean {
+export function isEndingSoon(campaign: { endDate: string; status: string }): boolean {
   return getDerivedStatus(campaign) === "ending-soon"
 }
 

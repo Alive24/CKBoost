@@ -1,7 +1,7 @@
 // Campaign Service - Abstracts data fetching logic
 // This service provides high-level campaign operations by delegating to the cell layer
 
-import { Campaign, UserProgress } from '../types/campaign'
+import type { CampaignDataLike, UserProgressDataLike } from "ssri-ckboost/types"
 import { fetchCampaignCells, fetchCampaignById, fetchUserProgress, createCampaign as createCampaignCell } from '../ckb/campaign-cells'
 import { ccc } from "@ckb-ccc/core"
 import { ssri } from "@ckb-ccc/ssri"
@@ -160,12 +160,12 @@ export class CampaignService {
 
   /**
    * Create a new campaign
-   * @param campaignData - Campaign data to create
+   * @param campaignData - Campaign data to create (using SSRI types)
    * @param endorserLockHash - Endorser's lock hash from the selected endorser
    * @returns Transaction hash
    */
   async createCampaign(
-    campaignData: Partial<Campaign>,
+    campaignData: Partial<CampaignDataLike>,
     endorserLockHash: string
   ): Promise<string> {
     if (!this.signer) {
@@ -185,38 +185,18 @@ export class CampaignService {
       // This assumes we have access to the protocol cell's type hash
       const protocolTypeHash = "0x" + "00".repeat(32) as ccc.Hex // TODO: Get actual protocol type hash
 
-      // Convert campaign data to SDK format
+      // Use the campaign data directly (it's already in the correct format)
       const sdkCampaignData: CampaignDataLike = {
-        id: ccc.hexFrom(ccc.bytesFrom(crypto.randomUUID(), "utf8")),
-        title: ccc.hexFrom(ccc.bytesFrom(campaignData.title || "", "utf8")),
-        short_description: ccc.hexFrom(ccc.bytesFrom(campaignData.shortDescription || "", "utf8")),
-        long_description: ccc.hexFrom(ccc.bytesFrom(campaignData.longDescription || "", "utf8")),
-        creator: (await this.signer.getRecommendedAddressObj()).script,
+        ...campaignData,
         endorser_info: {
           endorser_lock_hash: endorserLockHash as ccc.Hex,
-          endorser_name: ccc.hexFrom(ccc.bytesFrom(campaignData.sponsor?.name || "", "utf8")),
-          endorser_description: ccc.hexFrom(ccc.bytesFrom(campaignData.sponsor?.description || "", "utf8")),
-          website: ccc.hexFrom(ccc.bytesFrom(campaignData.sponsor?.website || "", "utf8")),
+          endorser_name: ccc.hexFrom(ccc.bytesFrom("Selected Endorser", "utf8")), // Will be populated from protocol data
+          endorser_description: ccc.hexFrom(ccc.bytesFrom("Campaign endorser", "utf8")),
+          website: ccc.hexFrom(ccc.bytesFrom("", "utf8")),
           social_links: [],
-          verified: campaignData.sponsor?.verified ? 1 : 0
-        },
-        metadata: {
-          funding_info: [],
-          created_at: BigInt(Date.now()),
-          starting_time: BigInt(new Date(campaignData.startDate || Date.now()).getTime()),
-          ending_time: BigInt(new Date(campaignData.endDate || Date.now() + 30 * 24 * 60 * 60 * 1000).getTime()),
-          verification_requirements: this.encodeVerificationRequirements(campaignData.verificationRequirements || {}),
-          last_updated: BigInt(Date.now()),
-          categories: (campaignData.categories || []).map(cat => ccc.hexFrom(ccc.bytesFrom(cat, "utf8"))),
-          difficulty: campaignData.difficulty === "Easy" ? 1 : campaignData.difficulty === "Medium" ? 2 : 3,
-          image_cid: ccc.hexFrom(ccc.bytesFrom(campaignData.image || "", "utf8")),
-          rules: (campaignData.rules || []).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8")))
-        },
-        status: 0, // Created status
-        quests: [], // Empty for now, quests will be added later
-        participants_count: 0,
-        total_completions: 0
-      }
+          verified: 1
+        }
+      } as CampaignDataLike
 
       // Create campaign using SSRICampaign
       const { res: tx, campaignId } = await this.campaign.createCampaign(
@@ -310,19 +290,16 @@ export class CampaignService {
         endorser_info: {
           endorser_lock_hash: "0x" + "00".repeat(32), // Keep existing
           endorser_name: ccc.hexFrom(ccc.bytesFrom(
-            updates.sponsor?.name || currentCampaign.sponsor.name,
+            updates.endorserName || currentCampaign.endorserName || "Unknown Endorser",
             "utf8"
           )),
           endorser_description: ccc.hexFrom(ccc.bytesFrom(
-            updates.sponsor?.description || currentCampaign.sponsor.description,
+            "Campaign endorser from protocol whitelist",
             "utf8"
           )),
-          website: ccc.hexFrom(ccc.bytesFrom(
-            updates.sponsor?.website || currentCampaign.sponsor.website,
-            "utf8"
-          )),
+          website: ccc.hexFrom(ccc.bytesFrom("", "utf8")),
           social_links: [],
-          verified: updates.sponsor?.verified ? 1 : currentCampaign.sponsor.verified ? 1 : 0
+          verified: 1
         },
         metadata: {
           funding_info: [],
@@ -475,17 +452,7 @@ export class CampaignService {
       title: "Campaign " + index,
       shortDescription: "Description for campaign " + index,
       longDescription: "Long description...",
-      sponsor: {
-        name: "Sponsor",
-        logo: "/placeholder.svg",
-        verified: false,
-        description: "",
-        website: "",
-        social: {
-          twitter: "",
-          github: ""
-        }
-      },
+      endorserName: "Protocol Endorser",
       categories: ["DeFi"],
       difficulty: "Medium",
       status: "Active",

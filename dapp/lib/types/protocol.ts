@@ -1,34 +1,32 @@
 // Protocol-specific types for CKBoost admin dashboard and protocol management
-// This file contains types specific to protocol operations, forms, cells, transactions, and metrics
+// This file contains ONLY UI-specific types that are not available in ssri-ckboost
 
-// Import the generated type from ssri-ckboost
-import { ccc, mol } from '@ckb-ccc/connector-react'
-// Types are now imported directly from 'ssri-ckboost/types' when needed
+import { ccc } from '@ckb-ccc/core'
+import { CampaignDataLike, EndorserInfoLike, ProtocolDataLike, ScriptCodeHashesLike, TippingConfigLike, TippingProposalDataLike } from 'ssri-ckboost/types'
 
+// Transaction status tracking for UI
 
-// Basic Script interface for UI usage
-export interface Script {
-  codeHash: string
-  hashType: string
-  args: string
+export interface ProtocolMetrics {
+  totalCampaigns: bigint
+  activeCampaigns: bigint
+  totalTippingProposals: bigint
+  pendingTippingProposals: bigint
+  totalEndorsers: bigint
+  lastUpdated: string // ISO date string
 }
 
-// Protocol cell structure (CKB-specific)
-export interface ProtocolCell {
-  outPoint: {
-    txHash: string
-    index: ccc.Num
-  }
-  output: {
-    capacity: string
-    lock: Script
-    type: Script | null
-  }
-  data: string // Hex-encoded cell data that will be parsed into ProtocolDataType
-  blockNumber?: ccc.Num
+// Form-specific types for UI forms
+export interface ProtocolUpdateForm {
+  adminLockHashes: string[]
+  tippingThresholds: string[]
+  expirationDuration: number
+  endorsers: Array<{
+    lockHash: string
+    name: string
+    description: string
+  }>
 }
 
-// Transaction types for protocol operations
 export interface ProtocolTransaction {
   txHash: string
   type: "update_config" | "approve_campaign" | "update_tipping" | "emergency"
@@ -46,39 +44,6 @@ export interface ProtocolMetrics {
   pendingTippingProposals: ccc.Num
   totalEndorsers: ccc.Num
   lastUpdated: string
-}
-
-// Form data types for protocol management
-export interface UpdateProtocolConfigForm {
-  adminLockHashes: string[]
-}
-
-export interface UpdateScriptCodeHashesForm {
-  ckbBoostProtocolTypeCodeHash: string
-  ckbBoostProtocolLockCodeHash: string
-  ckbBoostCampaignTypeCodeHash: string
-  ckbBoostCampaignLockCodeHash: string
-  ckbBoostUserTypeCodeHash: string
-}
-
-export interface UpdateTippingConfigForm {
-  approvalRequirementThresholds: ccc.Num[]
-  expirationDuration: ccc.Num
-}
-
-export interface AddEndorserForm {
-  endorserAddress: string
-  endorserLockScript: Script
-  endorserLockHash?: string // Computed lock hash
-  endorserName: string
-  endorserDescription: string
-  website?: string
-  socialLinks?: string[]
-  verified?: number
-}
-
-export interface EditEndorserForm extends AddEndorserForm {
-  index: ccc.Num // Index in the endorsersWhitelist array
 }
 
 // Change tracking types for protocol updates
@@ -105,27 +70,16 @@ export interface ProtocolChanges {
     expirationDuration: FieldChange<number>
   }
   endorsers: {
-    added: any[] // Will be properly typed when SDK exports are fixed
-    updated: Array<{ index: ccc.Num, endorser: any }>
+    added: EndorserInfoLike[]
+    updated: Array<{ index: ccc.Num, endorser: EndorserInfoLike }>
     removed: ccc.Num[] // indices of removed endorsers
-  }
-}
-
-export interface BatchUpdateProtocolForm {
-  protocolConfig?: UpdateProtocolConfigForm
-  scriptCodeHashes?: UpdateScriptCodeHashesForm
-  tippingConfig?: UpdateTippingConfigForm
-  endorserOperations?: {
-    add?: AddEndorserForm[]
-    edit?: EditEndorserForm[]
-    remove?: ccc.Num[]
   }
 }
 
 // Protocol context types
 export interface ProtocolContextType {
   // Protocol data
-  protocolData: any | null // Will be properly typed when SDK exports are fixed
+  protocolData: ProtocolDataLike | null
   
   // Protocol metrics
   metrics: ProtocolMetrics | null
@@ -138,18 +92,18 @@ export interface ProtocolContextType {
   error: string | null
   
   // Update functions
-  updateProtocolConfig: (form: UpdateProtocolConfigForm) => Promise<void>
-  updateScriptCodeHashes: (form: UpdateScriptCodeHashesForm) => Promise<void>
-  updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<void>
-  addEndorser: (form: AddEndorserForm) => Promise<void>
-  editEndorser: (form: EditEndorserForm) => Promise<void>
+  updateProtocolConfig: (adminLockHashes: string[]) => Promise<void>
+  updateScriptCodeHashes: (codeHashes: ScriptCodeHashesLike) => Promise<void>
+  updateTippingConfig: (config: TippingConfigLike) => Promise<void>
+  addEndorser: (endorser: EndorserInfoLike) => Promise<void>
+  editEndorser: (index: ccc.Num, endorser: EndorserInfoLike) => Promise<void>
   removeEndorser: (index: ccc.Num) => Promise<void>
-  batchUpdateProtocol: (form: BatchUpdateProtocolForm) => Promise<void>
+  batchUpdateProtocol: (data: Partial<ProtocolDataLike>) => Promise<void>
   
   // Query functions
-  getEndorser: (lockHash: string) => any | undefined
-  getTippingProposal: (id: string) => any | undefined
-  getApprovedCampaign: (id: string) => any | undefined
+  getEndorser: (lockHash: string) => EndorserInfoLike | undefined
+  getTippingProposal: (id: string) => TippingProposalDataLike | undefined
+  getApprovedCampaign: (id: string) => CampaignDataLike | undefined
   
   // Change detection
   detectChanges: (formData: any) => ProtocolChanges
