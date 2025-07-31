@@ -1,15 +1,15 @@
 // CKB Protocol Cells - Blockchain data integration
 // This file handles fetching protocol data from CKB blockchain
 
-import { ccc } from "@ckb-ccc/connector-react";
-import { ProtocolData } from "../types";
+import { ccc } from "@ckb-ccc/core";
+import type { ProtocolDataLike } from "ssri-ckboost/types";
 import {
   ProtocolCell,
   ProtocolMetrics,
   ProtocolTransaction,
 } from "../types/protocol";
 import { deploymentManager, DeploymentManager } from "./deployment-manager";
-import { SerializeProtocolData, types } from "ssri-ckboost";
+import { ProtocolData } from "ssri-ckboost/types";
 
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
 // Get protocol type script from deployments.json
@@ -173,7 +173,7 @@ export async function fetchProtocolCell(
  * @param cellData - Hex-encoded cell data
  * @returns Parsed ProtocolData
  */
-export function parseProtocolData(cellData: string): ProtocolData {
+export function parseProtocolData(cellData: string): ProtocolDataLike {
   try {
     // For empty or minimal protocol cells, return default structure
     // This allows the app to function while the protocol cell is being deployed
@@ -188,7 +188,7 @@ export function parseProtocolData(cellData: string): ProtocolData {
       const defaultByte32: ccc.Hex = "0x" + "00".repeat(32) as ccc.Hex;
       
       // Return a default ProtocolData structure that matches the SDK type
-      const defaultProtocolData: ProtocolData = {
+      const defaultProtocolData: ProtocolDataLike = {
         campaigns_approved: [],
         tipping_proposals: [],
         tipping_config: {
@@ -222,15 +222,15 @@ export function parseProtocolData(cellData: string): ProtocolData {
       const cellDataBytes = ccc.bytesFrom(cellData);
       console.log("Cell data bytes length:", cellDataBytes.length);
       
-      // Decode using the generated ProtocolData codec from types namespace
-      const protocolData = types.ProtocolData.decode(cellDataBytes);
+      // Decode using the generated ProtocolData codec
+      const protocolData = ProtocolData.decode(cellDataBytes);
       
       console.log("Successfully parsed protocol data");
       
       // Return the decoded data - cast through unknown to handle type differences
       // The decoded data has the correct structure but some fields may have different types (bigint vs number)
       // This is acceptable since the consuming code should handle these type variations
-      return protocolData as unknown as ProtocolData;
+      return protocolData as unknown as ProtocolDataLike;
     } catch (parseError) {
       console.error("Failed to parse protocol data:", parseError);
       console.error("Cell data that failed to parse:", cellData);
@@ -253,10 +253,10 @@ export function parseProtocolData(cellData: string): ProtocolData {
  * @param data - ProtocolData to serialize
  * @returns Hex-encoded Molecule data
  */
-export function generateProtocolData(data: ProtocolData): string {
+export function generateProtocolData(data: ProtocolDataLike): string {
   try {
     // Use proper Molecule serialization
-    const protocolDataBytes = SerializeProtocolData(data);
+    const protocolDataBytes = ProtocolData.encode(data);
     return "0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (error) {
     console.error("Failed to generate ProtocolData with Molecule serialization:", error);
@@ -273,7 +273,7 @@ export function generateProtocolData(data: ProtocolData): string {
 export async function fetchProtocolDataByOutPoint(
   signer: ccc.Signer,
   outPoint: { txHash: ccc.Hex; index: ccc.Num }
-): Promise<ProtocolData> {
+): Promise<ProtocolDataLike> {
   const cell = await fetchProtocolCellByOutPoint(signer, outPoint);
   if (!cell) {
     throw new Error("Protocol cell not found at specified outpoint. Please ensure the outpoint is correct or deploy a new protocol cell using the Protocol Management interface.");
@@ -288,7 +288,7 @@ export async function fetchProtocolDataByOutPoint(
  */
 export async function fetchProtocolData(
   signer?: ccc.Signer
-): Promise<ProtocolData> {
+): Promise<ProtocolDataLike> {
   const cell = await fetchProtocolCell(signer);
   if (!cell) {
     const protocolTypeScript = getProtocolTypeScript();

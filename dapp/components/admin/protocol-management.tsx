@@ -86,7 +86,7 @@ import {
   type DeployProtocolCellParams 
 } from "@/lib/ckb/protocol-deployment"
 import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
-import { Byte32, Uint128, Uint64 } from "ssri-ckboost/types"
+// Note: Byte32, Uint128, Uint64 are now represented as ccc.Hex, bigint, bigint respectively
 
 // Form types
 type AddAdminForm = {

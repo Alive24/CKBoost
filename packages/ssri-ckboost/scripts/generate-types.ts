@@ -208,12 +208,20 @@ function generateLikeType(decl: MoleculeDeclaration): string {
     decl.fields.forEach(field => {
       const fieldName = field.name;
       const fieldType = getLikeFieldType(field.type);
-      output += `  ${fieldName}?: ${fieldType};\n`;
+      const isOptional = shouldFieldBeOptional();
+      output += `  ${fieldName}${isOptional ? '?' : ''}: ${fieldType};\n`;
     });
   }
   
   output += `}\n\n`;
   return output;
+}
+
+function shouldFieldBeOptional(): boolean {
+  // For custom types (structs and tables), NO fields should be optional
+  // The encode functions expect all fields to be present
+  // If we want to provide defaults, that should be done in helper functions, not in the type definition
+  return false;
 }
 
 function getLikeFieldType(type: string): string {
@@ -347,6 +355,8 @@ function generateCodecForDeclaration(decl: MoleculeDeclaration): string {
   return '';
 }
 
+
+
 function generateCodecClass(decl: MoleculeDeclaration): string {
   const className = decl.name;
   
@@ -355,6 +365,7 @@ function generateCodecClass(decl: MoleculeDeclaration): string {
     return '';
   }
   
+  // Generate the codec directly without the underscore pattern
   let output = `export const ${className} = mol.${decl.type}({\n`;
   
   if (decl.fields && Array.isArray(decl.fields)) {
@@ -365,7 +376,7 @@ function generateCodecClass(decl: MoleculeDeclaration): string {
     });
   }
   
-  output += `});\n\n`;
+  output += `});\n`;
   
   return output;
 }

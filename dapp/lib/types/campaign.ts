@@ -1,20 +1,7 @@
 // Campaign-specific types for CKBoost campaign management and UI
-// This file contains types specific to campaign operations, UI components, and user interactions
+// This file contains ONLY UI-specific types. For blockchain types, import directly from ssri-ckboost/types
 
-// Import types from ssri-ckboost SDK
-import type {
-  CampaignDataType,
-  CampaignMetadataType,
-  QuestDataType,
-  QuestSubTaskDataType,
-  CompletionRecordType,
-  AssetListType,
-  UDTFundingType,
-  ScriptType,
-  EndorserInfoType,
-  UserProgressDataType,
-  TokenRewardInfoType,
-} from 'ssri-ckboost/types'
+import type { CampaignDataLike } from 'ssri-ckboost/types'
 
 // UI-specific campaign types that extend the base campaign data
 export interface TokenReward {
@@ -124,14 +111,14 @@ export interface CKBCampaignCell {
   }
   data: string // Hex-encoded campaign data
   
-  // Parsed campaign data using generated types
-  parsedData?: CampaignDataType
+  // Parsed campaign data
+  parsedData?: CampaignDataLike
 }
 
 // Helper type for working with raw campaign data from blockchain
 export interface CampaignDataWithMetadata {
   // Raw molecule data
-  raw: CampaignDataType
+  raw: CampaignDataLike
   
   // Parsed for UI consumption
   ui: Campaign // Using the Campaign interface defined above

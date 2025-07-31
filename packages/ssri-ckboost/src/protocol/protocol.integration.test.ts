@@ -82,49 +82,52 @@ describe('Protocol Integration Tests', () => {
   describe('updateProtocol with real executor', () => {
     it('should create a protocol update transaction', async () => {
       // Create test protocol data
-      const protocolData: ProtocolDataInput = {
-        campaignsApproved: [],
-        tippingProposals: [],
-        tippingConfig: {
-          approvalRequirementThresholds: [
+      const protocolData: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [
             BigInt(1000 * 10**8), // 1000 CKB
             BigInt(5000 * 10**8), // 5000 CKB
             BigInt(10000 * 10**8) // 10000 CKB
           ],
-          expirationDuration: 7 * 24 * 60 * 60 // 7 days in seconds
+          expiration_duration: 7 * 24 * 60 * 60 // 7 days in seconds
         },
-        endorsersWhitelist: [
+        endorsers_whitelist: [
           {
-            lockHash: '0x' + '00'.repeat(32), // Replace with actual endorser lock hash
-            name: 'Test Endorser',
-            description: 'Integration test endorser'
+            endorser_lock_hash: '0x' + '00'.repeat(32), // Replace with actual endorser lock hash
+            endorser_name: 'Test Endorser',
+            endorser_description: 'Integration test endorser',
+            website: 'https://example.com',
+            social_links: ['https://twitter.com/example'],
+            verified: 1
           }
         ],
-        protocolConfig: {
-          adminLockHashes: [
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [
             // Add the signer's lock hash as admin
             await signer.getRecommendedAddressObj().then(addr => 
               addr.script.hash()
             )
           ],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32), // Replace with actual
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32), // Replace with actual
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32), // Replace with actual
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32), // Replace with actual
-            acceptedUdtTypeCodeHashes: [],
-            acceptedDobTypeCodeHashes: []
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32), // Replace with actual
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32), // Replace with actual
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32), // Replace with actual
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32), // Replace with actual
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
 
-      const protocolDataType = Protocol.createProtocolData(protocolData);
       console.log('Calling updateProtocol');
       // Create the update transaction
       const { res: tx } = await protocol.updateProtocol(
         signer,
-        protocolDataType
+        protocolData
       );
       console.log('result', tx);
       // Verify transaction structure
@@ -171,32 +174,36 @@ describe('Protocol Integration Tests', () => {
       // Add at least one input for the transaction
       await existingTx.completeInputsAll(signer);
 
-      const protocolData: ProtocolDataInput = {
-        tippingConfig: {
-          approvalRequirementThresholds: [BigInt(500 * 10**8)],
-          expirationDuration: 3 * 24 * 60 * 60 // 3 days
+      const protocolData: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [BigInt(500 * 10**8)],
+          expiration_duration: 3 * 24 * 60 * 60 // 3 days
         },
-        protocolConfig: {
-          adminLockHashes: [
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [
             await signer.getRecommendedAddressObj().then(addr => 
               addr.script.hash()
             )
           ],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
 
-      const protocolDataType = Protocol.createProtocolData(protocolData);
-      
       const { res: tx } = await protocol.updateProtocol(
         signer,
-        protocolDataType,
+        protocolData,
         existingTx
       );
 
@@ -205,32 +212,36 @@ describe('Protocol Integration Tests', () => {
     });
 
     it('should complete fee payment and prepare for sending', async () => {
-      const protocolData: ProtocolDataInput = {
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 24 * 60 * 60 // 1 day
+      const protocolData: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 24 * 60 * 60 // 1 day
         },
-        protocolConfig: {
-          adminLockHashes: [
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [
             await signer.getRecommendedAddressObj().then(addr => 
               addr.script.hash()
             )
           ],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: ccc.hexFrom(PROTOCOL_TYPE_SCRIPT.codeHash),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
 
-      const protocolDataType = Protocol.createProtocolData(protocolData);
-      
       const { res: tx } = await protocol.updateProtocol(
         signer,
-        protocolDataType
+        protocolData
       );
 
       // The SSRI executor should now return WitnessArgs with recipe in output_type field
@@ -397,18 +408,24 @@ describe('Protocol Integration Tests', () => {
       // Test with invalid hex length
       expect(() => {
         Protocol.createProtocolData({
-          tippingConfig: {
-            approvalRequirementThresholds: [],
-            expirationDuration: 0
+          campaigns_approved: [],
+          tipping_proposals: [],
+          tipping_config: {
+            approval_requirement_thresholds: [],
+            expiration_duration: 0
           },
-          protocolConfig: {
-            adminLockHashes: ['0x123'], // Invalid length
-            scriptCodeHashes: {
-              ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-              ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-              ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-              ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-              ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+          endorsers_whitelist: [],
+          last_updated: Date.now(),
+          protocol_config: {
+            admin_lock_hash_vec: ['0x123'], // Invalid length
+            script_code_hashes: {
+              ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+              ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+              ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+              ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+              ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+              accepted_udt_type_code_hashes: [],
+              accepted_dob_type_code_hashes: []
             }
           }
         });
@@ -423,22 +440,28 @@ describe('Protocol Integration Tests', () => {
         { executor }
       );
 
-      const protocolData = Protocol.createProtocolData({
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 0
+      const protocolData: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 0
         },
-        protocolConfig: {
-          adminLockHashes: [],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
-      });
+      };
 
       // This should throw an error since the code cell doesn't exist
       await expect(wrongProtocol.updateProtocol(signer, protocolData))

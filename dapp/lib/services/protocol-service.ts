@@ -1,8 +1,9 @@
 // Protocol Service - High-level protocol operations
 // This service provides high-level protocol operations by delegating to the cell layer
 
-import { ccc, ssri } from "@ckb-ccc/connector-react"
-import { ProtocolData, EndorserInfo } from "../types"
+import { ccc } from "@ckb-ccc/core"
+import { ssri } from "@ckb-ccc/ssri"
+import type { ProtocolDataLike, EndorserInfoLike } from "ssri-ckboost/types"
 import {
   ProtocolMetrics,
   ProtocolTransaction,
@@ -69,7 +70,7 @@ export class ProtocolService {
   /**
    * Helper method to update protocol using the SDK
    */
-  private async updateProtocol(updatedData: ProtocolData): Promise<string> {
+  private async updateProtocol(updatedData: ProtocolDataLike): Promise<string> {
     if (!this.signer) {
       throw new Error("Signer is required to update protocol")
     }
@@ -92,9 +93,9 @@ export class ProtocolService {
 
   /**
    * Get current protocol data
-   * @returns Current ProtocolData
+   * @returns Current ProtocolDataType
    */
-  async getProtocolData(): Promise<ProtocolData> {
+  async getProtocolData(): Promise<ProtocolDataLike> {
     try {
       return await fetchProtocolData(this.signer)
     } catch (error) {
@@ -106,9 +107,9 @@ export class ProtocolService {
   /**
    * Get protocol data by specific outpoint
    * @param outPoint - Specific outpoint to fetch
-   * @returns ProtocolData from the specified cell
+   * @returns ProtocolDataType from the specified cell
    */
-  async getProtocolDataByOutPoint(outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<ProtocolData> {
+  async getProtocolDataByOutPoint(outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<ProtocolDataLike> {
     if (!this.signer) {
       throw new Error("Signer required for fetching by outpoint")
     }
@@ -156,7 +157,7 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
-      // Since ProtocolData is now SDK type, we need to handle it properly
+      // Since ProtocolDataType is now SDK type, we need to handle it properly
       // This is a simplified update - in production, you'd need to serialize properly
       // Convert admin lock hashes to ArrayBuffer
       const adminLockHashVec = form.adminLockHashes.map(hash => {
@@ -198,7 +199,7 @@ export class ProtocolService {
       
       // TODO: Update when schema supports these fields
       // For now, we can only update the accepted code hashes
-      const updatedData: ProtocolData = {
+      const updatedData: ProtocolDataLike = {
         ...currentData,
         protocol_config: {
           ...currentData.protocol_config,
@@ -227,7 +228,7 @@ export class ProtocolService {
     try {
       const currentData = await this.getProtocolData()
       
-      const updatedData: ProtocolData = {
+      const updatedData: ProtocolDataLike = {
         ...currentData,
         tipping_config: {
           ...currentData.tipping_config,
@@ -275,7 +276,7 @@ export class ProtocolService {
       const nameHex = ccc.hexFrom(ccc.bytesFrom(form.endorserName, "utf8"));
       const descHex = ccc.hexFrom(ccc.bytesFrom(form.endorserDescription, "utf8"));
       
-      const newEndorser: EndorserInfo = {
+      const newEndorser: EndorserInfoLike = {
         endorser_lock_hash: lockHashHex,
         endorser_name: nameHex,
         endorser_description: descHex,
@@ -284,7 +285,7 @@ export class ProtocolService {
         verified: form.verified || 0
       }
 
-      const updatedData: ProtocolData = {
+      const updatedData: ProtocolDataLike = {
         ...currentData,
         endorsers_whitelist: [...currentData.endorsers_whitelist, newEndorser],
         last_updated: BigInt(Date.now())
@@ -339,7 +340,7 @@ export class ProtocolService {
         verified: form.verified || 0
       }
 
-      const updatedData: ProtocolData = {
+      const updatedData: ProtocolDataLike = {
         ...currentData,
         endorsers_whitelist: updatedEndorsers,
         last_updated: BigInt(Date.now())
@@ -367,7 +368,7 @@ export class ProtocolService {
 
       const updatedEndorsers = currentData.endorsers_whitelist.filter((_, i) => i !== index)
 
-      const updatedData: ProtocolData = {
+      const updatedData: ProtocolDataLike = {
         ...currentData,
         endorsers_whitelist: updatedEndorsers,
         last_updated: BigInt(Date.now())
@@ -521,11 +522,11 @@ export class ProtocolService {
   /**
    * Calculate changes between current and new data
    */
-  calculateChanges(currentData: ProtocolData, formData: Partial<{
+  calculateChanges(currentData: ProtocolDataLike, formData: Partial<{
     adminLockHashes: string[]
     scriptCodeHashes: any
     tippingConfig: any
-    endorsers: EndorserInfo[]
+    endorsers: EndorserInfoLike[]
   }>): ProtocolChanges {
     const changes: ProtocolChanges = {
       protocolConfig: {
@@ -597,7 +598,7 @@ export class ProtocolService {
    * Get default protocol data for initialization
    * @returns Default protocol data from the cell layer
    */
-  async getDefaultProtocolData(): Promise<ProtocolData> {
+  async getDefaultProtocolData(): Promise<ProtocolDataLike> {
     // Cannot fetch protocol data without a signer
     throw new Error(
       "Cannot fetch protocol data without a connected wallet. " +
@@ -608,7 +609,7 @@ export class ProtocolService {
   /**
    * Get endorsers list
    */
-  static async getEndorsers(signer?: ccc.Signer): Promise<EndorserInfo[]> {
+  static async getEndorsers(signer?: ccc.Signer): Promise<EndorserInfoLike[]> {
     try {
       const data = await fetchProtocolData(signer)
       return data.endorsers_whitelist

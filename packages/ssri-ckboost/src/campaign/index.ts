@@ -40,6 +40,83 @@ export class Campaign extends ssri.Trait {
   }
 
   /**
+   * Helper to ensure all required fields are present for encoding
+   */
+  private static ensureCampaignData(data: CampaignDataLike): Parameters<typeof CampaignData.encode>[0] {
+    return {
+      id: data.id || "0x" + "0".repeat(64),
+      creator: data.creator || { codeHash: "0x", hashType: "type", args: "0x" },
+      metadata: {
+        funding_info: (data.metadata?.funding_info || []).map(funding => ({
+          ckb_amount: funding.ckb_amount || 0n,
+          nft_assets: funding.nft_assets || [],
+          udt_assets: (funding.udt_assets || []).map(udt => ({
+            udt_script: udt.udt_script || { codeHash: "0x", hashType: "type", args: "0x" },
+            amount: udt.amount || 0n
+          }))
+        })),
+        created_at: data.metadata?.created_at || 0n,
+        starting_time: data.metadata?.starting_time || 0n,
+        ending_time: data.metadata?.ending_time || 0n,
+        verification_requirements: data.metadata?.verification_requirements || 0,
+        last_updated: data.metadata?.last_updated || 0n,
+        categories: data.metadata?.categories || [],
+        difficulty: data.metadata?.difficulty || 0,
+        image_cid: data.metadata?.image_cid || "0x",
+        rules: data.metadata?.rules || []
+      },
+      status: data.status || 0,
+      quests: (data.quests || []).map(quest => ({
+        id: quest.id || "0x" + "0".repeat(64),
+        campaign_id: quest.campaign_id || "0x" + "0".repeat(64),
+        title: quest.title || "0x",
+        description: quest.description || "0x",
+        requirements: quest.requirements || "0x",
+        rewards_on_completion: (quest.rewards_on_completion || []).map(asset => ({
+          ckb_amount: asset.ckb_amount || 0n,
+          nft_assets: asset.nft_assets || [],
+          udt_assets: (asset.udt_assets || []).map(udt => ({
+            udt_script: udt.udt_script || { codeHash: "0x", hashType: "type", args: "0x" },
+            amount: udt.amount || 0n
+          }))
+        })),
+        completion_records: (quest.completion_records || []).map(record => ({
+          user_address: record.user_address || "0x",
+          sub_task_id: record.sub_task_id || 0,
+          completion_timestamp: record.completion_timestamp || 0n,
+          completion_content: record.completion_content || "0x"
+        })),
+        completion_deadline: quest.completion_deadline || 0n,
+        status: quest.status || 0,
+        sub_tasks: (quest.sub_tasks || []).map(task => ({
+          id: task.id || 0,
+          title: task.title || "0x",
+          type: task.type || "0x",
+          description: task.description || "0x",
+          proof_required: task.proof_required || "0x"
+        })),
+        points: quest.points || 0,
+        difficulty: quest.difficulty || 0,
+        time_estimate: quest.time_estimate || 0,
+        completion_count: quest.completion_count || 0
+      })),
+      title: data.title || "0x",
+      short_description: data.short_description || "0x",
+      long_description: data.long_description || "0x",
+      endorser_info: {
+        endorser_lock_hash: data.endorser_info?.endorser_lock_hash || "0x" + "0".repeat(64),
+        endorser_name: data.endorser_info?.endorser_name || "0x",
+        endorser_description: data.endorser_info?.endorser_description || "0x",
+        website: data.endorser_info?.website || "0x",
+        social_links: data.endorser_info?.social_links || [],
+        verified: data.endorser_info?.verified || 0
+      },
+      participants_count: data.participants_count || 0,
+      total_completions: data.total_completions || 0
+    };
+  }
+
+  /**
    * Update a campaign with new data
    * 
    * @param _signer - The signer for the transaction
@@ -57,7 +134,8 @@ export class Campaign extends ssri.Trait {
     }
 
     // Serialize campaign data
-    const campaignDataBytes = CampaignData.encode(campaignData);
+    const completeData = Campaign.ensureCampaignData(campaignData);
+    const campaignDataBytes = CampaignData.encode(completeData);
 
     // Prepare transaction or use existing
     const baseTx = tx || ccc.Transaction.from({

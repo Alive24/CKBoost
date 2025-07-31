@@ -2,12 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { ccc } from "@ckb-ccc/connector-react"
-import { 
-  ProtocolData, 
-  EndorserInfo,
-  TippingProposalData,
-  CampaignData
-} from '../types'
+import type { 
+  ProtocolDataLike, 
+  EndorserInfoLike,
+  TippingProposalDataLike,
+  CampaignDataLike
+} from 'ssri-ckboost/types'
 import {
   ProtocolMetrics, 
   ProtocolTransaction,
@@ -24,7 +24,7 @@ import { ProtocolService } from '../services/protocol-service'
 // Types for protocol provider
 interface ProtocolContextType {
   // Protocol data
-  protocolData: ProtocolData | null
+  protocolData: ProtocolDataLike | null
   metrics: ProtocolMetrics | null
   transactions: ProtocolTransaction[]
   isLoading: boolean
@@ -43,9 +43,9 @@ interface ProtocolContextType {
   calculateChanges: (formData: any) => ProtocolChanges
   
   // Helper getters
-  getEndorser: (address: string) => EndorserInfo | undefined
-  getTippingProposal: (index: number) => TippingProposalData | undefined
-  getApprovedCampaign: (id: string) => CampaignData | undefined
+  getEndorser: (address: string) => EndorserInfoLike | undefined
+  getTippingProposal: (index: number) => TippingProposalDataLike | undefined
+  getApprovedCampaign: (id: string) => CampaignDataLike | undefined
   
   // User-specific data
   userAddress: string | null
@@ -60,7 +60,7 @@ const ProtocolContext = createContext<ProtocolContextType | undefined>(undefined
 // Provider component
 export function ProtocolProvider({ children }: { children: ReactNode }) {
   // Protocol data state
-  const [protocolData, setProtocolData] = useState<ProtocolData | null>(null)
+  const [protocolData, setProtocolData] = useState<ProtocolDataLike | null>(null)
   const [metrics, setMetrics] = useState<ProtocolMetrics | null>(null)
   const [transactions, setTransactions] = useState<ProtocolTransaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -371,16 +371,16 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   }
 
   // Helper functions
-  const getEndorser = (address: string): EndorserInfo | undefined => {
-    return protocolData?.endorsers_whitelist.find((e: any) => e.endorserAddress === address)
+  const getEndorser = (address: string): EndorserInfoLike | undefined => {
+    return protocolData?.endorsers_whitelist?.find((e: any) => e.endorserAddress === address)
   }
 
-  const getTippingProposal = (index: number): TippingProposalData | undefined => {
-    return protocolData?.tipping_proposals[index]
+  const getTippingProposal = (index: number): TippingProposalDataLike | undefined => {
+    return protocolData?.tipping_proposals?.[index]
   }
 
-  const getApprovedCampaign = (id: string): CampaignData | undefined => {
-    return protocolData?.campaigns_approved.find((c: any) => c.id === id)
+  const getApprovedCampaign = (id: string): CampaignDataLike | undefined => {
+    return protocolData?.campaigns_approved?.find((c: any) => c.id === id)
   }
 
   const value: ProtocolContextType = {

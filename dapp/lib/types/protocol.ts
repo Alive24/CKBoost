@@ -3,7 +3,7 @@
 
 // Import the generated type from ssri-ckboost
 import { ccc, mol } from '@ckb-ccc/connector-react'
-import type { types } from 'ssri-ckboost'
+// Types are now imported directly from 'ssri-ckboost/types' when needed
 
 
 // Basic Script interface for UI usage

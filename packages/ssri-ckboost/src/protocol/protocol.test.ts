@@ -77,30 +77,33 @@ describe('Protocol', () => {
   describe('createProtocolData', () => {
     it('should create protocol data with all fields', () => {
       const input: ProtocolDataLike = {
-        campaignsApproved: [],
-        tippingProposals: [],
-        tippingConfig: {
-          approvalRequirementThresholds: [BigInt(1000), BigInt(5000)],
-          expirationDuration: 86400 // 1 day in seconds
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [BigInt(1000), BigInt(5000)],
+          expiration_duration: 86400 // 1 day in seconds
         },
-        endorsersWhitelist: [
+        endorsers_whitelist: [
           {
-            lockHash: '0x' + '33'.repeat(32),
-            name: 'Endorser 1',
-            description: 'Test endorser'
+            endorser_lock_hash: '0x' + '33'.repeat(32),
+            endorser_name: 'Endorser 1',
+            endorser_description: 'Test endorser',
+            website: 'https://example.com',
+            social_links: ['https://twitter.com/example'],
+            verified: 1
           }
         ],
-        lastUpdated: 1234567890,
-        protocolConfig: {
-          adminLockHashes: ['0x' + '44'.repeat(32)],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '55'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '66'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '77'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '88'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '99'.repeat(32),
-            acceptedUdtTypeCodeHashes: ['0x' + 'aa'.repeat(32)],
-            acceptedDobTypeCodeHashes: ['0x' + 'bb'.repeat(32)]
+        last_updated: 1234567890,
+        protocol_config: {
+          admin_lock_hash_vec: ['0x' + '44'.repeat(32)],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '55'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '66'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '77'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '88'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '99'.repeat(32),
+            accepted_udt_type_code_hashes: ['0x' + 'aa'.repeat(32)],
+            accepted_dob_type_code_hashes: ['0x' + 'bb'.repeat(32)]
           }
         }
       };
@@ -116,44 +119,39 @@ describe('Protocol', () => {
       
       // Check that last_updated is valid
       expect(protocolData.last_updated).toBeDefined();
-      // Convert to ArrayBuffer for checking
-      const lastUpdatedBuffer = protocolData.last_updated instanceof ArrayBuffer 
-        ? protocolData.last_updated 
-        : (protocolData.last_updated as any).toArrayBuffer();
-      expect(lastUpdatedBuffer.byteLength).toBe(8);
+      // Check that last_updated is a bigint
+      expect(typeof protocolData.last_updated).toBe('bigint');
+      expect(protocolData.last_updated).toBe(BigInt(1234567890));
     });
 
-    it('should use current timestamp when lastUpdated is not provided', () => {
+    it('should use provided timestamp when all fields are provided', () => {
       const input: ProtocolDataLike = {
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 0
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 0
         },
-        protocolConfig: {
-          adminLockHashes: [],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: 1234567890,
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
 
-      const beforeTime = Date.now();
       const protocolData = Protocol.createProtocolData(input);
-      const afterTime = Date.now();
 
-      // Extract timestamp from ArrayBuffer
-      const lastUpdatedBuffer = protocolData.last_updated instanceof ArrayBuffer 
-        ? protocolData.last_updated 
-        : (protocolData.last_updated as any).toArrayBuffer();
-      const view = new DataView(lastUpdatedBuffer);
-      const timestamp = Number(view.getBigUint64(0, true));
-
-      expect(timestamp).toBeGreaterThanOrEqual(beforeTime);
-      expect(timestamp).toBeLessThanOrEqual(afterTime);
+      // Since we now require all fields, we should get the exact timestamp we provided
+      expect(protocolData.last_updated).toBe(BigInt(1234567890));
     });
   });
 
@@ -189,24 +187,30 @@ describe('Protocol', () => {
         mockTx.toBytes()
       );
 
-      const protocolData = Protocol.createProtocolData({
-        tippingConfig: {
-          approvalRequirementThresholds: [BigInt(1000)],
-          expirationDuration: 3600
+      const protocolDataLike: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [BigInt(1000)],
+          expiration_duration: 3600
         },
-        protocolConfig: {
-          adminLockHashes: ['0x' + 'aa'.repeat(32)],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '11'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '22'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '33'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '44'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '55'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: ['0x' + 'aa'.repeat(32)],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '11'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '22'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '33'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '44'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '55'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
-      });
+      };
 
-      const result = await protocol.updateProtocol(signer, protocolData);
+      const result = await protocol.updateProtocol(signer, protocolDataLike);
 
       expect(result).toBeDefined();
       expect(result.res).toBeInstanceOf(ccc.Transaction);
@@ -257,24 +261,30 @@ describe('Protocol', () => {
         mockResultTx.toBytes()
       );
 
-      const protocolData = Protocol.createProtocolData({
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 0
+      const protocolDataLike: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 0
         },
-        protocolConfig: {
-          adminLockHashes: [],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
-      });
+      };
 
-      const result = await protocol.updateProtocol(signer, protocolData, existingTx);
+      const result = await protocol.updateProtocol(signer, protocolDataLike, existingTx);
 
       expect(result).toBeDefined();
       expect(result.res.inputs.length).toBe(1);
@@ -284,24 +294,30 @@ describe('Protocol', () => {
     it('should handle fallback when executor is not available', async () => {
       const protocolWithoutExecutor = new Protocol(mockCodeOutPoint, mockScript);
 
-      const protocolData = Protocol.createProtocolData({
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 0
+      const protocolDataLike: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 0
         },
-        protocolConfig: {
-          adminLockHashes: [],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
-      });
+      };
 
-      const result = await protocolWithoutExecutor.updateProtocol(signer, protocolData);
+      const result = await protocolWithoutExecutor.updateProtocol(signer, protocolDataLike);
 
       expect(result).toBeDefined();
       expect(result.res).toBeInstanceOf(ccc.Transaction);
@@ -313,94 +329,36 @@ describe('Protocol', () => {
   });
 
   describe('helper methods', () => {
-    describe('hexToBytes32Buffer', () => {
-      it('should convert hex string to Byte32 buffer', () => {
-        const hex = '0x' + '12'.repeat(32);
-        const buffer = Protocol['hexToBytes32Buffer'](hex);
-        
-        expect(buffer).toBeInstanceOf(ArrayBuffer);
-        expect(buffer.byteLength).toBe(32);
-        
-        const view = new Uint8Array(buffer);
-        expect(view[0]).toBe(0x12);
-        expect(view[31]).toBe(0x12);
-      });
-
-      it('should handle hex without 0x prefix', () => {
-        const hex = '12'.repeat(32);
-        const buffer = Protocol['hexToBytes32Buffer'](hex);
-        
-        expect(buffer.byteLength).toBe(32);
-      });
-
-      it('should throw error for invalid hex length', () => {
-        expect(() => {
-          Protocol['hexToBytes32Buffer']('0x1234');
-        }).toThrow('Invalid hex string length for Byte32');
-      });
-    });
-
-    describe('numberToUint64Buffer', () => {
-      it('should convert number to Uint64 buffer', () => {
-        const num = 1234567890;
-        const buffer = Protocol['numberToUint64Buffer'](num);
-        
-        expect(buffer).toBeInstanceOf(ArrayBuffer);
-        expect(buffer.byteLength).toBe(8);
-        
-        const view = new DataView(buffer);
-        expect(view.getBigUint64(0, true)).toBe(BigInt(num));
-      });
-    });
-
-    describe('bigintToUint128Buffer', () => {
-      it('should convert bigint to Uint128 buffer', () => {
-        const value = BigInt('12345678901234567890');
-        const buffer = Protocol['bigintToUint128Buffer'](value);
-        
-        expect(buffer).toBeInstanceOf(ArrayBuffer);
-        expect(buffer.byteLength).toBe(16);
-      });
-
-      it('should handle max uint128 value', () => {
-        const maxValue = (BigInt(1) << BigInt(128)) - BigInt(1);
-        const buffer = Protocol['bigintToUint128Buffer'](maxValue);
-        
-        expect(buffer.byteLength).toBe(16);
-        const view = new Uint8Array(buffer);
-        expect(view.every(byte => byte === 0xFF)).toBe(true);
-      });
-    });
-
     describe('createEndorserInfo', () => {
       it('should create endorser info with proper encoding', () => {
         const input = {
-          lockHash: '0x' + 'ab'.repeat(32),
-          name: 'Test Endorser',
-          description: 'A test endorser for unit tests'
+          endorser_lock_hash: '0x' + 'ab'.repeat(32),
+          endorser_name: 'Test Endorser',
+          endorser_description: 'A test endorser for unit tests',
+          website: 'https://example.com',
+          social_links: ['https://twitter.com/example'],
+          verified: 1
         };
 
         const endorserInfo = Protocol.createEndorserInfo(input);
 
         expect(endorserInfo.endorser_lock_hash).toBeDefined();
-        const lockHashBuffer = endorserInfo.endorser_lock_hash instanceof ArrayBuffer 
-          ? endorserInfo.endorser_lock_hash 
-          : (endorserInfo.endorser_lock_hash as any).toArrayBuffer();
-        expect(lockHashBuffer.byteLength).toBe(32);
+        expect(endorserInfo.endorser_lock_hash).toBe('0x' + 'ab'.repeat(32));
         
         expect(endorserInfo.endorser_name).toBeDefined();
-        const nameBuffer = endorserInfo.endorser_name instanceof ArrayBuffer 
-          ? endorserInfo.endorser_name 
-          : (endorserInfo.endorser_name as any).toArrayBuffer();
-        const nameDecoded = new TextDecoder().decode(nameBuffer);
-        expect(nameDecoded).toBe(input.name);
+        expect(endorserInfo.endorser_name).toBe('0x' + Buffer.from('Test Endorser', 'utf8').toString('hex'));
         
         expect(endorserInfo.endorser_description).toBeDefined();
-        const descBuffer = endorserInfo.endorser_description instanceof ArrayBuffer 
-          ? endorserInfo.endorser_description 
-          : (endorserInfo.endorser_description as any).toArrayBuffer();
-        const descDecoded = new TextDecoder().decode(descBuffer);
-        expect(descDecoded).toBe(input.description);
+        expect(endorserInfo.endorser_description).toBe('0x' + Buffer.from('A test endorser for unit tests', 'utf8').toString('hex'));
+        
+        expect(endorserInfo.website).toBeDefined();
+        expect(endorserInfo.website).toBe('0x' + Buffer.from('https://example.com', 'utf8').toString('hex'));
+        
+        expect(endorserInfo.social_links).toBeDefined();
+        expect(endorserInfo.social_links).toHaveLength(1);
+        expect(endorserInfo.social_links[0]).toBe('0x' + Buffer.from('https://twitter.com/example', 'utf8').toString('hex'));
+        
+        expect(endorserInfo.verified).toBe(1);
       });
     });
   });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { ccc } from '@ckb-ccc/core';
 import { Protocol } from './index';
-import type { ProtocolDataInput } from '../types';
+import type { ProtocolDataLike } from '../generated';
 
 describe('Protocol Simple Tests', () => {
   const mockCodeOutPoint = {
@@ -34,25 +34,25 @@ describe('Protocol Simple Tests', () => {
 
   describe('createProtocolData', () => {
     it('should convert input data to protocol data type', () => {
-      const input: ProtocolDataInput = {
-        campaignsApproved: [],
-        tippingProposals: [],
-        tippingConfig: {
-          approvalRequirementThresholds: [BigInt(100)],
-          expirationDuration: 86400
+      const input: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [BigInt(100)],
+          expiration_duration: 86400n
         },
-        endorsersWhitelist: [],
-        lastUpdated: Date.now(),
-        protocolConfig: {
-          adminLockHashes: ['0x' + '33'.repeat(32)],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '44'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '55'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '66'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '77'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '88'.repeat(32),
-            acceptedUdtTypeCodeHashes: [],
-            acceptedDobTypeCodeHashes: []
+        endorsers_whitelist: [],
+        last_updated: BigInt(Date.now()),
+        protocol_config: {
+          admin_lock_hash_vec: ['0x' + '33'.repeat(32)],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '44'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '55'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '66'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '77'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '88'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
@@ -67,19 +67,25 @@ describe('Protocol Simple Tests', () => {
     });
 
     it('should handle minimal input', () => {
-      const input: ProtocolDataInput = {
-        tippingConfig: {
-          approvalRequirementThresholds: [],
-          expirationDuration: 0
+      const input: ProtocolDataLike = {
+        campaigns_approved: [],
+        tipping_proposals: [],
+        tipping_config: {
+          approval_requirement_thresholds: [],
+          expiration_duration: 0n
         },
-        protocolConfig: {
-          adminLockHashes: [],
-          scriptCodeHashes: {
-            ckbBoostProtocolTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostProtocolLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignTypeCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostCampaignLockCodeHash: '0x' + '00'.repeat(32),
-            ckbBoostUserTypeCodeHash: '0x' + '00'.repeat(32)
+        endorsers_whitelist: [],
+        last_updated: Date.now(),
+        protocol_config: {
+          admin_lock_hash_vec: [],
+          script_code_hashes: {
+            ckb_boost_protocol_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_protocol_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            accepted_udt_type_code_hashes: [],
+            accepted_dob_type_code_hashes: []
           }
         }
       };
@@ -96,9 +102,12 @@ describe('Protocol Simple Tests', () => {
   describe('createEndorserInfo', () => {
     it('should create endorser info from input', () => {
       const input = {
-        lockHash: '0x' + 'ff'.repeat(32),
-        name: 'Test Endorser',
-        description: 'Test Description'
+        endorser_lock_hash: '0x' + 'ff'.repeat(32),
+        endorser_name: 'Test Endorser',
+        endorser_description: 'Test Description',
+        website: 'https://example.com',
+        social_links: [],
+        verified: 0
       };
 
       const endorserInfo = Protocol.createEndorserInfo(input);

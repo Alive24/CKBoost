@@ -5,12 +5,10 @@ import {
   ProtocolConfig,
   TippingConfig,
   EndorserInfo,
-  CampaignDataVec,
   type ProtocolDataLike,
   type ProtocolConfigLike,
   type TippingConfigLike,
   type EndorserInfoLike,
-  type CampaignDataLike,
 } from "../types";
 
 /**
@@ -53,129 +51,128 @@ export class Protocol extends ssri.Trait {
   /**
    * Creates a properly typed ProtocolData object from a plain object.
    * 
-   * @param data - Plain object with user-friendly property names
-   * @returns ProtocolData object ready for encoding
+   * @param data - Plain object with all required fields
+   * @returns ProtocolData object with the same structure as ProtocolData.decode()
    */
-  static createProtocolData(data: ProtocolDataLike): Parameters<typeof ProtocolData.encode>[0] {
-    // Build the protocol data with defaults for all required fields
-    const protocolData: Parameters<typeof ProtocolData.encode>[0] = {
-      campaigns_approved: (data.campaigns_approved || []).map(campaign => ({
-        id: campaign.id || "0x" + "0".repeat(64),
-        creator: campaign.creator || { codeHash: "0x", hashType: "type", args: "0x" },
+  static createProtocolData(data: ProtocolDataLike): ReturnType<typeof ProtocolData.decode> {
+    // Since all fields are required in Like types, we can directly transform the data
+    // This returns the same structure as ProtocolData.decode() would
+    return {
+      campaigns_approved: data.campaigns_approved.map(campaign => ({
+        id: ccc.hexFrom(campaign.id),
+        creator: ccc.Script.from(campaign.creator),
         metadata: {
-          funding_info: (campaign.metadata?.funding_info || []).map(funding => ({
-            ckb_amount: funding.ckb_amount || 0n,
-            nft_assets: funding.nft_assets || [],
-            udt_assets: (funding.udt_assets || []).map(udt => ({
-              udt_script: udt.udt_script || { codeHash: "0x", hashType: "type", args: "0x" },
-              amount: udt.amount || 0n
+          funding_info: campaign.metadata.funding_info.map(funding => ({
+            ckb_amount: ccc.numFrom(funding.ckb_amount),
+            nft_assets: funding.nft_assets.map(script => ccc.Script.from(script)),
+            udt_assets: funding.udt_assets.map(udt => ({
+              udt_script: ccc.Script.from(udt.udt_script),
+              amount: ccc.numFrom(udt.amount)
             }))
           })),
-          created_at: campaign.metadata?.created_at || 0n,
-          starting_time: campaign.metadata?.starting_time || 0n,
-          ending_time: campaign.metadata?.ending_time || 0n,
-          verification_requirements: campaign.metadata?.verification_requirements || 0,
-          last_updated: campaign.metadata?.last_updated || 0n,
-          categories: campaign.metadata?.categories || [],
-          difficulty: campaign.metadata?.difficulty || 0,
-          image_cid: campaign.metadata?.image_cid || "0x",
-          rules: campaign.metadata?.rules || []
+          created_at: ccc.numFrom(campaign.metadata.created_at),
+          starting_time: ccc.numFrom(campaign.metadata.starting_time),
+          ending_time: ccc.numFrom(campaign.metadata.ending_time),
+          verification_requirements: Number(ccc.numFrom(campaign.metadata.verification_requirements)),
+          last_updated: ccc.numFrom(campaign.metadata.last_updated),
+          categories: campaign.metadata.categories.map(cat => ccc.hexFrom(cat)),
+          difficulty: Number(ccc.numFrom(campaign.metadata.difficulty)),
+          image_cid: ccc.hexFrom(campaign.metadata.image_cid),
+          rules: campaign.metadata.rules.map(rule => ccc.hexFrom(rule))
         },
-        status: campaign.status || 0,
-        quests: (campaign.quests || []).map(quest => ({
-          id: quest.id || "0x" + "0".repeat(64),
-          campaign_id: quest.campaign_id || "0x" + "0".repeat(64),
-          title: quest.title || "0x",
-          description: quest.description || "0x",
-          requirements: quest.requirements || "0x",
-          rewards_on_completion: (quest.rewards_on_completion || []).map(asset => ({
-            ckb_amount: asset.ckb_amount || 0n,
-            nft_assets: asset.nft_assets || [],
-            udt_assets: (asset.udt_assets || []).map(udt => ({
-              udt_script: udt.udt_script || { codeHash: "0x", hashType: "type", args: "0x" },
-              amount: udt.amount || 0n
+        status: Number(ccc.numFrom(campaign.status)),
+        quests: campaign.quests.map(quest => ({
+          id: ccc.hexFrom(quest.id),
+          campaign_id: ccc.hexFrom(quest.campaign_id),
+          title: ccc.hexFrom(quest.title),
+          description: ccc.hexFrom(quest.description),
+          requirements: ccc.hexFrom(quest.requirements),
+          rewards_on_completion: quest.rewards_on_completion.map(asset => ({
+            ckb_amount: ccc.numFrom(asset.ckb_amount),
+            nft_assets: asset.nft_assets.map(script => ccc.Script.from(script)),
+            udt_assets: asset.udt_assets.map(udt => ({
+              udt_script: ccc.Script.from(udt.udt_script),
+              amount: ccc.numFrom(udt.amount)
             }))
           })),
-          completion_records: (quest.completion_records || []).map(record => ({
-            user_address: record.user_address || "0x",
-            sub_task_id: record.sub_task_id || 0,
-            completion_timestamp: record.completion_timestamp || 0n,
-            completion_content: record.completion_content || "0x"
+          completion_records: quest.completion_records.map(record => ({
+            user_address: ccc.hexFrom(record.user_address),
+            sub_task_id: Number(ccc.numFrom(record.sub_task_id)),
+            completion_timestamp: ccc.numFrom(record.completion_timestamp),
+            completion_content: ccc.hexFrom(record.completion_content)
           })),
-          completion_deadline: quest.completion_deadline || 0n,
-          status: quest.status || 0,
-          sub_tasks: (quest.sub_tasks || []).map(task => ({
-            id: task.id || 0,
-            title: task.title || "0x",
-            type: task.type || "0x",
-            description: task.description || "0x",
-            proof_required: task.proof_required || "0x"
+          completion_deadline: ccc.numFrom(quest.completion_deadline),
+          status: Number(ccc.numFrom(quest.status)),
+          sub_tasks: quest.sub_tasks.map(task => ({
+            id: Number(ccc.numFrom(task.id)),
+            title: ccc.hexFrom(task.title),
+            type: ccc.hexFrom(task.type),
+            description: ccc.hexFrom(task.description),
+            proof_required: ccc.hexFrom(task.proof_required)
           })),
-          points: quest.points || 0,
-          difficulty: quest.difficulty || 0,
-          time_estimate: quest.time_estimate || 0,
-          completion_count: quest.completion_count || 0
+          points: Number(ccc.numFrom(quest.points)),
+          difficulty: Number(ccc.numFrom(quest.difficulty)),
+          time_estimate: Number(ccc.numFrom(quest.time_estimate)),
+          completion_count: Number(ccc.numFrom(quest.completion_count))
         })),
-        title: campaign.title || "0x",
-        short_description: campaign.short_description || "0x",
-        long_description: campaign.long_description || "0x",
+        title: ccc.hexFrom(campaign.title),
+        short_description: ccc.hexFrom(campaign.short_description),
+        long_description: ccc.hexFrom(campaign.long_description),
         endorser_info: {
-          endorser_lock_hash: campaign.endorser_info?.endorser_lock_hash || "0x" + "0".repeat(64),
-          endorser_name: campaign.endorser_info?.endorser_name || "0x",
-          endorser_description: campaign.endorser_info?.endorser_description || "0x",
-          website: campaign.endorser_info?.website || "0x",
-          social_links: campaign.endorser_info?.social_links || [],
-          verified: campaign.endorser_info?.verified || 0
+          endorser_lock_hash: ccc.hexFrom(campaign.endorser_info.endorser_lock_hash),
+          endorser_name: ccc.hexFrom(campaign.endorser_info.endorser_name),
+          endorser_description: ccc.hexFrom(campaign.endorser_info.endorser_description),
+          website: ccc.hexFrom(campaign.endorser_info.website),
+          social_links: campaign.endorser_info.social_links.map(link => ccc.hexFrom(link)),
+          verified: Number(ccc.numFrom(campaign.endorser_info.verified))
         },
-        participants_count: campaign.participants_count || 0,
-        total_completions: campaign.total_completions || 0
+        participants_count: Number(ccc.numFrom(campaign.participants_count)),
+        total_completions: Number(ccc.numFrom(campaign.total_completions))
       })),
       
-      tipping_proposals: (data.tipping_proposals || []).map(proposal => ({
-        target_address: proposal.target_address || "0x",
-        proposer_lock_hash: proposal.proposer_lock_hash || "0x" + "0".repeat(64),
+      tipping_proposals: data.tipping_proposals.map(proposal => ({
+        target_address: ccc.hexFrom(proposal.target_address),
+        proposer_lock_hash: ccc.hexFrom(proposal.proposer_lock_hash),
         metadata: {
-          contribution_title: proposal.metadata?.contribution_title || "0x",
-          contribution_type_tags: proposal.metadata?.contribution_type_tags || [],
-          description: proposal.metadata?.description || "0x",
-          proposal_creation_timestamp: proposal.metadata?.proposal_creation_timestamp || 0n
+          contribution_title: ccc.hexFrom(proposal.metadata.contribution_title),
+          contribution_type_tags: proposal.metadata.contribution_type_tags.map(tag => ccc.hexFrom(tag)),
+          description: ccc.hexFrom(proposal.metadata.description),
+          proposal_creation_timestamp: ccc.numFrom(proposal.metadata.proposal_creation_timestamp)
         },
-        amount: proposal.amount || 0n,
-        tipping_transaction_hash: proposal.tipping_transaction_hash,
-        approval_transaction_hash: proposal.approval_transaction_hash || []
+        amount: ccc.numFrom(proposal.amount),
+        tipping_transaction_hash: proposal.tipping_transaction_hash === null ? undefined : proposal.tipping_transaction_hash ? ccc.hexFrom(proposal.tipping_transaction_hash) : undefined,
+        approval_transaction_hash: proposal.approval_transaction_hash.map(hash => ccc.hexFrom(hash))
       })),
       
       tipping_config: {
-        approval_requirement_thresholds: data.tipping_config?.approval_requirement_thresholds || [],
-        expiration_duration: data.tipping_config?.expiration_duration || 0n
+        approval_requirement_thresholds: data.tipping_config.approval_requirement_thresholds.map(threshold => ccc.numFrom(threshold)),
+        expiration_duration: ccc.numFrom(data.tipping_config.expiration_duration)
       },
       
-      endorsers_whitelist: (data.endorsers_whitelist || []).map(endorser => ({
-        endorser_lock_hash: endorser.endorser_lock_hash || "0x" + "0".repeat(64),
-        endorser_name: endorser.endorser_name || "0x",
-        endorser_description: endorser.endorser_description || "0x",
-        website: endorser.website || "0x",
-        social_links: endorser.social_links || [],
-        verified: endorser.verified || 0
+      endorsers_whitelist: data.endorsers_whitelist.map(endorser => ({
+        endorser_lock_hash: ccc.hexFrom(endorser.endorser_lock_hash),
+        endorser_name: ccc.hexFrom(endorser.endorser_name),
+        endorser_description: ccc.hexFrom(endorser.endorser_description),
+        website: ccc.hexFrom(endorser.website),
+        social_links: endorser.social_links.map(link => ccc.hexFrom(link)),
+        verified: Number(ccc.numFrom(endorser.verified))
       })),
       
-      last_updated: data.last_updated || BigInt(Date.now()),
+      last_updated: ccc.numFrom(data.last_updated),
       
       protocol_config: {
-        admin_lock_hash_vec: data.protocol_config?.admin_lock_hash_vec || [],
+        admin_lock_hash_vec: data.protocol_config.admin_lock_hash_vec.map(hash => ccc.hexFrom(hash)),
         script_code_hashes: {
-          ckb_boost_protocol_type_code_hash: data.protocol_config?.script_code_hashes?.ckb_boost_protocol_type_code_hash || "0x" + "0".repeat(64),
-          ckb_boost_protocol_lock_code_hash: data.protocol_config?.script_code_hashes?.ckb_boost_protocol_lock_code_hash || "0x" + "0".repeat(64),
-          ckb_boost_campaign_type_code_hash: data.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash || "0x" + "0".repeat(64),
-          ckb_boost_campaign_lock_code_hash: data.protocol_config?.script_code_hashes?.ckb_boost_campaign_lock_code_hash || "0x" + "0".repeat(64),
-          ckb_boost_user_type_code_hash: data.protocol_config?.script_code_hashes?.ckb_boost_user_type_code_hash || "0x" + "0".repeat(64),
-          accepted_udt_type_code_hashes: data.protocol_config?.script_code_hashes?.accepted_udt_type_code_hashes || [],
-          accepted_dob_type_code_hashes: data.protocol_config?.script_code_hashes?.accepted_dob_type_code_hashes || []
+          ckb_boost_protocol_type_code_hash: ccc.hexFrom(data.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash),
+          ckb_boost_protocol_lock_code_hash: ccc.hexFrom(data.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash),
+          ckb_boost_campaign_type_code_hash: ccc.hexFrom(data.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash),
+          ckb_boost_campaign_lock_code_hash: ccc.hexFrom(data.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash),
+          ckb_boost_user_type_code_hash: ccc.hexFrom(data.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash),
+          accepted_udt_type_code_hashes: data.protocol_config.script_code_hashes.accepted_udt_type_code_hashes.map(hash => ccc.hexFrom(hash)),
+          accepted_dob_type_code_hashes: data.protocol_config.script_code_hashes.accepted_dob_type_code_hashes.map(hash => ccc.hexFrom(hash))
         }
       }
-    };
-    
-    return protocolData;
+    } as ReturnType<typeof ProtocolData.decode>;
   }
 
 
@@ -229,7 +226,7 @@ export class Protocol extends ssri.Trait {
       // Convert protocolData to bytes
       // First ensure all required fields are present
       const completeProtocolData = Protocol.createProtocolData(protocolData);
-      // The createProtocolData returns a decoded object, we need to encode it for the bytes
+      // Encode the protocol data
       const protocolDataBytes = ProtocolData.encode(completeProtocolData);
 
       // Convert to hex strings as expected by the contract
@@ -290,36 +287,29 @@ export class Protocol extends ssri.Trait {
   /**
    * Helper to create a TippingConfig with proper type conversions
    */
-  static createTippingConfig(config: TippingConfigLike): Parameters<typeof TippingConfig.encode>[0] {
-    // The new types expect bigint for numeric values
+  static createTippingConfig(config: TippingConfigLike): ReturnType<typeof TippingConfig.decode> {
+    // Simple and clean conversion now that all fields are required
     return {
-      approval_requirement_thresholds: config.approval_requirement_thresholds?.map(threshold => {
-        // Convert NumLike to bigint
-        if (typeof threshold === 'bigint') return threshold;
-        if (typeof threshold === 'number') return BigInt(threshold);
-        if (typeof threshold === 'string') return BigInt(threshold);
-        // For other types, try to convert to string first
-        return BigInt(threshold.toString());
-      }) || [],
-      expiration_duration: config.expiration_duration || 0n
+      approval_requirement_thresholds: config.approval_requirement_thresholds.map(threshold => ccc.numFrom(threshold)),
+      expiration_duration: ccc.numFrom(config.expiration_duration)
     };
   }
 
   /**
    * Helper to create a ProtocolConfig with proper type conversions
    */
-  static createProtocolConfig(config: ProtocolConfigLike): Parameters<typeof ProtocolConfig.encode>[0] {
-    // The new types expect ccc.Hex for Byte32 values
+  static createProtocolConfig(config: ProtocolConfigLike): ReturnType<typeof ProtocolConfig.decode> {
+    // Return object with the same structure as ProtocolConfig.decode()
     return {
-      admin_lock_hash_vec: config.admin_lock_hash_vec || [],
+      admin_lock_hash_vec: (config.admin_lock_hash_vec || []).map(hash => ccc.hexFrom(hash)),
       script_code_hashes: {
-        ckb_boost_protocol_type_code_hash: config.script_code_hashes?.ckb_boost_protocol_type_code_hash || "0x" + "0".repeat(64),
-        ckb_boost_protocol_lock_code_hash: config.script_code_hashes?.ckb_boost_protocol_lock_code_hash || "0x" + "0".repeat(64),
-        ckb_boost_campaign_type_code_hash: config.script_code_hashes?.ckb_boost_campaign_type_code_hash || "0x" + "0".repeat(64),
-        ckb_boost_campaign_lock_code_hash: config.script_code_hashes?.ckb_boost_campaign_lock_code_hash || "0x" + "0".repeat(64),
-        ckb_boost_user_type_code_hash: config.script_code_hashes?.ckb_boost_user_type_code_hash || "0x" + "0".repeat(64),
-        accepted_udt_type_code_hashes: config.script_code_hashes?.accepted_udt_type_code_hashes || [],
-        accepted_dob_type_code_hashes: config.script_code_hashes?.accepted_dob_type_code_hashes || []
+        ckb_boost_protocol_type_code_hash: config.script_code_hashes?.ckb_boost_protocol_type_code_hash ? ccc.hexFrom(config.script_code_hashes.ckb_boost_protocol_type_code_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
+        ckb_boost_protocol_lock_code_hash: config.script_code_hashes?.ckb_boost_protocol_lock_code_hash ? ccc.hexFrom(config.script_code_hashes.ckb_boost_protocol_lock_code_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
+        ckb_boost_campaign_type_code_hash: config.script_code_hashes?.ckb_boost_campaign_type_code_hash ? ccc.hexFrom(config.script_code_hashes.ckb_boost_campaign_type_code_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
+        ckb_boost_campaign_lock_code_hash: config.script_code_hashes?.ckb_boost_campaign_lock_code_hash ? ccc.hexFrom(config.script_code_hashes.ckb_boost_campaign_lock_code_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
+        ckb_boost_user_type_code_hash: config.script_code_hashes?.ckb_boost_user_type_code_hash ? ccc.hexFrom(config.script_code_hashes.ckb_boost_user_type_code_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
+        accepted_udt_type_code_hashes: (config.script_code_hashes?.accepted_udt_type_code_hashes || []).map(hash => ccc.hexFrom(hash)),
+        accepted_dob_type_code_hashes: (config.script_code_hashes?.accepted_dob_type_code_hashes || []).map(hash => ccc.hexFrom(hash))
       }
     };
   }
@@ -327,8 +317,7 @@ export class Protocol extends ssri.Trait {
   /**
    * Helper to create an EndorserInfo with proper type conversions
    */
-  static createEndorserInfo(endorser: EndorserInfoLike): Parameters<typeof EndorserInfo.encode>[0] {
-    // The new types expect ccc.Hex for Byte32 and Bytes values
+  static createEndorserInfo(endorser: EndorserInfoLike): ReturnType<typeof EndorserInfo.decode> {
     // For string fields (name, description), we need to convert to hex
     const nameHex = endorser.endorser_name ? ccc.hexFrom(ccc.bytesFrom(endorser.endorser_name.toString(), "utf8")) : "0x";
     const descHex = endorser.endorser_description ? ccc.hexFrom(ccc.bytesFrom(endorser.endorser_description.toString(), "utf8")) : "0x";
@@ -337,13 +326,14 @@ export class Protocol extends ssri.Trait {
       ccc.hexFrom(ccc.bytesFrom(link.toString(), "utf8"))
     ) || [];
 
+    // Return object with the same structure as EndorserInfo.decode()
     return {
-      endorser_lock_hash: endorser.endorser_lock_hash || "0x" + "0".repeat(64),
+      endorser_lock_hash: endorser.endorser_lock_hash ? ccc.hexFrom(endorser.endorser_lock_hash) : ccc.hexFrom("0x" + "0".repeat(64)),
       endorser_name: nameHex,
       endorser_description: descHex,
       website: websiteHex,
       social_links: socialLinksHex,
-      verified: endorser.verified || 0
+      verified: endorser.verified !== undefined ? Number(ccc.numFrom(endorser.verified)) : 0
     };
   }
 
