@@ -1,7 +1,7 @@
 // Protocol Service - High-level protocol operations
 // This service provides high-level protocol operations by delegating to the cell layer
 
-import { ccc } from "@ckb-ccc/connector-react"
+import { ccc, ssri } from "@ckb-ccc/connector-react"
 import { ProtocolData, EndorserInfo } from "../types"
 import {
   ProtocolMetrics,
@@ -53,7 +53,13 @@ export class ProtocolService {
           args: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x" // Protocol cell type args
         }
         
-        this.protocol = new Protocol(outPoint, protocolTypeScript)
+        // TODO: Get executor from environment
+        const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090"
+        const executor = new ssri.ExecutorJsonRpc(executorUrl)
+
+        this.protocol = new Protocol(outPoint, protocolTypeScript, {
+          executor: executor
+        })
       } catch (error) {
         console.warn("Failed to initialize Protocol instance:", error)
       }
@@ -76,7 +82,8 @@ export class ProtocolService {
     const { res: tx } = await this.protocol.updateProtocol(this.signer, updatedData)
     
     // Complete fees and send transaction
-    await tx.completeFeeBy(this.signer, 1000)
+    await tx.completeInputsByCapacity(this.signer)
+    await tx.completeFeeBy(this.signer)
     const txHash = await this.signer.sendTransaction(tx)
     
     console.log("Protocol updated, tx:", txHash)
