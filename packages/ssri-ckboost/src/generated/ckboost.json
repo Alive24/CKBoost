@@ -400,7 +400,7 @@
     },
     {
       "type": "table",
-      "name": "UDTFunding",
+      "name": "UDTAsset",
       "fields": [
         {
           "name": "udt_script",
@@ -414,8 +414,8 @@
     },
     {
       "type": "dynvec",
-      "name": "UDTFundingVec",
-      "item": "UDTFunding"
+      "name": "UDTAssetVec",
+      "item": "UDTAsset"
     },
     {
       "type": "table",
@@ -431,7 +431,7 @@
         },
         {
           "name": "udt_assets",
-          "type": "UDTFundingVec"
+          "type": "UDTAssetVec"
         }
       ]
     },
@@ -891,24 +891,6 @@
         {
           "name": "last_activity_timestamp",
           "type": "Uint64"
-        }
-      ]
-    },
-    {
-      "type": "table",
-      "name": "TokenRewardInfo",
-      "fields": [
-        {
-          "name": "udt_script",
-          "type": "Script"
-        },
-        {
-          "name": "symbol",
-          "type": "Bytes"
-        },
-        {
-          "name": "decimals",
-          "type": "Uint8"
         }
       ]
     },

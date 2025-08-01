@@ -36,16 +36,16 @@ pub mod blockchain {
 /// Campaign and quest related types
 pub mod campaign {
     pub use crate::generated::{
-        UDTFunding, UDTFundingVec,
         AssetList, AssetListVec,
+        UDTAsset, UDTAssetVec,
         QuestSubTaskData, QuestSubTaskDataVec,
         CompletionRecord, CompletionRecordVec,
         QuestData, QuestDataVec,
         CampaignMetadata, CampaignData, CampaignDataVec,
         
         // Readers and Builders
-        UDTFundingReader, UDTFundingBuilder,
         AssetListReader, AssetListBuilder,
+        UDTAssetReader, UDTAssetBuilder,
         QuestDataReader, QuestDataBuilder,
         CampaignDataReader, CampaignDataBuilder,
         // Add other readers/builders as needed

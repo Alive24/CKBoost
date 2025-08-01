@@ -23,15 +23,15 @@ export const CellbaseWitness = mol.table({
   lock: ccc.Script,
   message: mol.Bytes
 });
-export const UDTFunding = mol.table({
+export const UDTAsset = mol.table({
   udt_script: ccc.Script,
   amount: mol.Uint128
 });
-export const UDTFundingVec = mol.vector(UDTFunding);
+export const UDTAssetVec = mol.vector(UDTAsset);
 export const AssetList = mol.table({
   ckb_amount: mol.Uint64,
   nft_assets: mol.vector(ccc.Script),
-  udt_assets: UDTFundingVec
+  udt_assets: UDTAssetVec
 });
 export const AssetListVec = mol.vector(AssetList);
 export const QuestSubTaskData = mol.table({
@@ -153,11 +153,6 @@ export const UserProgressData = mol.table({
   total_points_earned: mol.Uint32,
   last_activity_timestamp: mol.Uint64
 });
-export const TokenRewardInfo = mol.table({
-  udt_script: ccc.Script,
-  symbol: mol.Bytes,
-  decimals: mol.Uint8
-});
 export const ConnectedTypeID = mol.table({
   type_id: mol.Byte32,
   connected_type_hash: mol.Byte32
@@ -187,7 +182,7 @@ export interface CellbaseWitnessLike {
   message: ccc.BytesLike;
 }
 
-export interface UDTFundingLike {
+export interface UDTAssetLike {
   udt_script: ccc.ScriptLike;
   amount: ccc.NumLike;
 }
@@ -195,7 +190,7 @@ export interface UDTFundingLike {
 export interface AssetListLike {
   ckb_amount: ccc.NumLike;
   nft_assets: ccc.ScriptLike[];
-  udt_assets: UDTFundingLike[];
+  udt_assets: UDTAssetLike[];
 }
 
 export interface QuestSubTaskDataLike {
@@ -323,12 +318,6 @@ export interface UserProgressDataLike {
   completed_quest_ids: ccc.HexLike[];
   total_points_earned: ccc.NumLike;
   last_activity_timestamp: ccc.NumLike;
-}
-
-export interface TokenRewardInfoLike {
-  udt_script: ccc.ScriptLike;
-  symbol: ccc.BytesLike;
-  decimals: ccc.NumLike;
 }
 
 export interface ConnectedTypeIDLike {

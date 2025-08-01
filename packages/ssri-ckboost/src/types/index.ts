@@ -16,9 +16,9 @@ export {
   CompletionRecord,
   CampaignMetadata,
   AssetList,
-  UDTFunding,
+  UDTAsset,
+  UDTAssetVec,
   UserProgressData,
-  TokenRewardInfo,
   TippingProposalMetadata,
   UserVerificationData,
   type ProtocolDataLike,
@@ -33,9 +33,8 @@ export {
   type CompletionRecordLike,
   type CampaignMetadataLike,
   type AssetListLike,
-  type UDTFundingLike,
+  type UDTAssetLike,
   type UserProgressDataLike,
-  type TokenRewardInfoLike,
   type TippingProposalMetadataLike,
   type UserVerificationDataLike
 } from "../generated";

@@ -287,12 +287,7 @@ table UserProgressData {
     last_activity_timestamp: Uint64,
 }
 
-// Token metadata for display
-table TokenRewardInfo {
-    udt_script: Script,
-    symbol: Bytes,           // Token symbol for display
-    decimals: Uint8,         // Token decimals
-}
+// Token metadata is now managed through AssetList and external services
 
 table ConnectedTypeID {
     type_id: Byte32,
