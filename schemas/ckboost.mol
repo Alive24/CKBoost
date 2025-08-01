@@ -123,6 +123,8 @@ option Byte32Opt (Byte32);
 vector ScriptVec <Script>;
 vector Uint128Vec <Uint128>;
 array Uint8 [byte; 1];
+vector String <byte>;
+vector StringVec <String>;
 
 // Schemas for CKBoost Campaign Data
 
@@ -144,16 +146,16 @@ vector AssetListVec <AssetList>;
 
 table QuestSubTaskData {
     id: Uint8,
-    title: Bytes,
-    type: Bytes, // text, link, txhash. More types can be added in the future.
-    description: Bytes,
-    proof_required: Bytes, // Description of required proof
+    title: String,
+    type: String, // text, link, txhash. More types can be added in the future.
+    description: String,
+    proof_required: String, // Description of required proof
 }
 
 vector QuestSubTaskDataVec <QuestSubTaskData>;
 
 table CompletionRecord {
-    user_address: Bytes,
+    user_address: String,
     sub_task_id: Uint8,
     completion_timestamp: Uint64,
     completion_content: Bytes,
@@ -164,9 +166,9 @@ vector CompletionRecordVec <CompletionRecord>;
 table QuestData {
     id: Byte32,
     campaign_id: Byte32,
-    title: Bytes,
-    description: Bytes,
-    requirements: Bytes,
+    title: String,
+    description: String,
+    requirements: String,
     rewards_on_completion: AssetListVec,
     completion_records: CompletionRecordVec,
     completion_deadline: Uint64,  // Optional deadline for quest completion
@@ -187,10 +189,10 @@ table CampaignMetadata {
     ending_time: Uint64,
     verification_requirements: Uint32, // Bitmask: telegram(1), kyc(2), did(4), manual_review(8), twitter(16), discord(32), reddit(64)
     last_updated: Uint64,
-    categories: BytesVec,         // e.g., ["DeFi", "Gaming", "Social"]
+    categories: StringVec,         // e.g., ["DeFi", "Gaming", "Social"]
     difficulty: Uint8,            // Overall campaign difficulty
-    image_cid: Bytes,            // IPFS CID or other reference
-    rules: BytesVec,             // Campaign-specific rules
+    image_url: String,            // IPFS CID or other reference
+    rules: StringVec,             // Campaign-specific rules
 }
 
 table CampaignData {
@@ -199,9 +201,9 @@ table CampaignData {
     metadata: CampaignMetadata,
     status: byte,       // 0=created, 1=funding, 2=reviewing, 3=approved, 4=active, 5=completed
     quests: QuestDataVec,
-    title: Bytes,
-    short_description: Bytes,     // For campaign cards
-    long_description: Bytes,      // For detail pages
+    title: String,
+    short_description: String,     // For campaign cards
+    long_description: String,      // For detail pages
     endorser_info: EndorserInfo,
     participants_count: Uint32,
     total_completions: Uint32,    // Total quest completions across all participants
@@ -212,20 +214,20 @@ vector CampaignDataVec <CampaignData>;
 // Schemas for CKBoost Protocol Data
 
 table UserVerificationData {
-    user_address: Bytes,
+    user_address: String,
     telegram_personal_chat_id: Uint128,
     identity_verification_data: Bytes, // TODO: Leave this part agnostic for now
 }
 
 table TippingProposalMetadata {
-    contribution_title: Bytes,
-    contribution_type_tags: BytesVec,
-    description: Bytes,
+    contribution_title: String,
+    contribution_type_tags: StringVec,
+    description: String,
     proposal_creation_timestamp: Uint64,
 }
 
 table TippingProposalData {
-    target_address: Bytes,
+    target_address: String,
     proposer_lock_hash: Byte32,
     metadata: TippingProposalMetadata,
     amount: Uint64,
@@ -237,10 +239,10 @@ vector TippingProposalDataVec <TippingProposalData>;
 
 table EndorserInfo {
     endorser_lock_hash: Byte32,
-    endorser_name: Bytes,
-    endorser_description: Bytes,
-    website: Bytes,
-    social_links: BytesVec,  // Array of social media links
+    endorser_name: String,
+    endorser_description: String,
+    website: String,
+    social_links: StringVec,  // Array of social media links
     verified: Uint8,         // Verification status (0=unverified, 1=verified)
 }
 

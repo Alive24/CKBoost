@@ -399,6 +399,16 @@
       "item_count": 1
     },
     {
+      "type": "fixvec",
+      "name": "String",
+      "item": "byte"
+    },
+    {
+      "type": "dynvec",
+      "name": "StringVec",
+      "item": "String"
+    },
+    {
       "type": "table",
       "name": "UDTAsset",
       "fields": [
@@ -450,19 +460,19 @@
         },
         {
           "name": "title",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "type",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "proof_required",
-          "type": "Bytes"
+          "type": "String"
         }
       ]
     },
@@ -477,7 +487,7 @@
       "fields": [
         {
           "name": "user_address",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "sub_task_id",
@@ -512,15 +522,15 @@
         },
         {
           "name": "title",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "requirements",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "rewards_on_completion",
@@ -595,19 +605,19 @@
         },
         {
           "name": "categories",
-          "type": "BytesVec"
+          "type": "StringVec"
         },
         {
           "name": "difficulty",
           "type": "Uint8"
         },
         {
-          "name": "image_cid",
-          "type": "Bytes"
+          "name": "image_url",
+          "type": "String"
         },
         {
           "name": "rules",
-          "type": "BytesVec"
+          "type": "StringVec"
         }
       ]
     },
@@ -637,15 +647,15 @@
         },
         {
           "name": "title",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "short_description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "long_description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "endorser_info",
@@ -672,7 +682,7 @@
       "fields": [
         {
           "name": "user_address",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "telegram_personal_chat_id",
@@ -690,15 +700,15 @@
       "fields": [
         {
           "name": "contribution_title",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "contribution_type_tags",
-          "type": "BytesVec"
+          "type": "StringVec"
         },
         {
           "name": "description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "proposal_creation_timestamp",
@@ -712,7 +722,7 @@
       "fields": [
         {
           "name": "target_address",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "proposer_lock_hash",
@@ -751,19 +761,19 @@
         },
         {
           "name": "endorser_name",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "endorser_description",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "website",
-          "type": "Bytes"
+          "type": "String"
         },
         {
           "name": "social_links",
-          "type": "BytesVec"
+          "type": "StringVec"
         },
         {
           "name": "verified",

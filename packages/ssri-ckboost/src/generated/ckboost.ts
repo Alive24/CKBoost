@@ -23,6 +23,7 @@ export const CellbaseWitness = mol.table({
   lock: ccc.Script,
   message: mol.Bytes
 });
+export const StringVec = mol.vector(mol.String);
 export const UDTAsset = mol.table({
   udt_script: ccc.Script,
   amount: mol.Uint128
@@ -36,14 +37,14 @@ export const AssetList = mol.table({
 export const AssetListVec = mol.vector(AssetList);
 export const QuestSubTaskData = mol.table({
   id: mol.Uint8,
-  title: mol.Bytes,
-  type: mol.Bytes,
-  description: mol.Bytes,
-  proof_required: mol.Bytes
+  title: mol.String,
+  type: mol.String,
+  description: mol.String,
+  proof_required: mol.String
 });
 export const QuestSubTaskDataVec = mol.vector(QuestSubTaskData);
 export const CompletionRecord = mol.table({
-  user_address: mol.Bytes,
+  user_address: mol.String,
   sub_task_id: mol.Uint8,
   completion_timestamp: mol.Uint64,
   completion_content: mol.Bytes
@@ -52,9 +53,9 @@ export const CompletionRecordVec = mol.vector(CompletionRecord);
 export const QuestData = mol.table({
   id: mol.Byte32,
   campaign_id: mol.Byte32,
-  title: mol.Bytes,
-  description: mol.Bytes,
-  requirements: mol.Bytes,
+  title: mol.String,
+  description: mol.String,
+  requirements: mol.String,
   rewards_on_completion: AssetListVec,
   completion_records: CompletionRecordVec,
   completion_deadline: mol.Uint64,
@@ -73,17 +74,17 @@ export const CampaignMetadata = mol.table({
   ending_time: mol.Uint64,
   verification_requirements: mol.Uint32,
   last_updated: mol.Uint64,
-  categories: mol.BytesVec,
+  categories: mol.vector(mol.String),
   difficulty: mol.Uint8,
-  image_cid: mol.Bytes,
-  rules: mol.BytesVec
+  image_url: mol.String,
+  rules: mol.vector(mol.String)
 });
 export const EndorserInfo = mol.table({
   endorser_lock_hash: mol.Byte32,
-  endorser_name: mol.Bytes,
-  endorser_description: mol.Bytes,
-  website: mol.Bytes,
-  social_links: mol.BytesVec,
+  endorser_name: mol.String,
+  endorser_description: mol.String,
+  website: mol.String,
+  social_links: mol.vector(mol.String),
   verified: mol.Uint8
 });
 export const CampaignData = mol.table({
@@ -92,27 +93,27 @@ export const CampaignData = mol.table({
   metadata: CampaignMetadata,
   status: mol.Uint8,
   quests: QuestDataVec,
-  title: mol.Bytes,
-  short_description: mol.Bytes,
-  long_description: mol.Bytes,
+  title: mol.String,
+  short_description: mol.String,
+  long_description: mol.String,
   endorser_info: EndorserInfo,
   participants_count: mol.Uint32,
   total_completions: mol.Uint32
 });
 export const CampaignDataVec = mol.vector(CampaignData);
 export const UserVerificationData = mol.table({
-  user_address: mol.Bytes,
+  user_address: mol.String,
   telegram_personal_chat_id: mol.Uint128,
   identity_verification_data: mol.Bytes
 });
 export const TippingProposalMetadata = mol.table({
-  contribution_title: mol.Bytes,
-  contribution_type_tags: mol.BytesVec,
-  description: mol.Bytes,
+  contribution_title: mol.String,
+  contribution_type_tags: mol.vector(mol.String),
+  description: mol.String,
   proposal_creation_timestamp: mol.Uint64
 });
 export const TippingProposalData = mol.table({
-  target_address: mol.Bytes,
+  target_address: mol.String,
   proposer_lock_hash: mol.Byte32,
   metadata: TippingProposalMetadata,
   amount: mol.Uint64,
@@ -195,14 +196,14 @@ export interface AssetListLike {
 
 export interface QuestSubTaskDataLike {
   id: ccc.NumLike;
-  title: ccc.BytesLike;
-  type: ccc.BytesLike;
-  description: ccc.BytesLike;
-  proof_required: ccc.BytesLike;
+  title: string;
+  type: string;
+  description: string;
+  proof_required: string;
 }
 
 export interface CompletionRecordLike {
-  user_address: ccc.BytesLike;
+  user_address: string;
   sub_task_id: ccc.NumLike;
   completion_timestamp: ccc.NumLike;
   completion_content: ccc.BytesLike;
@@ -211,9 +212,9 @@ export interface CompletionRecordLike {
 export interface QuestDataLike {
   id: ccc.HexLike;
   campaign_id: ccc.HexLike;
-  title: ccc.BytesLike;
-  description: ccc.BytesLike;
-  requirements: ccc.BytesLike;
+  title: string;
+  description: string;
+  requirements: string;
   rewards_on_completion: AssetListLike[];
   completion_records: CompletionRecordLike[];
   completion_deadline: ccc.NumLike;
@@ -232,10 +233,10 @@ export interface CampaignMetadataLike {
   ending_time: ccc.NumLike;
   verification_requirements: ccc.NumLike;
   last_updated: ccc.NumLike;
-  categories: ccc.BytesLike[];
+  categories: string[];
   difficulty: ccc.NumLike;
-  image_cid: ccc.BytesLike;
-  rules: ccc.BytesLike[];
+  image_url: string;
+  rules: string[];
 }
 
 export interface CampaignDataLike {
@@ -244,29 +245,29 @@ export interface CampaignDataLike {
   metadata: CampaignMetadataLike;
   status: ccc.NumLike;
   quests: QuestDataLike[];
-  title: ccc.BytesLike;
-  short_description: ccc.BytesLike;
-  long_description: ccc.BytesLike;
+  title: string;
+  short_description: string;
+  long_description: string;
   endorser_info: EndorserInfoLike;
   participants_count: ccc.NumLike;
   total_completions: ccc.NumLike;
 }
 
 export interface UserVerificationDataLike {
-  user_address: ccc.BytesLike;
+  user_address: string;
   telegram_personal_chat_id: ccc.NumLike;
   identity_verification_data: ccc.BytesLike;
 }
 
 export interface TippingProposalMetadataLike {
-  contribution_title: ccc.BytesLike;
-  contribution_type_tags: ccc.BytesLike[];
-  description: ccc.BytesLike;
+  contribution_title: string;
+  contribution_type_tags: string[];
+  description: string;
   proposal_creation_timestamp: ccc.NumLike;
 }
 
 export interface TippingProposalDataLike {
-  target_address: ccc.BytesLike;
+  target_address: string;
   proposer_lock_hash: ccc.HexLike;
   metadata: TippingProposalMetadataLike;
   amount: ccc.NumLike;
@@ -276,10 +277,10 @@ export interface TippingProposalDataLike {
 
 export interface EndorserInfoLike {
   endorser_lock_hash: ccc.HexLike;
-  endorser_name: ccc.BytesLike;
-  endorser_description: ccc.BytesLike;
-  website: ccc.BytesLike;
-  social_links: ccc.BytesLike[];
+  endorser_name: string;
+  endorser_description: string;
+  website: string;
+  social_links: string[];
   verified: ccc.NumLike;
 }
 

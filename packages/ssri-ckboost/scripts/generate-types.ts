@@ -62,6 +62,7 @@ const BUILTIN_TYPES = new Set([
   'CellInputVec',
   'CellOutputVec',
   'TransactionVec',
+  'String',
   // CKB client types
   'Header',
   'UncleBlock',
@@ -258,6 +259,10 @@ function getLikeFieldType(type: string): string {
   if (type === 'CellOutputVec') return 'ccc.CellOutputLike[]';
   if (type === 'Uint128Vec') return 'ccc.NumLike[]';
   
+  // Special case for String
+  if (type === 'String') return 'string';
+  if (type === 'StringVec') return 'string[]';
+  
   // Custom vec types - add "Like" suffix to the item type
   if (type.endsWith('Vec')) {
     const baseType = type.slice(0, -3);
@@ -289,7 +294,7 @@ function getCodecReference(type: string): string {
   if (type === 'Byte32Vec') return 'mol.Byte32Vec';
   if (type === 'Byte32Opt') return 'mol.Byte32Opt';
   if (type === 'Uint128Vec') return 'mol.Uint128Vec';
-  
+  if (type === 'String') return 'mol.String';
   // CKB types from ccc
   if (type === 'Script') return 'ccc.Script';
   if (type === 'OutPoint') return 'ccc.OutPoint';
@@ -307,7 +312,7 @@ function getCodecReference(type: string): string {
   if (type === 'CellInputVec') return 'mol.vector(ccc.CellInput)';
   if (type === 'CellOutputVec') return 'mol.vector(ccc.CellOutput)';
   if (type === 'TransactionVec') return 'mol.vector(ccc.Transaction)';
-  
+  if (type === 'StringVec') return 'mol.vector(mol.String)';
   // Client block types - use CCC's client block types
   if (type === 'Header') return 'ccc.ClientBlockHeaderLike';
   if (type === 'UncleBlock') return 'ccc.ClientBlockUncleLike';
