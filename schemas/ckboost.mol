@@ -126,18 +126,18 @@ array Uint8 [byte; 1];
 
 // Schemas for CKBoost Campaign Data
 
-table UDTFunding {
+table UDTAsset {
     udt_script: Script,
     amount: Uint128,
 }
 
-vector UDTFundingVec <UDTFunding>;
+vector UDTAssetVec <UDTAsset>;
 
 // Campaign funding information
 table AssetList {
     ckb_amount: Uint64,        // Total funding target for the campaign
     nft_assets: ScriptVec,     // NFT assets to be managed by campaign
-    udt_assets: UDTFundingVec, // UDT assets to be managed by campaign
+    udt_assets: UDTAssetVec, // UDT assets to be managed by campaign
 }
 
 vector AssetListVec <AssetList>;
