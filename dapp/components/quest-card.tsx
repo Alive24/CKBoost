@@ -7,34 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Clock, Star, Users, ChevronDown, ChevronUp, Coins } from "lucide-react"
 import Link from "next/link"
-
-interface Subtask {
-  id: number
-  title: string
-  type: string
-  completed: boolean
-  description: string
-  proofRequired: string
-}
-
-interface Quest {
-  id: number
-  title: string
-  description: string
-  points: number
-  difficulty: string
-  timeEstimate: string
-  icon: string
-  completions: number
-  rewards: {
-    points: number
-    tokens: Array<{
-      symbol: string
-      amount: number
-    }>
-  }
-  subtasks: Subtask[]
-}
+import type { Quest } from "@/lib"
 
 interface QuestCardProps {
   quest: Quest
@@ -99,13 +72,13 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
           <div className="text-right">
             <div className="flex items-center gap-1 text-yellow-600 font-semibold mb-1">
               <Star className="w-4 h-4 fill-current" />
-              {quest.rewards.points}
+              {quest.rewards.points.toString()}
             </div>
             <div className="space-y-1">
               {quest.rewards.tokens.map((token, index) => (
                 <div key={index} className="flex items-center gap-1 text-green-600 font-semibold text-sm">
                   <Coins className="w-3 h-3" />
-                  {token.amount} {token.symbol}
+                  {token.amount.toString()} {token.symbol}
                 </div>
               ))}
             </div>

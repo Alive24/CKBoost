@@ -1,13 +1,13 @@
 // Campaign Service - Abstracts data fetching logic
 // This service provides high-level campaign operations by delegating to the cell layer
 
-import type { CampaignDataLike, UserProgressDataLike } from "ssri-ckboost/types"
+import type { CampaignDataLike, UserProgressDataLike, QuestDataLike } from "ssri-ckboost/types"
 import { fetchCampaignCells, fetchCampaignById, fetchUserProgress, createCampaign as createCampaignCell } from '../ckb/campaign-cells'
 import { ccc } from "@ckb-ccc/core"
 import { ssri } from "@ckb-ccc/ssri"
 import { Campaign as SSRICampaign } from "ssri-ckboost"
-import type { CampaignDataLike, QuestDataLike } from "ssri-ckboost/types"
 import { ProtocolService } from './protocol-service'
+import type { Campaign, UserProgress } from '../types'
 
 /**
  * Campaign service that provides high-level campaign operations
@@ -186,7 +186,7 @@ export class CampaignService {
       const protocolTypeHash = "0x" + "00".repeat(32) as ccc.Hex // TODO: Get actual protocol type hash
 
       // Use the campaign data directly (it's already in the correct format)
-      const sdkCampaignData: CampaignDataLike = {
+      const newCampaignData: CampaignDataLike = {
         ...campaignData,
         endorser_info: {
           endorser_lock_hash: endorserLockHash as ccc.Hex,
@@ -199,10 +199,9 @@ export class CampaignService {
       } as CampaignDataLike
 
       // Create campaign using SSRICampaign
-      const { res: tx, campaignId } = await this.campaign.createCampaign(
+      const { res: tx } = await this.campaign.updateCampaign(
         this.signer,
-        sdkCampaignData,
-        protocolTypeHash
+        newCampaignData,
       )
 
       // Complete fees and send transaction
@@ -210,7 +209,7 @@ export class CampaignService {
       await tx.completeFeeBy(this.signer)
       const txHash = await this.signer.sendTransaction(tx)
 
-      console.log("Campaign created:", { campaignId, txHash })
+      console.log("Campaign created:", { txHash })
       return txHash
     } catch (error) {
       console.error("Failed to create campaign:", error)
@@ -462,10 +461,10 @@ export class CampaignService {
       questsCount: 5,
       questsCompleted: 0,
       totalRewards: {
-        points: 1000,
+        points: ccc.numFrom(1000),
         tokens: [{
           symbol: "CKB",
-          amount: 100
+          amount: ccc.numFrom(100)
         }]
       },
       verificationRequirements: {

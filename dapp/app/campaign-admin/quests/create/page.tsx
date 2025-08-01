@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Plus, Trash2, AlertCircle, Coins, Target, Users } from "lucide-react"
 import Link from "next/link"
+import type { TokenReward } from "@/lib"
 
 const CAMPAIGNS = [
   { id: 1, name: "CKB Ecosystem Growth Initiative", adminPubkey: "ckb1qyq...abc123" },
@@ -37,10 +38,6 @@ interface Subtask {
   proofDescription: string
 }
 
-interface TokenReward {
-  symbol: string
-  amount: number
-}
 
 export default function CreateQuest() {
   const [selectedCampaign, setSelectedCampaign] = useState("")

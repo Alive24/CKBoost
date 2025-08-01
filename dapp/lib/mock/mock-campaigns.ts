@@ -3,6 +3,9 @@
 // For mock data, we'll create simple UI representations that will be converted to blockchain types
 // In production, this entire file would be replaced with blockchain data fetching
 
+import type { Campaign } from '../types'
+import { ccc } from "@ckb-ccc/core"
+
 // Mock endorser names - In production, this would come from the protocol endorsers whitelist
 const MOCK_ENDORSER_NAMES = {
   nervos: "Nervos Foundation",
@@ -25,10 +28,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Help expand the CKB ecosystem through social engagement, development, and community building. This comprehensive campaign includes multiple quest types designed to onboard new users, increase developer adoption, and strengthen community bonds. Participate in various activities ranging from social media engagement to smart contract development, all while earning rewards and contributing to the growth of the Nervos Network.",
     endorserName: MOCK_ENDORSER_NAMES.nervos,
     totalRewards: {
-      points: 5000,
+      points: ccc.numFrom(5000),
       tokens: [
-        { symbol: "CKB", amount: 2000 },
-        { symbol: "SPORE", amount: 1000 },
+        { symbol: "CKB", amount: ccc.numFrom(2000) },
+        { symbol: "SPORE", amount: ccc.numFrom(1000) },
       ],
     },
     participants: 156,
@@ -58,14 +61,14 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 1,
         title: "Raid the CKB Announcement",
         description: "Like, retweet, and comment on the latest CKB announcement on X to help spread awareness",
-        points: 50,
+        points: ccc.numFrom(50),
         difficulty: "Easy",
         timeEstimate: "2 mins",
         icon: "📢",
         completions: 45,
         rewards: {
-          points: 50,
-          tokens: [{ symbol: "CKB", amount: 10 }],
+          points: ccc.numFrom(50),
+          tokens: [{ symbol: "CKB", amount: ccc.numFrom(10) }],
         },
         subtasks: [
           {
@@ -106,16 +109,16 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 2,
         title: "Deploy Smart Contract",
         description: "Deploy your first smart contract on the CKB testnet and verify its functionality",
-        points: 300,
+        points: ccc.numFrom(300),
         difficulty: "Hard",
         timeEstimate: "45 mins",
         icon: "🚀",
         completions: 12,
         rewards: {
-          points: 300,
+          points: ccc.numFrom(300),
           tokens: [
-            { symbol: "CKB", amount: 100 },
-            { symbol: "SPORE", amount: 50 },
+            { symbol: "CKB", amount: ccc.numFrom(100) },
+            { symbol: "SPORE", amount: ccc.numFrom(50) },
           ],
         },
         subtasks: [
@@ -162,10 +165,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Learn and teach about DeFi concepts on CKB through tutorials and content creation. This campaign is designed to educate the community about decentralized finance, covering topics from basic concepts to advanced yield farming strategies. Create educational content, write tutorials, and help others understand the power of DeFi on the Nervos Network. Due to the high-value rewards and regulatory compliance requirements, this campaign requires KYC verification.",
     endorserName: MOCK_ENDORSER_NAMES.defiAlliance,
     totalRewards: {
-      points: 3500,
+      points: ccc.numFrom(3500),
       tokens: [
-        { symbol: "CKB", amount: 1500 },
-        { symbol: "DEFI", amount: 500 },
+        { symbol: "CKB", amount: ccc.numFrom(1500) },
+        { symbol: "DEFI", amount: ccc.numFrom(500) },
       ],
     },
     participants: 89,
@@ -196,14 +199,14 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 3,
         title: "Create DeFi Tutorial",
         description: "Create a comprehensive tutorial about DeFi concepts on CKB",
-        points: 200,
+        points: ccc.numFrom(200),
         difficulty: "Medium",
         timeEstimate: "3 hours",
         icon: "📚",
         completions: 15,
         rewards: {
-          points: 200,
-          tokens: [{ symbol: "CKB", amount: 100 }],
+          points: ccc.numFrom(200),
+          tokens: [{ symbol: "CKB", amount: ccc.numFrom(100) }],
         },
         subtasks: [
           {
@@ -233,10 +236,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Build and strengthen the CKB community through engagement and outreach. This program is designed for community leaders and enthusiasts who want to help grow the Nervos ecosystem. Organize events, create community content, moderate discussions, and help onboard new members. Your efforts will directly contribute to building a stronger, more vibrant CKB community. This campaign requires multiple verification methods to ensure genuine community participation.",
     endorserName: MOCK_ENDORSER_NAMES.communityDao,
     totalRewards: {
-      points: 4200,
+      points: ccc.numFrom(4200),
       tokens: [
-        { symbol: "CKB", amount: 1800 },
-        { symbol: "COMM", amount: 800 },
+        { symbol: "CKB", amount: ccc.numFrom(1800) },
+        { symbol: "COMM", amount: ccc.numFrom(800) },
       ],
     },
     participants: 234,
@@ -267,14 +270,14 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 4,
         title: "Community Engagement Challenge",
         description: "Engage with community members and help newcomers",
-        points: 150,
+        points: ccc.numFrom(150),
         difficulty: "Easy",
         timeEstimate: "2 hours",
         icon: "💬",
         completions: 50,
         rewards: {
-          points: 150,
-          tokens: [{ symbol: "COMM", amount: 50 }],
+          points: ccc.numFrom(150),
+          tokens: [{ symbol: "COMM", amount: ccc.numFrom(50) }],
         },
         subtasks: [
           {
@@ -304,10 +307,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Dive into the world of NFTs on the CKB blockchain. This comprehensive bootcamp will take you from NFT basics to advanced creation techniques. Learn how to design, mint, and market your NFT collections while understanding the underlying blockchain technology. You'll work with professional tools, learn about metadata standards, smart contract interactions, and build your own NFT portfolio. Perfect for artists, creators, and anyone interested in the intersection of art and blockchain technology.",
     endorserName: MOCK_ENDORSER_NAMES.nftStudios,
     totalRewards: {
-      points: 6000,
+      points: ccc.numFrom(6000),
       tokens: [
-        { symbol: "CKB", amount: 2500 },
-        { symbol: "SPORE", amount: 1500 },
+        { symbol: "CKB", amount: ccc.numFrom(2500) },
+        { symbol: "SPORE", amount: ccc.numFrom(1500) },
       ],
     },
     participants: 67,
@@ -339,16 +342,16 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 5,
         title: "Create Your First NFT",
         description: "Design and mint your first NFT on the CKB blockchain",
-        points: 250,
+        points: ccc.numFrom(250),
         difficulty: "Medium",
         timeEstimate: "90 mins",
         icon: "🎨",
         completions: 23,
         rewards: {
-          points: 250,
+          points: ccc.numFrom(250),
           tokens: [
-            { symbol: "CKB", amount: 75 },
-            { symbol: "SPORE", amount: 25 },
+            { symbol: "CKB", amount: ccc.numFrom(75) },
+            { symbol: "SPORE", amount: ccc.numFrom(25) },
           ],
         },
         subtasks: [
@@ -379,10 +382,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Join the elite ranks of security researchers protecting the CKB ecosystem. This bug bounty program rewards skilled developers and security experts who can identify vulnerabilities in CKB projects. You'll learn advanced security testing techniques, responsible disclosure practices, and contribute to making the ecosystem safer for everyone. Rewards are based on severity and impact of discovered vulnerabilities. This campaign requires both technical skills and ethical responsibility.",
     endorserName: MOCK_ENDORSER_NAMES.securityAlliance,
     totalRewards: {
-      points: 2800,
+      points: ccc.numFrom(2800),
       tokens: [
-        { symbol: "CKB", amount: 1200 },
-        { symbol: "SEC", amount: 400 },
+        { symbol: "CKB", amount: ccc.numFrom(1200) },
+        { symbol: "SEC", amount: ccc.numFrom(400) },
       ],
     },
     participants: 45,
@@ -412,16 +415,16 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 6,
         title: "Security Assessment",
         description: "Perform security assessment on CKB smart contracts",
-        points: 400,
+        points: ccc.numFrom(400),
         difficulty: "Advanced",
         timeEstimate: "4 hours",
         icon: "🔍",
         completions: 8,
         rewards: {
-          points: 400,
+          points: ccc.numFrom(400),
           tokens: [
-            { symbol: "CKB", amount: 200 },
-            { symbol: "SEC", amount: 100 },
+            { symbol: "CKB", amount: ccc.numFrom(200) },
+            { symbol: "SEC", amount: ccc.numFrom(100) },
           ],
         },
         subtasks: [
@@ -452,9 +455,9 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Become a voice for the CKB ecosystem across social media platforms. As a Social Media Ambassador, you'll create engaging content, share updates, educate followers about CKB technology, and help grow the community presence online. This campaign is perfect for content creators, influencers, and social media enthusiasts who want to combine their skills with blockchain advocacy. Learn best practices for crypto communication while building your personal brand in the Web3 space.",
     endorserName: MOCK_ENDORSER_NAMES.marketingDao,
     totalRewards: {
-      points: 1800,
+      points: ccc.numFrom(1800),
       tokens: [
-        { symbol: "CKB", amount: 800 },
+        { symbol: "CKB", amount: ccc.numFrom(800) },
       ],
     },
     participants: 312,
@@ -485,14 +488,14 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 7,
         title: "Content Creator Challenge",
         description: "Create engaging social media content about CKB",
-        points: 100,
+        points: ccc.numFrom(100),
         difficulty: "Easy",
         timeEstimate: "30 mins",
         icon: "📱",
         completions: 78,
         rewards: {
-          points: 100,
-          tokens: [{ symbol: "CKB", amount: 25 }],
+          points: ccc.numFrom(100),
+          tokens: [{ symbol: "CKB", amount: ccc.numFrom(25) }],
         },
         subtasks: [
           {
@@ -522,10 +525,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Help make CKB development more accessible by improving documentation. This sprint focuses on creating clear, comprehensive documentation for CKB tools, libraries, and development workflows. You'll review existing docs, identify gaps, write tutorials, create code examples, and ensure new developers can easily get started with CKB development. Your contributions will directly impact developer adoption and the growth of the CKB developer community. Technical writing skills and development experience are valuable for this campaign.",
     endorserName: MOCK_ENDORSER_NAMES.devFoundation,
     totalRewards: {
-      points: 2200,
+      points: ccc.numFrom(2200),
       tokens: [
-        { symbol: "CKB", amount: 1000 },
-        { symbol: "DOC", amount: 300 },
+        { symbol: "CKB", amount: ccc.numFrom(1000) },
+        { symbol: "DOC", amount: ccc.numFrom(300) },
       ],
     },
     participants: 28,
@@ -555,16 +558,16 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 8,
         title: "Write Developer Guide",
         description: "Create comprehensive developer documentation",
-        points: 300,
+        points: ccc.numFrom(300),
         difficulty: "Medium",
         timeEstimate: "4 hours",
         icon: "📝",
         completions: 6,
         rewards: {
-          points: 300,
+          points: ccc.numFrom(300),
           tokens: [
-            { symbol: "CKB", amount: 150 },
-            { symbol: "DOC", amount: 50 },
+            { symbol: "CKB", amount: ccc.numFrom(150) },
+            { symbol: "DOC", amount: ccc.numFrom(50) },
           ],
         },
         subtasks: [
@@ -595,10 +598,10 @@ export const MOCK_CAMPAIGNS: any[] = [
     longDescription: "Start your blockchain journey with this comprehensive educational campaign. Designed for complete beginners, you'll learn blockchain fundamentals, understand how CKB works, explore cryptocurrency basics, and gain hands-on experience with wallets and transactions. The campaign includes interactive tutorials, quizzes, and practical exercises to ensure you build a solid foundation. No prior technical knowledge required - just bring your curiosity and willingness to learn about the future of decentralized technology.",
     endorserName: MOCK_ENDORSER_NAMES.educationDao,
     totalRewards: {
-      points: 1500,
+      points: ccc.numFrom(1500),
       tokens: [
-        { symbol: "CKB", amount: 600 },
-        { symbol: "EDU", amount: 200 },
+        { symbol: "CKB", amount: ccc.numFrom(600) },
+        { symbol: "EDU", amount: ccc.numFrom(200) },
       ],
     },
     participants: 523,
@@ -628,16 +631,16 @@ export const MOCK_CAMPAIGNS: any[] = [
         id: 9,
         title: "Blockchain Basics Quiz",
         description: "Complete the fundamental blockchain knowledge assessment",
-        points: 100,
+        points: ccc.numFrom(100),
         difficulty: "Beginner",
         timeEstimate: "45 mins",
         icon: "🎓",
         completions: 134,
         rewards: {
-          points: 100,
+          points: ccc.numFrom(100),
           tokens: [
-            { symbol: "CKB", amount: 30 },
-            { symbol: "EDU", amount: 10 },
+            { symbol: "CKB", amount: ccc.numFrom(30) },
+            { symbol: "EDU", amount: ccc.numFrom(10) },
           ],
         },
         subtasks: [

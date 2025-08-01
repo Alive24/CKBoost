@@ -192,14 +192,14 @@ export default function CampaignDetail() {
                     <div className="text-right">
                       <div className="flex items-center gap-1 text-yellow-600 font-bold text-2xl mb-2">
                         <Trophy className="w-6 h-6" />
-                        {campaign.totalRewards.points.toLocaleString()}
+                        {campaign.totalRewards.points.toString()}
                       </div>
                       <div className="text-sm text-muted-foreground mb-3">total points</div>
                       <div className="space-y-1">
                         {campaign.totalRewards.tokens.map((token: TokenReward, index: number) => (
                           <div key={index} className="flex items-center gap-1 text-green-600 font-semibold">
                             <Coins className="w-4 h-4" />
-                            {token.amount} {token.symbol}
+                            {token.amount.toString()} {token.symbol}
                           </div>
                         ))}
                       </div>

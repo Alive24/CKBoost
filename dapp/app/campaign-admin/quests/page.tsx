@@ -544,10 +544,10 @@ export default function AdminQuestManagement() {
                                 <div>
                                   <div className="text-sm font-medium mb-1">Rewards</div>
                                   <div className="flex items-center gap-4 text-sm">
-                                    <span className="text-yellow-600 font-medium">{quest.rewards.points} points</span>
+                                    <span className="text-yellow-600 font-medium">{quest.rewards.points.toString ? quest.rewards.points.toString() : quest.rewards.points} points</span>
                                     {quest.rewards.tokens.map((token, index) => (
                                       <span key={index} className="text-green-600 font-medium">
-                                        {token.amount} {token.symbol}
+                                        {token.amount.toString ? token.amount.toString() : token.amount} {token.symbol}
                                       </span>
                                     ))}
                                   </div>

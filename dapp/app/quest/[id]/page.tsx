@@ -33,11 +33,8 @@ const CURRENT_USER = {
   ownedCampaigns: [1, 2] // Campaign IDs owned by current user
 }
 
-// Type definitions
-interface TokenReward {
-  symbol: string
-  amount: number
-}
+// Import TokenReward from lib
+import type { TokenReward } from "@/lib"
 
 interface Subtask {
   id: number
@@ -368,13 +365,13 @@ export default function QuestDetail() {
                     <div className="text-right">
                       <div className="flex items-center gap-1 text-yellow-600 font-bold text-2xl mb-2">
                         <Star className="w-6 h-6 fill-current" />
-                        {quest.rewards.points}
+                        {quest.rewards.points.toString()}
                       </div>
                       <div className="space-y-1">
                         {quest.rewards.tokens.map((token: TokenReward, index: number) => (
                           <div key={index} className="flex items-center gap-1 text-green-600 font-semibold text-sm">
                             <Trophy className="w-3 h-3" />
-                            {token.amount} {token.symbol}
+                            {token.amount.toString()} {token.symbol}
                           </div>
                         ))}
                       </div>

@@ -4,6 +4,7 @@
 import { ccc } from "@ckb-ccc/core"
 import type { CampaignDataLike, UserProgressDataLike } from "ssri-ckboost/types"
 import { getAllMockCampaigns, getMockCampaignById } from '../mock/mock-campaigns'
+import type { Campaign, UserProgress } from '../types'
 
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true // Set to true when blockchain is available
@@ -204,32 +205,6 @@ export async function createCampaign(_campaignData: Omit<Campaign, 'id'>, _signe
 }
 
 // Helper functions for data parsing and encoding
-
-/**
- * Parse campaign data from CKB cell
- * @param cell - CKB campaign cell
- * @returns Parsed campaign object
- */
-function parseCampaignCell(_cell: CKBCampaignCell): Campaign {
-  // TODO: Implement campaign data parsing using molecule schema
-  // const campaignData = moleculeParse(cell.data)
-  // return transformToClientFormat(campaignData)
-  
-  throw new Error("Campaign cell parsing not implemented")
-}
-
-/**
- * Parse user progress data from CKB cell
- * @param cell - CKB user progress cell
- * @returns Parsed user progress object
- */
-function parseUserProgressCell(_cell: CKBUserProgressCell): UserProgress {
-  // TODO: Implement user progress data parsing
-  // const progressData = moleculeParse(cell.data)
-  // return transformToClientFormat(progressData)
-  
-  throw new Error("User progress cell parsing not implemented")
-}
 
 /**
  * Encode campaign ID for cell args

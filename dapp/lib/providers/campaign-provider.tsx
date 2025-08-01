@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { ccc } from "@ckb-ccc/connector-react"
 import type { CampaignDataLike, UserProgressDataLike } from "ssri-ckboost/types"
 import { CampaignService } from '../services/campaign-service'
+import type { Campaign, UserProgress } from '../types'
 
 // Types for campaign provider
 interface CampaignContextType {
