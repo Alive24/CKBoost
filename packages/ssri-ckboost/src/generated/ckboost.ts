@@ -43,42 +43,26 @@ export const QuestSubTaskData = mol.table({
   proof_required: mol.String
 });
 export const QuestSubTaskDataVec = mol.vector(QuestSubTaskData);
-export const CompletionRecord = mol.table({
-  user_address: mol.String,
-  sub_task_id: mol.Uint8,
-  completion_timestamp: mol.Uint64,
-  completion_content: mol.Bytes
-});
-export const CompletionRecordVec = mol.vector(CompletionRecord);
-export const QuestData = mol.table({
-  id: mol.Byte32,
-  campaign_id: mol.Byte32,
+export const QuestMetadata = mol.table({
   title: mol.String,
-  description: mol.String,
+  short_description: mol.String,
+  long_description: mol.String,
   requirements: mol.String,
+  difficulty: mol.Uint8,
+  time_estimate: mol.Uint32
+});
+export const QuestData = mol.table({
+  campaign_type_hash: mol.Byte32,
+  metadata: QuestMetadata,
   rewards_on_completion: AssetListVec,
-  completion_records: CompletionRecordVec,
+  accepted_submission_lock_hashes: mol.Byte32Vec,
   completion_deadline: mol.Uint64,
   status: mol.Uint8,
   sub_tasks: QuestSubTaskDataVec,
   points: mol.Uint32,
-  difficulty: mol.Uint8,
-  time_estimate: mol.Uint32,
   completion_count: mol.Uint32
 });
 export const QuestDataVec = mol.vector(QuestData);
-export const CampaignMetadata = mol.table({
-  funding_info: AssetListVec,
-  created_at: mol.Uint64,
-  starting_time: mol.Uint64,
-  ending_time: mol.Uint64,
-  verification_requirements: mol.Uint32,
-  last_updated: mol.Uint64,
-  categories: mol.vector(mol.String),
-  difficulty: mol.Uint8,
-  image_url: mol.String,
-  rules: mol.vector(mol.String)
-});
 export const EndorserInfo = mol.table({
   endorser_lock_hash: mol.Byte32,
   endorser_name: mol.String,
@@ -87,25 +71,31 @@ export const EndorserInfo = mol.table({
   social_links: mol.vector(mol.String),
   verified: mol.Uint8
 });
+export const CampaignMetadata = mol.table({
+  title: mol.String,
+  endorser_info: EndorserInfo,
+  short_description: mol.String,
+  long_description: mol.String,
+  total_rewards: AssetListVec,
+  verification_requirements: mol.Uint8Vec,
+  last_updated: mol.Uint64,
+  categories: mol.vector(mol.String),
+  difficulty: mol.Uint8,
+  image_url: mol.String
+});
 export const CampaignData = mol.table({
-  id: mol.Byte32,
-  creator: ccc.Script,
+  endorser: ccc.Script,
+  created_at: mol.Uint64,
+  starting_time: mol.Uint64,
+  ending_time: mol.Uint64,
+  rules: mol.vector(mol.String),
   metadata: CampaignMetadata,
   status: mol.Uint8,
   quests: QuestDataVec,
-  title: mol.String,
-  short_description: mol.String,
-  long_description: mol.String,
-  endorser_info: EndorserInfo,
   participants_count: mol.Uint32,
   total_completions: mol.Uint32
 });
 export const CampaignDataVec = mol.vector(CampaignData);
-export const UserVerificationData = mol.table({
-  user_address: mol.String,
-  telegram_personal_chat_id: mol.Uint128,
-  identity_verification_data: mol.Bytes
-});
 export const TippingProposalMetadata = mol.table({
   contribution_title: mol.String,
   contribution_type_tags: mol.vector(mol.String),
@@ -147,12 +137,22 @@ export const ProtocolData = mol.table({
   last_updated: mol.Uint64,
   protocol_config: ProtocolConfig
 });
-export const UserProgressData = mol.table({
-  user_lock_script: ccc.Script,
-  campaign_id: mol.Byte32,
-  completed_quest_ids: mol.Byte32Vec,
+export const UserVerificationData = mol.table({
+  telegram_personal_chat_id: mol.Uint128,
+  identity_verification_data: mol.Bytes
+});
+export const UserSubmissionRecord = mol.table({
+  campaign_type_hash: mol.Byte32,
+  quest_id: mol.Uint32,
+  submission_timestamp: mol.Uint64,
+  submission_content: mol.String
+});
+export const UserSubmissionRecordVec = mol.vector(UserSubmissionRecord);
+export const UserData = mol.table({
+  verification_data: UserVerificationData,
   total_points_earned: mol.Uint32,
-  last_activity_timestamp: mol.Uint64
+  last_activity_timestamp: mol.Uint64,
+  submission_records: UserSubmissionRecordVec
 });
 export const ConnectedTypeID = mol.table({
   type_id: mol.Byte32,
@@ -202,61 +202,51 @@ export interface QuestSubTaskDataLike {
   proof_required: string;
 }
 
-export interface CompletionRecordLike {
-  user_address: string;
-  sub_task_id: ccc.NumLike;
-  completion_timestamp: ccc.NumLike;
-  completion_content: ccc.BytesLike;
+export interface QuestMetadataLike {
+  title: string;
+  short_description: string;
+  long_description: string;
+  requirements: string;
+  difficulty: ccc.NumLike;
+  time_estimate: ccc.NumLike;
 }
 
 export interface QuestDataLike {
-  id: ccc.HexLike;
-  campaign_id: ccc.HexLike;
-  title: string;
-  description: string;
-  requirements: string;
+  campaign_type_hash: ccc.HexLike;
+  metadata: QuestMetadataLike;
   rewards_on_completion: AssetListLike[];
-  completion_records: CompletionRecordLike[];
+  accepted_submission_lock_hashes: ccc.HexLike[];
   completion_deadline: ccc.NumLike;
   status: ccc.NumLike;
   sub_tasks: QuestSubTaskDataLike[];
   points: ccc.NumLike;
-  difficulty: ccc.NumLike;
-  time_estimate: ccc.NumLike;
   completion_count: ccc.NumLike;
 }
 
 export interface CampaignMetadataLike {
-  funding_info: AssetListLike[];
-  created_at: ccc.NumLike;
-  starting_time: ccc.NumLike;
-  ending_time: ccc.NumLike;
-  verification_requirements: ccc.NumLike;
+  title: string;
+  endorser_info: EndorserInfoLike;
+  short_description: string;
+  long_description: string;
+  total_rewards: AssetListLike[];
+  verification_requirements: ccc.NumLike[];
   last_updated: ccc.NumLike;
   categories: string[];
   difficulty: ccc.NumLike;
   image_url: string;
-  rules: string[];
 }
 
 export interface CampaignDataLike {
-  id: ccc.HexLike;
-  creator: ccc.ScriptLike;
+  endorser: ccc.ScriptLike;
+  created_at: ccc.NumLike;
+  starting_time: ccc.NumLike;
+  ending_time: ccc.NumLike;
+  rules: string[];
   metadata: CampaignMetadataLike;
   status: ccc.NumLike;
   quests: QuestDataLike[];
-  title: string;
-  short_description: string;
-  long_description: string;
-  endorser_info: EndorserInfoLike;
   participants_count: ccc.NumLike;
   total_completions: ccc.NumLike;
-}
-
-export interface UserVerificationDataLike {
-  user_address: string;
-  telegram_personal_chat_id: ccc.NumLike;
-  identity_verification_data: ccc.BytesLike;
 }
 
 export interface TippingProposalMetadataLike {
@@ -313,12 +303,23 @@ export interface ProtocolDataLike {
   protocol_config: ProtocolConfigLike;
 }
 
-export interface UserProgressDataLike {
-  user_lock_script: ccc.ScriptLike;
-  campaign_id: ccc.HexLike;
-  completed_quest_ids: ccc.HexLike[];
+export interface UserVerificationDataLike {
+  telegram_personal_chat_id: ccc.NumLike;
+  identity_verification_data: ccc.BytesLike;
+}
+
+export interface UserSubmissionRecordLike {
+  campaign_type_hash: ccc.HexLike;
+  quest_id: ccc.NumLike;
+  submission_timestamp: ccc.NumLike;
+  submission_content: string;
+}
+
+export interface UserDataLike {
+  verification_data: UserVerificationDataLike;
   total_points_earned: ccc.NumLike;
   last_activity_timestamp: ccc.NumLike;
+  submission_records: UserSubmissionRecordLike[];
 }
 
 export interface ConnectedTypeIDLike {

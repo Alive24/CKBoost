@@ -248,6 +248,7 @@ function getLikeFieldType(type: string): string {
   if (type === 'WitnessArgs') return 'ccc.WitnessArgsLike';
   
   // Vec types
+  if (type === 'Uint8Vec') return 'ccc.NumLike[]';
   if (type === 'BytesOpt') return 'ccc.BytesLike | null';
   if (type === 'BytesVec') return 'ccc.BytesLike[]';
   if (type === 'Byte32Vec') return 'ccc.HexLike[]';
@@ -282,6 +283,7 @@ function getCodecReference(type: string): string {
   
   // Basic mol types
   if (type === 'Uint8') return 'mol.Uint8';
+  if (type === 'Uint8Vec') return 'mol.Uint8Vec';
   if (type === 'Uint16') return 'mol.Uint16';
   if (type === 'Uint32') return 'mol.Uint32';
   if (type === 'Uint64') return 'mol.Uint64';

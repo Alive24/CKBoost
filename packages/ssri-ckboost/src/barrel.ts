@@ -1,7 +1,6 @@
 export * from "./protocol/index.js";
 export * from "./campaign/index.js";
 export * from "./user/index.js";
-export * from "./types/index.js";
 
 
 // Export all generated types and classes under 'types' namespace

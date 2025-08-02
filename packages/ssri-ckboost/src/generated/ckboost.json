@@ -400,6 +400,11 @@
     },
     {
       "type": "fixvec",
+      "name": "Uint8Vec",
+      "item": "Uint8"
+    },
+    {
+      "type": "fixvec",
       "name": "String",
       "item": "byte"
     },
@@ -483,49 +488,18 @@
     },
     {
       "type": "table",
-      "name": "CompletionRecord",
+      "name": "QuestMetadata",
       "fields": [
-        {
-          "name": "user_address",
-          "type": "String"
-        },
-        {
-          "name": "sub_task_id",
-          "type": "Uint8"
-        },
-        {
-          "name": "completion_timestamp",
-          "type": "Uint64"
-        },
-        {
-          "name": "completion_content",
-          "type": "Bytes"
-        }
-      ]
-    },
-    {
-      "type": "dynvec",
-      "name": "CompletionRecordVec",
-      "item": "CompletionRecord"
-    },
-    {
-      "type": "table",
-      "name": "QuestData",
-      "fields": [
-        {
-          "name": "id",
-          "type": "Byte32"
-        },
-        {
-          "name": "campaign_id",
-          "type": "Byte32"
-        },
         {
           "name": "title",
           "type": "String"
         },
         {
-          "name": "description",
+          "name": "short_description",
+          "type": "String"
+        },
+        {
+          "name": "long_description",
           "type": "String"
         },
         {
@@ -533,12 +507,34 @@
           "type": "String"
         },
         {
+          "name": "difficulty",
+          "type": "Uint8"
+        },
+        {
+          "name": "time_estimate",
+          "type": "Uint32"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "QuestData",
+      "fields": [
+        {
+          "name": "campaign_type_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "metadata",
+          "type": "QuestMetadata"
+        },
+        {
           "name": "rewards_on_completion",
           "type": "AssetListVec"
         },
         {
-          "name": "completion_records",
-          "type": "CompletionRecordVec"
+          "name": "accepted_submission_lock_hashes",
+          "type": "Byte32Vec"
         },
         {
           "name": "completion_deadline",
@@ -557,14 +553,6 @@
           "type": "Uint32"
         },
         {
-          "name": "difficulty",
-          "type": "Uint8"
-        },
-        {
-          "name": "time_estimate",
-          "type": "Uint32"
-        },
-        {
           "name": "completion_count",
           "type": "Uint32"
         }
@@ -580,24 +568,28 @@
       "name": "CampaignMetadata",
       "fields": [
         {
-          "name": "funding_info",
+          "name": "title",
+          "type": "String"
+        },
+        {
+          "name": "endorser_info",
+          "type": "EndorserInfo"
+        },
+        {
+          "name": "short_description",
+          "type": "String"
+        },
+        {
+          "name": "long_description",
+          "type": "String"
+        },
+        {
+          "name": "total_rewards",
           "type": "AssetListVec"
         },
         {
-          "name": "created_at",
-          "type": "Uint64"
-        },
-        {
-          "name": "starting_time",
-          "type": "Uint64"
-        },
-        {
-          "name": "ending_time",
-          "type": "Uint64"
-        },
-        {
           "name": "verification_requirements",
-          "type": "Uint32"
+          "type": "Uint8Vec"
         },
         {
           "name": "last_updated",
@@ -614,10 +606,6 @@
         {
           "name": "image_url",
           "type": "String"
-        },
-        {
-          "name": "rules",
-          "type": "StringVec"
         }
       ]
     },
@@ -626,12 +614,24 @@
       "name": "CampaignData",
       "fields": [
         {
-          "name": "id",
-          "type": "Byte32"
+          "name": "endorser",
+          "type": "Script"
         },
         {
-          "name": "creator",
-          "type": "Script"
+          "name": "created_at",
+          "type": "Uint64"
+        },
+        {
+          "name": "starting_time",
+          "type": "Uint64"
+        },
+        {
+          "name": "ending_time",
+          "type": "Uint64"
+        },
+        {
+          "name": "rules",
+          "type": "StringVec"
         },
         {
           "name": "metadata",
@@ -644,22 +644,6 @@
         {
           "name": "quests",
           "type": "QuestDataVec"
-        },
-        {
-          "name": "title",
-          "type": "String"
-        },
-        {
-          "name": "short_description",
-          "type": "String"
-        },
-        {
-          "name": "long_description",
-          "type": "String"
-        },
-        {
-          "name": "endorser_info",
-          "type": "EndorserInfo"
         },
         {
           "name": "participants_count",
@@ -675,24 +659,6 @@
       "type": "dynvec",
       "name": "CampaignDataVec",
       "item": "CampaignData"
-    },
-    {
-      "type": "table",
-      "name": "UserVerificationData",
-      "fields": [
-        {
-          "name": "user_address",
-          "type": "String"
-        },
-        {
-          "name": "telegram_personal_chat_id",
-          "type": "Uint128"
-        },
-        {
-          "name": "identity_verification_data",
-          "type": "Bytes"
-        }
-      ]
     },
     {
       "type": "table",
@@ -880,19 +846,52 @@
     },
     {
       "type": "table",
-      "name": "UserProgressData",
+      "name": "UserVerificationData",
       "fields": [
         {
-          "name": "user_lock_script",
-          "type": "Script"
+          "name": "telegram_personal_chat_id",
+          "type": "Uint128"
         },
         {
-          "name": "campaign_id",
+          "name": "identity_verification_data",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "name": "UserSubmissionRecord",
+      "fields": [
+        {
+          "name": "campaign_type_hash",
           "type": "Byte32"
         },
         {
-          "name": "completed_quest_ids",
-          "type": "Byte32Vec"
+          "name": "quest_id",
+          "type": "Uint32"
+        },
+        {
+          "name": "submission_timestamp",
+          "type": "Uint64"
+        },
+        {
+          "name": "submission_content",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "UserSubmissionRecordVec",
+      "item": "UserSubmissionRecord"
+    },
+    {
+      "type": "table",
+      "name": "UserData",
+      "fields": [
+        {
+          "name": "verification_data",
+          "type": "UserVerificationData"
         },
         {
           "name": "total_points_earned",
@@ -901,6 +900,10 @@
         {
           "name": "last_activity_timestamp",
           "type": "Uint64"
+        },
+        {
+          "name": "submission_records",
+          "type": "UserSubmissionRecordVec"
         }
       ]
     },

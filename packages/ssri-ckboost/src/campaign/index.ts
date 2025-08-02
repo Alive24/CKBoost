@@ -170,7 +170,7 @@ export class Campaign extends ssri.Trait {
    */
   async findCampaignCell(
     client: ccc.Client,
-    campaignId: ccc.HexLike
+    campaignTypeHash: ccc.HexLike
   ): Promise<ccc.Cell | null> {
     // Search for cells with campaign type script
     const collector = client.findCells({
@@ -187,9 +187,11 @@ export class Campaign extends ssri.Trait {
     for await (const cell of collector) {
       try {
         // Parse campaign data to check ID
-        const campaignData = CampaignData.decode(cell.outputData);
-
-        if (ccc.hexFrom(campaignData.id) === ccc.hexFrom(campaignId)) {
+        if (
+          cell.cellOutput.type &&
+          ccc.hexFrom(cell.cellOutput.type.hash()) ===
+            ccc.hexFrom(campaignTypeHash)
+        ) {
           return cell;
         }
       } catch (error) {
@@ -255,7 +257,7 @@ export class Campaign extends ssri.Trait {
       try {
         const campaignData = CampaignData.decode(cell.outputData);
         if (
-          ccc.hexFrom(campaignData.endorser_info.endorser_lock_hash) ===
+          ccc.hexFrom(campaignData.endorser.hash()) ===
           targetEndorserHash
         ) {
           endorserCampaigns.push(cell);
