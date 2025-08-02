@@ -7,14 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Clock, Star, Users, ChevronDown, ChevronUp, Coins } from "lucide-react"
 import Link from "next/link"
-import type { Quest } from "@/lib"
+import type { QuestDataLike } from "ssri-ckboost/types"
+import { hexToString, getDifficultyString, getTimeEstimateString, getQuestIcon, getQuestRewards } from "@/lib/types"
 
 interface QuestCardProps {
-  quest: Quest
-  campaignId: number
+  quest: QuestDataLike
+  campaignTypeHash: string
 }
 
-export function QuestCard({ quest, campaignId }: QuestCardProps) {
+export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
   const [showSubtasks, setShowSubtasks] = useState(false)
 
   const getDifficultyColor = (difficulty: string) => {
@@ -47,24 +48,32 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
     }
   }
 
-  const completedSubtasks = quest.subtasks.filter((s) => s.completed).length
-  const subtaskProgress = (completedSubtasks / quest.subtasks.length) * 100
+  // Extract display values from schema
+  const questTitle = hexToString(quest.title)
+  const questDescription = hexToString(quest.description)
+  const questDifficulty = getDifficultyString(quest.difficulty)
+  const questTimeEstimate = getTimeEstimateString(quest.time_estimate)
+  const questIcon = getQuestIcon(questTitle)
+  const questRewards = getQuestRewards(quest)
+  
+  const completedSubtasks = 0 // Subtasks don't have completed property in schema
+  const subtaskProgress = quest.sub_tasks?.length ? (completedSubtasks / quest.sub_tasks.length) * 100 : 0
 
   return (
     <Card className="transition-all duration-200 hover:shadow-md border-l-4 border-l-blue-500">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-2xl">{quest.icon}</div>
+            <div className="text-2xl">{questIcon}</div>
             <div>
-              <h3 className="font-semibold text-lg">{quest.title}</h3>
+              <h3 className="font-semibold text-lg">{questTitle}</h3>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="outline" className={getDifficultyColor(quest.difficulty)}>
-                  {quest.difficulty}
+                <Badge variant="outline" className={getDifficultyColor(questDifficulty)}>
+                  {questDifficulty}
                 </Badge>
                 <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Users className="w-3 h-3" />
-                  <span>{quest.completions} completed</span>
+                  <span>{quest.completion_count.toString()} completed</span>
                 </div>
               </div>
             </div>
@@ -72,10 +81,10 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
           <div className="text-right">
             <div className="flex items-center gap-1 text-yellow-600 font-semibold mb-1">
               <Star className="w-4 h-4 fill-current" />
-              {quest.rewards.points.toString()}
+              {questRewards.points.toString()}
             </div>
             <div className="space-y-1">
-              {quest.rewards.tokens.map((token, index) => (
+              {questRewards.tokens.map((token, index) => (
                 <div key={index} className="flex items-center gap-1 text-green-600 font-semibold text-sm">
                   <Coins className="w-3 h-3" />
                   {token.amount.toString()} {token.symbol}
@@ -86,7 +95,7 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-muted-foreground">{quest.description}</p>
+        <p className="text-muted-foreground">{questDescription}</p>
 
         {/* Subtask Progress */}
         <div className="space-y-2">
@@ -117,32 +126,40 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
           <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
             <h4 className="font-medium text-sm">Subtasks:</h4>
             <div className="space-y-2">
-              {quest.subtasks.map((subtask) => (
+              {quest.sub_tasks?.map((subtask) => {
+                const subtaskTitle = hexToString(subtask.title)
+                const subtaskType = hexToString(subtask.type)
+                const subtaskDescription = hexToString(subtask.description)
+                const proofRequired = hexToString(subtask.proof_required)
+                const isCompleted = false // Subtasks don't have completed property in schema
+                
+                return (
                 <div
-                  key={subtask.id}
+                  key={subtask.id.toString()}
                   className={`flex items-start gap-3 p-3 rounded-lg border ${
-                    subtask.completed ? "bg-green-50 border-green-200" : "bg-white border-gray-200"
+                    isCompleted ? "bg-green-50 border-green-200" : "bg-white border-gray-200"
                   }`}
                 >
-                  <div className="text-lg">{getSubtaskTypeIcon(subtask.type)}</div>
+                  <div className="text-lg">{getSubtaskTypeIcon(subtaskType)}</div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h5 className={`font-medium text-sm ${subtask.completed ? "line-through text-green-700" : ""}`}>
-                        {subtask.title}
+                      <h5 className={`font-medium text-sm ${isCompleted ? "line-through text-green-700" : ""}`}>
+                        {subtaskTitle}
                       </h5>
-                      {subtask.completed && (
+                      {isCompleted && (
                         <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
                           ✓ Done
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{subtask.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{subtaskDescription}</p>
                     <div className="text-xs text-blue-600 mt-1">
-                      <span className="font-medium">Proof required:</span> {subtask.proofRequired}
+                      <span className="font-medium">Proof required:</span> {proofRequired}
                     </div>
                   </div>
                 </div>
-              ))}
+                )
+              }) || []}
             </div>
           </div>
         )}
@@ -150,9 +167,9 @@ export function QuestCard({ quest, campaignId }: QuestCardProps) {
         <div className="flex items-center justify-between pt-2 border-t">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Clock className="w-4 h-4" />
-            {quest.timeEstimate}
+            {questTimeEstimate}
           </div>
-          <Link href={`/quest/${quest.id}?campaign=${campaignId}`}>
+          <Link href={`/quest/${hexToString(quest.id)}?campaign=${campaignTypeHash}`}>
             <Button size="sm">Start Quest</Button>
           </Link>
         </div>

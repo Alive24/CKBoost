@@ -25,10 +25,6 @@ pub fn fallback() -> Result<(), Error> {
         b"CKBoostCampaign.approve_completion" => {
             CKBoostCampaignType::verify_approve_completion(&context)
         }
-        b"CKBoostCampaign.completeQuest" => {
-            // Alternative method path for quest completion
-            CKBoostCampaignType::verify_approve_completion(&context)
-        }
         _ => {
             debug!("No matching validation rules found for method path");
             Err(Error::SSRIMethodsNotImplemented)

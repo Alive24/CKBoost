@@ -17,21 +17,10 @@ import {
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Star, ExternalLink } from "lucide-react"
-
-interface Quest {
-  id: number
-  title: string
-  description: string
-  type: string
-  points: number
-  difficulty: string
-  timeEstimate: string
-  icon: string
-  status: string
-}
+import type { QuestDataLike } from "@/lib/types"
 
 interface ProofSubmissionModalProps {
-  quest: Quest | null
+  quest: QuestDataLike | null
   isOpen: boolean
   onClose: () => void
 }
@@ -94,7 +83,7 @@ export function ProofSubmissionModal({ quest, isOpen, onClose }: ProofSubmission
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            <span className="text-2xl">{quest.icon}</span>
+            {/* <span className="text-2xl">{quest.icon}</span> */}
             Submit Proof
           </DialogTitle>
           <DialogDescription>Complete the quest and submit proof of your participation</DialogDescription>

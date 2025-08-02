@@ -50,7 +50,7 @@ const CAMPAIGN_STAFF = [
     address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
     avatar: "RM",
     role: "reviewer",
-    campaignIds: [1, 2],
+    campaignTypeHashes: ["0x0000000000000000000000000000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000000000000000000000000000002"],
     addedDate: "2024-01-10",
     permissions: ["review_quest_submissions"]
   },
@@ -61,7 +61,7 @@ const CAMPAIGN_STAFF = [
     address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
     avatar: "CM",
     role: "moderator",
-    campaignIds: [1],
+    campaignTypeHashes: ["0x0000000000000000000000000000000000000000000000000000000000000001"],
     addedDate: "2024-01-12",
     permissions: ["review_quest_submissions", "manage_participants"]
   }
@@ -70,7 +70,7 @@ const CAMPAIGN_STAFF = [
 // Mock campaigns owned by current user
 const OWNED_CAMPAIGNS = [
   {
-    id: 1,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     title: "CKB Ecosystem Growth Initiative",
     description: "Help expand the CKB ecosystem through social engagement and development",
     status: "active",
@@ -95,7 +95,7 @@ const OWNED_CAMPAIGNS = [
     },
   },
   {
-    id: 2,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000002",
     title: "DeFi Education Campaign",
     description: "Learn and teach about DeFi concepts on CKB",
     status: "draft",
@@ -125,7 +125,7 @@ export default function CampaignAdminDashboard() {
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
   const [staffForm, setStaffForm] = useState({
     email: "",
-    campaignId: "",
+    campaignTypeHash: "",
     role: "reviewer"
   })
 
@@ -183,7 +183,7 @@ export default function CampaignAdminDashboard() {
   const handleAddStaff = () => {
     console.log("Adding staff:", staffForm)
     setIsAddStaffOpen(false)
-    setStaffForm({ email: "", campaignId: "", role: "reviewer" })
+    setStaffForm({ email: "", campaignTypeHash: "", role: "reviewer" })
   }
 
   const totalActiveCampaigns = OWNED_CAMPAIGNS.filter(c => c.status === "active").length
@@ -437,7 +437,7 @@ export default function CampaignAdminDashboard() {
             <TabsContent value="campaigns" className="space-y-6">
               <div className="grid gap-6">
                 {OWNED_CAMPAIGNS.map((campaign) => (
-                  <Card key={campaign.id}>
+                  <Card key={campaign.typeHash}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -509,13 +509,13 @@ export default function CampaignAdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Link href={`/campaign/${campaign.id}`}>
+                          <Link href={`/campaign/${campaign.typeHash}`}>
                             <Button variant="outline" size="sm">
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
                           </Link>
-                          <Link href={`/campaign/${campaign.id}/create-quest`}>
+                          <Link href={`/campaign/${campaign.typeHash}/create-quest`}>
                             <Button variant="outline" size="sm">
                               <Plus className="w-4 h-4 mr-1" />
                               Add Quest
@@ -566,12 +566,12 @@ export default function CampaignAdminDashboard() {
                         <select
                           id="campaign"
                           className="w-full p-2 border rounded-md"
-                          value={staffForm.campaignId}
-                          onChange={(e) => setStaffForm({ ...staffForm, campaignId: e.target.value })}
+                          value={staffForm.campaignTypeHash}
+                          onChange={(e) => setStaffForm({ ...staffForm, campaignTypeHash: e.target.value })}
                         >
                           <option value="">Select campaign</option>
                           {OWNED_CAMPAIGNS.map((campaign) => (
-                            <option key={campaign.id} value={campaign.id}>
+                            <option key={campaign.typeHash} value={campaign.typeHash}>
                               {campaign.title}
                             </option>
                           ))}
@@ -627,7 +627,7 @@ export default function CampaignAdminDashboard() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium mb-1">
-                            Access to {staff.campaignIds.length} campaign{staff.campaignIds.length !== 1 ? 's' : ''}
+                            Access to {staff.campaignTypeHashes.length} campaign{staff.campaignTypeHashes.length !== 1 ? 's' : ''}
                           </div>
                           <div className="text-xs text-muted-foreground mb-3">
                             {staff.permissions.join(", ")}

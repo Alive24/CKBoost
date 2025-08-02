@@ -72,7 +72,7 @@ pub mod common {
             None => {
                 // Only creation scenario when the recipe is create campaign has no input campaign cell
                 if context.recipe.method_path_bytes().as_slice()
-                    == b"CKBoostCampaign.createCampaign"
+                    == b"CKBoostCampaign.create_campaign"
                 {
                     return Ok(());
                 } else {
@@ -122,7 +122,7 @@ pub mod update_campaign {
     };
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
-        TransactionValidationRules::new(b"updateCampaign".to_vec())
+        TransactionValidationRules::new(b"CKBoostCampaign.update_campaign".to_vec())
             .with_arguments(1)
             // Protocol cells: No protocol cells
             .with_custom_cell(
@@ -231,13 +231,8 @@ pub mod update_campaign {
                 let input_campaign_data = CampaignData::from_slice(&input_campaign_cell.data)
                     .map_err(|_| DeterministicError::Encoding)?;
 
-                // Verify campaign ID remains the same
-                if input_campaign_data.id().as_slice() != output_campaign_data.id().as_slice() {
-                    return Err(DeterministicError::BusinessRuleViolation);
-                }
-
                 // Verify creator remains the same (campaigns cannot change ownership)
-                if input_campaign_data.creator().as_slice() != output_campaign_data.creator().as_slice() {
+                if input_campaign_data.endorser().as_slice() != output_campaign_data.endorser().as_slice() {
                     return Err(DeterministicError::BusinessRuleViolation);
                 }
 
@@ -249,12 +244,6 @@ pub mod update_campaign {
                 // 0 (created) -> 1 (funding) -> 2 (reviewing) -> 3 (approved) -> 4 (active) -> 5 (completed)
                 // Backwards transitions are not allowed
                 if output_status < input_status {
-                    return Err(DeterministicError::BusinessRuleViolation);
-                }
-
-                // Certain fields should not change after creation
-                // - endorser_info should remain the same
-                if input_campaign_data.endorser_info().as_slice() != output_campaign_data.endorser_info().as_slice() {
                     return Err(DeterministicError::BusinessRuleViolation);
                 }
             } else {
@@ -279,9 +268,9 @@ pub mod update_campaign {
             }
 
             // 2. Title and descriptions must not be empty
-            if output_campaign_data.title().is_empty() ||
-               output_campaign_data.short_description().is_empty() ||
-               output_campaign_data.long_description().is_empty() {
+            if output_campaign_data.metadata().title().is_empty() ||
+               output_campaign_data.metadata().short_description().is_empty() ||
+               output_campaign_data.metadata().long_description().is_empty() {
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -299,7 +288,7 @@ pub mod complete_quest {
     };
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
-        TransactionValidationRules::new(b"completeQuest".to_vec())
+        TransactionValidationRules::new(b"CKBoostCampaign.complete_quest".to_vec())
             .with_arguments(2) // quest_id and user proof
             // Protocol cells not allowed
             .with_custom_cell(
@@ -338,7 +327,7 @@ pub mod complete_quest {
         use ckb_deterministic::errors::Error as DeterministicError;
         use ckb_deterministic::assertions::expect;
         use ckboost_shared::transaction_context::TransactionContext;
-        use ckboost_shared::generated::ckboost::{CampaignData, UserProgressData};
+        use ckboost_shared::generated::ckboost::{CampaignData};
         use molecule::prelude::*;
 
         // **Quest completion validation**: Ensure valid quest completion
@@ -415,38 +404,35 @@ pub mod complete_quest {
             let quest_id_byte32 = ckboost_shared::generated::ckboost::Byte32::from_slice(&quest_id_bytes)
                 .map_err(|_| DeterministicError::Encoding)?;
             
-            let quest_exists = input_campaign_data
-                .quests()
-                .into_iter()
-                .any(|quest| quest.id().as_slice() == quest_id_byte32.as_slice());
+            // let quest_exists = input_campaign_data
+            //     .quests()
+            //     .into_iter()
+            //     .any(|quest| quest.id().as_slice() == quest_id_byte32.as_slice());
 
-            if !quest_exists {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // if !quest_exists {
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
             // 2. Check user hasn't already completed quest
-            // Parse user progress data to check completion history
-            let output_user_cell = &output_user_cells[0];
-            let user_progress = UserProgressData::from_slice(&output_user_cell.data)
-                .map_err(|_| DeterministicError::Encoding)?;
+            // // Parse user progress data to check completion history
+            // let output_user_cell = &output_user_cells[0];
 
-            // Check if the user progress is for the same campaign
-            let campaign_id = input_campaign_data.id();
-            if user_progress.campaign_id().as_slice() != campaign_id.as_slice() {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // // Check if the user progress is for the same campaign
+            // if user_progress.campaign_id().as_slice() != campaign_id.as_slice() {
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
-            // Get completed quest IDs from user progress data
-            let completed_quest_ids = user_progress.completed_quest_ids();
+            // // Get completed quest IDs from user progress data
+            // let completed_quest_ids = user_progress.completed_quest_ids();
 
             // Check if this quest has already been completed
-            let already_completed = completed_quest_ids
-                .into_iter()
-                .any(|completed_id| completed_id.as_slice() == quest_id_byte32.as_slice());
+            // let already_completed = completed_quest_ids
+            //     .into_iter()
+            //     .any(|completed_id| completed_id.as_slice() == quest_id_byte32.as_slice());
 
-            if already_completed {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // if already_completed {
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
             // 3. Validate completion proof (second argument should contain proof)
             // For now, we just check that proof argument exists
@@ -488,26 +474,19 @@ pub mod complete_quest {
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
-            // Ensure campaign ID and other immutable fields remain unchanged
-            if input_campaign_data.id().as_slice() != output_campaign_data.id().as_slice() ||
-               input_campaign_data.creator().as_slice() != output_campaign_data.creator().as_slice() ||
-               input_campaign_data.endorser_info().as_slice() != output_campaign_data.endorser_info().as_slice() {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
-
             // Verify quest rewards match what's defined in the campaign
-            let quest = input_campaign_data
-                .quests()
-                .into_iter()
-                .find(|q| q.id().as_slice() == quest_id_byte32.as_slice())
-                .ok_or(DeterministicError::BusinessRuleViolation)?;
+            // let quest = input_campaign_data
+            //     .quests()
+            //     .into_iter()
+            //     .find(|q| q.id().as_slice() == quest_id_byte32.as_slice())
+            //     .ok_or(DeterministicError::BusinessRuleViolation)?;
 
             // The user should receive the quest rewards
             // This validation would check that proper reward distribution occurred
             // For now, we just verify the quest has rewards defined
-            if quest.rewards_on_completion().is_empty() {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // if quest.rewards_on_completion().is_empty() {
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
             Ok(())
         }

@@ -165,7 +165,7 @@ table QuestMetadata {
 }
 
 table QuestData {
-    campaign_type_hash: Byte32,
+    quest_id: Uint32,
     metadata: QuestMetadata,
     rewards_on_completion: AssetListVec,
     accepted_submission_lock_hashes: Byte32Vec,
@@ -192,7 +192,7 @@ table CampaignMetadata {
 }
 
 table CampaignData {
-    endorser: Script,
+    endorser: EndorserInfo,
     created_at: Uint64,
     starting_time: Uint64,
     ending_time: Uint64,

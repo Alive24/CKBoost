@@ -50,8 +50,9 @@ const CURRENT_USER = {
 export default function CreateQuestInCampaign() {
   const params = useParams()
   const router = useRouter()
-  const campaignId = Number.parseInt(params.id as string)
-  const campaign = CAMPAIGN_DATA[campaignId as keyof typeof CAMPAIGN_DATA]
+  const typeHash = params.id as string
+  // TODO: Fetch campaign by type hash instead of using mock data
+  const campaign = CAMPAIGN_DATA[1] // Temporary mock
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
@@ -73,7 +74,8 @@ export default function CreateQuestInCampaign() {
   })
 
   // Check if current user owns this campaign
-  const isOwner = CURRENT_USER.ownedCampaigns.includes(campaignId)
+  // TODO: Implement proper ownership check based on campaign type hash
+  const isOwner = false // Temporary - needs proper implementation
 
   const addTokenReward = () => {
     setQuestData(prev => ({
@@ -127,13 +129,13 @@ export default function CreateQuestInCampaign() {
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 2000))
     
-    console.log("Saving quest:", { ...questData, status, campaignId })
+    console.log("Saving quest:", { ...questData, status, campaignTypeHash: typeHash })
     setIsSubmitted(true)
     setIsSubmitting(false)
     
     // Reset after delay
     setTimeout(() => {
-      router.push(`/campaign/${campaignId}`)
+      router.push(`/campaign/${typeHash}`)
     }, 2000)
   }
 
@@ -179,7 +181,7 @@ export default function CreateQuestInCampaign() {
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
             <p className="text-muted-foreground mb-4">You don't have permission to create quests for this campaign.</p>
-            <Button onClick={() => router.push(`/campaign/${campaignId}`)}>Back to Campaign</Button>
+            <Button onClick={() => router.push(`/campaign/${typeHash}`)}>Back to Campaign</Button>
           </div>
         </main>
       </div>
@@ -198,7 +200,7 @@ export default function CreateQuestInCampaign() {
               Your quest has been added to the campaign and is now available for participants.
             </p>
             <div className="flex gap-4 justify-center">
-              <Button onClick={() => router.push(`/campaign/${campaignId}`)}>
+              <Button onClick={() => router.push(`/campaign/${typeHash}`)}>
                 View Campaign
               </Button>
               <Button variant="outline" onClick={() => router.push("/admin")}>
@@ -221,7 +223,7 @@ export default function CreateQuestInCampaign() {
           <div className="mb-8">
             <Button 
               variant="ghost" 
-              onClick={() => router.push(`/campaign/${campaignId}`)}
+              onClick={() => router.push(`/campaign/${typeHash}`)}
               className="mb-4"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -588,7 +590,7 @@ export default function CreateQuestInCampaign() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => router.push(`/campaign/${campaignId}`)}
+                onClick={() => router.push(`/campaign/${typeHash}`)}
               >
                 Cancel
               </Button>

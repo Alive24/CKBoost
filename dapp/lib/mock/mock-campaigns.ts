@@ -3,8 +3,13 @@
 // For mock data, we'll create simple UI representations that will be converted to blockchain types
 // In production, this entire file would be replaced with blockchain data fetching
 
-import type { Campaign } from '../types'
+import type { CampaignDataLike, QuestDataLike, AssetListLike } from 'ssri-ckboost/types'
 import { ccc } from "@ckb-ccc/core"
+
+// Helper function to convert string to hex
+function stringToHex(str: string): ccc.Hex {
+  return ccc.hexFrom(ccc.bytesFrom(str, "utf8"))
+}
 
 // Mock endorser names - In production, this would come from the protocol endorsers whitelist
 const MOCK_ENDORSER_NAMES = {
@@ -18,8 +23,86 @@ const MOCK_ENDORSER_NAMES = {
   educationDao: "Education DAO",
 }
 
+// Create mock campaign data that matches the schema structure
+const createMockQuest = (
+  id: number,
+  title: string,
+  description: string,
+  points: number,
+  difficulty: number,
+  timeEstimate: number,
+  rewardsList: AssetListLike[]
+): QuestDataLike => ({
+  id: stringToHex(id.toString()),
+  campaign_id: "0x00" as ccc.Hex,
+  title: stringToHex(title),
+  description: stringToHex(description),
+  requirements: stringToHex("Complete all subtasks"),
+  rewards_on_completion: rewardsList,
+  completion_records: [],
+  completion_deadline: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  status: 1,
+  sub_tasks: [],
+  points: BigInt(points),
+  difficulty,
+  time_estimate: BigInt(timeEstimate),
+  completion_count: 0
+})
+
+const createMockCampaign = (
+  id: number,
+  data: {
+    title: string
+    shortDescription: string
+    longDescription: string
+    endorserName: string
+    startDate: string
+    endDate: string
+    difficulty: number
+    categories: string[]
+    image: string
+    verificationRequirements: number
+    rules: string[]
+    quests: QuestDataLike[]
+  }
+): CampaignDataLike => ({
+  id: stringToHex(id.toString()),
+  title: stringToHex(data.title),
+  short_description: stringToHex(data.shortDescription),
+  long_description: stringToHex(data.longDescription),
+  creator: {
+    codeHash: "0x" + "00".repeat(32) as ccc.Hex,
+    hashType: "type",
+    args: "0x" + "00".repeat(20) as ccc.Hex
+  },
+  endorser_info: {
+    endorser_lock_hash: "0x" + "00".repeat(32) as ccc.Hex,
+    endorser_name: stringToHex(data.endorserName),
+    endorser_description: stringToHex("Trusted endorser"),
+    website: stringToHex(""),
+    social_links: [],
+    verified: 1
+  },
+  metadata: {
+    funding_info: [],
+    created_at: BigInt(Date.now()),
+    starting_time: BigInt(new Date(data.startDate).getTime()),
+    ending_time: BigInt(new Date(data.endDate).getTime()),
+    verification_requirements: data.verificationRequirements,
+    last_updated: BigInt(Date.now()),
+    categories: data.categories.map(stringToHex),
+    difficulty: data.difficulty,
+    image_cid: stringToHex(data.image),
+    rules: data.rules.map(stringToHex)
+  },
+  status: 1,
+  quests: data.quests,
+  participants_count: 0,
+  total_completions: 0
+})
+
 // Mock campaign data - In production, this would be fetched from CKB blockchain
-// Using any[] for mock data since this will be replaced with actual blockchain data
+// Keep the existing simple format for easy editing
 export const MOCK_CAMPAIGNS: any[] = [
   {
     id: 1,
@@ -666,15 +749,110 @@ export const MOCK_CAMPAIGNS: any[] = [
   },
 ]
 
+// Helper function to encode verification requirements as bitmask
+function encodeVerificationRequirements(requirements: any): number {
+  let bitmask = 0
+  if (requirements.telegram) bitmask |= 1 << 0
+  if (requirements.kyc) bitmask |= 1 << 1
+  if (requirements.did) bitmask |= 1 << 2
+  if (requirements.manualReview) bitmask |= 1 << 3
+  if (requirements.twitter) bitmask |= 1 << 4
+  if (requirements.discord) bitmask |= 1 << 5
+  if (requirements.reddit) bitmask |= 1 << 6
+  return bitmask
+}
+
+// Convert mock campaign to schema format
+function mockCampaignToSchema(mockCampaign: any): CampaignDataLike {
+  // Convert quests first
+  const quests: QuestDataLike[] = mockCampaign.quests?.map((quest: any, index: number) => {
+    // Create AssetListLike array for rewards
+    const rewardsList: AssetListLike[] = quest.rewards?.tokens?.map((token: any) => ({
+      ckb_amount: BigInt(0), // No CKB amount in token rewards
+      nft_assets: [],
+      udt_assets: [{
+        amount: BigInt(token.amount.toString()),
+        // In real implementation, this would be the UDT type script
+        udt_type: {
+          codeHash: "0x" + "00".repeat(32) as ccc.Hex,
+          hashType: "type" as const,
+          args: "0x" + "00".repeat(20) as ccc.Hex
+        }
+      }]
+    })) || []
+    
+    return createMockQuest(
+      quest.id || index + 1,
+      quest.title,
+      quest.description,
+      Number(quest.points?.toString() || quest.rewards?.points?.toString() || 0),
+      quest.difficulty === 'Easy' ? 1 : quest.difficulty === 'Medium' ? 2 : 3,
+      parseInt(quest.timeEstimate) || 60,
+      rewardsList
+    )
+  }) || []
+
+  return createMockCampaign(
+    mockCampaign.id,
+    {
+      title: mockCampaign.title,
+      shortDescription: mockCampaign.shortDescription,
+      longDescription: mockCampaign.longDescription,
+      endorserName: mockCampaign.endorserName,
+      startDate: mockCampaign.startDate,
+      endDate: mockCampaign.endDate,
+      difficulty: mockCampaign.difficulty === 'Easy' || mockCampaign.difficulty === 'Beginner' ? 1 : 
+                 mockCampaign.difficulty === 'Medium' ? 2 : 3,
+      categories: mockCampaign.categories,
+      image: mockCampaign.image,
+      verificationRequirements: encodeVerificationRequirements(mockCampaign.verificationRequirements || {}),
+      rules: mockCampaign.rules || [],
+      quests
+    }
+  )
+}
+
+// Helper function to generate a mock type hash for a campaign
+function generateMockTypeHash(id: number): string {
+  // In production, this would be the actual type script hash
+  // For mock data, we'll generate a deterministic hash-like string
+  return `0x${id.toString(16).padStart(64, '0')}`
+}
+
+// Type for mock campaigns with additional UI fields
+export interface MockCampaignData extends CampaignDataLike {
+  typeHash: string
+  // Additional UI fields
+  participants: number
+  questsCompleted: number
+  completedQuests: number
+}
+
+// Create a Record of campaigns indexed by typeHash
+const MOCK_CAMPAIGNS_RECORD: Record<string, MockCampaignData> = MOCK_CAMPAIGNS.reduce((acc, campaign) => {
+  const typeHash = generateMockTypeHash(campaign.id)
+  const schemaCampaign = mockCampaignToSchema(campaign)
+  
+  acc[typeHash] = {
+    ...schemaCampaign,
+    typeHash,
+    participants: campaign.participants || 0,
+    questsCompleted: campaign.questsCompleted || 0,
+    completedQuests: campaign.completedQuests || 0
+  }
+  
+  return acc
+}, {} as Record<string, MockCampaignData>)
+
 // Helper functions for mock data
-export function getAllMockCampaigns(): Campaign[] {
-  return MOCK_CAMPAIGNS
+export function getAllMockCampaigns(): MockCampaignData[] {
+  return Object.values(MOCK_CAMPAIGNS_RECORD)
 }
 
-export function getMockCampaignById(id: number): Campaign | undefined {
-  return MOCK_CAMPAIGNS.find(campaign => campaign.id === id)
+export function getMockCampaignByTypeHash(typeHash: string): MockCampaignData | undefined {
+  return MOCK_CAMPAIGNS_RECORD[typeHash]
 }
 
-export function getFeaturedMockCampaigns(): Campaign[] {
-  return MOCK_CAMPAIGNS.slice(0, 4)
+export function getFeaturedMockCampaigns(): MockCampaignData[] {
+  return getAllMockCampaigns().slice(0, 4)
 }

@@ -52,7 +52,7 @@ export const QuestMetadata = mol.table({
   time_estimate: mol.Uint32
 });
 export const QuestData = mol.table({
-  campaign_type_hash: mol.Byte32,
+  quest_id: mol.Uint32,
   metadata: QuestMetadata,
   rewards_on_completion: AssetListVec,
   accepted_submission_lock_hashes: mol.Byte32Vec,
@@ -84,7 +84,7 @@ export const CampaignMetadata = mol.table({
   image_url: mol.String
 });
 export const CampaignData = mol.table({
-  endorser: ccc.Script,
+  endorser: EndorserInfo,
   created_at: mol.Uint64,
   starting_time: mol.Uint64,
   ending_time: mol.Uint64,
@@ -212,7 +212,7 @@ export interface QuestMetadataLike {
 }
 
 export interface QuestDataLike {
-  campaign_type_hash: ccc.HexLike;
+  quest_id: ccc.NumLike;
   metadata: QuestMetadataLike;
   rewards_on_completion: AssetListLike[];
   accepted_submission_lock_hashes: ccc.HexLike[];
@@ -237,7 +237,7 @@ export interface CampaignMetadataLike {
 }
 
 export interface CampaignDataLike {
-  endorser: ccc.ScriptLike;
+  endorser: EndorserInfoLike;
   created_at: ccc.NumLike;
   starting_time: ccc.NumLike;
   ending_time: ccc.NumLike;

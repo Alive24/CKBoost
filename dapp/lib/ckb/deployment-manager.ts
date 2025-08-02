@@ -6,11 +6,7 @@ import { ccc } from '@ckb-ccc/connector-react'
 
 export type Network = 'testnet' | 'mainnet'
 
-export interface TypeScript {
-  codeHash: ccc.Hex
-  hashType: ccc.HashType
-  args: ccc.Hex
-}
+export type ContractType = 'ckboostProtocolType' | 'ckboostCampaignType' | 'ckboostUserType' | 'ckboostProtocolLock' | 'ckboostCampaignLock' | 'ckboostUserLock'
 
 export interface DeploymentRecord {
   transactionHash: ccc.Hex
@@ -28,7 +24,7 @@ export interface DeploymentRecord {
     deployedAt: ccc.Num
     tag?: string
   }
-  typeScript?: TypeScript
+  typeScript?: ccc.ScriptLike
   isTypeId?: boolean
   typeHash?: ccc.Hex
   // Legacy fields for backward compatibility
@@ -40,11 +36,20 @@ export interface DeploymentHistory {
   current: {
     testnet: {
       ckboostProtocolType: DeploymentRecord | null
+      ckboostCampaignType: DeploymentRecord | null
+      ckboostUserType: DeploymentRecord | null
+      ckboostProtocolLock: DeploymentRecord | null
+      ckboostCampaignLock: DeploymentRecord | null
+      ckboostUserLock: DeploymentRecord | null
       // Add other contract types as needed
     }
     mainnet: {
       ckboostProtocolType?: DeploymentRecord | null
-      protocolType?: DeploymentRecord | null // Legacy field name
+      ckboostCampaignType?: DeploymentRecord | null
+      ckboostUserType?: DeploymentRecord | null
+      ckboostProtocolLock?: DeploymentRecord | null
+      ckboostCampaignLock?: DeploymentRecord | null
+      ckboostUserLock?: DeploymentRecord | null
       // Add other contract types as needed
     }
   }
@@ -65,22 +70,15 @@ export class DeploymentManager {
   /**
    * Get the current deployment for a specific contract on a network
    */
-  getCurrentDeployment(network: Network, contractType: 'ckboostProtocolType'): DeploymentRecord | null {
+  getCurrentDeployment(network: Network, contractType: ContractType): DeploymentRecord | null {
     const networkData = this.data.current[network]
-    
-    // For mainnet, check both the new and legacy field names
-    if (network === 'mainnet') {
-      const mainnetData = networkData as typeof this.data.current.mainnet
-      return mainnetData.ckboostProtocolType || mainnetData.protocolType || null
-    }
-    
     return networkData[contractType] || null
   }
 
   /**
    * Get the outpoint for a deployed contract
    */
-  getContractOutPoint(network: Network, contractType: 'ckboostProtocolType'): { txHash: ccc.Hex; index: ccc.Num } | null {
+  getContractOutPoint(network: Network, contractType: ContractType): { txHash: ccc.Hex; index: ccc.Num } | null {
     const deployment = this.getCurrentDeployment(network, contractType)
     if (!deployment) return null
     
@@ -93,7 +91,7 @@ export class DeploymentManager {
   /**
    * Get the type script for a deployed contract
    */
-  getContractTypeScript(network: Network, contractType: 'ckboostProtocolType'): TypeScript | null {
+  getContractTypeScript(network: Network, contractType: ContractType): ccc.ScriptLike | null {
     const deployment = this.getCurrentDeployment(network, contractType)
     if (!deployment) return null
     

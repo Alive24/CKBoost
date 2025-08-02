@@ -2,9 +2,7 @@ import { ccc } from "@ckb-ccc/core";
 import { ssri } from "@ckb-ccc/ssri";
 import {
   CampaignData,
-  QuestData,
   type CampaignDataLike,
-  type QuestDataLike,
 } from "../generated";
 
 /**
@@ -120,8 +118,9 @@ export class Campaign extends ssri.Trait {
    */
   async approveCompletion(
     _signer: ccc.Signer,
-    campaignId: ccc.HexLike,
-    questData: QuestDataLike,
+    campaignTypeHash: ccc.HexLike,
+    questId: ccc.Num,
+    userLockHash: ccc.HexLike,
     tx?: ccc.Transaction
   ): Promise<{ res: ccc.Transaction }> {
     if (!this.executor) {
@@ -147,9 +146,10 @@ export class Campaign extends ssri.Trait {
       this.code,
       methodPath,
       [
-        ccc.hexFrom(baseTx.stringify()),
-        ccc.hexFrom(campaignId),
-        ccc.hexFrom(QuestData.encode(questData)),
+        baseTx.toBytes(),
+        ccc.hexFrom(campaignTypeHash),
+        ccc.hexFrom(ccc.numToBytes(questId)),
+        ccc.hexFrom(userLockHash),
       ],
       { script: this.script }
     );
@@ -159,116 +159,5 @@ export class Campaign extends ssri.Trait {
       JSON.parse(ccc.bytesFrom(result.res, "hex").toString())
     );
     return { res: updatedTx };
-  }
-
-  /**
-   * Find a campaign cell by ID
-   *
-   * @param client - The CKB client
-   * @param campaignId - The campaign ID to find
-   * @returns The campaign cell or null
-   */
-  async findCampaignCell(
-    client: ccc.Client,
-    campaignTypeHash: ccc.HexLike
-  ): Promise<ccc.Cell | null> {
-    // Search for cells with campaign type script
-    const collector = client.findCells({
-      script: {
-        codeHash: this.script.codeHash,
-        hashType: this.script.hashType,
-        args: "0x", // We'll filter by campaign ID in the data
-      },
-      scriptType: "type",
-      scriptSearchMode: "prefix",
-    });
-
-    // Look for the campaign with matching ID
-    for await (const cell of collector) {
-      try {
-        // Parse campaign data to check ID
-        if (
-          cell.cellOutput.type &&
-          ccc.hexFrom(cell.cellOutput.type.hash()) ===
-            ccc.hexFrom(campaignTypeHash)
-        ) {
-          return cell;
-        }
-      } catch (error) {
-        console.warn("Failed to parse campaign cell data:", error);
-      }
-    }
-
-    return null;
-  }
-
-  /**
-   * Get all campaigns
-   *
-   * @param client - The CKB client
-   * @param limit - Maximum number of campaigns to return
-   * @returns Array of campaign cells
-   */
-  async getAllCampaigns(
-    client: ccc.Client,
-    limit: number = 100
-  ): Promise<ccc.Cell[]> {
-    const campaigns: ccc.Cell[] = [];
-
-    // Search for all cells with campaign type script
-    const collector = client.findCells({
-      script: {
-        codeHash: this.script.codeHash,
-        hashType: this.script.hashType,
-        args: "0x",
-      },
-      scriptType: "type",
-      scriptSearchMode: "prefix",
-    });
-
-    let count = 0;
-    for await (const cell of collector) {
-      campaigns.push(cell);
-      count++;
-      if (count >= limit) break;
-    }
-
-    return campaigns;
-  }
-
-  /**
-   * Get campaigns by endorser
-   *
-   * @param client - The CKB client
-   * @param endorserLockHash - Endorser's lock hash
-   * @param limit - Maximum number of campaigns
-   * @returns Array of campaign cells
-   */
-  async getCampaignsByEndorser(
-    client: ccc.Client,
-    endorserLockHash: ccc.HexLike,
-    limit: number = 100
-  ): Promise<ccc.Cell[]> {
-    const allCampaigns = await this.getAllCampaigns(client, limit * 2);
-    const endorserCampaigns: ccc.Cell[] = [];
-    const targetEndorserHash = ccc.hexFrom(endorserLockHash);
-
-    for (const cell of allCampaigns) {
-      try {
-        const campaignData = CampaignData.decode(cell.outputData);
-        if (
-          ccc.hexFrom(campaignData.endorser.hash()) ===
-          targetEndorserHash
-        ) {
-          endorserCampaigns.push(cell);
-        }
-      } catch (error) {
-        console.warn("Failed to parse campaign data:", error);
-      }
-
-      if (endorserCampaigns.length >= limit) break;
-    }
-
-    return endorserCampaigns;
   }
 }

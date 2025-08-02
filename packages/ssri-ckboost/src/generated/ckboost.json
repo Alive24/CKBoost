@@ -521,8 +521,8 @@
       "name": "QuestData",
       "fields": [
         {
-          "name": "campaign_type_hash",
-          "type": "Byte32"
+          "name": "quest_id",
+          "type": "Uint32"
         },
         {
           "name": "metadata",
@@ -615,7 +615,7 @@
       "fields": [
         {
           "name": "endorser",
-          "type": "Script"
+          "type": "EndorserInfo"
         },
         {
           "name": "created_at",

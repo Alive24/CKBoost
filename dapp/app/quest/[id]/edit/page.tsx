@@ -27,7 +27,7 @@ const QUEST_DATA = {
     createdBy: "Nervos Foundation",
     createdAt: "2024-01-15",
     category: "Social Media",
-    campaignId: 1,
+    campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     campaignTitle: "CKB Ecosystem Growth Initiative",
     completions: 45,
     totalParticipants: 156,
@@ -87,7 +87,7 @@ const QUEST_DATA = {
     createdBy: "Nervos Foundation",
     createdAt: "2024-01-14",
     category: "Development",
-    campaignId: 1,
+    campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     campaignTitle: "CKB Ecosystem Growth Initiative",
     completions: 12,
     totalParticipants: 156,
@@ -143,7 +143,10 @@ const QUEST_DATA = {
 // Mock current user
 const CURRENT_USER = {
   id: 1,
-  ownedCampaigns: [1, 2]
+  ownedCampaignTypeHashes: [
+    "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "0x0000000000000000000000000000000000000000000000000000000000000002"
+  ]
 }
 
 export default function EditQuest() {
@@ -196,7 +199,8 @@ export default function EditQuest() {
   }, [originalQuest])
 
   // Check if current user owns this quest's campaign
-  const isOwner = originalQuest ? CURRENT_USER.ownedCampaigns.includes(originalQuest.campaignId) : false
+  // TODO: Implement proper ownership check based on campaign type hash
+  const isOwner = false // Temporary - needs proper implementation
 
   const addTokenReward = () => {
     setQuestData(prev => ({

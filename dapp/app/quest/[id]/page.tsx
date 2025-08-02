@@ -14,14 +14,10 @@ import {
   ArrowLeft,
   Clock,
   Star,
-  ExternalLink,
   Users,
   Trophy,
   CheckCircle,
   AlertCircle,
-  Upload,
-  Camera,
-  LinkIcon,
   Edit,
   Settings,
 } from "lucide-react"
@@ -30,233 +26,208 @@ import Link from "next/link"
 // Mock current user - in real app, this would come from authentication
 const CURRENT_USER = {
   id: 1,
-  ownedCampaigns: [1, 2] // Campaign IDs owned by current user
+  ownedCampaignTypeHashes: [
+    "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "0x0000000000000000000000000000000000000000000000000000000000000002"
+  ]
 }
 
-// Import TokenReward from lib
-import type { TokenReward } from "@/lib"
+// Import types and utilities
+import type { QuestDataLike, QuestSubTaskDataLike } from "@/lib/types"
+import { 
+  hexToString, 
+  stringToHex, 
+  getDifficultyString, 
+  getTimeEstimateString,
+  getQuestIcon,
+  getQuestRewards,
+  isSubtaskCompleted
+} from "@/lib/types"
+import { ccc } from "@ckb-ccc/core"
 
-interface Subtask {
-  id: number
-  title: string
-  type: string
-  completed: boolean
-  description: string
+// Create mock quest data using schema types
+const createMockSubtask = (
+  id: number,
+  title: string,
+  type: string,
+  description: string,
   proofRequired: string
-  proofTypes: string[]
+): QuestSubTaskDataLike => ({
+  id,
+  title: stringToHex(title),
+  type: stringToHex(type),
+  description: stringToHex(description),
+  proof_required: stringToHex(proofRequired)
+})
+
+const createMockQuest = (
+  id: number,
+  campaignId: string,
+  data: {
+    title: string
+    description: string
+    points: number
+    difficulty: number
+    timeEstimate: number
+    completions: number
+    status: number
+    subtasks: QuestSubTaskDataLike[]
+    rewardAmounts: { symbol: string; amount: number }[]
+  }
+): QuestDataLike => ({
+  id: stringToHex(id.toString()),
+  campaign_id: campaignId as ccc.Hex,
+  title: stringToHex(data.title),
+  description: stringToHex(data.description),
+  requirements: stringToHex("Complete all subtasks"),
+  rewards_on_completion: [{
+    ckb_amount: BigInt(0),
+    nft_assets: [],
+    udt_assets: data.rewardAmounts.map(reward => ({
+      udt_script: {
+        codeHash: "0x" + "00".repeat(32) as ccc.Hex,
+        hashType: "type" as const,
+        args: "0x" + "00".repeat(20) as ccc.Hex
+      },
+      amount: BigInt(reward.amount)
+    }))
+  }],
+  completion_records: [],
+  completion_deadline: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000),
+  status: data.status,
+  sub_tasks: data.subtasks,
+  points: data.points,
+  difficulty: data.difficulty,
+  time_estimate: data.timeEstimate,
+  completion_count: data.completions
+})
+
+// Mock quest data
+const QUEST_DATA: Record<number, QuestDataLike> = {
+  1: createMockQuest(1, "0x0000000000000000000000000000000000000000000000000000000000000001", {
+    title: "Raid the CKB Announcement",
+    description: "Like, retweet, and comment on the latest CKB announcement on X to help spread awareness about CKB's latest developments and engage with the community.",
+    points: 50,
+    difficulty: 1,
+    timeEstimate: 2,
+    completions: 45,
+    status: 1,
+    rewardAmounts: [{ symbol: "CKB", amount: 10 }],
+    subtasks: [
+      createMockSubtask(1, "Follow @NervosNetwork on X", "social", "Follow the official Nervos Network account on X (Twitter)", "Screenshot of follow confirmation"),
+      createMockSubtask(2, "Like the announcement post", "social", "Like the latest CKB announcement post", "Link to the liked post"),
+      createMockSubtask(3, "Retweet with comment", "social", "Retweet with your own meaningful comment about CKB", "Link to your retweet"),
+      createMockSubtask(4, "Tag 2 friends", "social", "Tag 2 friends who might be interested in blockchain", "Screenshot showing tagged friends")
+    ]
+  }),
+  2: createMockQuest(2, "0x0000000000000000000000000000000000000000000000000000000000000001", {
+    title: "Deploy Smart Contract",
+    description: "Deploy your first smart contract on the CKB testnet and verify its functionality. This quest will help you understand the CKB development environment.",
+    points: 300,
+    difficulty: 3,
+    timeEstimate: 45,
+    completions: 12,
+    status: 1,
+    rewardAmounts: [
+      { symbol: "CKB", amount: 100 },
+      { symbol: "SPORE", amount: 50 }
+    ],
+    subtasks: [
+      createMockSubtask(1, "Set up development environment", "technical", "Install and configure CKB development tools", "Screenshot of successful setup"),
+      createMockSubtask(2, "Write smart contract code", "technical", "Create a simple smart contract using CKB Script", "Code repository link"),
+      createMockSubtask(3, "Deploy to testnet", "onchain", "Deploy your contract to CKB testnet", "Transaction hash of deployment"),
+      createMockSubtask(4, "Verify deployment", "onchain", "Confirm contract is working correctly", "Screenshot of successful verification")
+    ]
+  })
 }
 
-interface Quest {
-  id: number
-  title: string
-  description: string
-  points: number
-  difficulty: string
-  timeEstimate: string
-  icon: string
-  status: string
+// Additional mock data for display
+const QUEST_METADATA: Record<number, {
   createdBy: string
   createdAt: string
   category: string
-  campaignId: number
   campaignTitle: string
-  completions: number
   totalParticipants: number
   successRate: number
-  rewards: {
-    points: number
-    tokens: TokenReward[]
-  }
-  subtasks: Subtask[]
-}
-
-// Mock quest data - in real app, this would come from API
-const QUEST_DATA: Record<number, Quest> = {
+}> = {
   1: {
-    id: 1,
-    title: "Raid the CKB Announcement",
-    description:
-      "Like, retweet, and comment on the latest CKB announcement on X to help spread awareness about CKB's latest developments and engage with the community.",
-    points: 50,
-    difficulty: "Easy",
-    timeEstimate: "2 mins",
-    icon: "📢",
-    status: "available",
     createdBy: "Nervos Foundation",
     createdAt: "2024-01-15",
     category: "Social Media",
-    campaignId: 1,
     campaignTitle: "CKB Ecosystem Growth Initiative",
-    completions: 45,
     totalParticipants: 156,
-    successRate: 93,
-    rewards: {
-      points: 50,
-      tokens: [{ symbol: "CKB", amount: 10 }],
-    },
-    subtasks: [
-      {
-        id: 1,
-        title: "Follow @NervosNetwork on X",
-        type: "social",
-        completed: false,
-        description: "Follow the official Nervos Network account on X (Twitter)",
-        proofRequired: "Screenshot of follow confirmation",
-        proofTypes: ["screenshot"],
-      },
-      {
-        id: 2,
-        title: "Like the announcement post",
-        type: "social",
-        completed: false,
-        description: "Like the latest CKB announcement post",
-        proofRequired: "Link to the liked post",
-        proofTypes: ["link"],
-      },
-      {
-        id: 3,
-        title: "Retweet with comment",
-        type: "social",
-        completed: false,
-        description: "Retweet with your own meaningful comment about CKB",
-        proofRequired: "Link to your retweet",
-        proofTypes: ["link"],
-      },
-      {
-        id: 4,
-        title: "Tag 2 friends",
-        type: "social",
-        completed: false,
-        description: "Tag 2 friends who might be interested in blockchain",
-        proofRequired: "Screenshot showing tagged friends",
-        proofTypes: ["screenshot"],
-      },
-    ],
+    successRate: 93
   },
   2: {
-    id: 2,
-    title: "Deploy Smart Contract",
-    description:
-      "Deploy your first smart contract on the CKB testnet and verify its functionality. This quest will help you understand the CKB development environment.",
-    points: 300,
-    difficulty: "Hard",
-    timeEstimate: "45 mins",
-    icon: "🚀",
-    status: "available",
     createdBy: "Nervos Foundation",
     createdAt: "2024-01-14",
     category: "Development",
-    campaignId: 1,
     campaignTitle: "CKB Ecosystem Growth Initiative",
-    completions: 12,
     totalParticipants: 156,
-    successRate: 87,
-    rewards: {
-      points: 300,
-      tokens: [
-        { symbol: "CKB", amount: 100 },
-        { symbol: "SPORE", amount: 50 },
-      ],
-    },
-    subtasks: [
-      {
-        id: 1,
-        title: "Set up development environment",
-        type: "technical",
-        completed: false,
-        description: "Install and configure CKB development tools",
-        proofRequired: "Screenshot of successful setup",
-        proofTypes: ["screenshot"],
-      },
-      {
-        id: 2,
-        title: "Write smart contract code",
-        type: "technical",
-        completed: false,
-        description: "Create a simple smart contract using CKB Script",
-        proofRequired: "Code repository link",
-        proofTypes: ["link", "file"],
-      },
-      {
-        id: 3,
-        title: "Deploy to testnet",
-        type: "onchain",
-        completed: false,
-        description: "Deploy your contract to CKB testnet",
-        proofRequired: "Transaction hash of deployment",
-        proofTypes: ["text"],
-      },
-      {
-        id: 4,
-        title: "Verify deployment",
-        type: "onchain",
-        completed: false,
-        description: "Confirm contract is working correctly",
-        proofRequired: "Screenshot of successful verification",
-        proofTypes: ["screenshot", "link"],
-      },
-    ],
-  },
+    successRate: 87
+  }
 }
 
 export default function QuestDetail() {
   const params = useParams()
   const searchParams = useSearchParams()
   const questId = Number.parseInt(params.id as string)
-  const campaignId = searchParams.get("campaign")
   const quest = QUEST_DATA[questId]
-  
-  // Check if current user owns this quest's campaign
-  const isOwner = quest ? CURRENT_USER.ownedCampaigns.includes(quest.campaignId) : false
+  const metadata = QUEST_METADATA[questId]
+  const redirectUrl = searchParams.get("redirect") || "/"
 
-  const [subtasks, setSubtasks] = useState(quest?.subtasks || [])
-  const [proofs, setProofs] = useState<Record<number, { type: string; content: string; file?: File }>>({})
+  // Mock campaign type hash (in real app, would be fetched from quest data)
+  const campaignTypeHash = hexToString(quest?.campaign_id || "0x")
+
+  const [proofSubmissions, setProofSubmissions] = useState<
+    Record<number, { type: string; value: string; file?: File }>
+  >({})
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  if (!quest) {
+  // Check if current user owns this quest's campaign
+  const isOwner = campaignTypeHash && CURRENT_USER.ownedCampaignTypeHashes.includes(campaignTypeHash)
+
+  const [subtasks, setSubtasks] = useState<Array<{ completed: boolean }>>(() => 
+    quest?.sub_tasks?.map(() => ({ completed: false })) || []
+  )
+
+  const handleProofChange = (subtaskId: number, type: string, value: string, file?: File) => {
+    setProofSubmissions((prev) => ({
+      ...prev,
+      [subtaskId]: { type, value, file },
+    }))
+  }
+
+  const handleSubtaskComplete = (index: number) => {
+    setSubtasks((prev) => {
+      const newSubtasks = [...prev]
+      newSubtasks[index] = { ...newSubtasks[index], completed: true }
+      return newSubtasks
+    })
+  }
+
+  const handleQuestSubmit = async () => {
+    setIsSubmitting(true)
+    // Mock submission delay
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    setIsSubmitting(false)
+    setIsSubmitted(true)
+  }
+
+  if (!quest || !metadata) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
         <main className="container mx-auto px-4 py-8">
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">❓</div>
-            <h1 className="text-2xl font-bold mb-2">Quest Not Found</h1>
-            <p className="text-muted-foreground mb-4">The quest you're looking for doesn't exist.</p>
-            <Link href={campaignId ? `/campaign/${campaignId}` : "/"}>
-              <Button>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to {campaignId ? "Campaign" : "Campaigns"}
-              </Button>
-            </Link>
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Quest Not Found</h1>
+            <Button onClick={() => window.location.href = redirectUrl}>Back to Campaigns</Button>
           </div>
         </main>
       </div>
     )
-  }
-
-  const handleSubtaskComplete = (subtaskId: number) => {
-    setSubtasks((prev: Subtask[]) =>
-      prev.map((subtask: Subtask) => (subtask.id === subtaskId ? { ...subtask, completed: !subtask.completed } : subtask)),
-    )
-  }
-
-  const handleProofChange = (subtaskId: number, type: string, content: string, file?: File) => {
-    setProofs((prev) => ({
-      ...prev,
-      [subtaskId]: { type, content, file },
-    }))
-  }
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsSubmitted(true)
-    setIsSubmitting(false)
-
-    setTimeout(() => {
-      setIsSubmitted(false)
-    }, 3000)
   }
 
   const getDifficultyColor = (difficulty: string) => {
@@ -272,41 +243,86 @@ export default function QuestDetail() {
     }
   }
 
-  const getSubtaskTypeIcon = (type: string) => {
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "Development":
+        return "bg-blue-100 text-blue-800"
+      case "Social Media":
+        return "bg-pink-100 text-pink-800"
+      case "Content Creation":
+        return "bg-purple-100 text-purple-800"
+      case "Community":
+        return "bg-green-100 text-green-800"
+      case "Testing":
+        return "bg-orange-100 text-orange-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getSubtaskTypeEmoji = (type: string) => {
     switch (type) {
       case "social":
         return "📱"
       case "technical":
-        return "💻"
+        return "⚙️"
       case "onchain":
         return "⛓️"
-      case "content":
-        return "📝"
-      case "research":
-        return "🔍"
+      case "file":
+        return "📄"
+      case "screenshot":
+        return "📸"
+      case "link":
+        return "🔗"
+      case "text":
+        return "✍️"
       default:
         return "📋"
     }
   }
 
-  const getProofTypeIcon = (type: string) => {
-    switch (type) {
-      case "screenshot":
-        return <Camera className="w-4 h-4" />
-      case "link":
-        return <LinkIcon className="w-4 h-4" />
-      case "file":
-        return <Upload className="w-4 h-4" />
-      case "text":
-        return <ExternalLink className="w-4 h-4" />
-      default:
-        return <Upload className="w-4 h-4" />
-    }
-  }
+  const completedSubtasks = subtasks.filter((s) => s.completed).length
+  const subtaskProgress = quest.sub_tasks.length > 0 ? (completedSubtasks / quest.sub_tasks.length) * 100 : 0
+  const allSubtasksCompleted = completedSubtasks === quest.sub_tasks.length
 
-  const completedSubtasks = subtasks.filter((s: Subtask) => s.completed).length
-  const subtaskProgress = (completedSubtasks / subtasks.length) * 100
-  const allSubtasksCompleted = completedSubtasks === subtasks.length
+  // Extract display values from schema
+  const questTitle = hexToString(quest.title)
+  const questDescription = hexToString(quest.description)
+  const questDifficulty = getDifficultyString(quest.difficulty)
+  const questTimeEstimate = getTimeEstimateString(quest.time_estimate)
+  const questIcon = getQuestIcon(questTitle)
+  const questRewards = getQuestRewards(quest)
+
+  if (isSubmitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center py-12">
+            <div className="text-6xl mb-6">🎉</div>
+            <h1 className="text-3xl font-bold mb-4">Quest Submitted Successfully!</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Your quest completion has been submitted for verification. You'll receive your rewards once
+              verified.
+            </p>
+            <div className="bg-blue-100 dark:bg-blue-900/30 p-6 rounded-lg mb-8">
+              <p className="text-blue-800 dark:text-blue-200 font-medium">What happens next?</p>
+              <p className="text-blue-700 dark:text-blue-300 text-sm mt-2">
+                Our team will review your submission within 24-48 hours. You'll receive a notification once
+                your rewards are distributed.
+              </p>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Button onClick={() => window.location.href = redirectUrl}>Back to Campaigns</Button>
+              <Button variant="outline" onClick={() => window.location.href = "/dashboard"}>
+                Go to Dashboard
+              </Button>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -314,321 +330,241 @@ export default function QuestDetail() {
 
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Back Button */}
-          <div className="mb-6">
-            <Link href={campaignId ? `/campaign/${campaignId}` : "/"}>
-              <Button variant="ghost" className="flex items-center gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to {campaignId ? "Campaign" : "Campaigns"}
-              </Button>
-            </Link>
-          </div>
+          {/* Header */}
+          <div className="mb-8">
+            <Button variant="ghost" onClick={() => window.location.href = redirectUrl} className="mb-4">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
 
-          <div className="grid lg:grid-cols-3 gap-8">
-            {/* Main Content */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Quest Header */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="text-4xl">{quest.icon}</div>
-                      <div>
-                        <h1 className="text-3xl font-bold mb-2">{quest.title}</h1>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Badge variant="outline" className={getDifficultyColor(quest.difficulty)}>
-                            {quest.difficulty}
-                          </Badge>
-                          <Badge variant="outline">{quest.category}</Badge>
-                          {quest.campaignTitle && (
-                            <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                              {quest.campaignTitle}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {quest.timeEstimate}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Users className="w-4 h-4" />
-                            {quest.completions} completed
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Trophy className="w-4 h-4" />
-                            {quest.successRate}% success rate
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-1 text-yellow-600 font-bold text-2xl mb-2">
-                        <Star className="w-6 h-6 fill-current" />
-                        {quest.rewards.points.toString()}
-                      </div>
-                      <div className="space-y-1">
-                        {quest.rewards.tokens.map((token: TokenReward, index: number) => (
-                          <div key={index} className="flex items-center gap-1 text-green-600 font-semibold text-sm">
-                            <Trophy className="w-3 h-3" />
-                            {token.amount.toString()} {token.symbol}
-                          </div>
-                        ))}
-                      </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-5xl">{questIcon}</div>
+                <div>
+                  <h1 className="text-3xl font-bold">{questTitle}</h1>
+                  <div className="flex items-center gap-3 mt-2">
+                    <Badge variant="outline" className={getCategoryColor(metadata.category)}>
+                      {metadata.category}
+                    </Badge>
+                    <Badge className={getDifficultyColor(questDifficulty)}>
+                      {questDifficulty}
+                    </Badge>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4" />
+                      {questTimeEstimate}
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-lg text-muted-foreground leading-relaxed">{quest.description}</p>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
 
               {/* Campaign Admin Controls */}
               {isOwner && (
                 <Card className="bg-amber-50 border-amber-200">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-amber-800">
-                      <Settings className="w-5 h-5" />
-                      Campaign Admin Controls
-                    </CardTitle>
+                    <CardTitle className="text-lg font-semibold text-amber-900">Campaign Admin</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-3">
+                  <CardContent className="space-y-2">
+                    <p className="text-sm text-amber-700">You own this campaign</p>
+                    <div className="flex gap-2">
                       <Link href={`/quest/${questId}/edit`}>
-                        <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
+                        <Button size="sm" variant="outline" className="bg-white">
                           <Edit className="w-4 h-4 mr-1" />
                           Edit Quest
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
-                        <Users className="w-4 h-4 mr-1" />
-                        View Submissions ({quest.completions})
-                      </Button>
-                      <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
-                        <Trophy className="w-4 h-4 mr-1" />
-                        Manage Rewards
-                      </Button>
-                      <Link href="/campaign-admin">
-                        <Button variant="outline" size="sm" className="bg-white dark:bg-gray-800">
+                      <Link href={`/campaign-admin/quests`}>
+                        <Button size="sm" variant="outline" className="bg-white">
                           <Settings className="w-4 h-4 mr-1" />
-                          Admin Dashboard
+                          Manage
                         </Button>
                       </Link>
                     </div>
-                    <p className="text-sm text-amber-700 mt-2">
-                      As the campaign owner, you can edit this quest, review submissions, and manage rewards.
-                    </p>
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </div>
 
-              {/* Quest Progress */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
-                    Your Progress
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                      {completedSubtasks}/{subtasks.length} subtasks completed
-                    </span>
-                    <span className="font-medium">{subtaskProgress.toFixed(0)}%</span>
+          {/* Quest Info */}
+          <Card className="mb-8">
+            <CardContent className="pt-6">
+              <p className="text-lg mb-6">{questDescription}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-3xl mb-2">🏆</div>
+                  <p className="text-sm text-muted-foreground">Points Reward</p>
+                  <p className="text-2xl font-bold text-purple-600">{questRewards.points.toString()}</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl mb-2">💰</div>
+                  <p className="text-sm text-muted-foreground">Token Rewards</p>
+                  <div className="space-y-1">
+                    {questRewards.tokens.map((token, i) => (
+                      <p key={i} className="text-lg font-bold text-green-600">
+                        {token.amount.toString()} {token.symbol}
+                      </p>
+                    ))}
                   </div>
-                  <Progress value={subtaskProgress} className="h-3" />
-                </CardContent>
-              </Card>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl mb-2">📊</div>
+                  <p className="text-sm text-muted-foreground">Success Rate</p>
+                  <p className="text-2xl font-bold">{metadata.successRate}%</p>
+                  <p className="text-xs text-muted-foreground">
+                    {quest.completion_count.toString()} / {metadata.totalParticipants} completed
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* Subtasks */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5" />
-                    Quest Subtasks
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {subtasks.map((subtask: Subtask) => (
-                    <div
-                      key={subtask.id}
-                      className={`p-4 rounded-lg border ${
-                        subtask.completed ? "bg-green-50 border-green-200" : "bg-white border-gray-200"
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="text-xl">{getSubtaskTypeIcon(subtask.type)}</div>
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{subtask.title}</h4>
-                            {subtask.completed && (
-                              <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
-                                ✓ Completed
+          {/* Progress Overview */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Your Progress</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex justify-between mb-2">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm text-muted-foreground">
+                      {completedSubtasks} / {quest.sub_tasks.length} tasks completed
+                    </span>
+                  </div>
+                  <Progress value={subtaskProgress} className="h-2" />
+                </div>
+
+                {allSubtasksCompleted && (
+                  <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <p className="text-green-800 dark:text-green-200 font-medium">
+                      All subtasks completed! You can now submit this quest.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Subtasks */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Tasks to Complete</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {quest.sub_tasks.map((subtask, index) => {
+                const subtaskTitle = hexToString(subtask.title)
+                const subtaskType = hexToString(subtask.type)
+                const subtaskDescription = hexToString(subtask.description)
+                const subtaskProofRequired = hexToString(subtask.proof_required)
+                const isCompleted = subtasks[index]?.completed || false
+
+                return (
+                  <div
+                    key={subtask.id.toString()}
+                    className={`border rounded-lg p-4 transition-all ${
+                      isCompleted ? "bg-green-50 dark:bg-green-900/20 border-green-200" : ""
+                    }`}
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">{getSubtaskTypeEmoji(subtaskType)}</div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold flex items-center gap-2">
+                              {subtaskTitle}
+                              {isCompleted && (
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                              )}
+                            </h4>
+                            {!isCompleted && (
+                              <Badge variant="outline" className="mt-1">
+                                Pending
                               </Badge>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">{subtask.description}</p>
-                          <div className="text-xs text-blue-600">
-                            <span className="font-medium">Proof required:</span> {subtask.proofRequired}
-                          </div>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{subtaskDescription}</p>
+                        <div className="text-xs text-blue-600">
+                          <span className="font-medium">Proof required:</span> {subtaskProofRequired}
+                        </div>
 
-                          {/* Proof Submission */}
-                          <div className="space-y-2">
-                            <Label className="text-sm font-medium">Submit Proof:</Label>
-                            <div className="flex gap-2">
-                              {subtask.proofTypes.map((proofType: string) => (
-                                <div key={proofType} className="flex-1">
-                                  {proofType === "screenshot" || proofType === "file" ? (
-                                    <div className="space-y-2">
-                                      <Input
-                                        type="file"
-                                        accept={proofType === "screenshot" ? "image/*" : "*/*"}
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0]
-                                          if (file) {
-                                            handleProofChange(subtask.id, proofType, file.name, file)
-                                          }
-                                        }}
-                                        className="text-xs"
-                                      />
-                                    </div>
-                                  ) : proofType === "link" ? (
-                                    <Input
-                                      type="url"
-                                      placeholder="https://..."
-                                      value={proofs[subtask.id]?.content || ""}
-                                      onChange={(e) => handleProofChange(subtask.id, proofType, e.target.value)}
-                                      className="text-sm"
-                                    />
-                                  ) : (
-                                    <Input
-                                      type="text"
-                                      placeholder="Enter proof text..."
-                                      value={proofs[subtask.id]?.content || ""}
-                                      onChange={(e) => handleProofChange(subtask.id, proofType, e.target.value)}
-                                      className="text-sm"
-                                    />
-                                  )}
-                                </div>
-                              ))}
-                              <Button
-                                size="sm"
-                                variant={subtask.completed ? "outline" : "default"}
-                                onClick={() => handleSubtaskComplete(subtask.id)}
-                                disabled={!proofs[subtask.id]?.content}
-                              >
-                                {subtask.completed ? "✓" : "Mark Complete"}
-                              </Button>
-                            </div>
+                        {/* Proof Submission */}
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium">Submit Proof:</Label>
+                          <div className="flex gap-2">
+                            {/* Simple proof submission UI - in real app would handle different proof types */}
+                            <Input
+                              type="text"
+                              placeholder="Enter proof (link, text, etc.)"
+                              onChange={(e) => handleProofChange(subtask.id, "text", e.target.value)}
+                              disabled={isCompleted}
+                            />
+                            <Button
+                              onClick={() => handleSubtaskComplete(index)}
+                              disabled={
+                                isCompleted || !proofSubmissions[subtask.id]?.value
+                              }
+                              size="sm"
+                            >
+                              {isCompleted ? "Completed" : "Submit"}
+                            </Button>
                           </div>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
+                  </div>
+                )
+              })}
+            </CardContent>
+          </Card>
 
-              {/* Submit Quest */}
-              <Card>
-                <CardContent className="p-6">
-                  {!isSubmitted ? (
-                    <div className="text-center space-y-4">
-                      <div className="text-lg font-semibold">
-                        {allSubtasksCompleted ? "Ready to Submit!" : "Complete all subtasks to submit"}
-                      </div>
-                      <Button
-                        onClick={handleSubmit}
-                        disabled={!allSubtasksCompleted || isSubmitting}
-                        size="lg"
-                        className="w-full"
-                      >
-                        {isSubmitting ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            Submitting Quest...
-                          </>
-                        ) : (
-                          <>
-                            <Trophy className="w-4 h-4 mr-2" />
-                            Submit Quest for Review
-                          </>
-                        )}
-                      </Button>
-                    </div>
+          {/* Submit Quest */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-blue-600" />
+                  <div className="text-sm">
+                    <p className="font-medium text-blue-800 dark:text-blue-200">Before submitting:</p>
+                    <ul className="list-disc list-inside text-blue-700 dark:text-blue-300 mt-1">
+                      <li>Make sure all subtasks are marked as completed</li>
+                      <li>Double-check that all proof submissions are accurate</li>
+                      <li>Submissions cannot be edited after submission</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleQuestSubmit}
+                  disabled={!allSubtasksCompleted || isSubmitting}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <span className="animate-spin mr-2">⏳</span>
+                      Submitting Quest...
+                    </>
                   ) : (
-                    <div className="text-center py-6">
-                      <div className="text-4xl mb-3">🎉</div>
-                      <h3 className="font-semibold mb-2">Quest Submitted!</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Your submission is being reviewed. You'll earn {quest.rewards.points} points once approved.
-                      </p>
-                    </div>
+                    <>
+                      <Trophy className="w-5 h-5 mr-2" />
+                      Submit Quest for Rewards
+                    </>
                   )}
-                </CardContent>
-              </Card>
-            </div>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Quest Stats */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quest Statistics</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created by</span>
-                    <span className="font-medium">{quest.createdBy}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Created on</span>
-                    <span className="font-medium">{quest.createdAt}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Completions</span>
-                    <span className="font-medium">{quest.completions}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Success Rate</span>
-                    <span className="font-medium text-green-600">{quest.successRate}%</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Total Participants</span>
-                    <span className="font-medium">{quest.totalParticipants}</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Completions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Completions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {[
-                      { user: "CKBMaster", time: "2h ago" },
-                      { user: "BlockchainDev", time: "4h ago" },
-                      { user: "CryptoNinja", time: "6h ago" },
-                    ].map((completion, index) => (
-                      <div key={index} className="flex items-center gap-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarFallback className="bg-gradient-to-br from-green-200 to-blue-200 text-sm">
-                            {completion.user.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="font-medium text-sm">{completion.user}</div>
-                          <div className="text-xs text-muted-foreground">{completion.time}</div>
-                        </div>
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          {/* Quest Metadata */}
+          <div className="mt-8 text-center text-sm text-muted-foreground">
+            <p>
+              Quest created by {metadata.createdBy} • Part of {metadata.campaignTitle} • Created on{" "}
+              {new Date(metadata.createdAt).toLocaleDateString()}
+            </p>
           </div>
         </div>
       </main>

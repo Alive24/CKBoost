@@ -57,17 +57,18 @@ const meetsVerificationRequirements = (requirements: any) => {
 
 export default function CampaignDetail() {
   const params = useParams()
-  const campaignId = Number.parseInt(params.id as string)
+  const typeHash = params.id as string // This will be the campaign type hash
   
   // Use campaign provider hook
-  const { campaign, userProgress, isLoading, exists } = useCampaign(campaignId)
+  const { campaign, userProgress, isLoading, exists } = useCampaign(typeHash)
   
   // Check if current user owns this campaign
-  const isOwner = CURRENT_USER.ownedCampaigns.includes(campaignId)
+  // In a real app, this would be checked by comparing the campaign creator with the user's address
+  const isOwner = false // TODO: Implement proper ownership check based on campaign creator
   
   // Get data from campaign
   const quests = campaign?.quests || []
-  const rules = campaign?.rules || []
+  const rules = campaign?.metadata.rules || []
   const completedQuests = campaign?.completedQuests || 0
 
   if (isLoading) {
@@ -108,7 +109,7 @@ export default function CampaignDetail() {
   }
 
   const isActive = campaign.status === "active"
-  const progressPercentage = (completedQuests / (quests.length * campaign.participants)) * 100
+  const progressPercentage = (completedQuests / (quests.length * Number(campaign.participants_count))) * 100
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -118,7 +119,7 @@ export default function CampaignDetail() {
     })
   }
 
-  const daysRemaining = isActive ? getDaysUntilEnd(campaign.endDate) : 0
+  const daysRemaining = isActive ? getDaysUntilEnd(campaign.metadata.ending_time.toString()) : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -169,7 +170,7 @@ export default function CampaignDetail() {
                         </div>
                         {isOwner && (
                           <div className="flex items-center gap-2">
-                            <Link href={`/campaign/${campaignId}/create-quest`}>
+                            <Link href={`/campaign/${typeHash}/create-quest`}>
                               <Button size="sm" className="flex items-center gap-2">
                                 <Plus className="w-4 h-4" />
                                 Add Quest
@@ -454,12 +455,12 @@ export default function CampaignDetail() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {rules.map((rule: string, index: number) => (
+                    {/* {rules.map((rule: string, index: number) => (
                       <li key={index} className="flex items-start gap-2">
                         <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 flex-shrink-0"></div>
                         <span>{rule}</span>
                       </li>
-                    ))}
+                    ))} */}
                   </ul>
                 </CardContent>
               </Card>
@@ -470,7 +471,7 @@ export default function CampaignDetail() {
                   <span>🎯</span> Campaign Quests
                 </h2>
                 {quests.map((quest) => (
-                  <QuestCard key={quest.id} quest={quest} campaignId={campaign.id} />
+                  <QuestCard key={quest.id} quest={quest} campaignTypeHash={campaign.typeHash} />
                 ))}
               </div>
             </div>

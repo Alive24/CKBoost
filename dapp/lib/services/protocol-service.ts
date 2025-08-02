@@ -1,137 +1,109 @@
 // Protocol Service - High-level protocol operations
 // This service provides high-level protocol operations by delegating to the cell layer
 
-import { ccc } from "@ckb-ccc/core"
-import { ssri } from "@ckb-ccc/ssri"
-import type { ProtocolDataLike, EndorserInfoLike } from "ssri-ckboost/types"
+import { ccc } from "@ckb-ccc/core";
+import { ssri } from "@ckb-ccc/ssri";
+import {
+  type ProtocolDataLike,
+  type EndorserInfoLike,
+  type ProtocolConfigLike,
+  ProtocolData,
+} from "ssri-ckboost/types";
 import {
   ProtocolMetrics,
   ProtocolTransaction,
-  UpdateProtocolConfigForm,
-  UpdateScriptCodeHashesForm,
-  UpdateTippingConfigForm,
-  AddEndorserForm,
-  EditEndorserForm,
-  BatchUpdateProtocolForm,
   ProtocolChanges,
-  FieldChange
-} from "../types/protocol"
+  FieldChange,
+} from "../types/protocol";
 import {
-  fetchProtocolData,
-  fetchProtocolDataByOutPoint,
-  fetchProtocolMetrics,
-  fetchProtocolTransactions
-} from "../ckb/protocol-cells"
-import { Protocol } from "ssri-ckboost"
-import { deploymentManager, DeploymentManager } from "../ckb/deployment-manager"
+  fetchProtocolCell,
+  fetchProtocolCellByOutPoint,
+  fetchProtocolTransactions,
+} from "../ckb/protocol-cells";
+import { Protocol } from "ssri-ckboost";
+import {
+  deploymentManager,
+  DeploymentManager,
+} from "../ckb/deployment-manager";
 
 /**
  * Protocol service that provides high-level protocol operations
  */
 export class ProtocolService {
-  private signer?: ccc.Signer
-  private protocol?: Protocol
+  private signer: ccc.Signer;
+  private protocol: Protocol;
 
-  constructor(signer?: ccc.Signer) {
-    this.signer = signer
-    
-    // Initialize Protocol instance with deployment config
-    if (signer) {
-      try {
-        // Get the protocol type code outpoint and deployment info
-        const network = DeploymentManager.getCurrentNetwork()
-        const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType')
-        const outPoint = deploymentManager.getContractOutPoint(network, 'ckboostProtocolType')
-        
-        if (!deployment || !outPoint) {
-          throw new Error("Protocol type contract not found in deployments.json")
-        }
-        
-        // Create the protocol type script
-        const protocolTypeScript = {
-          codeHash: deployment.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
-          hashType: "type" as const,
-          args: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x" // Protocol cell type args
-        }
-        
-        // TODO: Get executor from environment
-        const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090"
-        const executor = new ssri.ExecutorJsonRpc(executorUrl)
+  constructor(signer: ccc.Signer) {
+    this.signer = signer;
 
-        this.protocol = new Protocol(outPoint, protocolTypeScript, {
-          executor: executor
-        })
-      } catch (error) {
-        console.warn("Failed to initialize Protocol instance:", error)
-      }
+    // Get the protocol type code outpoint and deployment info
+    const network = DeploymentManager.getCurrentNetwork();
+    const deployment = deploymentManager.getCurrentDeployment(
+      network,
+      "ckboostProtocolType"
+    );
+    const outPoint = deploymentManager.getContractOutPoint(
+      network,
+      "ckboostProtocolType"
+    );
+
+    if (!deployment || !outPoint) {
+      throw new Error("Protocol type contract not found in deployments.json");
     }
+
+    // Create the protocol type script
+    const protocolTypeScript = {
+      codeHash:
+        deployment.typeHash ||
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      hashType: "type" as const,
+      args: process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x", // Protocol cell type args
+    };
+
+    // TODO: Get executor from environment
+    const executorUrl =
+      process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
+    const executor = new ssri.ExecutorJsonRpc(executorUrl);
+
+    this.protocol = new Protocol(outPoint, protocolTypeScript, {
+      executor: executor,
+    });
   }
 
-  /**
-   * Helper method to update protocol using the SDK
-   */
-  private async updateProtocol(updatedData: ProtocolDataLike): Promise<string> {
+  async updateProtocol(updatedData: ProtocolDataLike): Promise<ccc.Hex> {
     if (!this.signer) {
-      throw new Error("Signer is required to update protocol")
+      throw new Error("Signer is required to update protocol");
     }
-    
+
     if (!this.protocol) {
-      throw new Error("Protocol instance not initialized. Check deployment configuration.")
+      throw new Error(
+        "Protocol instance not initialized. Check deployment configuration."
+      );
     }
 
     // Create the transaction using the SDK
-    const { res: tx } = await this.protocol.updateProtocol(this.signer, updatedData)
-    
+    const { res: tx } = await this.protocol.updateProtocol(
+      this.signer,
+      updatedData
+    );
+
     // Complete fees and send transaction
-    await tx.completeInputsByCapacity(this.signer)
-    await tx.completeFeeBy(this.signer)
-    const txHash = await this.signer.sendTransaction(tx)
-    
-    console.log("Protocol updated, tx:", txHash)
-    return txHash
+    await tx.completeInputsByCapacity(this.signer);
+    await tx.completeFeeBy(this.signer);
+    const txHash = await this.signer.sendTransaction(tx);
+
+    console.log("Protocol updated, tx:", txHash);
+    return txHash;
   }
 
-  /**
-   * Get current protocol data
-   * @returns Current ProtocolDataType
-   */
-  async getProtocolData(): Promise<ProtocolDataLike> {
-    try {
-      return await fetchProtocolData(this.signer)
-    } catch (error) {
-      console.warn("Failed to fetch protocol data:", error)
-      throw error
+  async getProtocolData(): Promise<ReturnType<typeof ProtocolData.decode>> {
+    const protocolCell = await fetchProtocolCell(this.signer);
+    if (!protocolCell) {
+      throw new Error(
+        "Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface."
+      );
     }
-  }
-
-  /**
-   * Get protocol data by specific outpoint
-   * @param outPoint - Specific outpoint to fetch
-   * @returns ProtocolDataType from the specified cell
-   */
-  async getProtocolDataByOutPoint(outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<ProtocolDataLike> {
-    if (!this.signer) {
-      throw new Error("Signer required for fetching by outpoint")
-    }
-    try {
-      return await fetchProtocolDataByOutPoint(this.signer, outPoint)
-    } catch (error) {
-      console.warn("Failed to fetch protocol data by outpoint:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Get protocol metrics
-   * @returns Protocol metrics
-   */
-  async getProtocolMetrics(): Promise<ProtocolMetrics> {
-    try {
-      return await fetchProtocolMetrics(this.signer)
-    } catch (error) {
-      console.warn("Failed to fetch protocol metrics:", error)
-      throw error
-    }
+    return ProtocolData.decode(protocolCell.outputData);
   }
 
   /**
@@ -139,515 +111,254 @@ export class ProtocolService {
    * @param limit - Maximum number of transactions to fetch
    * @returns Array of protocol transactions
    */
-  async getProtocolTransactions(limit: number = 50): Promise<ProtocolTransaction[]> {
+  async getProtocolTransactions(
+    limit: number = 50
+  ): Promise<ProtocolTransaction[]> {
     try {
-      return await fetchProtocolTransactions(this.signer, limit)
+      return await fetchProtocolTransactions(this.signer, limit);
     } catch (error) {
-      console.warn("Failed to fetch protocol transactions:", error)
-      throw error
+      console.warn("Failed to fetch protocol transactions:", error);
+      throw error;
     }
   }
 
   /**
-   * Update protocol configuration
-   * @param form - Protocol config form data
-   * @returns Transaction hash
+   * Parse ProtocolData from cell data using Molecule schema
+   * @param cellData - Hex-encoded cell data
+   * @returns Parsed ProtocolData
    */
-  async updateProtocolConfig(form: UpdateProtocolConfigForm): Promise<string> {
+  parseProtocolData(cellData: string): ProtocolDataLike {
     try {
-      const currentData = await this.getProtocolData()
-      
-      // Since ProtocolDataType is now SDK type, we need to handle it properly
-      // This is a simplified update - in production, you'd need to serialize properly
-      // Convert admin lock hashes to ArrayBuffer
-      const adminLockHashVec = form.adminLockHashes.map(hash => {
-        const bytes = ccc.bytesFrom(hash, "hex");
-        const buffer = new ArrayBuffer(32);
-        new Uint8Array(buffer).set(bytes);
-        return buffer;
-      });
-      
-      // Convert timestamp to ArrayBuffer
-      const timestampBytes = ccc.numLeToBytes(Math.floor(Date.now() / 1000), 8);
-      const timestampBuffer = new ArrayBuffer(8);
-      new Uint8Array(timestampBuffer).set(timestampBytes);
-      
-      const updatedData: any = {
-        ...currentData,
-        protocol_config: {
-          ...currentData.protocol_config,
-          admin_lock_hash_vec: adminLockHashVec
-        },
-        last_updated: timestampBuffer
+      // For empty or minimal protocol cells, return default structure
+      // This allows the app to function while the protocol cell is being deployed
+      if (cellData === "0x" || !cellData || cellData.length < 10) {
+        console.log(
+          "Protocol cell is empty or minimal, returning default structure"
+        );
+
+        // Create default values using the new type system
+        // For Uint64Type - use bigint
+        const defaultTimestamp = BigInt(Date.now());
+
+        // For Byte32Type - use ccc.Hex
+        const defaultByte32: ccc.Hex = ("0x" + "00".repeat(32)) as ccc.Hex;
+
+        // Return a default ProtocolData structure that matches the SDK type
+        const defaultProtocolData: ProtocolDataLike = {
+          campaigns_approved: [],
+          tipping_proposals: [],
+          tipping_config: {
+            approval_requirement_thresholds: [], // Empty Uint128Vec
+            expiration_duration: defaultTimestamp, // Uint64 as bigint
+          },
+          endorsers_whitelist: [],
+          last_updated: defaultTimestamp, // Uint64 as bigint
+          protocol_config: {
+            admin_lock_hash_vec: [],
+            script_code_hashes: {
+              ckb_boost_protocol_type_code_hash: defaultByte32,
+              ckb_boost_protocol_lock_code_hash: defaultByte32,
+              ckb_boost_campaign_type_code_hash: defaultByte32,
+              ckb_boost_campaign_lock_code_hash: defaultByte32,
+              ckb_boost_user_type_code_hash: defaultByte32,
+              accepted_udt_type_code_hashes: [],
+              accepted_dob_type_code_hashes: [],
+            },
+          },
+        };
+
+        return defaultProtocolData;
       }
 
-      return await this.updateProtocol(updatedData)
+      // Parse actual protocol data using molecule codec
+      console.log("Parsing protocol data from cell:", cellData);
+
+      try {
+        // Convert hex string to bytes for molecule parsing
+        const cellDataBytes = ccc.bytesFrom(cellData);
+        console.log("Cell data bytes length:", cellDataBytes.length);
+
+        // Decode using the generated ProtocolData codec
+        const protocolData = ProtocolData.decode(cellDataBytes);
+
+        console.log("Successfully parsed protocol data");
+
+        // Return the decoded data - cast through unknown to handle type differences
+        // The decoded data has the correct structure but some fields may have different types (bigint vs number)
+        // This is acceptable since the consuming code should handle these type variations
+        return protocolData as unknown as ProtocolDataLike;
+      } catch (parseError) {
+        console.error("Failed to parse protocol data:", parseError);
+        console.error("Cell data that failed to parse:", cellData);
+
+        // If we have non-empty cell data but can't parse it, the cell is corrupted
+        // Throw an error to trigger redeployment
+        throw new Error(
+          "Protocol cell data is corrupted or incompatible. " +
+            "Please redeploy the protocol cell using the Protocol Management interface."
+        );
+      }
     } catch (error) {
-      console.error("Failed to update protocol config:", error)
-      throw error
+      console.error("Failed to parse ProtocolData:", error);
+      throw error;
     }
   }
 
   /**
-   * Update script code hashes
-   * @param form - Script code hashes form data
-   * @returns Transaction hash
+   * Generate ProtocolData Molecule bytes from data structure
+   * @param data - ProtocolData to serialize
+   * @returns Hex-encoded Molecule data
    */
-  async updateScriptCodeHashes(_form: UpdateScriptCodeHashesForm): Promise<string> {
+  generateProtocolData(data: ProtocolDataLike): string {
     try {
-      const currentData = await this.getProtocolData()
-      
-      // TODO: Update when schema supports these fields
-      // For now, we can only update the accepted code hashes
-      const updatedData: ProtocolDataLike = {
-        ...currentData,
-        protocol_config: {
-          ...currentData.protocol_config,
-          script_code_hashes: {
-            ...currentData.protocol_config.script_code_hashes,
-            accepted_udt_type_code_hashes: [],
-            accepted_dob_type_code_hashes: []
+      // Use proper Molecule serialization
+      const protocolDataBytes = ProtocolData.encode(data);
+      return (
+        "0x" +
+        Array.from(new Uint8Array(protocolDataBytes))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("")
+      );
+    } catch (error) {
+      console.error(
+        "Failed to generate ProtocolData with Molecule serialization:",
+        error
+      );
+      throw new Error(
+        "Failed to serialize protocol data. Please ensure the data structure is valid."
+      );
+    }
+  }
+
+  /**
+   * Fetch protocol data by specific outpoint
+   * @param signer - CCC signer instance
+   * @param outPoint - Specific outpoint to fetch
+   * @returns ProtocolData from the specified cell
+   */
+  async fetchProtocolDataByOutPoint(
+    outPoint: { txHash: ccc.Hex; index: ccc.Num }
+  ): Promise<ProtocolDataLike> {
+    const cell = await fetchProtocolCellByOutPoint(this.signer, outPoint);
+    if (!cell) {
+      throw new Error(
+        "Protocol cell not found at specified outpoint. Please ensure the outpoint is correct or deploy a new protocol cell using the Protocol Management interface."
+      );
+    }
+    return this.parseProtocolData(cell.outputData);
+  }
+
+  /**
+   * Get protocol metrics from blockchain data
+   * @param signer - CCC signer instance
+   * @returns Protocol metrics
+   */
+  async getProtocolMetrics(): Promise<ProtocolMetrics> {
+    try {
+      const protocolCell = await fetchProtocolCell(this.signer);
+      if (!protocolCell) {
+        throw new Error(
+          "Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface."
+        );
+      }
+      const data = this.parseProtocolData(protocolCell.outputData);
+
+      // Convert timestamp and validate
+      let timestamp: number;
+      try {
+        // The new type system uses bigint for Uint64
+        // Convert bigint timestamp to seconds
+        if (data.last_updated && typeof data.last_updated === "bigint") {
+          // Assume the bigint is in milliseconds if it's a reasonable JavaScript timestamp
+          const timestampBigInt = data.last_updated;
+
+          // Check if it looks like milliseconds (> year 2000 in ms)
+          if (timestampBigInt > 946684800000n) {
+            timestamp = Number(timestampBigInt / 1000n);
+          } else {
+            // Otherwise assume it's already in seconds
+            timestamp = Number(timestampBigInt);
           }
-        },
-        last_updated: BigInt(Date.now())
-      }
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to update script code hashes:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Update tipping configuration
-   * @param form - Tipping config form data
-   * @returns Transaction hash
-   */
-  async updateTippingConfig(form: UpdateTippingConfigForm): Promise<string> {
-    try {
-      const currentData = await this.getProtocolData()
-      
-      const updatedData: ProtocolDataLike = {
-        ...currentData,
-        tipping_config: {
-          ...currentData.tipping_config,
-          approval_requirement_thresholds: form.approvalRequirementThresholds.map(threshold => 
-            BigInt(threshold)
-          ),
-          expiration_duration: BigInt(form.expirationDuration)
-        },
-        last_updated: BigInt(Date.now())
-      }
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to update tipping config:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Add a new endorser
-   * @param form - Add endorser form data
-   * @returns Transaction hash
-   */
-  async addEndorser(form: AddEndorserForm): Promise<string> {
-    try {
-      const currentData = await this.getProtocolData()
-      
-      // Compute lock hash
-      let lockHashHex: ccc.Hex
-      if (form.endorserLockHash) {
-        // Use the provided lock hash directly
-        lockHashHex = form.endorserLockHash as ccc.Hex;
-      } else {
-        // Fallback: compute lock hash from script using CCC
-        const cccScript = ccc.Script.from({
-          codeHash: form.endorserLockScript.codeHash,
-          hashType: form.endorserLockScript.hashType,
-          args: form.endorserLockScript.args
-        })
-        lockHashHex = cccScript.hash();
-      }
-      
-      // Create new endorser
-      // Convert strings to hex for the new type system
-      const nameHex = ccc.hexFrom(ccc.bytesFrom(form.endorserName, "utf8"));
-      const descHex = ccc.hexFrom(ccc.bytesFrom(form.endorserDescription, "utf8"));
-      
-      const newEndorser: EndorserInfoLike = {
-        endorser_lock_hash: lockHashHex,
-        endorser_name: nameHex,
-        endorser_description: descHex,
-        website: ccc.hexFrom(ccc.bytesFrom(form.website || "", "utf8")),
-        social_links: (form.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-        verified: form.verified || 0
-      }
-
-      const updatedData: ProtocolDataLike = {
-        ...currentData,
-        endorsers_whitelist: [...currentData.endorsers_whitelist, newEndorser],
-        last_updated: BigInt(Date.now())
-      }
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to add endorser:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Edit an existing endorser
-   * @param form - Edit endorser form data
-   * @returns Transaction hash
-   */
-  async editEndorser(form: EditEndorserForm): Promise<string> {
-    try {
-      const currentData = await this.getProtocolData()
-      
-      if (form.index < 0 || form.index >= currentData.endorsers_whitelist.length) {
-        throw new Error("Invalid endorser index")
-      }
-
-      // Compute lock hash
-      let lockHashHex: ccc.Hex
-      if (form.endorserLockHash) {
-        // Use the provided lock hash directly
-        lockHashHex = form.endorserLockHash as ccc.Hex;
-      } else {
-        // Fallback: compute lock hash from script using CCC
-        const cccScript = ccc.Script.from({
-          codeHash: form.endorserLockScript.codeHash,
-          hashType: form.endorserLockScript.hashType,
-          args: form.endorserLockScript.args
-        })
-        lockHashHex = cccScript.hash();
-      }
-      
-      // Convert strings to hex for the new type system
-      const nameHex = ccc.hexFrom(ccc.bytesFrom(form.endorserName, "utf8"));
-      const descHex = ccc.hexFrom(ccc.bytesFrom(form.endorserDescription, "utf8"));
-      
-      const updatedEndorsers = [...currentData.endorsers_whitelist]
-      updatedEndorsers[Number(form.index)] = {
-        endorser_lock_hash: lockHashHex,
-        endorser_name: nameHex,
-        endorser_description: descHex,
-        website: ccc.hexFrom(ccc.bytesFrom(form.website || "", "utf8")),
-        social_links: (form.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-        verified: form.verified || 0
-      }
-
-      const updatedData: ProtocolDataLike = {
-        ...currentData,
-        endorsers_whitelist: updatedEndorsers,
-        last_updated: BigInt(Date.now())
-      }
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to edit endorser:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Remove an endorser by index
-   * @param index - Index of endorser to remove
-   * @returns Transaction hash
-   */
-  async removeEndorser(index: number): Promise<string> {
-    try {
-      const currentData = await this.getProtocolData()
-      
-      if (index < 0 || index >= currentData.endorsers_whitelist.length) {
-        throw new Error("Invalid endorser index")
-      }
-
-      const updatedEndorsers = currentData.endorsers_whitelist.filter((_, i) => i !== index)
-
-      const updatedData: ProtocolDataLike = {
-        ...currentData,
-        endorsers_whitelist: updatedEndorsers,
-        last_updated: BigInt(Date.now())
-      }
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to remove endorser:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Batch update protocol with multiple changes
-   * @param form - Batch update form data
-   * @returns Transaction hash
-   */
-  async batchUpdateProtocol(form: BatchUpdateProtocolForm): Promise<string> {
-    try {
-      const currentData = await this.getProtocolData()
-      let updatedData = { ...currentData }
-
-      // Update protocol config if provided
-      if (form.protocolConfig) {
-        updatedData.protocol_config = {
-          ...updatedData.protocol_config,
-          admin_lock_hash_vec: form.protocolConfig.adminLockHashes.map(hash => 
-            hash as ccc.Hex
-          )
-        }
-      }
-
-      // Update script code hashes if provided
-      // TODO: Update when schema supports these fields
-      if (form.scriptCodeHashes) {
-        updatedData.protocol_config = {
-          ...updatedData.protocol_config,
-          script_code_hashes: {
-            ...currentData.protocol_config.script_code_hashes,
-            accepted_udt_type_code_hashes: [],
-            accepted_dob_type_code_hashes: []
-          }
-        }
-      }
-
-      // Update tipping config if provided
-      if (form.tippingConfig) {
-        updatedData.tipping_config = {
-          ...updatedData.tipping_config,
-          approval_requirement_thresholds: form.tippingConfig.approvalRequirementThresholds.map(threshold => 
-            BigInt(Number(threshold))
-          ),
-          expiration_duration: BigInt(form.tippingConfig.expirationDuration)
-        }
-      }
-
-      // Handle endorser operations
-      if (form.endorserOperations) {
-        let endorsers = [...updatedData.endorsers_whitelist]
-
-        // Remove endorsers (process in reverse order to maintain indices)
-        if (form.endorserOperations.remove) {
-          const sortedIndices = form.endorserOperations.remove.sort((a, b) => Number(b) - Number(a))
-          for (const index of sortedIndices) {
-            if (index >= 0 && index < endorsers.length) {
-              endorsers.splice(Number(index), 1)
-            }
-          }
+        } else {
+          timestamp = Math.floor(Date.now() / 1000);
         }
 
-        // Edit endorsers
-        if (form.endorserOperations.edit) {
-          for (const edit of form.endorserOperations.edit) {
-            if (Number(edit.index) >= 0 && Number(edit.index) < endorsers.length) {
-              // Compute lock hash
-              let lockHashHex: ccc.Hex
-              if (edit.endorserLockHash) {
-                // Use the provided lock hash directly
-                lockHashHex = edit.endorserLockHash as ccc.Hex;
-              } else {
-                // Fallback: compute lock hash from script using CCC
-                const cccScript = ccc.Script.from({
-                  codeHash: edit.endorserLockScript.codeHash,
-                  hashType: edit.endorserLockScript.hashType,
-                  args: edit.endorserLockScript.args
-                })
-                lockHashHex = cccScript.hash();
-              }
-              
-              // Convert strings to hex for the new type system
-              const nameHex = ccc.hexFrom(ccc.bytesFrom(edit.endorserName, "utf8"));
-              const descHex = ccc.hexFrom(ccc.bytesFrom(edit.endorserDescription, "utf8"));
-              
-              endorsers[Number(edit.index)] = {
-                endorser_lock_hash: lockHashHex,
-                endorser_name: nameHex,
-                endorser_description: descHex,
-                website: ccc.hexFrom(ccc.bytesFrom(edit.website || "", "utf8")),
-                social_links: (edit.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-                verified: edit.verified || 0
-              }
-            }
-          }
-        }
+        // Validate timestamp is reasonable (between year 2020 and 2100)
+        const minTimestamp = 1577836800; // Jan 1, 2020
+        const maxTimestamp = 4102444800; // Jan 1, 2100
 
-        // Add new endorsers
-        if (form.endorserOperations.add) {
-          for (const add of form.endorserOperations.add) {
-            // Compute lock hash
-            let lockHashHex: ccc.Hex
-            if (add.endorserLockHash) {
-              // Use the provided lock hash directly
-              lockHashHex = add.endorserLockHash as ccc.Hex;
-            } else {
-              // Fallback: compute lock hash from script using CCC
-              const cccScript = ccc.Script.from({
-                codeHash: add.endorserLockScript.codeHash,
-                hashType: add.endorserLockScript.hashType,
-                args: add.endorserLockScript.args
-              })
-              lockHashHex = cccScript.hash();
-            }
-            
-            // Convert strings to hex for the new type system
-            const nameHex = ccc.hexFrom(ccc.bytesFrom(add.endorserName, "utf8"));
-            const descHex = ccc.hexFrom(ccc.bytesFrom(add.endorserDescription, "utf8"));
-            
-            endorsers.push({
-              endorser_lock_hash: lockHashHex,
-              endorser_name: nameHex,
-              endorser_description: descHex,
-              website: ccc.hexFrom(ccc.bytesFrom(add.website || "", "utf8")),
-              social_links: (add.socialLinks || []).map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-              verified: add.verified || 0
-            })
-          }
+        if (timestamp < minTimestamp || timestamp > maxTimestamp) {
+          console.warn(
+            `Invalid timestamp value: ${timestamp}, using current time`
+          );
+          timestamp = Math.floor(Date.now() / 1000);
         }
-
-        updatedData.endorsers_whitelist = endorsers
+      } catch (error) {
+        console.error("Error converting timestamp:", error);
+        timestamp = Math.floor(Date.now() / 1000);
       }
 
-      updatedData.last_updated = BigInt(Date.now())
-
-      return await this.updateProtocol(updatedData)
-    } catch (error) {
-      console.error("Failed to batch update protocol:", error)
-      throw error
-    }
-  }
-
-  /**
-   * Calculate changes between current and new data
-   */
-  calculateChanges(currentData: ProtocolDataLike, formData: Partial<{
-    adminLockHashes: string[]
-    scriptCodeHashes: any
-    tippingConfig: any
-    endorsers: EndorserInfoLike[]
-  }>): ProtocolChanges {
-    const changes: ProtocolChanges = {
-      protocolConfig: {
-        adminLockHashes: this.createFieldChange(
-          'protocol_config.admin_lock_hash_vec',
-          currentData.protocol_config.admin_lock_hash_vec,
-          formData.adminLockHashes || currentData.protocol_config.admin_lock_hash_vec
-        )
-      },
-      scriptCodeHashes: {
-        ckbBoostProtocolTypeCodeHash: this.createFieldChange(
-          'protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash',
-          currentData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash,
-          formData.scriptCodeHashes?.ckbBoostProtocolTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash
+      return {
+        totalCampaigns: BigInt(data.campaigns_approved.length),
+        activeCampaigns: BigInt(
+          data.campaigns_approved.filter((c: any) => c.status === 4).length
         ),
-        ckbBoostProtocolLockCodeHash: this.createFieldChange(
-          'protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash',
-          currentData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash,
-          formData.scriptCodeHashes?.ckbBoostProtocolLockCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_protocol_lock_code_hash
+        totalTippingProposals: BigInt(data.tipping_proposals.length),
+        pendingTippingProposals: BigInt(
+          data.tipping_proposals.filter((p: any) => !p.tipping_transaction_hash)
+            .length
         ),
-        ckbBoostCampaignTypeCodeHash: this.createFieldChange(
-          'protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash',
-          currentData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash,
-          formData.scriptCodeHashes?.ckbBoostCampaignTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
-        ),
-        ckbBoostCampaignLockCodeHash: this.createFieldChange(
-          'protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash',
-          currentData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
-          formData.scriptCodeHashes?.ckbBoostCampaignLockCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash
-        ),
-        ckbBoostUserTypeCodeHash: this.createFieldChange(
-          'protocol_config.script_code_hashes.ckb_boost_user_type_code_hash',
-          currentData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash,
-          formData.scriptCodeHashes?.ckbBoostUserTypeCodeHash || currentData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash
-        )
-      },
-      tippingConfig: {
-        approvalRequirementThresholds: this.createFieldChange(
-          'tipping_config.approval_requirement_thresholds',
-          currentData.tipping_config.approval_requirement_thresholds,
-          formData.tippingConfig?.approvalRequirementThresholds || currentData.tipping_config.approval_requirement_thresholds
-        ),
-        expirationDuration: this.createFieldChange(
-          'tipping_config.expiration_duration',
-          currentData.tipping_config.expiration_duration,
-          formData.tippingConfig?.expirationDuration || currentData.tipping_config.expiration_duration
-        )
-      },
-      endorsers: {
-        added: [],
-        updated: [],
-        removed: []
-      }
-    }
-
-    return changes
-  }
-
-  private createFieldChange<T>(fieldPath: string, oldValue: T, newValue: T): FieldChange<T> {
-    return {
-      fieldPath,
-      oldValue,
-      newValue,
-      hasChanged: JSON.stringify(oldValue) !== JSON.stringify(newValue)
-    }
-  }
-
-  /**
-   * Get default protocol data for initialization
-   * @returns Default protocol data from the cell layer
-   */
-  async getDefaultProtocolData(): Promise<ProtocolDataLike> {
-    // Cannot fetch protocol data without a signer
-    throw new Error(
-      "Cannot fetch protocol data without a connected wallet. " +
-      "Please connect your wallet to view protocol data."
-    )
-  }
-
-  /**
-   * Get endorsers list
-   */
-  static async getEndorsers(signer?: ccc.Signer): Promise<EndorserInfoLike[]> {
-    try {
-      const data = await fetchProtocolData(signer)
-      return data.endorsers_whitelist
+        totalEndorsers: BigInt(data.endorsers_whitelist.length),
+        lastUpdated: new Date(timestamp * 1000).toISOString(),
+      };
     } catch (error) {
-      console.warn("Failed to fetch endorsers:", error)
-      throw error
+      console.error("Failed to fetch protocol metrics:", error);
+      throw error;
     }
   }
 }
 
 // Utility functions
 export const formatTimestamp = (timestamp: number): string => {
-  return new Date(timestamp).toLocaleString()
-}
+  return new Date(timestamp).toLocaleString();
+};
 
 export const formatLockHash = (hash: string, length: number = 10): string => {
-  return hash.length > length ? `${hash.slice(0, length)}...` : hash
-}
+  return hash.length > length ? `${hash.slice(0, length)}...` : hash;
+};
 
 export const getCampaignStatusText = (status: number): string => {
   switch (status) {
-    case 0: return "Draft"
-    case 1: return "Pending Approval"
-    case 2: return "Approved"
-    case 3: return "Rejected"
-    case 4: return "Active"
-    case 5: return "Completed"
-    case 6: return "Cancelled"
-    default: return "Unknown"
+    case 0:
+      return "Draft";
+    case 1:
+      return "Pending Approval";
+    case 2:
+      return "Approved";
+    case 3:
+      return "Rejected";
+    case 4:
+      return "Active";
+    case 5:
+      return "Completed";
+    case 6:
+      return "Cancelled";
+    default:
+      return "Unknown";
   }
-}
+};
 
 export const getQuestStatusText = (status: number): string => {
   switch (status) {
-    case 0: return "Draft"
-    case 1: return "Active"
-    case 2: return "Completed"
-    case 3: return "Cancelled"
-    default: return "Unknown"
+    case 0:
+      return "Draft";
+    case 1:
+      return "Active";
+    case 2:
+      return "Completed";
+    case 3:
+      return "Cancelled";
+    default:
+      return "Unknown";
   }
-}
+};

@@ -26,7 +26,7 @@ import Link from "next/link"
 
 const CAMPAIGNS_WITH_QUESTS = [
   {
-    id: 1,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     title: "CKB Ecosystem Growth Initiative",
     sponsor: "Nervos Foundation",
     status: "active",
@@ -93,7 +93,7 @@ const CAMPAIGNS_WITH_QUESTS = [
     ],
   },
   {
-    id: 2,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000002",
     title: "DeFi Education Campaign",
     sponsor: "CKB DeFi Alliance",
     status: "active",
@@ -165,7 +165,7 @@ const CAMPAIGNS_WITH_QUESTS = [
     ],
   },
   {
-    id: 3,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000003",
     title: "Community Builder Program",
     sponsor: "CKB Community DAO",
     status: "active",
@@ -280,11 +280,11 @@ export default function AdminQuestManagement() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [selectedDifficulty, setSelectedDifficulty] = useState("all")
-  const [expandedCampaigns, setExpandedCampaigns] = useState<number[]>([1])
+  const [expandedCampaigns, setExpandedCampaigns] = useState<string[]>(["0x0000000000000000000000000000000000000000000000000000000000000001"])
 
-  const toggleCampaign = (campaignId: number) => {
+  const toggleCampaign = (campaignTypeHash: string) => {
     setExpandedCampaigns((prev) =>
-      prev.includes(campaignId) ? prev.filter((id) => id !== campaignId) : [...prev, campaignId],
+      prev.includes(campaignTypeHash) ? prev.filter((hash) => hash !== campaignTypeHash) : [...prev, campaignTypeHash],
     )
   }
 
@@ -395,15 +395,15 @@ export default function AdminQuestManagement() {
           {/* Campaign-Based Quest Management */}
           <div className="space-y-6">
             {CAMPAIGNS_WITH_QUESTS.map((campaign) => (
-              <Card key={campaign.id} className="overflow-hidden">
+              <Card key={campaign.typeHash} className="overflow-hidden">
                 <CardHeader
                   className="cursor-pointer hover:bg-gray-50 transition-colors"
-                  onClick={() => toggleCampaign(campaign.id)}
+                  onClick={() => toggleCampaign(campaign.typeHash)}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        {expandedCampaigns.includes(campaign.id) ? (
+                        {expandedCampaigns.includes(campaign.typeHash) ? (
                           <ChevronDown className="w-5 h-5 text-muted-foreground" />
                         ) : (
                           <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -425,7 +425,7 @@ export default function AdminQuestManagement() {
                         <div className="text-muted-foreground">{campaign.completedQuests} Completions</div>
                       </div>
                       <Badge className={getStatusColor(campaign.status)}>{campaign.status}</Badge>
-                      <Link href={`/campaign/${campaign.id}/create-quest`}>
+                      <Link href={`/campaign/${campaign.typeHash}/create-quest`}>
                         <Button size="sm" className="flex items-center gap-2">
                           <Plus className="w-4 h-4" />
                           Add Quest
@@ -435,7 +435,7 @@ export default function AdminQuestManagement() {
                   </div>
                 </CardHeader>
 
-                {expandedCampaigns.includes(campaign.id) && (
+                {expandedCampaigns.includes(campaign.typeHash) && (
                   <CardContent className="pt-0">
                     <div className="space-y-4">
                       {/* Campaign Summary */}
@@ -544,10 +544,10 @@ export default function AdminQuestManagement() {
                                 <div>
                                   <div className="text-sm font-medium mb-1">Rewards</div>
                                   <div className="flex items-center gap-4 text-sm">
-                                    <span className="text-yellow-600 font-medium">{quest.rewards.points.toString ? quest.rewards.points.toString() : quest.rewards.points} points</span>
+                                    <span className="text-yellow-600 font-medium">{quest.rewards.points} points</span>
                                     {quest.rewards.tokens.map((token, index) => (
                                       <span key={index} className="text-green-600 font-medium">
-                                        {token.amount.toString ? token.amount.toString() : token.amount} {token.symbol}
+                                        {token.amount} {token.symbol}
                                       </span>
                                     ))}
                                   </div>

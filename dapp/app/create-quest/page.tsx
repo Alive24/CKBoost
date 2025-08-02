@@ -12,7 +12,7 @@ import Link from "next/link"
 // Mock campaigns owned by current user
 const OWNED_CAMPAIGNS = [
   {
-    id: 1,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     title: "CKB Ecosystem Growth Initiative",
     description: "Help expand the CKB ecosystem through social engagement and development",
     status: "active",
@@ -24,7 +24,7 @@ const OWNED_CAMPAIGNS = [
     sponsor: "Nervos Foundation",
   },
   {
-    id: 2,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000002",
     title: "DeFi Education Campaign",
     description: "Learn and teach about DeFi concepts on CKB",
     status: "draft",
@@ -36,7 +36,7 @@ const OWNED_CAMPAIGNS = [
     sponsor: "CKB DeFi Alliance",
   },
   {
-    id: 3,
+    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000003",
     title: "Community Builder Program",
     description: "Build and strengthen the CKB community through engagement",
     status: "active",
@@ -51,7 +51,7 @@ const OWNED_CAMPAIGNS = [
 
 export default function CreateQuest() {
   const router = useRouter()
-  const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null)
+  const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null)
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -87,8 +87,8 @@ export default function CreateQuest() {
     })
   }
 
-  const handleCampaignSelect = (campaignId: number) => {
-    router.push(`/campaign/${campaignId}/create-quest`)
+  const handleCampaignSelect = (campaignTypeHash: string) => {
+    router.push(`/campaign/${campaignTypeHash}/create-quest`)
   }
 
   const handleCreateCampaign = () => {
@@ -179,11 +179,11 @@ export default function CreateQuest() {
               <div className="grid gap-4">
                 {OWNED_CAMPAIGNS.map((campaign) => (
                   <Card 
-                    key={campaign.id} 
+                    key={campaign.typeHash} 
                     className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedCampaign === campaign.id ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                      selectedCampaign === campaign.typeHash ? 'ring-2 ring-blue-500 bg-blue-50' : ''
                     }`}
-                    onClick={() => setSelectedCampaign(campaign.id)}
+                    onClick={() => setSelectedCampaign(campaign.typeHash)}
                   >
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
@@ -220,7 +220,7 @@ export default function CreateQuest() {
                           <Button
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleCampaignSelect(campaign.id)
+                              handleCampaignSelect(campaign.typeHash)
                             }}
                             className="flex items-center gap-2"
                           >

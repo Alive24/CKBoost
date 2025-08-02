@@ -39,7 +39,7 @@ pub mod campaign {
         AssetList, AssetListVec,
         UDTAsset, UDTAssetVec,
         QuestSubTaskData, QuestSubTaskDataVec,
-        CompletionRecord, CompletionRecordVec,
+        UserSubmissionRecord, UserSubmissionRecordVec,
         QuestData, QuestDataVec,
         CampaignMetadata, CampaignData, CampaignDataVec,
         

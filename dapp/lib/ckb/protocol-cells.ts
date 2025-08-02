@@ -4,7 +4,6 @@
 import { ccc } from "@ckb-ccc/core";
 import type { ProtocolDataLike } from "ssri-ckboost/types";
 import {
-  ProtocolCell,
   ProtocolMetrics,
   ProtocolTransaction,
 } from "../types/protocol";
@@ -41,7 +40,7 @@ const getProtocolTypeScript = () => {
 export async function fetchProtocolCellByOutPoint(
   signer: ccc.Signer,
   outPoint: { txHash: ccc.Hex; index: ccc.Num }
-): Promise<ProtocolCell | null> {
+): Promise<ccc.Cell | null> {
   try {
     const client = signer.client;
     
@@ -52,18 +51,7 @@ export async function fetchProtocolCellByOutPoint(
       return null;
     }
     
-    return {
-      outPoint: {
-        txHash: cell.outPoint.txHash,
-        index: cell.outPoint.index,
-      },
-      output: {
-        capacity: cell.cellOutput.capacity.toString(),
-        lock: cell.cellOutput.lock,
-        type: cell.cellOutput.type || null,
-      },
-      data: cell.outputData || "0x",
-    };
+    return cell;
   } catch (error) {
     console.error("Failed to fetch protocol cell by outpoint:", error);
     throw new Error("Failed to fetch protocol cell by outpoint. The cell may not exist or has been consumed.");
@@ -77,7 +65,7 @@ export async function fetchProtocolCellByOutPoint(
  */
 export async function fetchProtocolCell(
   signer?: ccc.Signer
-): Promise<ProtocolCell | null> {
+): Promise<ccc.Cell | null> {
 
   try {
     // Check if signer is properly initialized
@@ -137,18 +125,7 @@ export async function fetchProtocolCell(
     }
 
     const cell = firstCell.value;
-    return {
-      outPoint: {
-        txHash: cell.outPoint.txHash,
-        index: cell.outPoint.index,
-      },
-      output: {
-        capacity: cell.cellOutput.capacity.toString(),
-        lock: cell.cellOutput.lock,
-        type: cell.cellOutput.type || null,
-      },
-      data: cell.outputData || "0x",
-    };
+    return cell;
   } catch (error) {
     console.error("Failed to fetch protocol cell:", error);
     
@@ -168,196 +145,7 @@ export async function fetchProtocolCell(
   }
 }
 
-/**
- * Parse ProtocolData from cell data using Molecule schema
- * @param cellData - Hex-encoded cell data
- * @returns Parsed ProtocolData
- */
-export function parseProtocolData(cellData: string): ProtocolDataLike {
-  try {
-    // For empty or minimal protocol cells, return default structure
-    // This allows the app to function while the protocol cell is being deployed
-    if (cellData === "0x" || !cellData || cellData.length < 10) {
-      console.log("Protocol cell is empty or minimal, returning default structure");
-      
-      // Create default values using the new type system
-      // For Uint64Type - use bigint
-      const defaultTimestamp = BigInt(Date.now());
-      
-      // For Byte32Type - use ccc.Hex
-      const defaultByte32: ccc.Hex = "0x" + "00".repeat(32) as ccc.Hex;
-      
-      // Return a default ProtocolData structure that matches the SDK type
-      const defaultProtocolData: ProtocolDataLike = {
-        campaigns_approved: [],
-        tipping_proposals: [],
-        tipping_config: {
-          approval_requirement_thresholds: [], // Empty Uint128Vec
-          expiration_duration: defaultTimestamp // Uint64 as bigint
-        },
-        endorsers_whitelist: [],
-        last_updated: defaultTimestamp, // Uint64 as bigint
-        protocol_config: {
-          admin_lock_hash_vec: [],
-          script_code_hashes: {
-            ckb_boost_protocol_type_code_hash: defaultByte32,
-            ckb_boost_protocol_lock_code_hash: defaultByte32,
-            ckb_boost_campaign_type_code_hash: defaultByte32,
-            ckb_boost_campaign_lock_code_hash: defaultByte32,
-            ckb_boost_user_type_code_hash: defaultByte32,
-            accepted_udt_type_code_hashes: [],
-            accepted_dob_type_code_hashes: []
-          }
-        }
-      };
-      
-      return defaultProtocolData;
-    }
 
-    // Parse actual protocol data using molecule codec
-    console.log("Parsing protocol data from cell:", cellData);
-    
-    try {
-      // Convert hex string to bytes for molecule parsing
-      const cellDataBytes = ccc.bytesFrom(cellData);
-      console.log("Cell data bytes length:", cellDataBytes.length);
-      
-      // Decode using the generated ProtocolData codec
-      const protocolData = ProtocolData.decode(cellDataBytes);
-      
-      console.log("Successfully parsed protocol data");
-      
-      // Return the decoded data - cast through unknown to handle type differences
-      // The decoded data has the correct structure but some fields may have different types (bigint vs number)
-      // This is acceptable since the consuming code should handle these type variations
-      return protocolData as unknown as ProtocolDataLike;
-    } catch (parseError) {
-      console.error("Failed to parse protocol data:", parseError);
-      console.error("Cell data that failed to parse:", cellData);
-      
-      // If we have non-empty cell data but can't parse it, the cell is corrupted
-      // Throw an error to trigger redeployment
-      throw new Error(
-        "Protocol cell data is corrupted or incompatible. " +
-        "Please redeploy the protocol cell using the Protocol Management interface."
-      );
-    }
-  } catch (error) {
-    console.error("Failed to parse ProtocolData:", error);
-    throw error;
-  }
-}
-
-/**
- * Generate ProtocolData Molecule bytes from data structure
- * @param data - ProtocolData to serialize
- * @returns Hex-encoded Molecule data
- */
-export function generateProtocolData(data: ProtocolDataLike): string {
-  try {
-    // Use proper Molecule serialization
-    const protocolDataBytes = ProtocolData.encode(data);
-    return "0x" + Array.from(new Uint8Array(protocolDataBytes)).map(b => b.toString(16).padStart(2, '0')).join('');
-  } catch (error) {
-    console.error("Failed to generate ProtocolData with Molecule serialization:", error);
-    throw new Error("Failed to serialize protocol data. Please ensure the data structure is valid.");
-  }
-}
-
-/**
- * Fetch protocol data by specific outpoint
- * @param signer - CCC signer instance
- * @param outPoint - Specific outpoint to fetch
- * @returns ProtocolData from the specified cell
- */
-export async function fetchProtocolDataByOutPoint(
-  signer: ccc.Signer,
-  outPoint: { txHash: ccc.Hex; index: ccc.Num }
-): Promise<ProtocolDataLike> {
-  const cell = await fetchProtocolCellByOutPoint(signer, outPoint);
-  if (!cell) {
-    throw new Error("Protocol cell not found at specified outpoint. Please ensure the outpoint is correct or deploy a new protocol cell using the Protocol Management interface.");
-  }
-  return parseProtocolData(cell.data);
-}
-
-/**
- * Fetch current protocol data from blockchain
- * @param signer - CCC signer instance
- * @returns Current ProtocolData
- */
-export async function fetchProtocolData(
-  signer?: ccc.Signer
-): Promise<ProtocolDataLike> {
-  const cell = await fetchProtocolCell(signer);
-  if (!cell) {
-    const protocolTypeScript = getProtocolTypeScript();
-    const errorMessage = `Protocol cell not found on blockchain.\n\nSearched for cell with type script:\n- Code Hash: ${protocolTypeScript.codeHash}\n- Hash Type: ${protocolTypeScript.hashType}\n- Args: ${protocolTypeScript.args}\n\nPlease deploy a new protocol cell using the Protocol Management interface.`;
-    throw new Error(errorMessage);
-  }
-  return parseProtocolData(cell.data);
-}
-
-/**
- * Get protocol metrics from blockchain data
- * @param signer - CCC signer instance
- * @returns Protocol metrics
- */
-export async function fetchProtocolMetrics(
-  signer?: ccc.Signer
-): Promise<ProtocolMetrics> {
-  try {
-    const data = await fetchProtocolData(signer);
-
-    // Convert timestamp and validate
-    let timestamp: number;
-    try {
-      // The new type system uses bigint for Uint64
-      // Convert bigint timestamp to seconds
-      if (data.last_updated && typeof data.last_updated === 'bigint') {
-        // Assume the bigint is in milliseconds if it's a reasonable JavaScript timestamp
-        const timestampBigInt = data.last_updated;
-        
-        // Check if it looks like milliseconds (> year 2000 in ms)
-        if (timestampBigInt > 946684800000n) {
-          timestamp = Number(timestampBigInt / 1000n);
-        } else {
-          // Otherwise assume it's already in seconds
-          timestamp = Number(timestampBigInt);
-        }
-      } else {
-        timestamp = Math.floor(Date.now() / 1000);
-      }
-      
-      // Validate timestamp is reasonable (between year 2020 and 2100)
-      const minTimestamp = 1577836800; // Jan 1, 2020
-      const maxTimestamp = 4102444800; // Jan 1, 2100
-      
-      if (timestamp < minTimestamp || timestamp > maxTimestamp) {
-        console.warn(`Invalid timestamp value: ${timestamp}, using current time`);
-        timestamp = Math.floor(Date.now() / 1000);
-      }
-    } catch (error) {
-      console.error('Error converting timestamp:', error);
-      timestamp = Math.floor(Date.now() / 1000);
-    }
-
-    return {
-      totalCampaigns: BigInt(data.campaigns_approved.length),
-      activeCampaigns: BigInt(data.campaigns_approved.filter((c: any) => c.status === 4)
-        .length),
-      totalTippingProposals: BigInt(data.tipping_proposals.length),
-      pendingTippingProposals: BigInt(data.tipping_proposals.filter(
-        (p: any) => !p.tipping_transaction_hash
-      ).length),
-      totalEndorsers: BigInt(data.endorsers_whitelist.length),
-      lastUpdated: new Date(timestamp * 1000).toISOString(),
-    };
-  } catch (error) {
-    console.error("Failed to fetch protocol metrics:", error);
-    throw error;
-  }
-}
 
 /**
  * Get protocol transaction history

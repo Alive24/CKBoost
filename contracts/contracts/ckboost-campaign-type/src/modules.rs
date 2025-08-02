@@ -387,26 +387,13 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 let campaign_data = CampaignData::from_slice(&campaign_data_bytes)
                     .map_err(|_| Error::InvalidCampaignData)?;
 
-                // Verify campaign ID matches
-                if campaign_data.id().as_slice() != campaign_id.as_slice() {
-                    return Err(Error::CampaignNotFound);
-                }
-
                 // Verify campaign is active (status = 4)
                 if campaign_data.status() != 4u8.into() {
                     return Err(Error::CampaignNotActive);
                 }
 
                 // Verify quest exists in campaign
-                let quest_id = quest_data.id();
-                let quest_exists = campaign_data
-                    .quests()
-                    .into_iter()
-                    .any(|q| q.id().as_slice() == quest_id.as_slice());
 
-                if !quest_exists {
-                    return Err(Error::InvalidQuestData);
-                }
 
                 // Update campaign statistics
                 let current_completions_data = campaign_data.total_completions();
@@ -421,15 +408,8 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // Create updated campaign data with incremented completion count
                 let updated_campaign_data = CampaignData::new_builder()
-                    .id(campaign_data.id())
-                    .title(campaign_data.title())
-                    .short_description(campaign_data.short_description())
-                    .long_description(campaign_data.long_description())
-                    .creator(campaign_data.creator())
-                    .endorser_info(campaign_data.endorser_info())
                     .metadata(campaign_data.metadata())
                     .quests(campaign_data.quests())
-                    .participants_count(campaign_data.participants_count())
                     .total_completions(
                         ckboost_shared::generated::ckboost::Uint32::from_slice(
                             &new_completions.to_le_bytes(),

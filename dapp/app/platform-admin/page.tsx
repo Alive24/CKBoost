@@ -344,10 +344,10 @@ const PLATFORM_USERS = [
       currentStreak: 3,
     },
     campaignParticipation: [
-      { campaignId: 1, campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 3, pointsEarned: 650 },
-      { campaignId: 2, campaignName: "DeFi Education Campaign", questsCompleted: 4, pointsEarned: 580 },
-      { campaignId: 3, campaignName: "Community Builder Program", questsCompleted: 6, pointsEarned: 720 },
-      { campaignId: 101, campaignName: "CKB Testnet Launch Campaign", questsCompleted: 5, pointsEarned: 500 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 3, pointsEarned: 650 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 4, pointsEarned: 580 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 6, pointsEarned: 720 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000065", campaignName: "CKB Testnet Launch Campaign", questsCompleted: 5, pointsEarned: 500 },
     ],
   },
   {
@@ -388,9 +388,9 @@ const PLATFORM_USERS = [
       currentStreak: 5,
     },
     campaignParticipation: [
-      { campaignId: 1, campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 450 },
-      { campaignId: 2, campaignName: "DeFi Education Campaign", questsCompleted: 6, pointsEarned: 780 },
-      { campaignId: 4, campaignName: "NFT Creator Bootcamp", questsCompleted: 7, pointsEarned: 950 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 450 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 6, pointsEarned: 780 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000004", campaignName: "NFT Creator Bootcamp", questsCompleted: 7, pointsEarned: 950 },
     ],
   },
   {
@@ -431,8 +431,8 @@ const PLATFORM_USERS = [
       currentStreak: 0,
     },
     campaignParticipation: [
-      { campaignId: 2, campaignName: "DeFi Education Campaign", questsCompleted: 5, pointsEarned: 650 },
-      { campaignId: 3, campaignName: "Community Builder Program", questsCompleted: 7, pointsEarned: 1200 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 5, pointsEarned: 650 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 7, pointsEarned: 1200 },
     ],
   },
   {
@@ -473,7 +473,7 @@ const PLATFORM_USERS = [
       currentStreak: 0,
     },
     campaignParticipation: [
-      { campaignId: 1, campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 150 },
+      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 150 },
     ],
   }
 ]

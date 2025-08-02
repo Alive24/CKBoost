@@ -1,387 +1,334 @@
-"use client"
+"use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { ccc } from "@ckb-ccc/connector-react"
-import type { 
-  ProtocolDataLike, 
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { ccc } from "@ckb-ccc/connector-react";
+import type {
+  ProtocolDataLike,
   EndorserInfoLike,
   TippingProposalDataLike,
-  CampaignDataLike
-} from 'ssri-ckboost/types'
+  CampaignDataLike,
+  ProtocolConfigLike,
+  ScriptCodeHashesLike,
+  TippingConfigLike,
+  ProtocolData,
+} from "ssri-ckboost/types";
 import {
-  ProtocolMetrics, 
+  ProtocolMetrics,
   ProtocolTransaction,
-  UpdateProtocolConfigForm,
-  UpdateScriptCodeHashesForm,
-  UpdateTippingConfigForm,
-  AddEndorserForm,
-  EditEndorserForm,
-  BatchUpdateProtocolForm,
-  ProtocolChanges
-} from '../types/protocol'
-import { ProtocolService } from '../services/protocol-service'
+  ProtocolChanges,
+} from "../types/protocol";
+import { ProtocolService } from "../services/protocol-service";
 
 // Types for protocol provider
 interface ProtocolContextType {
   // Protocol data
-  protocolData: ProtocolDataLike | null
-  metrics: ProtocolMetrics | null
-  transactions: ProtocolTransaction[]
-  isLoading: boolean
-  error: string | null
-  
+  protocolData: ReturnType<typeof ProtocolData.decode> | null;
+  metrics: ProtocolMetrics | null;
+  transactions: ProtocolTransaction[];
+  isLoading: boolean;
+  error: string | null;
+
   // Protocol operations
-  refreshProtocolData: () => Promise<void>
-  loadProtocolDataByOutPoint: (outPoint: { txHash: ccc.Hex; index: ccc.Num }) => Promise<void>
-  updateProtocolConfig: (form: UpdateProtocolConfigForm) => Promise<string>
-  updateScriptCodeHashes: (form: UpdateScriptCodeHashesForm) => Promise<string>
-  updateTippingConfig: (form: UpdateTippingConfigForm) => Promise<string>
-  addEndorser: (form: AddEndorserForm) => Promise<string>
-  editEndorser: (form: EditEndorserForm) => Promise<string>
-  removeEndorser: (index: number) => Promise<string>
-  batchUpdateProtocol: (form: BatchUpdateProtocolForm) => Promise<string>
-  calculateChanges: (formData: any) => ProtocolChanges
-  
+  refreshProtocolData: () => Promise<void>;
+  updateProtocol: (form: ProtocolDataLike) => Promise<ccc.Hex>;
+  addEndorser: (form: EndorserInfoLike) => Promise<void>;
+  editEndorser: (form: EndorserInfoLike) => Promise<void>;
+  removeEndorser: (index: number) => Promise<void>;
+  calculateChanges: (formData: any) => ProtocolChanges;
+
   // Helper getters
-  getEndorser: (address: string) => EndorserInfoLike | undefined
-  getTippingProposal: (index: number) => TippingProposalDataLike | undefined
-  getApprovedCampaign: (id: string) => CampaignDataLike | undefined
-  
+  getEndorser: (address: string) => EndorserInfoLike | undefined;
+  getTippingProposal: (index: number) => TippingProposalDataLike | undefined;
+  getApprovedCampaign: (id: string) => CampaignDataLike | undefined;
+
   // User-specific data
-  userAddress: string | null
-  userBalance: string | null
-  isWalletConnected: boolean
-  isAdmin: boolean
+  userAddress: string | null;
+  userBalance: string | null;
+  isWalletConnected: boolean;
+  isAdmin: boolean;
 }
 
 // Create context
-const ProtocolContext = createContext<ProtocolContextType | undefined>(undefined)
+const ProtocolContext = createContext<ProtocolContextType | undefined>(
+  undefined
+);
 
 // Provider component
 export function ProtocolProvider({ children }: { children: ReactNode }) {
   // Protocol data state
-  const [protocolData, setProtocolData] = useState<ProtocolDataLike | null>(null)
-  const [metrics, setMetrics] = useState<ProtocolMetrics | null>(null)
-  const [transactions, setTransactions] = useState<ProtocolTransaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
+  const [protocolData, setProtocolData] = useState<ReturnType<
+    typeof ProtocolData.decode
+  > | null>(null);
+  const [metrics, setMetrics] = useState<ProtocolMetrics | null>(null);
+  const [transactions, setTransactions] = useState<ProtocolTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [protocolService, setProtocolService] =
+    useState<ProtocolService | null>(null);
+
   // User state
-  const [userAddress, setUserAddress] = useState<string | null>(null)
-  const [userBalance, setUserBalance] = useState<string | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [userBalance, setUserBalance] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // CCC hooks
-  const signer = ccc.useSigner()
+  const signer = ccc.useSigner();
 
   // Wallet connection state
-  const isWalletConnected = !!signer
+  const isWalletConnected = !!signer;
 
   // Initialize protocol data
   useEffect(() => {
     const initializeProtocol = async () => {
       // If no signer, set loading to false and return
       if (!signer) {
-        setIsLoading(false)
-        setError("Please connect your wallet to view protocol data")
-        setProtocolData(null)
-        setMetrics(null)
-        setTransactions([])
-        return
+        setIsLoading(false);
+        setError("Please connect your wallet to view protocol data");
+        setProtocolData(null);
+        setMetrics(null);
+        setTransactions([]);
+        return;
       }
 
       try {
-        setIsLoading(true)
-        setError(null)
-        
-        // Use protocol service to get data (mock or real CKB)
-        const service = new ProtocolService(signer)
-        
+        const protocolService = new ProtocolService(signer);
+        setProtocolService(protocolService);
+
+        setIsLoading(true);
+        setError(null);
+
         const [data, metricsData, transactionsData] = await Promise.all([
-          service.getProtocolData(),
-          service.getProtocolMetrics(),
-          service.getProtocolTransactions()
-        ])
-        
-        setProtocolData(data)
-        setMetrics(metricsData)
-        setTransactions(transactionsData)
-        
+          protocolService.getProtocolData(),
+          protocolService.getProtocolMetrics(),
+          protocolService.getProtocolTransactions(),
+        ]);
+
+        setProtocolData(data);
+        setMetrics(metricsData);
+        setTransactions(transactionsData);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load protocol data'
-        setError(errorMessage)
-        console.error('Failed to initialize protocol data:', err)
-        
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load protocol data";
+        setError(errorMessage);
+        console.error("Failed to initialize protocol data:", err);
+
         // For protocol cell not found errors or corrupted data, set data to null but keep the error
         // This allows the UI to show the deployment form
-        if (errorMessage.includes('Protocol cell not found on blockchain') || 
-            errorMessage.includes('No protocol cell exists') ||
-            errorMessage.includes('Protocol cell data is corrupted') ||
-            errorMessage.includes('incompatible')) {
-          setProtocolData(null)
-          setMetrics(null)
-          setTransactions([])
+        if (
+          errorMessage.includes("Protocol cell not found on blockchain") ||
+          errorMessage.includes("No protocol cell exists") ||
+          errorMessage.includes("Protocol cell data is corrupted") ||
+          errorMessage.includes("incompatible")
+        ) {
+          setProtocolData(null);
+          setMetrics(null);
+          setTransactions([]);
         }
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    initializeProtocol()
-  }, [signer])
+    initializeProtocol();
+  }, [signer]);
 
   // Update user info when wallet connects
   useEffect(() => {
     if (!signer) {
-      setUserAddress(null)
-      setUserBalance(null)
-      setIsAdmin(false)
-      return
+      setUserAddress(null);
+      setUserBalance(null);
+      setIsAdmin(false);
+      return;
     }
 
     const updateUserInfo = async () => {
       try {
         // Get user address
-        const addr = await signer.getRecommendedAddress()
-        setUserAddress(addr)
+        const addr = await signer.getRecommendedAddress();
+        setUserAddress(addr);
 
         // Get user balance
-        const balance = await signer.getBalance()
-        setUserBalance(ccc.fixedPointToString(balance))
+        const balance = await signer.getBalance();
+        setUserBalance(ccc.fixedPointToString(balance));
 
         // Check if user is admin
         if (protocolData) {
           // Convert address to lock hash for admin check
           // This is a simplified check - in practice you'd need to derive the lock hash properly
-          const userLockHash = addr // Simplified - would need proper conversion
-          const isUserAdmin = protocolData.protocol_config.admin_lock_hash_vec.some(
-            (adminHash: any) => {
-              const hashHex = typeof adminHash === 'string' ? adminHash : ccc.hexFrom(new Uint8Array(adminHash))
-              return hashHex.toLowerCase().includes(userLockHash.toLowerCase())
-            }
-          )
-          setIsAdmin(isUserAdmin)
+          const userLockHash = addr; // Simplified - would need proper conversion
+          const isUserAdmin =
+            protocolData.protocol_config.admin_lock_hash_vec.some(
+              (adminHash: any) => {
+                const hashHex =
+                  typeof adminHash === "string"
+                    ? adminHash
+                    : ccc.hexFrom(new Uint8Array(adminHash));
+                return hashHex
+                  .toLowerCase()
+                  .includes(userLockHash.toLowerCase());
+              }
+            );
+          setIsAdmin(isUserAdmin);
         }
-
       } catch (err) {
-        console.error('Failed to update user info:', err)
+        console.error("Failed to update user info:", err);
       }
-    }
+    };
 
-    updateUserInfo()
-  }, [signer, protocolData])
+    updateUserInfo();
+  }, [signer, protocolData]);
+
+  const updateProtocol = async (form: ProtocolDataLike): Promise<ccc.Hex> => {
+    if (!protocolService) {
+      throw new Error("Protocol service not initialized");
+    }
+    return protocolService.updateProtocol(form);
+  };
 
   // Protocol operations
   const refreshProtocolData = async (): Promise<void> => {
     try {
-      setIsLoading(true)
-      setError(null)
-      
-      const service = new ProtocolService(signer)
+      if (!protocolService) {
+        throw new Error("Protocol service not initialized");
+      }
+
+      setIsLoading(true);
+      setError(null);
+
       const [data, metricsData, transactionsData] = await Promise.all([
-        service.getProtocolData(),
-        service.getProtocolMetrics(),
-        service.getProtocolTransactions()
-      ])
-      
-      setProtocolData(data)
-      setMetrics(metricsData)
-      setTransactions(transactionsData)
-      
+        protocolService.getProtocolData(),
+        protocolService.getProtocolMetrics(),
+        protocolService.getProtocolTransactions(),
+      ]);
+
+      setProtocolData(data);
+      setMetrics(metricsData);
+      setTransactions(transactionsData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to refresh protocol data')
-      throw err
+      setError(
+        err instanceof Error ? err.message : "Failed to refresh protocol data"
+      );
+      throw err;
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
-  const loadProtocolDataByOutPoint = async (outPoint: { txHash: ccc.Hex; index: ccc.Num }): Promise<void> => {
+  const addEndorser = async (form: EndorserInfoLike): Promise<void> => {
     if (!signer) {
-      throw new Error("Wallet connection required to load by outpoint")
+      throw new Error("Wallet connection required");
     }
 
     try {
-      setIsLoading(true)
-      setError(null)
-      
-      const service = new ProtocolService(signer)
-      
-      // Load protocol data from specific outpoint
-      const data = await service.getProtocolDataByOutPoint(outPoint)
-      setProtocolData(data)
-      
-      // Also refresh metrics and transactions based on the new data
-      const [metricsData, transactionsData] = await Promise.all([
-        service.getProtocolMetrics(),
-        service.getProtocolTransactions()
-      ])
-      
-      setMetrics(metricsData)
-      setTransactions(transactionsData)
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load protocol data by outpoint')
-      throw err
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      if (!protocolService) {
+        throw new Error("Protocol service not initialized");
+      }
 
-  const updateProtocolConfig = async (form: UpdateProtocolConfigForm): Promise<string> => {
-    if (!signer) {
-      throw new Error("Wallet connection required")
-    }
+      const currentProtocolData = protocolData;
+      if (!currentProtocolData) {
+        throw new Error("Protocol data not available");
+      }
 
-    try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.updateProtocolConfig(form)
-      
+      const newProtocolData = {
+        ...currentProtocolData,
+        endorsers_whitelist: [...currentProtocolData.endorsers_whitelist, form],
+      };
+
+      setProtocolData(
+        newProtocolData as ReturnType<typeof ProtocolData.decode>
+      );
       // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
     } catch (err) {
-      console.error('Failed to update protocol config:', err)
-      throw err
+      console.error("Failed to add endorser:", err);
+      throw err;
     }
-  }
+  };
 
-  const updateScriptCodeHashes = async (form: UpdateScriptCodeHashesForm): Promise<string> => {
+  const editEndorser = async (form: EndorserInfoLike): Promise<void> => {
     if (!signer) {
-      throw new Error("Wallet connection required")
+      throw new Error("Wallet connection required");
     }
 
     try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.updateScriptCodeHashes(form)
-      
-      // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
-    } catch (err) {
-      console.error('Failed to update script code hashes:', err)
-      throw err
-    }
-  }
+      const currentProtocolData = protocolData;
+      if (!currentProtocolData) {
+        throw new Error("Protocol data not available");
+      }
 
-  const updateTippingConfig = async (form: UpdateTippingConfigForm): Promise<string> => {
+      const newProtocolData = {
+        ...currentProtocolData,
+        endorsers_whitelist: currentProtocolData.endorsers_whitelist.map((e) =>
+          e.endorser_lock_hash === form.endorser_lock_hash ? form : e
+        ),
+      };
+
+      setProtocolData(
+        newProtocolData as ReturnType<typeof ProtocolData.decode>
+      );
+      // Refresh data after successful update
+    } catch (err) {
+      console.error("Failed to edit endorser:", err);
+      throw err;
+    }
+  };
+
+  const removeEndorser = async (index: number): Promise<void> => {
     if (!signer) {
-      throw new Error("Wallet connection required")
+      throw new Error("Wallet connection required");
     }
 
     try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.updateTippingConfig(form)
-      
+      if (!protocolData) {
+        throw new Error("Protocol data not available");
+      }
+
+      const newProtocolData = {
+        ...protocolData,
+        endorsers_whitelist: protocolData.endorsers_whitelist.filter(
+          (e, i) => i !== index
+        ),
+      };
+
       // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
+      await refreshProtocolData();
+
+      setProtocolData(newProtocolData as ReturnType<typeof ProtocolData.decode>);
+
     } catch (err) {
-      console.error('Failed to update tipping config:', err)
-      throw err
+      console.error("Failed to remove endorser:", err);
+      throw err;
     }
-  }
+  };
 
-  const addEndorser = async (form: AddEndorserForm): Promise<string> => {
-    if (!signer) {
-      throw new Error("Wallet connection required")
-    }
-
-    try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.addEndorser(form)
-      
-      // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
-    } catch (err) {
-      console.error('Failed to add endorser:', err)
-      throw err
-    }
-  }
-
-  const editEndorser = async (form: EditEndorserForm): Promise<string> => {
-    if (!signer) {
-      throw new Error("Wallet connection required")
-    }
-
-    try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.editEndorser(form)
-      
-      // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
-    } catch (err) {
-      console.error('Failed to edit endorser:', err)
-      throw err
-    }
-  }
-
-  const removeEndorser = async (index: number): Promise<string> => {
-    if (!signer) {
-      throw new Error("Wallet connection required")
-    }
-
-    try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.removeEndorser(index)
-      
-      // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
-    } catch (err) {
-      console.error('Failed to remove endorser:', err)
-      throw err
-    }
-  }
-
-  const batchUpdateProtocol = async (form: BatchUpdateProtocolForm): Promise<string> => {
-    if (!signer) {
-      throw new Error("Wallet connection required")
-    }
-
-    try {
-      const service = new ProtocolService(signer)
-      const txHash = await service.batchUpdateProtocol(form)
-      
-      // Refresh data after successful update
-      await refreshProtocolData()
-      
-      return txHash
-    } catch (err) {
-      console.error('Failed to batch update protocol:', err)
-      throw err
-    }
-  }
 
   const calculateChanges = (formData: any): ProtocolChanges => {
     if (!protocolData) {
-      throw new Error("Protocol data not available")
+      throw new Error("Protocol data not available");
     }
 
-    const service = new ProtocolService(signer)
-    return service.calculateChanges(protocolData, formData)
-  }
+    return calculateChanges(formData);
+  };
 
   // Helper functions
   const getEndorser = (address: string): EndorserInfoLike | undefined => {
-    return protocolData?.endorsers_whitelist?.find((e: any) => e.endorserAddress === address)
-  }
+    return protocolData?.endorsers_whitelist?.find(
+      (e: any) => e.endorserAddress === address
+    );
+  };
 
   const getTippingProposal = (index: number): TippingProposalDataLike | undefined => {
-    return protocolData?.tipping_proposals?.[index]
-  }
+    return protocolData?.tipping_proposals?.[index] as TippingProposalDataLike | undefined;
+  };
 
   const getApprovedCampaign = (id: string): CampaignDataLike | undefined => {
-    return protocolData?.campaigns_approved?.find((c: any) => c.id === id)
-  }
+    return protocolData?.campaigns_approved?.find((c: any) => c.id === id);
+  };
 
   const value: ProtocolContextType = {
     // Protocol data
@@ -390,96 +337,96 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     transactions,
     isLoading,
     error,
-    
+
     // Protocol operations
     refreshProtocolData,
-    loadProtocolDataByOutPoint,
-    updateProtocolConfig,
-    updateScriptCodeHashes,
-    updateTippingConfig,
+    updateProtocol,
     addEndorser,
     editEndorser,
     removeEndorser,
-    batchUpdateProtocol,
     calculateChanges,
-    
+
     // Helper getters
     getEndorser,
     getTippingProposal,
     getApprovedCampaign,
-    
+
     // User-specific data
     userAddress,
     userBalance,
     isWalletConnected,
     isAdmin,
-  }
+  };
 
   return (
     <ProtocolContext.Provider value={value}>
       {children}
     </ProtocolContext.Provider>
-  )
+  );
 }
 
 // Hook to use protocol context
 export function useProtocol() {
-  const context = useContext(ProtocolContext)
+  const context = useContext(ProtocolContext);
   if (context === undefined) {
-    throw new Error('useProtocol must be used within a ProtocolProvider')
+    throw new Error("useProtocol must be used within a ProtocolProvider");
   }
-  return context
+  return context;
 }
 
 // Helper hook for admin-specific operations
 export function useProtocolAdmin() {
-  const context = useProtocol()
-  
+  const context = useProtocol();
+
   if (!context.isWalletConnected) {
-    throw new Error('Wallet connection required for admin operations')
+    throw new Error("Wallet connection required for admin operations");
   }
-  
+
   if (!context.isAdmin) {
-    throw new Error('Admin privileges required for this operation')
+    throw new Error("Admin privileges required for this operation");
   }
-  
+
   return {
-    updateProtocolConfig: context.updateProtocolConfig,
-    updateScriptCodeHashes: context.updateScriptCodeHashes,
-    updateTippingConfig: context.updateTippingConfig,
+    updateProtocol: context.updateProtocol,
     addEndorser: context.addEndorser,
+    editEndorser: context.editEndorser,
+    removeEndorser: context.removeEndorser,
     refreshProtocolData: context.refreshProtocolData,
     protocolData: context.protocolData,
     metrics: context.metrics,
     isLoading: context.isLoading,
-    error: context.error
-  }
+    error: context.error,
+  };
 }
 
 // Helper hook for endorser-specific data
 export function useEndorser(address?: string) {
-  const { getEndorser, protocolData, isLoading } = useProtocol()
-  
-  const endorser = address ? getEndorser(address) : undefined
-  const allEndorsers = protocolData?.endorsers_whitelist || []
-  
+  const { getEndorser, protocolData, isLoading } = useProtocol();
+
+  const endorser = address ? getEndorser(address) : undefined;
+  const allEndorsers = protocolData?.endorsers_whitelist || [];
+
   return {
     endorser,
     allEndorsers,
     isLoading,
     exists: !!endorser,
-    totalEndorsers: allEndorsers.length
-  }
+    totalEndorsers: allEndorsers.length,
+  };
 }
 
 // Helper hook for tipping proposal data
 export function useTippingProposals() {
-  const { protocolData, isLoading } = useProtocol()
-  
-  const proposals = protocolData?.tipping_proposals || []
-  const pendingProposals = proposals.filter((p: any) => !p.tippingTransactionHash)
-  const completedProposals = proposals.filter((p: any) => !!p.tippingTransactionHash)
-  
+  const { protocolData, isLoading } = useProtocol();
+
+  const proposals = protocolData?.tipping_proposals || [];
+  const pendingProposals = proposals.filter(
+    (p: any) => !p.tippingTransactionHash
+  );
+  const completedProposals = proposals.filter(
+    (p: any) => !!p.tippingTransactionHash
+  );
+
   return {
     proposals,
     pendingProposals,
@@ -487,6 +434,6 @@ export function useTippingProposals() {
     isLoading,
     totalProposals: proposals.length,
     pendingCount: pendingProposals.length,
-    completedCount: completedProposals.length
-  }
+    completedCount: completedProposals.length,
+  };
 }
