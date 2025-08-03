@@ -76,7 +76,7 @@ export const CampaignMetadata = mol.table({
   endorser_info: EndorserInfo,
   short_description: mol.String,
   long_description: mol.String,
-  total_rewards: AssetListVec,
+  total_rewards: AssetList,
   verification_requirements: mol.Uint8Vec,
   last_updated: mol.Uint64,
   categories: mol.vector(mol.String),
@@ -228,7 +228,7 @@ export interface CampaignMetadataLike {
   endorser_info: EndorserInfoLike;
   short_description: string;
   long_description: string;
-  total_rewards: AssetListLike[];
+  total_rewards: AssetListLike;
   verification_requirements: ccc.NumLike[];
   last_updated: ccc.NumLike;
   categories: string[];

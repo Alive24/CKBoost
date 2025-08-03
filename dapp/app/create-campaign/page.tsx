@@ -17,7 +17,8 @@ import Link from "next/link"
 import { ccc } from "@ckb-ccc/connector-react"
 import { CampaignService } from "@/lib/services/campaign-service"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import type { CampaignDataLike } from "ssri-ckboost/types"
+import type { CampaignDataLike, EndorserInfoLike } from "ssri-ckboost/types"
+import { useCampaign } from "@/lib/providers/campaign-provider"
 
 export default function CreateCampaign() {
   // Get CCC signer and protocol data
@@ -42,8 +43,10 @@ export default function CreateCampaign() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [availableEndorsers, setAvailableEndorsers] = useState<any[]>([])
+  const [availableEndorsers, setAvailableEndorsers] = useState<EndorserInfoLike[]>([])
   const [isWalletConnected, setIsWalletConnected] = useState(false)
+
+  const { campaign, campaignService, isLoading, error } = useCampaign()
 
   // Check wallet connection status
   useEffect(() => {
@@ -53,7 +56,7 @@ export default function CreateCampaign() {
   // Load available endorsers when protocol data is available
   useEffect(() => {
     if (protocolData?.endorsers_whitelist) {
-      setAvailableEndorsers(protocolData.endorsers_whitelist)
+      setAvailableEndorsers(protocolData.endorsers_whitelist as EndorserInfoLike[])
     }
   }, [protocolData])
 
@@ -74,6 +77,10 @@ export default function CreateCampaign() {
         throw new Error("Please connect your wallet to create a campaign")
       }
 
+      if (!campaignService) {
+        throw new Error("Campaign service not available. Please ensure your wallet is connected.")
+      }
+
       // Find selected endorser
       const selectedEndorser = availableEndorsers.find(
         endorser => endorser.endorser_lock_hash === formData.selectedEndorser
@@ -83,24 +90,27 @@ export default function CreateCampaign() {
         throw new Error("Please select a valid endorser from the list")
       }
 
-      // Create campaign data using SSRI types
-      const campaignData: Partial<CampaignDataLike> = {
-        id: ccc.hexFrom(ccc.bytesFrom(crypto.randomUUID(), "utf8")),
-        title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
-        short_description: ccc.hexFrom(ccc.bytesFrom(formData.shortDescription, "utf8")),
-        long_description: ccc.hexFrom(ccc.bytesFrom(formData.longDescription, "utf8")),
-        creator: (await signer.getRecommendedAddressObj()).script,
+      const campaignData: CampaignDataLike = {
+        endorser: selectedEndorser,
+        created_at: ccc.numFrom(Date.now()),
+        starting_time: ccc.numFrom(new Date(formData.startDate).getTime()),
+        ending_time: ccc.numFrom(new Date(formData.endDate).getTime()),
+        rules: rules.filter(rule => rule.trim()).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8"))),
         metadata: {
-          funding_info: [],
-          created_at: BigInt(Date.now()),
-          starting_time: BigInt(new Date(formData.startDate).getTime()),
-          ending_time: BigInt(new Date(formData.endDate).getTime()),
-          verification_requirements: 0, // No special requirements for now
-          last_updated: BigInt(Date.now()),
+          verification_requirements: [], // No special requirements for now
+          last_updated: ccc.numFrom(Date.now()),
           categories: [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))],
           difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
-          image_cid: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
-          rules: rules.filter(rule => rule.trim()).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8")))
+          title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
+          endorser_info: selectedEndorser,
+          image_url: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
+          short_description: "",
+          long_description: "",
+          total_rewards: {
+            ckb_amount: 0,
+            nft_assets: [],
+            udt_assets: []
+          }
         },
         status: 0, // Created status
         quests: [], // Empty for now
@@ -109,11 +119,9 @@ export default function CreateCampaign() {
       }
 
       // Create campaign using campaign service
-      const campaignService = new CampaignService(signer)
-      const txHash = await campaignService.createCampaign(
+      const txHash = await campaignService.updateCampaign(
         campaignData,
-        formData.selectedEndorser
-      )
+      ) 
 
       console.log("Campaign created successfully:", txHash)
       setIsSubmitted(true)
@@ -499,7 +507,7 @@ export default function CreateCampaign() {
                         </SelectTrigger>
                         <SelectContent>
                           {availableEndorsers.map((endorser, index) => (
-                            <SelectItem key={index} value={endorser.endorser_lock_hash}>
+                            <SelectItem key={index} value={ccc.hexFrom(endorser.endorser_lock_hash)}>
                               {/* Convert hex to string for display */}
                               {endorser.endorser_name ? 
                                 new TextDecoder().decode(new Uint8Array(Buffer.from(endorser.endorser_name.slice(2), 'hex'))) : 

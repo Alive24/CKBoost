@@ -221,8 +221,8 @@ deploy_contract() {
     fi
     
     # Add Type ID flag if needed
-    if [ "$WITH_TYPE_ID" = "false" ]; then
-        CMD="${CMD} --no-typeId"
+    if [ "$WITH_TYPE_ID" = "true" ]; then
+        CMD="${CMD} --typeId"
     fi
     
     # Execute deployment
@@ -277,11 +277,11 @@ get_contract_path() {
 get_contract_type_id() {
     case $1 in
         "protocol-type") echo "true" ;;
-        "protocol-lock") echo "false" ;;
-        "campaign-type") echo "false" ;;
-        "campaign-lock") echo "false" ;;
-        "user-type") echo "false" ;;
-        *) echo "false" ;;
+        "protocol-lock") echo "true" ;;
+        "campaign-type") echo "true" ;;
+        "campaign-lock") echo "true" ;;
+        "user-type") echo "true" ;;
+        *) echo "true" ;;
     esac
 }
 

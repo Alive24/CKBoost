@@ -9,12 +9,12 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ArrowLeft, Calendar, Users, Trophy, CheckCircle, Clock, Coins, ExternalLink, Edit, Plus, Settings, Shield, MessageCircle, FileText, Fingerprint, User, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { getDaysUntilEnd, useCampaign, type Campaign, type Quest, type Subtask, type TokenReward } from "@/lib"
+import { getDaysUntilEnd, useCampaign } from "@/lib"
+import { ccc } from "@ckb-ccc/connector-react"
+import { CampaignData, UDTAsset, UDTAssetLike } from "ssri-ckboost/types"
 
 // Mock current user - in real app, this would come from authentication
 const CURRENT_USER = {
-  id: 1,
-  address: "0x1234...abcd",
   // In real app, this would be determined by checking if user created the campaign
   ownedCampaigns: [1, 2], // Campaign IDs owned by current user
   verificationStatus: {
@@ -57,19 +57,19 @@ const meetsVerificationRequirements = (requirements: any) => {
 
 export default function CampaignDetail() {
   const params = useParams()
-  const typeHash = params.id as string // This will be the campaign type hash
+  const typeHash = params.typeHash as ccc.Hex // This will be the campaign type hash
   
   // Use campaign provider hook
-  const { campaign, userProgress, isLoading, exists } = useCampaign(typeHash)
+  const { campaign, campaignService, campaignCell, isLoading, error } = useCampaign(typeHash)
   
   // Check if current user owns this campaign
   // In a real app, this would be checked by comparing the campaign creator with the user's address
   const isOwner = false // TODO: Implement proper ownership check based on campaign creator
   
   // Get data from campaign
-  const quests = campaign?.quests || []
-  const rules = campaign?.metadata.rules || []
-  const completedQuests = campaign?.completedQuests || 0
+  const campaignData = campaignCell ? CampaignData.decode(campaignCell.outputData || "") : null
+  const quests = campaignData?.quests || []
+  const totalCompletions = campaignData?.total_completions || 0
 
   if (isLoading) {
     return (
@@ -87,7 +87,25 @@ export default function CampaignDetail() {
     )
   }
 
-  if (!exists || !campaign) {
+  if (error === "Wallet not connected") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🔗</div>
+            <h1 className="text-2xl font-bold mb-2">Wallet Connection Required</h1>
+            <p className="text-muted-foreground mb-4">Please connect your wallet to view campaign details.</p>
+            <Button onClick={() => window.location.reload()}>
+              Connect Wallet
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!campaignCell || !campaignData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -108,8 +126,8 @@ export default function CampaignDetail() {
     )
   }
 
-  const isActive = campaign.status === "active"
-  const progressPercentage = (completedQuests / (quests.length * Number(campaign.participants_count))) * 100
+  const isActive = campaignData.status === 1
+  const progressPercentage = (totalCompletions / (quests.length * Number(campaignData.participants_count))) * 100
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -119,7 +137,7 @@ export default function CampaignDetail() {
     })
   }
 
-  const daysRemaining = isActive ? getDaysUntilEnd(campaign.metadata.ending_time.toString()) : 0
+  const daysRemaining = isActive ? getDaysUntilEnd(campaignData.ending_time.toString()) : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -148,7 +166,7 @@ export default function CampaignDetail() {
                       <div className="text-4xl">🏛️</div>
                       <div>
                         <div className="flex items-center gap-2 mb-2">
-                          <h1 className="text-3xl font-bold">{campaign.title}</h1>
+                          <h1 className="text-3xl font-bold">{campaignData.metadata.title}</h1>
                           <CheckCircle className="w-5 h-5 text-blue-500 fill-current" />
                           {isOwner && (
                             <Badge variant="outline" className="bg-blue-100 text-blue-800">
@@ -157,16 +175,16 @@ export default function CampaignDetail() {
                           )}
                         </div>
                         <div className="text-muted-foreground mb-3">
-                          Endorsed by <span className="font-medium">{campaign.endorserName}</span>
+                          Endorsed by <span className="font-medium">{campaignData.endorser.endorser_name}</span>
                         </div>
                         <div className="flex items-center gap-2 mb-4">
                           <Badge variant={isActive ? "default" : "secondary"}>
                             {isActive ? "🔥 Active Campaign" : "📚 Ended Campaign"}
                           </Badge>
-                          {campaign.categories.map((category, idx) => (
+                          {campaignData.metadata.categories.map((category, idx) => (
                             <Badge key={idx} variant="outline">{category}</Badge>
                           ))}
-                          <Badge variant="outline">{campaign.difficulty}</Badge>
+                          <Badge variant="outline">{campaignData.metadata.difficulty}</Badge>
                         </div>
                         {isOwner && (
                           <div className="flex items-center gap-2">
@@ -193,14 +211,14 @@ export default function CampaignDetail() {
                     <div className="text-right">
                       <div className="flex items-center gap-1 text-yellow-600 font-bold text-2xl mb-2">
                         <Trophy className="w-6 h-6" />
-                        {campaign.totalRewards.points.toString()}
+                        {campaignData.metadata.total_rewards.ckb_amount}
                       </div>
                       <div className="text-sm text-muted-foreground mb-3">total points</div>
                       <div className="space-y-1">
-                        {campaign.totalRewards.tokens.map((token: TokenReward, index: number) => (
+                        {campaignData.metadata.total_rewards.udt_assets.map((token: UDTAssetLike, index: number) => (
                           <div key={index} className="flex items-center gap-1 text-green-600 font-semibold">
                             <Coins className="w-4 h-4" />
-                            {token.amount.toString()} {token.symbol}
+                            {token.amount.toString()} {token.udt_script.toString()}
                           </div>
                         ))}
                       </div>
@@ -208,7 +226,7 @@ export default function CampaignDetail() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-lg text-muted-foreground leading-relaxed">{campaign.longDescription}</p>
+                  <p className="text-lg text-muted-foreground leading-relaxed">{campaignData.metadata.long_description}</p>
                 </CardContent>
               </Card>
 
@@ -223,11 +241,11 @@ export default function CampaignDetail() {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{campaign.participants}</div>
+                      <div className="text-2xl font-bold text-blue-600">{campaignData.participants_count}</div>
                       <div className="text-sm text-muted-foreground">Participants</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{completedQuests}</div>
+                      <div className="text-2xl font-bold text-green-600">{totalCompletions}</div>
                       <div className="text-sm text-muted-foreground">Completions</div>
                     </div>
                     <div className="text-center">
@@ -260,7 +278,7 @@ export default function CampaignDetail() {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Telegram Verification */}
-                    {campaign.verificationRequirements.telegram && (
+                    {campaignData.metadata.verification_requirements && (
                       <div className="flex items-center gap-3 p-3 border rounded-lg">
                         <MessageCircle className="w-5 h-5 text-blue-600" />
                         <div className="flex-1">
@@ -291,7 +309,7 @@ export default function CampaignDetail() {
                     )}
 
                     {/* KYC Verification */}
-                    {campaign.verificationRequirements.kyc && (
+                    {campaignData.metadata.verification_requirements && (
                       <div className="flex items-center gap-3 p-3 border rounded-lg">
                         <FileText className="w-5 h-5 text-purple-600" />
                         <div className="flex-1">
@@ -322,7 +340,7 @@ export default function CampaignDetail() {
                     )}
 
                     {/* DID Verification */}
-                    {campaign.verificationRequirements.did && (
+                    {campaignData.metadata.verification_requirements && (
                       <div className="flex items-center gap-3 p-3 border rounded-lg">
                         <Fingerprint className="w-5 h-5 text-indigo-600" />
                         <div className="flex-1">
@@ -353,7 +371,7 @@ export default function CampaignDetail() {
                     )}
 
                     {/* Manual Review */}
-                    {campaign.verificationRequirements.manualReview && (
+                    {campaignData.metadata.verification_requirements && (
                       <div className="flex items-center gap-3 p-3 border rounded-lg">
                         <User className="w-5 h-5 text-orange-600" />
                         <div className="flex-1">
@@ -385,10 +403,7 @@ export default function CampaignDetail() {
                   </div>
 
                   {/* No verification required */}
-                  {!campaign.verificationRequirements.telegram && 
-                   !campaign.verificationRequirements.kyc && 
-                   !campaign.verificationRequirements.did && 
-                   !campaign.verificationRequirements.manualReview && (
+                  {!campaignData.metadata.verification_requirements && (
                     <div className="text-center py-4">
                       <div className="text-green-600 mb-2">
                         <CheckCircle className="w-8 h-8 mx-auto" />
@@ -401,17 +416,14 @@ export default function CampaignDetail() {
                   )}
 
                   {/* Verification Status Summary */}
-                  {(campaign.verificationRequirements.telegram || 
-                    campaign.verificationRequirements.kyc || 
-                    campaign.verificationRequirements.did || 
-                    campaign.verificationRequirements.manualReview) && (
+                  {campaignData.metadata.verification_requirements && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Shield className="w-4 h-4 text-gray-600" />
                         <span className="font-medium text-gray-800">Verification Status</span>
                       </div>
                       {(() => {
-                        const isEligible = meetsVerificationRequirements(campaign.verificationRequirements)
+                        const isEligible = meetsVerificationRequirements(campaignData.metadata.verification_requirements)
                         
                         return (
                           <div className="text-sm space-y-2">
@@ -426,13 +438,13 @@ export default function CampaignDetail() {
                             )}
                             
                             {/* Verification Logic Explanation */}
-                            {(campaign.verificationRequirements.kyc || campaign.verificationRequirements.did) && (
+                            {(campaignData.metadata.verification_requirements || campaignData.metadata.verification_requirements) && (
                               <div className="text-blue-700 bg-blue-50 p-2 rounded text-xs">
                                 💡 Having either KYC or DID verification satisfies identity requirements
                               </div>
                             )}
                             
-                            {campaign.verificationRequirements.excludeManualReview && (
+                            {campaignData.metadata.verification_requirements && (
                               <div className="text-orange-700 bg-orange-50 p-2 rounded text-xs">
                                 ⚠️ This campaign excludes manual review - KYC or DID verification is preferred
                               </div>
@@ -471,7 +483,7 @@ export default function CampaignDetail() {
                   <span>🎯</span> Campaign Quests
                 </h2>
                 {quests.map((quest) => (
-                  <QuestCard key={quest.id} quest={quest} campaignTypeHash={campaign.typeHash} />
+                  <QuestCard key={quest.quest_id} quest={quest} campaignTypeHash={typeHash} />
                 ))}
               </div>
             </div>
@@ -489,11 +501,11 @@ export default function CampaignDetail() {
                 <CardContent className="space-y-4">
                   <div>
                     <div className="text-sm text-muted-foreground">Start Date</div>
-                    <div className="font-semibold">{formatDate(campaign.startDate)}</div>
+                    <div className="font-semibold">{formatDate(campaignData.starting_time.toString())}</div>
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">End Date</div>
-                    <div className="font-semibold">{formatDate(campaign.endDate)}</div>
+                    <div className="font-semibold">{formatDate(campaignData.ending_time.toString())}</div>
                   </div>
                   {isActive && daysRemaining !== null && (
                     <div className="p-3 bg-green-50 rounded-lg border border-green-200">
@@ -519,7 +531,7 @@ export default function CampaignDetail() {
                     <div className="text-2xl">🏛️</div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <div className="font-semibold">{campaign.endorserName}</div>
+                        <div className="font-semibold">{campaignData.endorser.endorser_name}</div>
                         <CheckCircle className="w-4 h-4 text-blue-500 fill-current" />
                       </div>
                       <div className="text-sm text-muted-foreground">Verified endorser from the protocol whitelist</div>

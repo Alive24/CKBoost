@@ -3,7 +3,6 @@
 
 // UI-specific types only (for forms, metrics, components)
 export * from './types/index'
-export type { TokenReward, RewardInfo, Campaign, Quest, Subtask, UserProgress } from './types/index'
 
 // Providers
 export { CampaignProvider, useCampaigns, useCampaign } from './providers/campaign-provider'

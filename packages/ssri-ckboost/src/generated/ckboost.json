@@ -585,7 +585,7 @@
         },
         {
           "name": "total_rewards",
-          "type": "AssetListVec"
+          "type": "AssetList"
         },
         {
           "name": "verification_requirements",

@@ -183,7 +183,7 @@ table CampaignMetadata {
     endorser_info: EndorserInfo,
     short_description: String,     // For campaign cards
     long_description: String,      // For detail pages
-    total_rewards: AssetListVec,
+    total_rewards: AssetList,
     verification_requirements: Uint8Vec, // Bitmask: telegram(1), kyc(2), did(4), manual_review(8), twitter(16), discord(32), reddit(64)
     last_updated: Uint64,
     categories: StringVec,         // e.g., ["DeFi", "Gaming", "Social"]
