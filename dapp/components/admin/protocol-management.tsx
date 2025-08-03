@@ -98,9 +98,20 @@ const addAdminSchema = z.object({
   adminAddress: z.string().optional(),
   adminLockHash: z
     .string()
-    .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid lock hash format")
     .optional(),
-});
+}).refine(
+  (data) => {
+    if (data.inputMode === "address") {
+      return data.adminAddress && data.adminAddress.length > 0;
+    } else {
+      return data.adminLockHash && data.adminLockHash.match(/^0x[a-fA-F0-9]{64}$/);
+    }
+  },
+  {
+    message: "Please provide either an address or a valid lock hash",
+    path: ["adminAddress"],
+  }
+);
 
 const updateScriptCodeHashesSchema = z.object({
   ckb_boost_protocol_type_code_hash: z
@@ -142,11 +153,9 @@ const addEndorserSchema = z
     address: z.string().optional(),
     script: z
       .object({
-        codeHash: z
-          .string()
-          .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
-        hashType: z.enum(["type", "data", "data1"]),
-        args: z.string().regex(/^0x[a-fA-F0-9]*$/, "Invalid args format"),
+        codeHash: z.string().optional(),
+        hashType: z.enum(["type", "data", "data1"]).optional(),
+        args: z.string().optional(),
       })
       .optional(),
     endorser_name: z.string().min(1, "Name required"),
@@ -163,12 +172,15 @@ const addEndorserSchema = z
         return (
           data.script &&
           data.script.codeHash &&
-          data.script.args
+          data.script.codeHash.match(/^0x[a-fA-F0-9]{64}$/) &&
+          data.script.hashType &&
+          data.script.args !== undefined &&
+          data.script.args.match(/^0x[a-fA-F0-9]*$/)
         );
       }
     },
     {
-      message: "Either address or script must be provided",
+      message: "Either address or valid script must be provided",
       path: ["address"],
     }
   );
@@ -608,7 +620,7 @@ export function ProtocolManagement() {
     } else {
       setPreviewLockHash("");
     }
-  }, [watchedInputMode, watchedLockHash]);
+  }, [watchedInputMode, watchedAddress]);
 
   // Effect to fetch protocol cell information
   useEffect(() => {
@@ -716,20 +728,22 @@ export function ProtocolManagement() {
       }
 
       // Add to pending changes instead of sending transaction
-      setPendingEndorserChanges((prev) => ({
-        ...prev,
-        toAdd: [
-          ...prev.toAdd,
-          {
-            endorser_name: data.endorser_name,
-            endorser_description: data.endorser_description,
-            endorser_lock_hash: lockHash as ccc.Hex,
-            website: data.website || "",
-            social_links: data.social_links || [],
-            verified: data.verified || 0,
-          },
-        ],
-      }));
+      const newEndorser = {
+        endorser_name: data.endorser_name,
+        endorser_description: data.endorser_description,
+        endorser_lock_hash: lockHash as ccc.Hex,
+        website: data.website || "",
+        social_links: data.social_links || [],
+        verified: data.verified || 0,
+      };
+      
+      setPendingEndorserChanges((prev) => {
+        const updated = {
+          ...prev,
+          toAdd: [...prev.toAdd, newEndorser],
+        };
+        return updated;
+      });
 
       // Update pending changes indicator
       setPendingChanges((prev) => ({ ...prev, endorsers: true }));
