@@ -54,6 +54,7 @@ import {
   Activity,
   AlertTriangle,
   CheckCircle,
+  X,
   Clock,
   XCircle,
   UserPlus,
@@ -117,6 +118,12 @@ const updateScriptCodeHashesSchema = z.object({
   ckb_boost_user_type_code_hash: z
     .string()
     .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+  accepted_udt_type_code_hashes: z
+    .array(z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"))
+    .default([]),
+  accepted_dob_type_code_hashes: z
+    .array(z.string().regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"))
+    .default([]),
 });
 
 const updateTippingConfigSchema = z.object({
@@ -217,6 +224,8 @@ export function ProtocolManagement() {
       ckb_boost_user_type_code_hash:
         deploymentTemplate.protocol_config.script_code_hashes
           .ckb_boost_user_type_code_hash,
+      accepted_udt_type_code_hashes: [],
+      accepted_dob_type_code_hashes: [],
     },
   });
 
@@ -224,12 +233,12 @@ export function ProtocolManagement() {
     resolver: zodResolver(updateTippingConfigSchema),
     defaultValues: {
       approval_requirement_thresholds:
-        deploymentTemplate.tipping_config.approval_requirement_thresholds.map(
-          (t) => ccc.numFrom(t)
-        ),
-      expiration_duration: ccc.numFrom(
-        deploymentTemplate.tipping_config.expiration_duration
-      ),
+        deploymentTemplate.tipping_config.approval_requirement_thresholds.length > 0
+          ? deploymentTemplate.tipping_config.approval_requirement_thresholds.map(
+              (t) => t.toString()
+            )
+          : ["100000000000", "500000000000", "1000000000000"], // Default: 1000, 5000, 10000 CKB in shannon
+      expiration_duration: deploymentTemplate.tipping_config.expiration_duration || 2592000n, // Default: 30 days
     },
   });
 
@@ -411,7 +420,11 @@ export function ProtocolManagement() {
         expiration_duration: protocolData.tipping_config.expiration_duration,
       };
 
-      scriptCodeHashesForm.reset(scriptHashesValues);
+      scriptCodeHashesForm.reset({
+        ...scriptHashesValues,
+        accepted_udt_type_code_hashes: protocolData.protocol_config.script_code_hashes.accepted_udt_type_code_hashes || [],
+        accepted_dob_type_code_hashes: protocolData.protocol_config.script_code_hashes.accepted_dob_type_code_hashes || [],
+      });
       tippingConfigForm.reset(tippingValues);
 
       // Set baseline values to prevent false change detection
@@ -918,6 +931,12 @@ export function ProtocolManagement() {
           ckb_boost_user_type_code_hash:
             protocolData.protocol_config.script_code_hashes
               .ckb_boost_user_type_code_hash,
+          accepted_udt_type_code_hashes:
+            protocolData.protocol_config.script_code_hashes
+              .accepted_udt_type_code_hashes || [],
+          accepted_dob_type_code_hashes:
+            protocolData.protocol_config.script_code_hashes
+              .accepted_dob_type_code_hashes || [],
         });
 
         tippingConfigForm.reset({
@@ -938,6 +957,8 @@ export function ProtocolManagement() {
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
           ckb_boost_user_type_code_hash:
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash,
+          accepted_udt_type_code_hashes: [],
+          accepted_dob_type_code_hashes: [],
         });
 
         tippingConfigForm.reset({
@@ -1754,18 +1775,30 @@ export function ProtocolManagement() {
                         <FormLabel>Approval Thresholds (CKB)</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="10000 (one per line)"
-                            value={field.value.join("\n")}
-                            onChange={(e) =>
-                              field.onChange(
-                                e.target.value.split("\n").filter(Boolean)
-                              )
-                            }
+                            placeholder="1000&#10;5000&#10;10000"
+                            value={field.value
+                              .map((v) => {
+                                // Convert from shannon (bigint) to CKB
+                                const ckbValue = Number(v) / 100000000;
+                                return ckbValue.toString();
+                              })
+                              .join("\n")}
+                            onChange={(e) => {
+                              const lines = e.target.value.split("\n").filter(Boolean);
+                              const shannonValues = lines.map((line) => {
+                                // Convert from CKB to shannon
+                                const ckbValue = parseFloat(line) || 0;
+                                const shannonValue = BigInt(Math.floor(ckbValue * 100000000));
+                                return shannonValue.toString();
+                              });
+                              field.onChange(shannonValues);
+                            }}
                             rows={3}
                           />
                         </FormControl>
                         <FormDescription>
-                          One threshold per line. Min 3 approvals required.
+                          Enter approval thresholds in CKB (one per line). For example: 1000, 5000, 10000.
+                          These define the minimum CKB amounts for different approval tiers.
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1785,12 +1818,12 @@ export function ProtocolManagement() {
                             onChange={(e) =>
                               field.onChange(BigInt(e.target.value || 0))
                             }
-                            placeholder="604800"
+                            placeholder="2592000"
                           />
                         </FormControl>
                         <FormDescription>
-                          How long proposals remain valid (e.g., 604800 = 7
-                          days)
+                          How long proposals remain valid in seconds. Default is 2592000 (30 days).
+                          Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
@@ -1886,6 +1919,114 @@ export function ProtocolManagement() {
                             <Input placeholder="0x..." {...field} value={field.value.toString()} />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-4 mt-6">
+                  <div className="border-t pt-4">
+                    <h4 className="text-sm font-medium mb-4">Accepted Token Types</h4>
+                    
+                    <FormField
+                      control={scriptCodeHashesForm.control}
+                      name="accepted_udt_type_code_hashes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Accepted UDT Type Code Hashes</FormLabel>
+                          <FormDescription>
+                            List of accepted User Defined Token (UDT) type script code hashes. Leave empty to not accept any UDTs.
+                          </FormDescription>
+                          <div className="space-y-2">
+                            {(Array.isArray(field.value) ? field.value : []).map((hash, index) => (
+                              <div key={index} className="flex gap-2">
+                                <Input
+                                  placeholder="0x..."
+                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash)}
+                                  onChange={(e) => {
+                                    const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
+                                    newHashes[index] = e.target.value;
+                                    field.onChange(newHashes);
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => {
+                                    const newHashes = (Array.isArray(field.value) ? field.value : []).filter((_, i) => i !== index);
+                                    field.onChange(newHashes);
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                field.onChange([...(Array.isArray(field.value) ? field.value : []), ""]);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add UDT Code Hash
+                            </Button>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={scriptCodeHashesForm.control}
+                      name="accepted_dob_type_code_hashes"
+                      render={({ field }) => (
+                        <FormItem className="mt-4">
+                          <FormLabel>Accepted DOB Type Code Hashes</FormLabel>
+                          <FormDescription>
+                            List of accepted Digital Object (DOB) type script code hashes. Leave empty to not accept any DOBs.
+                          </FormDescription>
+                          <div className="space-y-2">
+                            {(Array.isArray(field.value) ? field.value : []).map((hash, index) => (
+                              <div key={index} className="flex gap-2">
+                                <Input
+                                  placeholder="0x..."
+                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash)}
+                                  onChange={(e) => {
+                                    const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
+                                    newHashes[index] = e.target.value;
+                                    field.onChange(newHashes);
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => {
+                                    const newHashes = (Array.isArray(field.value) ? field.value : []).filter((_, i) => i !== index);
+                                    field.onChange(newHashes);
+                                  }}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                field.onChange([...(Array.isArray(field.value) ? field.value : []), ""]);
+                              }}
+                            >
+                              <Plus className="h-4 w-4 mr-1" />
+                              Add DOB Code Hash
+                            </Button>
+                          </div>
                           <FormMessage />
                         </FormItem>
                       )}

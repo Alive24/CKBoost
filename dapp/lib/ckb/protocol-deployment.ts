@@ -127,8 +127,13 @@ export function getProtocolDeploymentTemplate(): ProtocolDataLike {
     campaigns_approved: [],
     tipping_proposals: [],
     tipping_config: {
-      approval_requirement_thresholds: [],
-      expiration_duration: 0,
+      // Default thresholds: 1000 CKB, 5000 CKB, 10000 CKB (in shannon, 1 CKB = 10^8 shannon)
+      approval_requirement_thresholds: [
+        100000000000n, // 1000 CKB
+        500000000000n, // 5000 CKB
+        1000000000000n, // 10000 CKB
+      ],
+      expiration_duration: 2592000, // 30 days in seconds
     },
     endorsers_whitelist: [],
     last_updated: 0,
