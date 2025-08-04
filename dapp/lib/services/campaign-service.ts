@@ -42,18 +42,6 @@ export class CampaignService {
     if (!deployment || !outPoint) {
       throw new Error("Campaign type contract not found in deployments.json");
     }
-
-    const campaignTypeScript = deploymentManager.getContractTypeScript(
-      network,
-      "ckboostCampaignType"
-    );
-    if (!campaignTypeScript) {
-      throw new Error("Campaign type script not found in deployments.json");
-    }
-
-    this.campaign = new Campaign(outPoint, campaignTypeScript, {
-      executor: executor,
-    });
   }
 
   /**

@@ -188,7 +188,7 @@ export function useCampaign(typeHash?: ccc.Hex) {
     campaignTypeScript = ccc.Script.from({
       codeHash: deployment?.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
       hashType: "type" as const,
-      args: "0x", // Empty args - SSRI will calculate and fill the Type ID
+      args: "0x", // Empty args - SSRI will calculate and fill the Connected Type ID
     });
     campaign = new Campaign(outPoint, campaignTypeScript, {
       executor: executor,

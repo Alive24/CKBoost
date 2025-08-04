@@ -71,11 +71,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         let args = current_script.args();
         let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice())
-            .map_err(|_| Error::MoleculeVerificationError)?;
-
-        // The type_id in ConnectedTypeID is the actual campaign type ID
-        let campaign_type_id = connected_type_id.type_id();
-        let connected_type_hash = connected_type_id.connected_type_hash();
+            .map_err(|_| Error::MoleculeVerificationError);
 
         // Track the index where the campaign cell will be in the inputs
         let campaign_input_index: usize;
@@ -86,9 +82,13 @@ impl CKBoostCampaign for CKBoostCampaignType {
         // If campaign_type_id is empty, we're creating a new campaign cell
         // Otherwise, we should try to find the existing one
 
-        match campaign_type_id.as_slice() == [0u8; 32] {
-            false => {
+        match connected_type_id {
+            Ok(connected_type_id) => {
                 debug!("Found existing campaign cell, updating it");
+
+                // The type_id in ConnectedTypeID is the actual campaign type ID
+                let campaign_type_id = connected_type_id.type_id();
+                let connected_type_hash = connected_type_id.connected_type_hash();
 
                 // Try to find existing campaign cell with this type ID
                 let campaign_outpoint = find_out_point_by_type(current_script.clone())?;
@@ -122,7 +122,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
                     .build();
                 cell_output_vec_builder = cell_output_vec_builder.push(new_campaign_output);
             }
-            true => {
+            Err(_) => {
                 debug!("No campaign cell found. Creating a new campaign cell.");
 
                 // In creation case, campaign cell doesn't exist as input
@@ -160,7 +160,8 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 // Create ConnectedTypeID with the new type ID and protocol reference
                 let new_connected_type_id = ConnectedTypeID::new_builder()
                     .type_id(SharedByte32::from_slice(&type_id).unwrap())
-                    .connected_type_hash(connected_type_id.connected_type_hash())
+                    // Leave connected_type_hash empty for now and let dapp fill it in with the correct protocol cell type hash
+                    .connected_type_hash(SharedByte32::from_slice(&[0u8; 32]).unwrap())
                     .build();
 
                 // Create the type script with ConnectedTypeID as args

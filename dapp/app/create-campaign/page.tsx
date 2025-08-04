@@ -14,10 +14,10 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle } from "lucide-react"
 import Link from "next/link"
-import { ccc } from "@ckb-ccc/connector-react"
+import { ccc, ScriptLike } from "@ckb-ccc/connector-react"
 import { CampaignService } from "@/lib/services/campaign-service"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import type { CampaignDataLike, EndorserInfoLike } from "ssri-ckboost/types"
+import type { AssetListLike, CampaignDataLike, EndorserInfoLike, UDTAssetLike } from "ssri-ckboost/types"
 import { useCampaign } from "@/lib/providers/campaign-provider"
 
 export default function CreateCampaign() {
@@ -35,16 +35,20 @@ export default function CreateCampaign() {
     endDate: "",
     totalPoints: "",
     logo: "",
-    selectedEndorser: "", // Selected endorser from protocol whitelist
   })
 
-  const [tokenRewards, setTokenRewards] = useState([{ symbol: "CKB", amount: "" }])
+  // Separate state for different reward types
+  const [ckbReward, setCkbReward] = useState<ccc.Num>(0n)
+  const [nftRewards, setNftRewards] = useState<ScriptLike[]>([])
+  const [udtRewards, setUdtRewards] = useState<UDTAssetLike[]>([])
   const [rules, setRules] = useState([""])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [availableEndorsers, setAvailableEndorsers] = useState<EndorserInfoLike[]>([])
   const [isWalletConnected, setIsWalletConnected] = useState(false)
+  const [currentWalletEndorser, setCurrentWalletEndorser] = useState<EndorserInfoLike | null>(null)
+  const [endorserCheckComplete, setEndorserCheckComplete] = useState(false)
 
   const { campaign, campaignService, isLoading, error } = useCampaign()
 
@@ -53,12 +57,103 @@ export default function CreateCampaign() {
     setIsWalletConnected(!!signer)
   }, [signer])
 
-  // Load available endorsers when protocol data is available
+  // Load available endorsers and check if current wallet is an endorser
   useEffect(() => {
+    console.log("=== ENDORSER CHECK useEffect TRIGGERED ===")
+    console.log("protocolData exists?", !!protocolData)
+    console.log("protocolData.endorsers_whitelist exists?", !!protocolData?.endorsers_whitelist)
+    console.log("signer exists?", !!signer)
+    
     if (protocolData?.endorsers_whitelist) {
+      console.log("Setting available endorsers:", protocolData.endorsers_whitelist)
       setAvailableEndorsers(protocolData.endorsers_whitelist as EndorserInfoLike[])
+      
+      // Check if connected wallet is an endorser
+      if (signer) {
+        const checkEndorserStatus = async () => {
+          try {
+            console.log("Getting wallet address...")
+            const addressString = await signer.getRecommendedAddress()
+            console.log("Wallet address string:", addressString)
+            
+            // Get the address object directly from signer
+            const addressObj = await signer.getRecommendedAddressObj()
+            console.log("Address object:", addressObj)
+            
+            const lockScript = addressObj.script
+            console.log("Lock script:", {
+              codeHash: lockScript.codeHash,
+              hashType: lockScript.hashType,
+              args: lockScript.args
+            })
+            
+            const lockHash = lockScript.hash()
+            console.log("Connected wallet lock hash:", lockHash)
+            
+            console.log("Available endorsers full data:", protocolData.endorsers_whitelist)
+            console.log("Available endorsers processed:", protocolData.endorsers_whitelist.map(e => ({
+              name: e.endorser_name,
+              lockHash: typeof e.endorser_lock_hash === 'string' ? e.endorser_lock_hash : ccc.hexFrom(e.endorser_lock_hash),
+              rawLockHash: e.endorser_lock_hash
+            })))
+            
+            // Find if current wallet is in endorsers list
+            const endorser = protocolData.endorsers_whitelist.find(e => {
+              const endorserLockHash = typeof e.endorser_lock_hash === 'string' 
+                ? e.endorser_lock_hash 
+                : ccc.hexFrom(e.endorser_lock_hash);
+              
+              console.log("Comparing endorser:", {
+                name: e.endorser_name,
+                endorserLockHash,
+                type: typeof e.endorser_lock_hash
+              })
+              
+              // Compare without considering case and 0x prefix
+              const normalizedEndorserHash = endorserLockHash.toLowerCase().replace(/^0x/, '');
+              const normalizedWalletHash = lockHash.toLowerCase().replace(/^0x/, '');
+              
+              console.log("Normalized comparison:", {
+                endorser: normalizedEndorserHash,
+                wallet: normalizedWalletHash,
+                match: normalizedEndorserHash === normalizedWalletHash
+              })
+              
+              return normalizedEndorserHash === normalizedWalletHash;
+            })
+            
+            console.log("Found endorser:", endorser)
+            console.log("Setting currentWalletEndorser to:", endorser || null)
+            setCurrentWalletEndorser(endorser || null)
+          } catch (error) {
+            console.error("Error checking endorser status:", error)
+            console.error("Error details:", {
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : 'No stack trace available'
+            })
+            setCurrentWalletEndorser(null)
+          }
+        }
+        
+        checkEndorserStatus()
+      } else {
+        console.log("No signer, setting currentWalletEndorser to null")
+        setCurrentWalletEndorser(null)
+      }
+    } else {
+      console.log("No protocol data or endorsers_whitelist")
     }
-  }, [protocolData])
+  }, [protocolData, signer])
+
+  // Give the endorser check a moment to complete
+  useEffect(() => {
+    if (isWalletConnected && protocolData && !protocolLoading) {
+      const timer = setTimeout(() => {
+        setEndorserCheckComplete(true)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isWalletConnected, protocolData, protocolLoading])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -69,7 +164,7 @@ export default function CreateCampaign() {
       // Validate required fields
       if (!formData.title || !formData.shortDescription || !formData.longDescription || 
           !formData.category || !formData.difficulty || !formData.startDate || 
-          !formData.endDate || !formData.totalPoints || !formData.selectedEndorser) {
+          !formData.endDate || !formData.totalPoints) {
         throw new Error("Please fill in all required fields")
       }
 
@@ -77,21 +172,16 @@ export default function CreateCampaign() {
         throw new Error("Please connect your wallet to create a campaign")
       }
 
+      if (!currentWalletEndorser) {
+        throw new Error("Your wallet is not registered as an endorser. Only approved endorsers can create campaigns.")
+      }
+
       if (!campaignService) {
         throw new Error("Campaign service not available. Please ensure your wallet is connected.")
       }
 
-      // Find selected endorser
-      const selectedEndorser = availableEndorsers.find(
-        endorser => endorser.endorser_lock_hash === formData.selectedEndorser
-      )
-
-      if (!selectedEndorser) {
-        throw new Error("Please select a valid endorser from the list")
-      }
-
       const campaignData: CampaignDataLike = {
-        endorser: selectedEndorser,
+        endorser: currentWalletEndorser,
         created_at: ccc.numFrom(Date.now()),
         starting_time: ccc.numFrom(new Date(formData.startDate).getTime()),
         ending_time: ccc.numFrom(new Date(formData.endDate).getTime()),
@@ -102,14 +192,14 @@ export default function CreateCampaign() {
           categories: [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))],
           difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
           title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
-          endorser_info: selectedEndorser,
+          endorser_info: currentWalletEndorser,
           image_url: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
           short_description: "",
           long_description: "",
           total_rewards: {
-            ckb_amount: 0,
-            nft_assets: [],
-            udt_assets: []
+            ckb_amount: ckbReward,
+            nft_assets: nftRewards,
+            udt_assets: udtRewards
           }
         },
         status: 0, // Created status
@@ -150,26 +240,78 @@ export default function CreateCampaign() {
       endDate: "",
       totalPoints: "",
       logo: "",
-      selectedEndorser: "",
     })
-    setTokenRewards([{ symbol: "CKB", amount: "" }])
+    setCkbReward(0n)
+    setNftRewards([])
+    setUdtRewards([])
     setRules([""])
     setIsSubmitted(false)
     setSubmitError(null)
   }
 
-  const addTokenReward = () => {
-    setTokenRewards([...tokenRewards, { symbol: "", amount: "" }])
+  // NFT reward functions
+  const addNftReward = () => {
+    setNftRewards([...nftRewards, { 
+      codeHash: "0x" + "00".repeat(32), 
+      hashType: "type", 
+      args: "0x00" // Empty args should still be valid hex
+    }])
   }
 
-  const removeTokenReward = (index: number) => {
-    setTokenRewards(tokenRewards.filter((_, i) => i !== index))
+  const removeNftReward = (index: number) => {
+    setNftRewards(nftRewards.filter((_, i) => i !== index))
   }
 
-  const updateTokenReward = (index: number, field: string, value: string) => {
-    const newRewards = [...tokenRewards]
-    newRewards[index] = { ...newRewards[index], [field]: value }
-    setTokenRewards(newRewards)
+  const updateNftReward = (index: number, field: keyof ScriptLike, value: string) => {
+    const newRewards = [...nftRewards]
+    // Handle empty args - convert to minimal valid hex
+    if (field === 'args' && value === '') {
+      newRewards[index] = { ...newRewards[index], args: '0x00' }
+    } else if (field === 'codeHash' && value === '') {
+      // For codeHash, use zero hash if empty
+      newRewards[index] = { ...newRewards[index], codeHash: '0x' + '00'.repeat(32) }
+    } else {
+      newRewards[index] = { ...newRewards[index], [field]: value }
+    }
+    setNftRewards(newRewards)
+  }
+
+  // UDT reward functions
+  const addUdtReward = () => {
+    setUdtRewards([...udtRewards, { 
+      amount: 0n,
+      udt_script: {
+        codeHash: "0x" + "00".repeat(32),
+        hashType: "type",
+        args: "0x00" // Empty args should still be valid hex
+      }
+    }])
+  }
+
+  const removeUdtReward = (index: number) => {
+    setUdtRewards(udtRewards.filter((_, i) => i !== index))
+  }
+
+  const updateUdtReward = (index: number, field: string, value: string) => {
+    const newRewards = [...udtRewards]
+    if (field === 'amount') {
+      newRewards[index] = { ...newRewards[index], amount: BigInt(value || 0) }
+    } else if (field === 'codeHash') {
+      // Handle empty codeHash
+      const codeHashValue = value === '' ? '0x' + '00'.repeat(32) : value
+      newRewards[index] = { 
+        ...newRewards[index], 
+        udt_script: { ...newRewards[index].udt_script, codeHash: codeHashValue }
+      }
+    } else if (field === 'args') {
+      // Handle empty args - convert to minimal valid hex
+      const argsValue = value === '' ? '0x00' : value
+      newRewards[index] = { 
+        ...newRewards[index], 
+        udt_script: { ...newRewards[index].udt_script, args: argsValue }
+      }
+    }
+    setUdtRewards(newRewards)
   }
 
   const addRule = () => {
@@ -329,6 +471,46 @@ export default function CreateCampaign() {
       </div>
     )
   }
+  
+  // Show error if wallet is connected but not an endorser
+  console.log("=== AUTHORIZATION CHECK ===")
+  console.log("isWalletConnected:", isWalletConnected)
+  console.log("protocolData exists:", !!protocolData)
+  console.log("protocolLoading:", protocolLoading)
+  console.log("endorserCheckComplete:", endorserCheckComplete)
+  console.log("currentWalletEndorser:", currentWalletEndorser)
+  console.log("Will show Not Authorized?", isWalletConnected && protocolData && !protocolLoading && endorserCheckComplete && !currentWalletEndorser)
+  
+  if (isWalletConnected && protocolData && !protocolLoading && endorserCheckComplete && !currentWalletEndorser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center py-12">
+            <div className="text-6xl mb-6">🔒</div>
+            <h1 className="text-3xl font-bold mb-4">Not Authorized</h1>
+            <p className="text-lg text-muted-foreground mb-6">
+              Your wallet is not registered as an endorser. Only approved endorsers can create campaigns.
+            </p>
+            <Alert className="mb-6 border-orange-200 bg-orange-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                To become an endorser, please contact the CKBoost protocol administrators.
+              </AlertDescription>
+            </Alert>
+            <div className="flex gap-4 justify-center">
+              <Link href="/">
+                <Button variant="outline">View Campaigns</Button>
+              </Link>
+              <Link href="/platform-admin">
+                <Button>Apply for Endorser Status</Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -369,6 +551,22 @@ export default function CreateCampaign() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Debug Info - Temporary */}
+                {isWalletConnected && (
+                  <Alert className="mb-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="text-xs">
+                        <div>Wallet Connected: {isWalletConnected ? "Yes" : "No"}</div>
+                        <div>Endorser Status: {currentWalletEndorser ? "Approved" : "Not an endorser"}</div>
+                        {currentWalletEndorser && (
+                          <div>Endorser Name: {currentWalletEndorser.endorser_name}</div>
+                        )}
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Campaign Details */}
                 <Card>
                   <CardHeader>
@@ -489,46 +687,6 @@ export default function CreateCampaign() {
                   </CardContent>
                 </Card>
 
-
-                {/* Endorser Selection */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Campaign Endorser</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="selectedEndorser">Select Endorser *</Label>
-                      <Select
-                        value={formData.selectedEndorser}
-                        onValueChange={(value) => setFormData({ ...formData, selectedEndorser: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose an endorsed partner" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableEndorsers.map((endorser, index) => (
-                            <SelectItem key={index} value={ccc.hexFrom(endorser.endorser_lock_hash)}>
-                              {/* Convert hex to string for display */}
-                              {endorser.endorser_name ? 
-                                new TextDecoder().decode(new Uint8Array(Buffer.from(endorser.endorser_name.slice(2), 'hex'))) : 
-                                `Endorser ${index + 1}`
-                              }
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <div className="text-sm text-muted-foreground">
-                        Campaigns must be endorsed by an approved partner to ensure quality and legitimacy.
-                        {availableEndorsers.length === 0 && (
-                          <div className="text-orange-600 mt-1">
-                            No endorsers currently available. Please ensure the protocol is properly configured.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
                 {/* Rewards */}
                 <Card>
                   <CardHeader>
@@ -549,43 +707,118 @@ export default function CreateCampaign() {
                       />
                     </div>
 
+                    {/* CKB Rewards */}
+                    <div className="space-y-2">
+                      <Label htmlFor="ckbReward">CKB Reward (Optional)</Label>
+                      <Input
+                        id="ckbReward"
+                        type="number"
+                        value={ckbReward === 0n ? "" : (Number(ckbReward) / 100000000).toString()}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "") {
+                            setCkbReward(0n);
+                          } else {
+                            const ckbAmount = parseFloat(value);
+                            if (!isNaN(ckbAmount) && ckbAmount >= 0) {
+                              setCkbReward(BigInt(Math.floor(ckbAmount * 100000000)));
+                            }
+                          }
+                        }}
+                        placeholder="Amount in CKB (e.g., 1000)"
+                        min="0"
+                        step="1"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Total CKB funding target for the campaign
+                      </p>
+                    </div>
+
+                    {/* NFT Rewards */}
                     <div className="space-y-4">
-                      <Label>Token Rewards</Label>
-                      {tokenRewards.map((reward, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Select
-                            value={reward.symbol}
-                            onValueChange={(value) => updateTokenReward(index, "symbol", value)}
-                          >
-                            <SelectTrigger className="w-32">
-                              <SelectValue placeholder="Token" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="CKB">CKB</SelectItem>
-                              <SelectItem value="SPORE">SPORE</SelectItem>
-                              <SelectItem value="DeFi">DeFi</SelectItem>
-                              <SelectItem value="COMM">COMM</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            type="number"
-                            value={reward.amount}
-                            onChange={(e) => updateTokenReward(index, "amount", e.target.value)}
-                            placeholder="Amount"
-                            min="1"
-                            required
-                          />
-                          {tokenRewards.length > 1 && (
-                            <Button type="button" variant="outline" size="sm" onClick={() => removeTokenReward(index)}>
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
+                      <div>
+                        <Label>NFT Rewards (Optional)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Add NFT assets to be managed by the campaign. Leave args empty to create a new connected type hash.
+                        </p>
+                      </div>
+                      {nftRewards.map((nft, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={typeof nft.codeHash === 'string' ? nft.codeHash : ccc.hexFrom(nft.codeHash)}
+                              onChange={(e) => updateNftReward(index, "codeHash", e.target.value)}
+                              placeholder="NFT Type Script Code Hash (0x...)"
+                            />
+                            <Input
+                              value={typeof nft.args === 'string' ? nft.args : ccc.hexFrom(nft.args)}
+                              onChange={(e) => updateNftReward(index, "args", e.target.value)}
+                              placeholder="NFT Args (0x...)"
+                              className="w-48"
+                            />
+                            {nftRewards.length > 0 && (
+                              <Button type="button" variant="outline" size="sm" onClick={() => removeNftReward(index)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={addTokenReward}
+                        onClick={addNftReward}
+                        className="w-full bg-transparent"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add NFT Reward
+                      </Button>
+                    </div>
+
+                    {/* UDT Rewards */}
+                    <div className="space-y-4">
+                      <div>
+                        <Label>UDT (Token) Rewards (Optional)</Label>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Add User Defined Tokens to be managed by the campaign. Leave args empty to create a new connected type hash.
+                        </p>
+                      </div>
+                      {udtRewards.map((udt, index) => (
+                        <div key={index} className="space-y-2">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={udt.amount === 0n ? "" : udt.amount.toString()}
+                                onChange={(e) => updateUdtReward(index, "amount", e.target.value)}
+                                placeholder="Amount"
+                                min="1"
+                                className="w-32"
+                              />
+                              <Input
+                                value={typeof udt.udt_script.codeHash === 'string' ? udt.udt_script.codeHash : ccc.hexFrom(udt.udt_script.codeHash)}
+                                onChange={(e) => updateUdtReward(index, "codeHash", e.target.value)}
+                                placeholder="UDT Type Script Code Hash (0x...)"
+                              />
+                              <Input
+                                value={typeof udt.udt_script.args === 'string' ? udt.udt_script.args : ccc.hexFrom(udt.udt_script.args)}
+                                onChange={(e) => updateUdtReward(index, "args", e.target.value)}
+                                placeholder="UDT Args (0x...)"
+                                className="w-48"
+                              />
+                              {udtRewards.length > 0 && (
+                                <Button type="button" variant="outline" size="sm" onClick={() => removeUdtReward(index)}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addUdtReward}
                         className="w-full bg-transparent"
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -627,7 +860,7 @@ export default function CreateCampaign() {
                 <div className="flex justify-end">
                   <Button
                     type="submit"
-                    disabled={isSubmitting || availableEndorsers.length === 0}
+                    disabled={isSubmitting || !currentWalletEndorser}
                     size="lg"
                     className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 disabled:opacity-50"
                   >
@@ -661,10 +894,35 @@ export default function CreateCampaign() {
                       <div>
                         <div className="font-semibold">{formData.title || "Campaign Title"}</div>
                         <div className="text-sm text-muted-foreground">
-                          {availableEndorsers.find(e => e.endorser_lock_hash === formData.selectedEndorser) ?
-                            `Endorsed by ${new TextDecoder().decode(new Uint8Array(Buffer.from(availableEndorsers.find(e => e.endorser_lock_hash === formData.selectedEndorser)!.endorser_name.slice(2), 'hex')))}` :
-                            "Select an endorser"
-                          }
+                          {currentWalletEndorser ? (() => {
+                            let displayName = "Unknown Endorser";
+                            if (currentWalletEndorser.endorser_name) {
+                              const nameValue = currentWalletEndorser.endorser_name as any;
+                              if (typeof nameValue === 'string') {
+                                // Check if it's a hex string that needs decoding
+                                if (nameValue.startsWith('0x')) {
+                                  try {
+                                    displayName = new TextDecoder().decode(
+                                      new Uint8Array(Buffer.from(nameValue.slice(2), 'hex'))
+                                    );
+                                  } catch {
+                                    displayName = nameValue;
+                                  }
+                                } else {
+                                  displayName = nameValue;
+                                }
+                              } else {
+                                // Try to convert to string if it's not already
+                                try {
+                                  displayName = String(nameValue);
+                                } catch {
+                                  displayName = "Unknown Endorser";
+                                }
+                              }
+                            }
+                            
+                            return `Endorsed by ${displayName}`;
+                          })() : "Endorsed by your wallet"}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           {formData.category && (
@@ -685,13 +943,34 @@ export default function CreateCampaign() {
                       {formData.totalPoints && (
                         <div className="text-yellow-600 font-semibold">🏆 {formData.totalPoints} points</div>
                       )}
-                      {tokenRewards
-                        .filter((r) => r.symbol && r.amount)
-                        .map((reward, index) => (
-                          <div key={index} className="text-green-600 font-semibold text-sm">
-                            💰 {reward.amount} {reward.symbol}
-                          </div>
-                        ))}
+                      {ckbReward > 0n && (
+                        <div className="text-green-600 font-semibold text-sm">
+                          💰 {(Number(ckbReward) / 100000000).toFixed(2)} CKB
+                        </div>
+                      )}
+                      {nftRewards
+                        .filter((nft) => nft.codeHash !== "0x" + "00".repeat(32))
+                        .map((nft, index) => {
+                          const argsStr = typeof nft.args === 'string' ? nft.args : ccc.hexFrom(nft.args);
+                          return (
+                            <div key={`nft-${index}`} className="text-purple-600 font-semibold text-sm">
+                              🎨 NFT {argsStr.length > 10 ? argsStr.slice(0, 10) + "..." : argsStr}
+                            </div>
+                          );
+                        })}
+                      {udtRewards
+                        .filter((udt) => {
+                          const amount = typeof udt.amount === 'bigint' ? udt.amount : ccc.numFrom(udt.amount);
+                          return amount > 0n;
+                        })
+                        .map((udt, index) => {
+                          const amount = typeof udt.amount === 'bigint' ? udt.amount : ccc.numFrom(udt.amount);
+                          return (
+                            <div key={`udt-${index}`} className="text-blue-600 font-semibold text-sm">
+                              🪙 {amount.toString()} UDT
+                            </div>
+                          );
+                        })}
                     </div>
                   </div>
                 </CardContent>
