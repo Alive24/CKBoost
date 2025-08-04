@@ -517,7 +517,7 @@ export default function AdminQuestManagement() {
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                  <Link href={`/quest/${quest.id}`}>
+                                  <Link href={`/campaign/${campaign.typeHash}/quest/${quest.id}`}>
                                     <Button variant="outline" size="sm">
                                       <Eye className="w-4 h-4 mr-1" />
                                       View

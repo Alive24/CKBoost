@@ -8,7 +8,9 @@ import { Progress } from "@/components/ui/progress"
 import { Clock, Star, Users, ChevronDown, ChevronUp, Coins } from "lucide-react"
 import Link from "next/link"
 import type { QuestDataLike } from "ssri-ckboost/types"
-import { hexToString, getDifficultyString, getTimeEstimateString, getQuestIcon, getQuestRewards } from "@/lib/types"
+import { getDifficultyString, getTimeEstimateString, getQuestIcon, getQuestRewards } from "@/lib/types"
+import { ccc } from "@ckb-ccc/core"
+import { mol } from "@ckb-ccc/mol"
 
 interface QuestCardProps {
   quest: QuestDataLike
@@ -49,8 +51,8 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
   }
 
   // Extract display values from schema
-  const questTitle = hexToString(quest.title)
-  const questDescription = hexToString(quest.description)
+  const questTitle = mol.String.decode(quest.title)
+  const questDescription = mol.String.decode(quest.description)
   const questDifficulty = getDifficultyString(quest.difficulty)
   const questTimeEstimate = getTimeEstimateString(quest.time_estimate)
   const questIcon = getQuestIcon(questTitle)
@@ -127,10 +129,10 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
             <h4 className="font-medium text-sm">Subtasks:</h4>
             <div className="space-y-2">
               {quest.sub_tasks?.map((subtask) => {
-                const subtaskTitle = hexToString(subtask.title)
-                const subtaskType = hexToString(subtask.type)
-                const subtaskDescription = hexToString(subtask.description)
-                const proofRequired = hexToString(subtask.proof_required)
+                const subtaskTitle = mol.String.decode(subtask.title)
+                const subtaskType = mol.String.decode(subtask.type)
+                const subtaskDescription = mol.String.decode(subtask.description)
+                const proofRequired = mol.String.decode(subtask.proof_required)
                 const isCompleted = false // Subtasks don't have completed property in schema
                 
                 return (
@@ -169,7 +171,7 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
             <Clock className="w-4 h-4" />
             {questTimeEstimate}
           </div>
-          <Link href={`/quest/${hexToString(quest.id)}?campaign=${campaignTypeHash}`}>
+          <Link href={`/campaign/${campaignTypeHash}/quest/${quest.quest_id}`}>
             <Button size="sm">Start Quest</Button>
           </Link>
         </div>

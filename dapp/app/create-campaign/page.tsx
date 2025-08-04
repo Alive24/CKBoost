@@ -12,12 +12,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle } from "lucide-react"
 import Link from "next/link"
 import { ccc, ScriptLike } from "@ckb-ccc/connector-react"
 import { CampaignService } from "@/lib/services/campaign-service"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import type { AssetListLike, CampaignDataLike, EndorserInfoLike, UDTAssetLike } from "ssri-ckboost/types"
+import type { 
+  AssetListLike, 
+  CampaignDataLike, 
+  EndorserInfoLike, 
+  UDTAssetLike,
+  QuestDataLike,
+  QuestSubTaskDataLike,
+  QuestMetadataLike,
+} from "ssri-ckboost/types"
 import { useCampaign } from "@/lib/providers/campaign-provider"
 
 export default function CreateCampaign() {
@@ -49,6 +58,20 @@ export default function CreateCampaign() {
   const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [currentWalletEndorser, setCurrentWalletEndorser] = useState<EndorserInfoLike | null>(null)
   const [endorserCheckComplete, setEndorserCheckComplete] = useState(false)
+  
+  // Quest state
+  const [quests, setQuests] = useState<Array<{
+    title: string
+    description: string
+    points: number
+    subtasks: Array<{
+      title: string
+      type: string
+      description: string
+      proofRequired: string
+    }>
+  }>>([])
+  const [showQuestForm, setShowQuestForm] = useState(false)
 
   const { campaign, campaignService, isLoading, error } = useCampaign()
 
@@ -59,43 +82,16 @@ export default function CreateCampaign() {
 
   // Load available endorsers and check if current wallet is an endorser
   useEffect(() => {
-    console.log("=== ENDORSER CHECK useEffect TRIGGERED ===")
-    console.log("protocolData exists?", !!protocolData)
-    console.log("protocolData.endorsers_whitelist exists?", !!protocolData?.endorsers_whitelist)
-    console.log("signer exists?", !!signer)
-    
     if (protocolData?.endorsers_whitelist) {
-      console.log("Setting available endorsers:", protocolData.endorsers_whitelist)
       setAvailableEndorsers(protocolData.endorsers_whitelist as EndorserInfoLike[])
       
       // Check if connected wallet is an endorser
       if (signer) {
         const checkEndorserStatus = async () => {
           try {
-            console.log("Getting wallet address...")
-            const addressString = await signer.getRecommendedAddress()
-            console.log("Wallet address string:", addressString)
-            
-            // Get the address object directly from signer
             const addressObj = await signer.getRecommendedAddressObj()
-            console.log("Address object:", addressObj)
-            
             const lockScript = addressObj.script
-            console.log("Lock script:", {
-              codeHash: lockScript.codeHash,
-              hashType: lockScript.hashType,
-              args: lockScript.args
-            })
-            
             const lockHash = lockScript.hash()
-            console.log("Connected wallet lock hash:", lockHash)
-            
-            console.log("Available endorsers full data:", protocolData.endorsers_whitelist)
-            console.log("Available endorsers processed:", protocolData.endorsers_whitelist.map(e => ({
-              name: e.endorser_name,
-              lockHash: typeof e.endorser_lock_hash === 'string' ? e.endorser_lock_hash : ccc.hexFrom(e.endorser_lock_hash),
-              rawLockHash: e.endorser_lock_hash
-            })))
             
             // Find if current wallet is in endorsers list
             const endorser = protocolData.endorsers_whitelist.find(e => {
@@ -103,45 +99,24 @@ export default function CreateCampaign() {
                 ? e.endorser_lock_hash 
                 : ccc.hexFrom(e.endorser_lock_hash);
               
-              console.log("Comparing endorser:", {
-                name: e.endorser_name,
-                endorserLockHash,
-                type: typeof e.endorser_lock_hash
-              })
-              
               // Compare without considering case and 0x prefix
               const normalizedEndorserHash = endorserLockHash.toLowerCase().replace(/^0x/, '');
               const normalizedWalletHash = lockHash.toLowerCase().replace(/^0x/, '');
               
-              console.log("Normalized comparison:", {
-                endorser: normalizedEndorserHash,
-                wallet: normalizedWalletHash,
-                match: normalizedEndorserHash === normalizedWalletHash
-              })
-              
               return normalizedEndorserHash === normalizedWalletHash;
             })
             
-            console.log("Found endorser:", endorser)
-            console.log("Setting currentWalletEndorser to:", endorser || null)
             setCurrentWalletEndorser(endorser || null)
           } catch (error) {
             console.error("Error checking endorser status:", error)
-            console.error("Error details:", {
-              message: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? error.stack : 'No stack trace available'
-            })
             setCurrentWalletEndorser(null)
           }
         }
         
         checkEndorserStatus()
       } else {
-        console.log("No signer, setting currentWalletEndorser to null")
         setCurrentWalletEndorser(null)
       }
-    } else {
-      console.log("No protocol data or endorsers_whitelist")
     }
   }, [protocolData, signer])
 
@@ -159,6 +134,13 @@ export default function CreateCampaign() {
     e.preventDefault()
     setIsSubmitting(true)
     setSubmitError(null)
+
+    console.log("=== CAMPAIGN SUBMISSION STARTED ===")
+    console.log("Form data:", formData)
+    console.log("CKB Reward:", ckbReward.toString())
+    console.log("NFT Rewards:", nftRewards)
+    console.log("UDT Rewards:", udtRewards)
+    console.log("Rules:", rules)
 
     try {
       // Validate required fields
@@ -180,8 +162,26 @@ export default function CreateCampaign() {
         throw new Error("Campaign service not available. Please ensure your wallet is connected.")
       }
 
+      console.log("=== BUILDING CAMPAIGN DATA ===")
+      console.log("Current wallet endorser:", currentWalletEndorser)
+
+      // Log string values (strings are sent as-is, encoding happens in the ssri-ckboost library)
+      console.log("String values to be sent:")
+      console.log("Title:", formData.title)
+      console.log("Short desc:", formData.shortDescription)
+      console.log("Long desc:", formData.longDescription)
+      console.log("Category:", formData.category)
+      console.log("Logo:", formData.logo)
+      console.log("Rules:", rules.filter(rule => rule.trim()))
+
       const campaignData: CampaignDataLike = {
-        endorser: currentWalletEndorser,
+        endorser: {
+          ...currentWalletEndorser,
+          endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
+          endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
+          website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
+          social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+        },
         created_at: ccc.numFrom(Date.now()),
         starting_time: ccc.numFrom(new Date(formData.startDate).getTime()),
         ending_time: ccc.numFrom(new Date(formData.endDate).getTime()),
@@ -192,28 +192,55 @@ export default function CreateCampaign() {
           categories: [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))],
           difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
           title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
-          endorser_info: currentWalletEndorser,
+          endorser_info: {
+            ...currentWalletEndorser,
+            endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
+            endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
+            website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
+            social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+          },
           image_url: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
-          short_description: "",
-          long_description: "",
+          short_description: ccc.hexFrom(ccc.bytesFrom(formData.shortDescription, "utf8")),
+          long_description: ccc.hexFrom(ccc.bytesFrom(formData.longDescription, "utf8")),
           total_rewards: {
+            points_amount: ccc.numFrom(formData.totalPoints || "0"),
             ckb_amount: ckbReward,
             nft_assets: nftRewards,
             udt_assets: udtRewards
           }
         },
         status: 0, // Created status
-        quests: [], // Empty for now
         participants_count: 0,
-        total_completions: 0
+        total_completions: 0,
+        quests: []
       }
 
+      console.log("=== FINAL CAMPAIGN DATA ===")
+      console.log(JSON.stringify(campaignData, (key, value) => {
+        // Convert BigInt to string for logging
+        if (typeof value === 'bigint') {
+          return value.toString() + 'n'
+        }
+        return value
+      }, 2))
+      
+      // Additional debugging - check data types
+      console.log("=== DATA TYPE CHECKS ===")
+      console.log("title type:", typeof campaignData.metadata.title)
+      console.log("title value:", campaignData.metadata.title)
+      console.log("short_description type:", typeof campaignData.metadata.short_description)
+      console.log("short_description value:", campaignData.metadata.short_description)
+      console.log("rules[0] type:", typeof campaignData.rules[0])
+      console.log("rules[0] value:", campaignData.rules[0])
+
       // Create campaign using campaign service
+      console.log("Calling campaignService.updateCampaign...")
       const txHash = await campaignService.updateCampaign(
         campaignData,
       ) 
 
-      console.log("Campaign created successfully:", txHash)
+      console.log("=== CAMPAIGN CREATED SUCCESSFULLY ===")
+      console.log("Transaction hash:", txHash)
       setIsSubmitted(true)
 
       // Reset form after success
@@ -222,7 +249,9 @@ export default function CreateCampaign() {
       }, 5000)
 
     } catch (error) {
-      console.error("Failed to create campaign:", error)
+      console.error("=== CAMPAIGN CREATION FAILED ===")
+      console.error("Error:", error)
+      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
       setSubmitError(error instanceof Error ? error.message : "Failed to create campaign")
     } finally {
       setIsSubmitting(false)
@@ -473,14 +502,6 @@ export default function CreateCampaign() {
   }
   
   // Show error if wallet is connected but not an endorser
-  console.log("=== AUTHORIZATION CHECK ===")
-  console.log("isWalletConnected:", isWalletConnected)
-  console.log("protocolData exists:", !!protocolData)
-  console.log("protocolLoading:", protocolLoading)
-  console.log("endorserCheckComplete:", endorserCheckComplete)
-  console.log("currentWalletEndorser:", currentWalletEndorser)
-  console.log("Will show Not Authorized?", isWalletConnected && protocolData && !protocolLoading && endorserCheckComplete && !currentWalletEndorser)
-  
   if (isWalletConnected && protocolData && !protocolLoading && endorserCheckComplete && !currentWalletEndorser) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -551,22 +572,6 @@ export default function CreateCampaign() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Debug Info - Temporary */}
-                {isWalletConnected && (
-                  <Alert className="mb-4">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      <div className="text-xs">
-                        <div>Wallet Connected: {isWalletConnected ? "Yes" : "No"}</div>
-                        <div>Endorser Status: {currentWalletEndorser ? "Approved" : "Not an endorser"}</div>
-                        {currentWalletEndorser && (
-                          <div>Endorser Name: {currentWalletEndorser.endorser_name}</div>
-                        )}
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 {/* Campaign Details */}
                 <Card>
                   <CardHeader>
@@ -856,6 +861,58 @@ export default function CreateCampaign() {
                   </CardContent>
                 </Card>
 
+                {/* Campaign Quests */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Campaign Quests</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {quests.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">
+                        No quests added yet. Add quests to define tasks for participants.
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {quests.map((quest, index) => (
+                          <div key={index} className="border rounded-lg p-4 space-y-2">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-semibold">{quest.title}</h4>
+                                <p className="text-sm text-muted-foreground">{quest.description}</p>
+                                <p className="text-sm mt-1">
+                                  <span className="font-medium">Points:</span> {quest.points}
+                                </p>
+                                <p className="text-sm">
+                                  <span className="font-medium">Subtasks:</span> {quest.subtasks.length}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setQuests(quests.filter((_, i) => i !== index))
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowQuestForm(true)}
+                      className="w-full bg-transparent"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Quest
+                    </Button>
+                  </CardContent>
+                </Card>
+
                 {/* Submit Button */}
                 <div className="flex justify-end">
                   <Button
@@ -1034,6 +1091,217 @@ export default function CreateCampaign() {
           </div>
         </div>
       </main>
+
+      {/* Quest Creation Dialog */}
+      <Dialog open={showQuestForm} onOpenChange={setShowQuestForm}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Quest</DialogTitle>
+          </DialogHeader>
+          <QuestCreationForm
+            onSave={(quest) => {
+              setQuests([...quests, quest])
+              setShowQuestForm(false)
+            }}
+            onCancel={() => setShowQuestForm(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+// Quest Creation Form Component
+function QuestCreationForm({ 
+  onSave, 
+  onCancel 
+}: { 
+  onSave: (quest: {
+    title: string
+    description: string
+    points: number
+    subtasks: Array<{
+      title: string
+      type: string
+      description: string
+      proofRequired: string
+    }>
+  }) => void
+  onCancel: () => void
+}) {
+  const [questData, setQuestData] = useState({
+    title: "",
+    description: "",
+    points: 0,
+  })
+  const [subtasks, setSubtasks] = useState<Array<{
+    title: string
+    type: string
+    description: string
+    proofRequired: string
+  }>>([])
+
+  const addSubtask = () => {
+    setSubtasks([...subtasks, {
+      title: "",
+      type: "social",
+      description: "",
+      proofRequired: ""
+    }])
+  }
+
+  const updateSubtask = (index: number, field: string, value: string) => {
+    const newSubtasks = [...subtasks]
+    newSubtasks[index] = { ...newSubtasks[index], [field]: value }
+    setSubtasks(newSubtasks)
+  }
+
+  const removeSubtask = (index: number) => {
+    setSubtasks(subtasks.filter((_, i) => i !== index))
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    onSave({
+      ...questData,
+      subtasks
+    })
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="quest-title">Quest Title</Label>
+        <Input
+          id="quest-title"
+          value={questData.title}
+          onChange={(e) => setQuestData({ ...questData, title: e.target.value })}
+          placeholder="e.g., Complete Social Media Tasks"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="quest-description">Quest Description</Label>
+        <Textarea
+          id="quest-description"
+          value={questData.description}
+          onChange={(e) => setQuestData({ ...questData, description: e.target.value })}
+          placeholder="Describe what participants need to do..."
+          className="h-20"
+          required
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="quest-points">Points Reward</Label>
+        <Input
+          id="quest-points"
+          type="number"
+          value={questData.points}
+          onChange={(e) => setQuestData({ ...questData, points: parseInt(e.target.value) || 0 })}
+          placeholder="100"
+          min="0"
+          required
+        />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-center">
+          <Label>Subtasks</Label>
+          <Button type="button" variant="outline" size="sm" onClick={addSubtask}>
+            <Plus className="w-4 h-4 mr-1" />
+            Add Subtask
+          </Button>
+        </div>
+
+        {subtasks.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
+            No subtasks yet. Add subtasks to break down the quest into steps.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {subtasks.map((subtask, index) => (
+              <Card key={index}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium">Subtask {index + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeSubtask(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        value={subtask.title}
+                        onChange={(e) => updateSubtask(index, "title", e.target.value)}
+                        placeholder="e.g., Follow on Twitter"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Type</Label>
+                      <Select
+                        value={subtask.type}
+                        onValueChange={(value) => updateSubtask(index, "type", value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="social">Social</SelectItem>
+                          <SelectItem value="technical">Technical</SelectItem>
+                          <SelectItem value="onchain">On-chain</SelectItem>
+                          <SelectItem value="content">Content</SelectItem>
+                          <SelectItem value="research">Research</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea
+                      value={subtask.description}
+                      onChange={(e) => updateSubtask(index, "description", e.target.value)}
+                      placeholder="Detailed instructions..."
+                      className="h-16"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Proof Required</Label>
+                    <Input
+                      value={subtask.proofRequired}
+                      onChange={(e) => updateSubtask(index, "proofRequired", e.target.value)}
+                      placeholder="e.g., Screenshot of follow confirmation"
+                      required
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit">
+          Create Quest
+        </Button>
+      </DialogFooter>
+    </form>
   )
 }

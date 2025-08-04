@@ -30,15 +30,6 @@ export type {
   CampaignMetadataLike,
 } from 'ssri-ckboost/types'
 
-// Import for use in interfaces below
-import type { QuestSubTaskDataLike } from 'ssri-ckboost/types'
-
-// Utility functions for working with schema types
-
-export function stringToHex(str: string): ccc.Hex {
-  return ccc.hexFrom(ccc.bytesFrom(str, "utf8"))
-}
-
 // Display helpers for numeric difficulty values
 export function getDifficultyString(difficulty: ccc.NumLike): string {
   const num = Number(difficulty)

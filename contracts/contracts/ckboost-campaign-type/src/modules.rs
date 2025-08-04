@@ -320,7 +320,6 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
     fn approve_completion(
         tx: Option<Transaction>,
-        campaign_id: SharedByte32,
         quest_data: QuestData,
     ) -> Result<Transaction, Error> {
         debug!("CKBoostCampaignType::approve_completion - Starting quest completion");
@@ -360,7 +359,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         let current_script = load_script()?;
 
         // Find campaign cell by ID
-        // In a real implementation, this would search through cells to find the one with matching campaign_id
+        // In a real implementation, this would search through cells to find the one with matching campaign_type_hash
         // For now, we assume the campaign cell is provided in the transaction
         let _campaign_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
 

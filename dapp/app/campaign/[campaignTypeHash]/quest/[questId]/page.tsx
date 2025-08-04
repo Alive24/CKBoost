@@ -35,15 +35,12 @@ const CURRENT_USER = {
 // Import types and utilities
 import type { QuestDataLike, QuestSubTaskDataLike } from "@/lib/types"
 import { 
-  hexToString, 
-  stringToHex, 
   getDifficultyString, 
   getTimeEstimateString,
   getQuestIcon,
-  getQuestRewards,
-  isSubtaskCompleted
+  getQuestRewards
 } from "@/lib/types"
-import { ccc } from "@ckb-ccc/core"
+import { ccc, mol } from "@ckb-ccc/core"
 
 // Create mock quest data using schema types
 const createMockSubtask = (
@@ -54,32 +51,24 @@ const createMockSubtask = (
   proofRequired: string
 ): QuestSubTaskDataLike => ({
   id,
-  title: stringToHex(title),
-  type: stringToHex(type),
-  description: stringToHex(description),
-  proof_required: stringToHex(proofRequired)
+  title: ccc.hexFrom(ccc.bytesFrom(title, "utf8")),
+  type: ccc.hexFrom(ccc.bytesFrom(type, "utf8")),
+  description: ccc.hexFrom(ccc.bytesFrom(description, "utf8")),
+  proof_required: ccc.hexFrom(ccc.bytesFrom(proofRequired, "utf8"))
 })
 
 const createMockQuest = (
-  id: number,
-  campaignId: string,
-  data: {
-    title: string
-    description: string
-    points: number
-    difficulty: number
-    timeEstimate: number
-    completions: number
-    status: number
-    subtasks: QuestSubTaskDataLike[]
-    rewardAmounts: { symbol: string; amount: number }[]
-  }
-): QuestDataLike => ({
-  id: stringToHex(id.toString()),
-  campaign_id: campaignId as ccc.Hex,
-  title: stringToHex(data.title),
-  description: stringToHex(data.description),
-  requirements: stringToHex("Complete all subtasks"),
+id: number, p0: string, data: {
+  title: string
+  description: string
+  points: number
+  difficulty: number
+  timeEstimate: number
+  completions: number
+  status: number
+  subtasks: QuestSubTaskDataLike[]
+  rewardAmounts: { symbol: string; amount: number} []
+}): QuestDataLike => ({
   rewards_on_completion: [{
     ckb_amount: BigInt(0),
     nft_assets: [],
@@ -90,16 +79,24 @@ const createMockQuest = (
         args: "0x" + "00".repeat(20) as ccc.Hex
       },
       amount: BigInt(reward.amount)
-    }))
+    })),
+    points_amount: ccc.numFrom(data.points)
   }],
-  completion_records: [],
   completion_deadline: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000),
   status: data.status,
   sub_tasks: data.subtasks,
   points: data.points,
-  difficulty: data.difficulty,
-  time_estimate: data.timeEstimate,
-  completion_count: data.completions
+  completion_count: data.completions,
+  quest_id: ccc.numFrom(id),
+  metadata: {
+    title: ccc.hexFrom(ccc.bytesFrom(data.title, "utf8")),
+    short_description: ccc.hexFrom(ccc.bytesFrom(data.description, "utf8")),
+    long_description: ccc.hexFrom(ccc.bytesFrom(data.description, "utf8")),
+    requirements: ccc.hexFrom(ccc.bytesFrom("Complete all subtasks", "utf8")),
+    difficulty: ccc.numFrom(data.difficulty),
+    time_estimate: ccc.numFrom(data.timeEstimate)
+  },
+  accepted_submission_lock_hashes: []
 })
 
 // Mock quest data
@@ -171,16 +168,14 @@ const QUEST_METADATA: Record<number, {
 export default function QuestDetail() {
   const params = useParams()
   const searchParams = useSearchParams()
-  const questId = Number.parseInt(params.id as string)
+  const campaignTypeHash = params.campaignTypeHash as string
+  const questId = Number.parseInt(params.questId as string)
   const quest = QUEST_DATA[questId]
   const metadata = QUEST_METADATA[questId]
   const redirectUrl = searchParams.get("redirect") || "/"
 
-  // Mock campaign type hash (in real app, would be fetched from quest data)
-  const campaignTypeHash = hexToString(quest?.campaign_id || "0x")
-
   const [proofSubmissions, setProofSubmissions] = useState<
-    Record<number, { type: string; value: string; file?: File }>
+    Record<string, { type: string; value: string; file?: File }>
   >({})
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -193,10 +188,10 @@ export default function QuestDetail() {
     quest?.sub_tasks?.map(() => ({ completed: false })) || []
   )
 
-  const handleProofChange = (subtaskId: number, type: string, value: string, file?: File) => {
+  const handleProofChange = (subtaskId: ccc.NumLike, type: string, value: string, file?: File) => {
     setProofSubmissions((prev) => ({
       ...prev,
-      [subtaskId]: { type, value, file },
+      [subtaskId.toString()]: { type, value, file },
     }))
   }
 
@@ -286,10 +281,10 @@ export default function QuestDetail() {
   const allSubtasksCompleted = completedSubtasks === quest.sub_tasks.length
 
   // Extract display values from schema
-  const questTitle = hexToString(quest.title)
-  const questDescription = hexToString(quest.description)
-  const questDifficulty = getDifficultyString(quest.difficulty)
-  const questTimeEstimate = getTimeEstimateString(quest.time_estimate)
+  const questTitle = mol.String.decode(quest.metadata.title)
+  const questDescription = mol.String.decode(quest.metadata.short_description)
+  const questDifficulty = getDifficultyString(quest.metadata.difficulty)
+  const questTimeEstimate = getTimeEstimateString(quest.metadata.time_estimate)
   const questIcon = getQuestIcon(questTitle)
   const questRewards = getQuestRewards(quest)
 
@@ -366,7 +361,7 @@ export default function QuestDetail() {
                   <CardContent className="space-y-2">
                     <p className="text-sm text-amber-700">You own this campaign</p>
                     <div className="flex gap-2">
-                      <Link href={`/quest/${questId}/edit`}>
+                      <Link href={`/campaign/${campaignTypeHash}/quest/${questId}/edit`}>
                         <Button size="sm" variant="outline" className="bg-white">
                           <Edit className="w-4 h-4 mr-1" />
                           Edit Quest
@@ -455,10 +450,10 @@ export default function QuestDetail() {
             </CardHeader>
             <CardContent className="space-y-4">
               {quest.sub_tasks.map((subtask, index) => {
-                const subtaskTitle = hexToString(subtask.title)
-                const subtaskType = hexToString(subtask.type)
-                const subtaskDescription = hexToString(subtask.description)
-                const subtaskProofRequired = hexToString(subtask.proof_required)
+                const subtaskTitle = mol.String.decode(subtask.title)
+                const subtaskType = mol.String.decode(subtask.type)
+                const subtaskDescription = mol.String.decode(subtask.description)
+                const subtaskProofRequired = mol.String.decode(subtask.proof_required)
                 const isCompleted = subtasks[index]?.completed || false
 
                 return (
@@ -505,7 +500,7 @@ export default function QuestDetail() {
                             <Button
                               onClick={() => handleSubtaskComplete(index)}
                               disabled={
-                                isCompleted || !proofSubmissions[subtask.id]?.value
+                                isCompleted || !proofSubmissions[subtask.id.toString()]?.value
                               }
                               size="sm"
                             >

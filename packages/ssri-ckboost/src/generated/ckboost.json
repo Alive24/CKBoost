@@ -437,6 +437,10 @@
       "name": "AssetList",
       "fields": [
         {
+          "name": "points_amount",
+          "type": "Uint64"
+        },
+        {
           "name": "ckb_amount",
           "type": "Uint64"
         },

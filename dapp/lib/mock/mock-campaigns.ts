@@ -6,10 +6,6 @@
 import type { CampaignDataLike, QuestDataLike, AssetListLike } from 'ssri-ckboost/types'
 import { ccc } from "@ckb-ccc/core"
 
-// Helper function to convert string to hex
-function stringToHex(str: string): ccc.Hex {
-  return ccc.hexFrom(ccc.bytesFrom(str, "utf8"))
-}
 
 // Mock endorser names - In production, this would come from the protocol endorsers whitelist
 const MOCK_ENDORSER_NAMES = {
@@ -25,7 +21,6 @@ const MOCK_ENDORSER_NAMES = {
 
 // Create mock campaign data that matches the schema structure
 const createMockQuest = (
-  id: number,
   title: string,
   description: string,
   points: number,
@@ -33,20 +28,22 @@ const createMockQuest = (
   timeEstimate: number,
   rewardsList: AssetListLike[]
 ): QuestDataLike => ({
-  id: stringToHex(id.toString()),
-  campaign_id: "0x00" as ccc.Hex,
-  title: stringToHex(title),
-  description: stringToHex(description),
-  requirements: stringToHex("Complete all subtasks"),
   rewards_on_completion: rewardsList,
-  completion_records: [],
   completion_deadline: BigInt(Date.now() + 30 * 24 * 60 * 60 * 1000),
   status: 1,
   sub_tasks: [],
   points: BigInt(points),
-  difficulty,
-  time_estimate: BigInt(timeEstimate),
-  completion_count: 0
+  completion_count: 0,
+  quest_id: '',
+  metadata: {
+    title: ccc.hexFrom(ccc.bytesFrom(title, "utf8")),
+    short_description: ccc.hexFrom(ccc.bytesFrom(description, "utf8")),
+    long_description: ccc.hexFrom(ccc.bytesFrom(description, "utf8")),
+    requirements: ccc.hexFrom(ccc.bytesFrom("Complete all subtasks", "utf8")),
+    difficulty: ccc.numFrom(difficulty),
+    time_estimate: ccc.numFrom(timeEstimate)
+  },
+  accepted_submission_lock_hashes: [],
 })
 
 const createMockCampaign = (
@@ -66,39 +63,46 @@ const createMockCampaign = (
     quests: QuestDataLike[]
   }
 ): CampaignDataLike => ({
-  id: stringToHex(id.toString()),
-  title: stringToHex(data.title),
-  short_description: stringToHex(data.shortDescription),
-  long_description: stringToHex(data.longDescription),
-  creator: {
-    codeHash: "0x" + "00".repeat(32) as ccc.Hex,
-    hashType: "type",
-    args: "0x" + "00".repeat(20) as ccc.Hex
-  },
-  endorser_info: {
-    endorser_lock_hash: "0x" + "00".repeat(32) as ccc.Hex,
-    endorser_name: stringToHex(data.endorserName),
-    endorser_description: stringToHex("Trusted endorser"),
-    website: stringToHex(""),
-    social_links: [],
-    verified: 1
-  },
   metadata: {
-    funding_info: [],
-    created_at: BigInt(Date.now()),
-    starting_time: BigInt(new Date(data.startDate).getTime()),
-    ending_time: BigInt(new Date(data.endDate).getTime()),
-    verification_requirements: data.verificationRequirements,
     last_updated: BigInt(Date.now()),
-    categories: data.categories.map(stringToHex),
+    categories: data.categories.map(cat => ccc.hexFrom(ccc.bytesFrom(cat, "utf8"))),
     difficulty: data.difficulty,
-    image_cid: stringToHex(data.image),
-    rules: data.rules.map(stringToHex)
+    title: '',
+    short_description: '',
+    long_description: '',
+    total_rewards: {
+      points_amount: ccc.numFrom(0),
+      ckb_amount: 0n,
+      nft_assets: [],
+      udt_assets: []
+    },
+    verification_requirements: [],
+    image_url: '',
+    endorser_info: {
+      endorser_lock_hash: '',
+      endorser_name: '',
+      endorser_description: '',
+      website: '',
+      social_links: [],
+      verified: 1
+    }
   },
   status: 1,
   quests: data.quests,
   participants_count: 0,
-  total_completions: 0
+  total_completions: 0,
+  endorser: {
+    endorser_lock_hash: '',
+    endorser_name: '',
+    endorser_description: '',
+    website: '',
+    social_links: [],
+    verified: 1
+  },
+  created_at: '',
+  starting_time: '',
+  ending_time: '',
+  rules: []
 })
 
 // Mock campaign data - In production, this would be fetched from CKB blockchain
@@ -782,7 +786,6 @@ function mockCampaignToSchema(mockCampaign: any): CampaignDataLike {
     })) || []
     
     return createMockQuest(
-      quest.id || index + 1,
       quest.title,
       quest.description,
       Number(quest.points?.toString() || quest.rewards?.points?.toString() || 0),

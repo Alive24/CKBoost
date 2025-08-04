@@ -17,6 +17,7 @@ const QUEST_DATA: Record<number, any> = {
     id: 1,
     title: "Create CKB Tutorial Video",
     campaignName: "CKB Ecosystem Growth Initiative",
+    campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
     status: "active",
     participants: 12,
     rewards: {
@@ -372,7 +373,7 @@ export default function FundQuest() {
                   <CardTitle className="text-lg">Quick Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Link href={`/quest/${quest.id}`}>
+                  <Link href={`/campaign/${quest.campaignTypeHash}/quest/${quest.id}`}>
                     <Button variant="outline" className="w-full justify-start bg-transparent">
                       <ExternalLink className="w-4 h-4 mr-2" />
                       View Quest Details

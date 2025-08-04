@@ -111,7 +111,7 @@ export class Campaign extends ssri.Trait {
    * Approve a quest completion
    *
    * @param _signer - The signer for the transaction
-   * @param campaignId - The campaign ID
+   * @param campaignTypeHash - The campaign type hash
    * @param questData - The quest completion data
    * @param tx - Optional existing transaction
    * @returns The updated transaction

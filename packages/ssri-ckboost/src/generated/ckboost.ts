@@ -30,6 +30,7 @@ export const UDTAsset = mol.table({
 });
 export const UDTAssetVec = mol.vector(UDTAsset);
 export const AssetList = mol.table({
+  points_amount: mol.Uint64,
   ckb_amount: mol.Uint64,
   nft_assets: mol.vector(ccc.Script),
   udt_assets: UDTAssetVec
@@ -189,6 +190,7 @@ export interface UDTAssetLike {
 }
 
 export interface AssetListLike {
+  points_amount: ccc.NumLike;
   ckb_amount: ccc.NumLike;
   nft_assets: ccc.ScriptLike[];
   udt_assets: UDTAssetLike[];

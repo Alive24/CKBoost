@@ -43,9 +43,9 @@ const MOCK_USER_DATA = {
     { type: "quest_completed", title: "Write Technical Blog Post", points: 150, timestamp: "2024-02-25T14:10:00Z" },
   ],
   activeQuests: [
-    { id: 1, title: "CKB Ecosystem Tutorial", progress: 75, totalSteps: 4, currentStep: 3, points: 300 },
-    { id: 2, title: "Community Engagement Challenge", progress: 40, totalSteps: 5, currentStep: 2, points: 250 },
-    { id: 3, title: "DeFi Protocol Analysis", progress: 20, totalSteps: 3, currentStep: 1, points: 400 },
+    { id: 1, title: "CKB Ecosystem Tutorial", progress: 75, totalSteps: 4, currentStep: 3, points: 300, campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001" },
+    { id: 2, title: "Community Engagement Challenge", progress: 40, totalSteps: 5, currentStep: 2, points: 250, campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001" },
+    { id: 3, title: "DeFi Protocol Analysis", progress: 20, totalSteps: 3, currentStep: 1, points: 400, campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002" },
   ],
   upcomingDeadlines: [
     { questId: 1, title: "CKB Ecosystem Tutorial", deadline: "2024-03-05", daysLeft: 5 },
@@ -224,7 +224,7 @@ export default function Dashboard() {
                             <Badge variant="outline">{quest.points} points</Badge>
                           </div>
                         </div>
-                        <Link href={`/quest/${quest.id}`}>
+                        <Link href={`/campaign/${quest.campaignTypeHash}/quest/${quest.id}`}>
                           <Button size="sm">Continue</Button>
                         </Link>
                       </div>

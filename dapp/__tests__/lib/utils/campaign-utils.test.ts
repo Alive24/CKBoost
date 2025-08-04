@@ -5,16 +5,15 @@ import {
   formatDate,
 } from '@/lib/utils/campaign-utils'
 import { type MockCampaignData } from '@/lib/ckb/campaign-cells'
-import { stringToHex } from '@/lib/types'
 import { ccc } from "@ckb-ccc/core"
 
 // Helper to create a test campaign that matches the MockCampaignData structure
 function createTestCampaign(overrides?: Partial<any>): MockCampaignData {
   const defaults = {
-    id: stringToHex('1'),
-    title: stringToHex('Test Campaign'),
-    short_description: stringToHex('Test Description'),
-    long_description: stringToHex('Test Long Description'),
+    id: ccc.hexFrom(ccc.bytesFrom('1', "utf8")),
+    title: ccc.hexFrom(ccc.bytesFrom('Test Campaign', "utf8")),
+    short_description: ccc.hexFrom(ccc.bytesFrom('Test Description', "utf8")),
+    long_description: ccc.hexFrom(ccc.bytesFrom('Test Long Description', "utf8")),
     creator: {
       codeHash: "0x" + "00".repeat(32) as ccc.Hex,
       hashType: "type" as const,
@@ -22,9 +21,9 @@ function createTestCampaign(overrides?: Partial<any>): MockCampaignData {
     },
     endorser_info: {
       endorser_lock_hash: "0x" + "00".repeat(32) as ccc.Hex,
-      endorser_name: stringToHex('Test Endorser'),
-      endorser_description: stringToHex('Test Endorser Description'),
-      website: stringToHex(''),
+      endorser_name: ccc.hexFrom(ccc.bytesFrom('Test Endorser', "utf8")),
+      endorser_description: ccc.hexFrom(ccc.bytesFrom('Test Endorser Description', "utf8")),
+      website: ccc.hexFrom(ccc.bytesFrom('', "utf8")),
       social_links: [],
       verified: 1
     },
@@ -35,9 +34,9 @@ function createTestCampaign(overrides?: Partial<any>): MockCampaignData {
       ending_time: BigInt(new Date('2024-01-20T12:00:00.000Z').getTime()),
       verification_requirements: 0,
       last_updated: BigInt(Date.now()),
-      categories: [stringToHex('Test')],
+      categories: [ccc.hexFrom(ccc.bytesFrom('Test', "utf8"))],
       difficulty: 1,
-      image_cid: stringToHex(''),
+      image_cid: ccc.hexFrom(ccc.bytesFrom('', "utf8")),
       rules: []
     },
     status: 1,

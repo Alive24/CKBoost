@@ -34,7 +34,6 @@ pub trait CKBoostCampaign {
     /// # Arguments
     /// 
     /// * `tx` - Optional existing transaction to build upon
-    /// * `campaign_id` - The campaign that contains the quest
     /// * `quest_data` - The quest completion data including proof
     /// 
     /// # Returns
@@ -42,7 +41,6 @@ pub trait CKBoostCampaign {
     /// Returns a transaction with the quest completion processed
     fn approve_completion(
         tx: Option<Transaction>,
-        campaign_id: Byte32,
         quest_data: QuestData,
     ) -> Result<Transaction, Error>;
     
