@@ -131,7 +131,7 @@ export const ProtocolConfig = mol.table({
   script_code_hashes: ScriptCodeHashes
 });
 export const ProtocolData = mol.table({
-  campaigns_approved: CampaignDataVec,
+  campaigns_approved: mol.Byte32Vec,
   tipping_proposals: TippingProposalDataVec,
   tipping_config: TippingConfig,
   endorsers_whitelist: EndorserInfoVec,
@@ -297,7 +297,7 @@ export interface ProtocolConfigLike {
 }
 
 export interface ProtocolDataLike {
-  campaigns_approved: CampaignDataLike[];
+  campaigns_approved: ccc.HexLike[];
   tipping_proposals: TippingProposalDataLike[];
   tipping_config: TippingConfigLike;
   endorsers_whitelist: EndorserInfoLike[];

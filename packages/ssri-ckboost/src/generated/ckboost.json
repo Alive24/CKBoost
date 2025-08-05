@@ -824,7 +824,7 @@
       "fields": [
         {
           "name": "campaigns_approved",
-          "type": "CampaignDataVec"
+          "type": "Byte32Vec"
         },
         {
           "name": "tipping_proposals",
