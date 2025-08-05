@@ -200,12 +200,12 @@ export class Protocol extends ssri.Trait {
           ?.ckb_boost_user_type_code_hash
           ? ccc.hexFrom(config.script_code_hashes.ckb_boost_user_type_code_hash)
           : ccc.hexFrom("0x" + "0".repeat(64)),
-        accepted_udt_type_code_hashes: (
-          config.script_code_hashes?.accepted_udt_type_code_hashes || []
-        ).map((hash) => ccc.hexFrom(hash)),
-        accepted_dob_type_code_hashes: (
-          config.script_code_hashes?.accepted_dob_type_code_hashes || []
-        ).map((hash) => ccc.hexFrom(hash)),
+        accepted_udt_type_scripts: (
+          config.script_code_hashes?.accepted_udt_type_scripts || []
+        ).map((script) => ccc.Script.from(script)),
+        accepted_dob_type_scripts: (
+          config.script_code_hashes?.accepted_dob_type_scripts || []
+        ).map((script) => ccc.Script.from(script)),
       },
     };
   }

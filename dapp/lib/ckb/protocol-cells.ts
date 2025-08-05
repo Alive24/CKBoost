@@ -2,13 +2,10 @@
 // This file handles fetching protocol data from CKB blockchain
 
 import { ccc } from "@ckb-ccc/core";
-import type { ProtocolDataLike } from "ssri-ckboost/types";
 import {
-  ProtocolMetrics,
   ProtocolTransaction,
 } from "../types/protocol";
 import { deploymentManager, DeploymentManager } from "./deployment-manager";
-import { ProtocolData } from "ssri-ckboost/types";
 
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
 // Get protocol type script from deployments.json
@@ -154,14 +151,14 @@ export async function fetchProtocolCell(
  * @returns Array of protocol transactions
  */
 export async function fetchProtocolTransactions(
-  _signer?: ccc.Signer,
-  _limit: number = 50
+  signer?: ccc.Signer,
+  limit: number = 50
 ): Promise<ProtocolTransaction[]> {
 
   try {
     // TODO: Implement real transaction history fetching
     // This would involve querying the CKB indexer for transactions that modified the protocol cell
-
+    console.log(signer, limit)
     console.warn("Protocol transaction history fetching not yet implemented");
     return [];
   } catch (error) {

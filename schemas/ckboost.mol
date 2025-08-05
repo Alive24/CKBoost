@@ -251,8 +251,8 @@ table ScriptCodeHashes {
     ckb_boost_campaign_type_code_hash: Byte32,
     ckb_boost_campaign_lock_code_hash: Byte32,
     ckb_boost_user_type_code_hash: Byte32,
-    accepted_udt_type_code_hashes: Byte32Vec,
-    accepted_dob_type_code_hashes: Byte32Vec,
+    accepted_udt_type_scripts: ScriptVec,
+    accepted_dob_type_scripts: ScriptVec,
 }
 
 table ProtocolConfig {

@@ -7,7 +7,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { ccc, mol, ssri } from "@ckb-ccc/connector-react";
+import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
@@ -112,6 +112,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       // Refresh from service
       const allCampaigns = await CampaignService.getAllCampaigns(signer);
       // Convert to UI format
+      console.log(allCampaigns)
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to refresh campaigns"
@@ -193,7 +194,7 @@ export function useCampaign(typeHash?: ccc.Hex) {
     campaign = new Campaign(outPoint, campaignTypeScript, {
       executor: executor,
     });
-    campaignService = new CampaignService(signer, campaign, executor);
+    campaignService = new CampaignService(signer, campaign);
   } else {
     campaignCell = getCampaignByTypeHash(typeHash);
     if (!campaignCell?.outPoint) {
@@ -210,7 +211,7 @@ export function useCampaign(typeHash?: ccc.Hex) {
       }
     )
   }
-  campaignService = new CampaignService(signer, campaign, executor);
+  campaignService = new CampaignService(signer, campaign);
   return {
     campaign,
     campaignService,

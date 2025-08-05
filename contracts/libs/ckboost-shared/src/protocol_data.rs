@@ -1,5 +1,5 @@
 // cspell:ignore celldeps udts
-pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec};
+pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec, ScriptVec, Script};
 use ckb_std::{
     debug, 
     high_level::{load_cell_data, load_cell_type, load_script, QueryIter},
@@ -125,11 +125,11 @@ pub trait ProtocolDataExt {
     /// Get user type code hash
     fn user_type_code_hash(&self) -> [u8; 32];
     
-    /// Get accepted UDT type hashes
-    fn accepted_udt_type_hashes(&self) -> Vec<[u8; 32]>;
+    /// Get accepted UDT type scripts
+    fn accepted_udt_type_scripts(&self) -> Vec<Script>;
     
-    /// Get accepted DOB (Digital Object) type hashes
-    fn accepted_dob_type_code_hashes(&self) -> Vec<[u8; 32]>;
+    /// Get accepted DOB (Digital Object) type scripts
+    fn accepted_dob_type_scripts(&self) -> Vec<Script>;
     
     /// Check if all required type hashes are present
     fn validate_protocol(&self) -> Result<(), crate::error::Error>;
@@ -169,36 +169,32 @@ impl ProtocolDataExt for ProtocolData {
         result
     }
     
-    /// Get accepted UDT type hashes
-    fn accepted_udt_type_hashes(&self) -> Vec<[u8; 32]> {
-        let hashes = self
+    /// Get accepted UDT type scripts
+    fn accepted_udt_type_scripts(&self) -> Vec<Script> {
+        let scripts = self
             .protocol_config()
             .script_code_hashes()
-            .accepted_udt_type_code_hashes();
+            .accepted_udt_type_scripts();
             
         let mut result = Vec::new();
-        for i in 0..hashes.len() {
-            let hash = hashes.get(i).unwrap();
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(hash.as_slice());
-            result.push(arr);
+        for i in 0..scripts.len() {
+            let script = scripts.get(i).unwrap();
+            result.push(script);
         }
         result
     }
     
-    /// Get accepted DOB (Digital Object) type hashes
-    fn accepted_dob_type_code_hashes(&self) -> Vec<[u8; 32]> {
-        let hashes = self
+    /// Get accepted DOB (Digital Object) type scripts
+    fn accepted_dob_type_scripts(&self) -> Vec<Script> {
+        let scripts = self
             .protocol_config()
             .script_code_hashes()
-            .accepted_dob_type_code_hashes();
+            .accepted_dob_type_scripts();
             
         let mut result = Vec::new();
-        for i in 0..hashes.len() {
-            let hash = hashes.get(i).unwrap();
-            let mut arr = [0u8; 32];
-            arr.copy_from_slice(hash.as_slice());
-            result.push(arr);
+        for i in 0..scripts.len() {
+            let script = scripts.get(i).unwrap();
+            result.push(script);
         }
         result
     }
@@ -290,8 +286,10 @@ pub fn get_protocol_data_ssri(protocol_type_script: ckb_std::ckb_types::packed::
 
 #[cfg(test)]
 mod tests {
+    use ckb_std::ckb_types::core::ScriptHashType;
+
     use super::*;
-    use crate::generated::ckboost::ProtocolConfig;
+    use crate::{generated::ckboost::ProtocolConfig, types::Bytes};
     
     #[test]
     fn test_protocol_data_serialization() {
@@ -302,8 +300,8 @@ mod tests {
             .ckb_boost_campaign_type_code_hash(Byte32::from([2u8; 32]))
             .ckb_boost_campaign_lock_code_hash(Byte32::from([12u8; 32]))
             .ckb_boost_user_type_code_hash(Byte32::from([3u8; 32]))
-            .accepted_udt_type_code_hashes(Byte32Vec::new_builder().build())
-            .accepted_dob_type_code_hashes(Byte32Vec::new_builder().build())
+            .accepted_udt_type_scripts(ScriptVec::new_builder().build())
+            .accepted_dob_type_scripts(ScriptVec::new_builder().build())
             .build();
             
         let protocol_config = ProtocolConfig::new_builder()
@@ -329,16 +327,28 @@ mod tests {
     #[test]
     fn test_protocol_data_validation() {
         // Create test protocol data with some accepted UDTs and DOBs
-        let udt1 = Byte32::from([10u8; 32]);
-        let udt2 = Byte32::from([20u8; 32]);
-        let accepted_udts = Byte32Vec::new_builder()
-            .push(udt1)
-            .push(udt2)
+        let udt1_script = Script::new_builder()
+            .code_hash(Byte32::from([10u8; 32]))
+            .hash_type(ScriptHashType::Data)
+            .args(Bytes::from(vec![1u8, 2u8, 3u8]))
+            .build();
+        let udt2_script = Script::new_builder()
+            .code_hash(Byte32::from([20u8; 32]))
+            .hash_type(ScriptHashType::Data)
+            .args(Bytes::from(vec![4u8, 5u8, 6u8]))
+            .build();
+        let accepted_udts = ScriptVec::new_builder()
+            .push(udt1_script)
+            .push(udt2_script)
             .build();
             
-        let dob1 = Byte32::from([30u8; 32]);
-        let accepted_dobs = Byte32Vec::new_builder()
-            .push(dob1)
+        let dob1_script = Script::new_builder()
+            .code_hash(Byte32::from([30u8; 32]))
+            .hash_type(ScriptHashType::Data)
+            .args(Bytes::from(vec![7u8, 8u8, 9u8]))
+            .build();
+        let accepted_dobs = ScriptVec::new_builder()
+            .push(dob1_script)
             .build();
             
         let script_code_hashes = ScriptCodeHashes::new_builder()
@@ -347,8 +357,8 @@ mod tests {
             .ckb_boost_campaign_type_code_hash(Byte32::from([2u8; 32]))
             .ckb_boost_campaign_lock_code_hash(Byte32::from([12u8; 32]))
             .ckb_boost_user_type_code_hash(Byte32::from([3u8; 32]))
-            .accepted_udt_type_code_hashes(accepted_udts)
-            .accepted_dob_type_code_hashes(accepted_dobs)
+            .accepted_udt_type_scripts(accepted_udts)
+            .accepted_dob_type_scripts(accepted_dobs)
             .build();
             
         let protocol_config = ProtocolConfig::new_builder()
@@ -363,14 +373,32 @@ mod tests {
         assert!(data.validate_protocol().is_ok());
         
         // Test accepted UDTs
-        let udts = data.accepted_udt_type_hashes();
+        let udts = data.accepted_udt_type_scripts();
         assert_eq!(udts.len(), 2);
-        assert_eq!(udts[0], [10u8; 32]);
-        assert_eq!(udts[1], [20u8; 32]);
+        // Check first UDT script
+        let udt1 = &udts[0];
+        let mut expected_hash = [0u8; 32];
+        expected_hash.copy_from_slice(&[10u8; 32]);
+        assert_eq!(udt1.code_hash().as_slice(), &expected_hash);
+        assert_eq!(udt1.hash_type().as_slice(), &[0u8]);
+        assert_eq!(udt1.args().raw_data(), vec![1u8, 2u8, 3u8]);
+        
+        // Check second UDT script  
+        let udt2 = &udts[1];
+        let mut expected_hash2 = [0u8; 32];
+        expected_hash2.copy_from_slice(&[20u8; 32]);
+        assert_eq!(udt2.code_hash().as_slice(), &expected_hash2);
+        assert_eq!(udt2.hash_type().as_slice(), &[0u8]);
+        assert_eq!(udt2.args().raw_data(), vec![4u8, 5u8, 6u8]);
         
         // Test accepted DOBs
-        let dobs = data.accepted_dob_type_code_hashes();
+        let dobs = data.accepted_dob_type_scripts();
         assert_eq!(dobs.len(), 1);
-        assert_eq!(dobs[0], [30u8; 32]);
+        let dob1 = &dobs[0];
+        let mut expected_hash3 = [0u8; 32];
+        expected_hash3.copy_from_slice(&[30u8; 32]);
+        assert_eq!(dob1.code_hash().as_slice(), &expected_hash3);
+        assert_eq!(dob1.hash_type().as_slice(), &[1u8]);
+        assert_eq!(dob1.args().raw_data(), vec![7u8, 8u8, 9u8]);
     }
 }

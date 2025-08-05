@@ -2,23 +2,10 @@
 // This file contains functions to interact with CKB blockchain for campaign data
 
 import { ccc } from "@ckb-ccc/core"
-import type { CampaignDataLike, UserSubmissionRecordLike } from "ssri-ckboost/types"
+import type { UserSubmissionRecordLike } from "ssri-ckboost/types"
 
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true // Set to true when blockchain is available
-
-// CKB Script Configuration - Replace with actual deployed script hashes
-const CAMPAIGN_TYPE_SCRIPT = {
-  codeHash: "0x...", // Your campaign type script code hash
-  hashType: "type" as const,
-  args: "0x" // Campaign registry args
-}
-
-const USER_PROGRESS_TYPE_SCRIPT = {
-  codeHash: "0x...", // Your user progress type script code hash  
-  hashType: "type" as const,
-  args: "0x" // User progress args
-}
 
 /**
  * Fetch all campaign cells from CKB blockchain or return mock data

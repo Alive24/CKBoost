@@ -24,11 +24,8 @@ use ckb_testtool::{
 };
 use ckboost_shared::{
     generated::ckboost::{
-        ProtocolDataBuilder, ProtocolConfigBuilder, 
-        ScriptCodeHashesBuilder, Byte32Vec, TippingConfigBuilder,
-        CampaignDataVec, TippingProposalDataVec, EndorserInfoVec,
-        Uint128Vec, Byte32, Uint64,
-    },
+        Byte32, Byte32Vec, CampaignDataVec, EndorserInfoVec, ProtocolConfigBuilder, ProtocolDataBuilder, ScriptCodeHashesBuilder, TippingConfigBuilder, TippingProposalDataVec, Uint128Vec, Uint64
+    }, types::ScriptVec,
 };
 
 /// Helper to create protocol data with admin lock and optional tipping proposal  
@@ -44,8 +41,8 @@ fn create_protocol_data(admin_lock_hash: [u8; 32], _tipping_proposal: Option<Vec
         .ckb_boost_campaign_type_code_hash(Byte32::from([0u8; 32]))
         .ckb_boost_campaign_lock_code_hash(Byte32::from([0u8; 32]))
         .ckb_boost_user_type_code_hash(Byte32::from([0u8; 32]))
-        .accepted_udt_type_code_hashes(Byte32Vec::default())
-        .accepted_dob_type_code_hashes(Byte32Vec::default())
+        .accepted_udt_type_scripts(ScriptVec::default())
+        .accepted_dob_type_scripts(ScriptVec::default())
         .build();
     
     let protocol_config = ProtocolConfigBuilder::default()

@@ -6,9 +6,6 @@ import { ccc } from "@ckb-ccc/core"
 import type { 
   CampaignDataLike, 
   QuestDataLike, 
-  AssetListLike,
-  UDTAssetLike,
-  UserSubmissionRecordLike,
 } from 'ssri-ckboost/types'
 
 // Transaction status for UI display (this is UI-only, not stored in schema)

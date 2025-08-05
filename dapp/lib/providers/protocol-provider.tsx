@@ -13,9 +13,6 @@ import type {
   EndorserInfoLike,
   TippingProposalDataLike,
   CampaignDataLike,
-  ProtocolConfigLike,
-  ScriptCodeHashesLike,
-  TippingConfigLike,
   ProtocolData,
 } from "ssri-ckboost/types";
 import {
@@ -40,7 +37,7 @@ interface ProtocolContextType {
   addEndorser: (form: EndorserInfoLike) => Promise<void>;
   editEndorser: (form: EndorserInfoLike) => Promise<void>;
   removeEndorser: (index: number) => Promise<void>;
-  calculateChanges: (formData: any) => ProtocolChanges;
+  calculateChanges: (formData: unknown) => ProtocolChanges;
 
   // Helper getters
   getEndorser: (address: string) => EndorserInfoLike | undefined;
@@ -164,7 +161,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
           const userLockHash = addr; // Simplified - would need proper conversion
           const isUserAdmin =
             protocolData.protocol_config.admin_lock_hash_vec.some(
-              (adminHash: any) => {
+              (adminHash: ccc.HexLike) => {
                 const hashHex =
                   typeof adminHash === "string"
                     ? adminHash
@@ -307,7 +304,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   };
 
 
-  const calculateChanges = (formData: any): ProtocolChanges => {
+  const calculateChanges = (formData: unknown): ProtocolChanges => {
     if (!protocolData) {
       throw new Error("Protocol data not available");
     }
@@ -318,7 +315,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   // Helper functions
   const getEndorser = (address: string): EndorserInfoLike | undefined => {
     return protocolData?.endorsers_whitelist?.find(
-      (e: any) => e.endorserAddress === address
+      (e: EndorserInfoLike) => e.endorser_lock_hash === address
     );
   };
 
@@ -327,7 +324,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   };
 
   const getApprovedCampaign = (id: string): CampaignDataLike | undefined => {
-    return protocolData?.campaigns_approved?.find((c: any) => c.id === id);
+    return protocolData?.campaigns_approved?.find((c: CampaignDataLike) => c.status === id);
   };
 
   const value: ProtocolContextType = {
@@ -421,10 +418,10 @@ export function useTippingProposals() {
 
   const proposals = protocolData?.tipping_proposals || [];
   const pendingProposals = proposals.filter(
-    (p: any) => !p.tippingTransactionHash
+    (p) => !p.approval_transaction_hash && p.tipping_transaction_hash !== undefined
   );
   const completedProposals = proposals.filter(
-    (p: any) => !!p.tippingTransactionHash
+    (p) => !!p.approval_transaction_hash && p.tipping_transaction_hash !== undefined
   );
 
   return {

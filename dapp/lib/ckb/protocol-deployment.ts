@@ -120,8 +120,8 @@ export function getProtocolDeploymentTemplate(): ProtocolDataLike {
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         ckb_boost_user_type_code_hash:
           "0x0000000000000000000000000000000000000000000000000000000000000000",
-        accepted_udt_type_code_hashes: [],
-        accepted_dob_type_code_hashes: [],
+        accepted_udt_type_scripts: [],
+        accepted_dob_type_scripts: [],
       },
     },
     campaigns_approved: [],
@@ -369,7 +369,7 @@ export async function deployProtocolCell(
               });
             }
           } catch (e) {
-            console.log(`  Not a valid WitnessArgs structure`);
+            console.log(`  Not a valid WitnessArgs structure ${e}`);
           }
         }
       }
@@ -416,12 +416,13 @@ export async function deployProtocolCell(
             index: 0,
           },
         };
-      } catch (sendError: any) {
+      } catch (sendError) {
         console.error("Transaction send failed:", sendError);
 
         // Check if it's a ScriptNotFound error
-        if (sendError.message?.includes("ScriptNotFound")) {
-          const match = sendError.message.match(
+        const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
+        if (errorMessage.includes("ScriptNotFound")) {
+          const match = errorMessage.match(
             /code_hash: Byte32\((0x[a-fA-F0-9]+)\)/
           );
           const missingCodeHash = match ? match[1] : "unknown";
@@ -450,8 +451,9 @@ export async function deployProtocolCell(
 
         // Check if it's a signing error
         if (
-          sendError.message?.includes("sign") ||
-          sendError.message?.includes("wallet")
+          sendError instanceof Error &&
+          (sendError.message.includes("sign") ||
+            sendError.message.includes("wallet"))
         ) {
           console.error("Wallet signing error. Transaction hex for debugging:");
           console.error(txHex);

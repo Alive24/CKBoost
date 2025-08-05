@@ -4,16 +4,13 @@
 import {
   CampaignData,
   type CampaignDataLike,
-  type QuestDataLike,
 } from "ssri-ckboost/types";
 import {
   fetchCampaignCells,
   fetchCampaignByTypeHash,
 } from "../ckb/campaign-cells";
 import { ccc } from "@ckb-ccc/core";
-import { ssri } from "@ckb-ccc/ssri";
 import { Campaign } from "ssri-ckboost";
-import { ProtocolService } from "./protocol-service";
 import { DeploymentManager } from "../ckb/deployment-manager";
 import { deploymentManager } from "../ckb/deployment-manager";
 
@@ -24,7 +21,7 @@ export class CampaignService {
   private signer: ccc.Signer;
   private campaign: Campaign;
 
-  constructor(signer: ccc.Signer, campaign: Campaign, executor: ssri.Executor) {
+  constructor(signer: ccc.Signer, campaign: Campaign) {
     this.signer = signer;
     this.campaign = campaign;
 
@@ -95,7 +92,8 @@ export class CampaignService {
         // Update campaign using Campaign
         const result = await this.campaign.updateCampaign(
           this.signer,
-          updatedCampaignData
+          updatedCampaignData,
+          tx
         );
         updateTx = result.res;
       }
@@ -247,6 +245,7 @@ export class CampaignService {
   async getCampaignsByEndorser(endorserLockHash: string): Promise<ccc.Cell[]> {
     if (!this.signer || !this.campaign) {
       // Fallback to fetching all campaigns and filtering
+      console.log(endorserLockHash)
       const allCampaigns = await CampaignService.getAllCampaigns(this.signer);
       // TODO: Filter by endorser when we have proper data parsing
       return allCampaigns;

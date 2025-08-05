@@ -236,8 +236,8 @@ export function ProtocolManagement() {
       ckb_boost_user_type_code_hash:
         deploymentTemplate.protocol_config.script_code_hashes
           .ckb_boost_user_type_code_hash,
-      accepted_udt_type_code_hashes: [],
-      accepted_dob_type_code_hashes: [],
+      accepted_udt_type_scripts: [],
+      accepted_dob_type_scripts: [],
     },
   });
 
@@ -377,8 +377,8 @@ export function ProtocolManagement() {
               ckb_boost_user_type_code_hash:
                 deploymentTemplate.protocol_config.script_code_hashes
                   .ckb_boost_user_type_code_hash,
-              accepted_udt_type_code_hashes: [],
-              accepted_dob_type_code_hashes: [],
+              accepted_udt_type_scripts: [],
+              accepted_dob_type_scripts: [],
             },
             tippingConfig: {
               approval_requirement_thresholds:
@@ -422,8 +422,8 @@ export function ProtocolManagement() {
         ckb_boost_user_type_code_hash:
           protocolData.protocol_config.script_code_hashes
             .ckb_boost_user_type_code_hash,
-        accepted_udt_type_code_hashes: [],
-        accepted_dob_type_code_hashes: [],
+        accepted_udt_type_scripts: [],
+        accepted_dob_type_scripts: [],
       };
 
       const tippingValues: TippingConfigLike = {
@@ -434,8 +434,8 @@ export function ProtocolManagement() {
 
       scriptCodeHashesForm.reset({
         ...scriptHashesValues,
-        accepted_udt_type_code_hashes: protocolData.protocol_config.script_code_hashes.accepted_udt_type_code_hashes || [],
-        accepted_dob_type_code_hashes: protocolData.protocol_config.script_code_hashes.accepted_dob_type_code_hashes || [],
+        accepted_udt_type_scripts: protocolData.protocol_config.script_code_hashes.accepted_udt_type_scripts || [],
+        accepted_dob_type_scripts: protocolData.protocol_config.script_code_hashes.accepted_dob_type_scripts || [],
       });
       tippingConfigForm.reset(tippingValues);
 
@@ -945,12 +945,12 @@ export function ProtocolManagement() {
           ckb_boost_user_type_code_hash:
             protocolData.protocol_config.script_code_hashes
               .ckb_boost_user_type_code_hash,
-          accepted_udt_type_code_hashes:
+          accepted_udt_type_scripts:
             protocolData.protocol_config.script_code_hashes
-              .accepted_udt_type_code_hashes || [],
-          accepted_dob_type_code_hashes:
+              .accepted_udt_type_scripts || [],
+          accepted_dob_type_scripts:
             protocolData.protocol_config.script_code_hashes
-              .accepted_dob_type_code_hashes || [],
+              .accepted_dob_type_scripts || [],
         });
 
         tippingConfigForm.reset({
@@ -971,8 +971,8 @@ export function ProtocolManagement() {
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
           ckb_boost_user_type_code_hash:
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash,
-          accepted_udt_type_code_hashes: [],
-          accepted_dob_type_code_hashes: [],
+          accepted_udt_type_scripts: [],
+          accepted_dob_type_scripts: [],
         });
 
         tippingConfigForm.reset({
@@ -1946,7 +1946,7 @@ export function ProtocolManagement() {
                     
                     <FormField
                       control={scriptCodeHashesForm.control}
-                      name="accepted_udt_type_code_hashes"
+                      name="accepted_udt_type_scripts"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Accepted UDT Type Code Hashes</FormLabel>
@@ -1958,10 +1958,10 @@ export function ProtocolManagement() {
                               <div key={index} className="flex gap-2">
                                 <Input
                                   placeholder="0x..."
-                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash)}
+                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash.codeHash)}
                                   onChange={(e) => {
                                     const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
-                                    newHashes[index] = e.target.value;
+                                    newHashes[index] = { codeHash: e.target.value, hashType: 'type', args: '0x' };
                                     field.onChange(newHashes);
                                   }}
                                 />
@@ -1997,7 +1997,7 @@ export function ProtocolManagement() {
                     
                     <FormField
                       control={scriptCodeHashesForm.control}
-                      name="accepted_dob_type_code_hashes"
+                      name="accepted_dob_type_scripts"
                       render={({ field }) => (
                         <FormItem className="mt-4">
                           <FormLabel>Accepted DOB Type Code Hashes</FormLabel>
@@ -2009,10 +2009,10 @@ export function ProtocolManagement() {
                               <div key={index} className="flex gap-2">
                                 <Input
                                   placeholder="0x..."
-                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash)}
+                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash.codeHash)}
                                   onChange={(e) => {
                                     const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
-                                    newHashes[index] = e.target.value;
+                                    newHashes[index] = { codeHash: e.target.value, hashType: 'type', args: '0x' };
                                     field.onChange(newHashes);
                                   }}
                                 />

@@ -795,12 +795,12 @@
           "type": "Byte32"
         },
         {
-          "name": "accepted_udt_type_code_hashes",
-          "type": "Byte32Vec"
+          "name": "accepted_udt_type_scripts",
+          "type": "ScriptVec"
         },
         {
-          "name": "accepted_dob_type_code_hashes",
-          "type": "Byte32Vec"
+          "name": "accepted_dob_type_scripts",
+          "type": "ScriptVec"
         }
       ]
     },

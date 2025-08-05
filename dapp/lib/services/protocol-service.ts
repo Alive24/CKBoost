@@ -5,15 +5,13 @@ import { ccc } from "@ckb-ccc/core";
 import { ssri } from "@ckb-ccc/ssri";
 import {
   type ProtocolDataLike,
-  type EndorserInfoLike,
-  type ProtocolConfigLike,
+  CampaignDataLike,
   ProtocolData,
+  TippingProposalDataLike,
 } from "ssri-ckboost/types";
 import {
   ProtocolMetrics,
   ProtocolTransaction,
-  ProtocolChanges,
-  FieldChange,
 } from "../types/protocol";
 import {
   fetchProtocolCell,
@@ -161,8 +159,8 @@ export class ProtocolService {
               ckb_boost_campaign_type_code_hash: defaultByte32,
               ckb_boost_campaign_lock_code_hash: defaultByte32,
               ckb_boost_user_type_code_hash: defaultByte32,
-              accepted_udt_type_code_hashes: [],
-              accepted_dob_type_code_hashes: [],
+              accepted_udt_type_scripts: [],
+              accepted_dob_type_scripts: [],
             },
           },
         };
@@ -301,11 +299,11 @@ export class ProtocolService {
       return {
         totalCampaigns: BigInt(data.campaigns_approved.length),
         activeCampaigns: BigInt(
-          data.campaigns_approved.filter((c: any) => c.status === 4).length
+          data.campaigns_approved.filter((c: CampaignDataLike) => c.status === 4).length
         ),
         totalTippingProposals: BigInt(data.tipping_proposals.length),
         pendingTippingProposals: BigInt(
-          data.tipping_proposals.filter((p: any) => !p.tipping_transaction_hash)
+          data.tipping_proposals.filter((p: TippingProposalDataLike) => !p.tipping_transaction_hash)
             .length
         ),
         totalEndorsers: BigInt(data.endorsers_whitelist.length),

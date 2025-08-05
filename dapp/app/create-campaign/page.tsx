@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle, Save } from "lucide-react"
 import Link from "next/link"
 import { ccc, ScriptLike } from "@ckb-ccc/connector-react"
+import { mol } from "@ckb-ccc/core"
 import { CampaignService } from "@/lib/services/campaign-service"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import type { 
@@ -28,11 +29,15 @@ import type {
   QuestMetadataLike,
 } from "ssri-ckboost/types"
 import { useCampaign } from "@/lib/providers/campaign-provider"
+import { useCampaignDraft } from "@/lib/hooks/use-campaign-draft"
 
 export default function CreateCampaign() {
   // Get CCC signer and protocol data
   const signer = ccc.useSigner()
   const { protocolData, isLoading: protocolLoading, error: protocolError } = useProtocol()
+  
+  // Use campaign draft hook
+  const { draft, isLoading: draftLoading, saveDraft, deleteDraft } = useCampaignDraft()
   
   const [formData, setFormData] = useState({
     title: "",
@@ -58,6 +63,8 @@ export default function CreateCampaign() {
   const [isWalletConnected, setIsWalletConnected] = useState(false)
   const [currentWalletEndorser, setCurrentWalletEndorser] = useState<EndorserInfoLike | null>(null)
   const [endorserCheckComplete, setEndorserCheckComplete] = useState(false)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [showDraftSaved, setShowDraftSaved] = useState(false)
   
   // Quest state
   const [quests, setQuests] = useState<Array<{
@@ -72,6 +79,17 @@ export default function CreateCampaign() {
     }>
   }>>([])
   const [showQuestForm, setShowQuestForm] = useState(false)
+  const [editingQuestIndex, setEditingQuestIndex] = useState<number | null>(null)
+
+  // Wallet balance state
+  const [ckbBalance, setCkbBalance] = useState<ccc.Num>(0n)
+  const [walletUdts, setWalletUdts] = useState<Array<{
+    typeScript: ScriptLike
+    amount: ccc.Num
+    symbol?: string
+    decimals?: number
+    isAccepted: boolean
+  }>>([])
 
   const { campaign, campaignService, isLoading, error } = useCampaign()
 
@@ -130,6 +148,197 @@ export default function CreateCampaign() {
     }
   }, [isWalletConnected, protocolData, protocolLoading])
 
+  // Fetch wallet balances
+  useEffect(() => {
+    if (!signer) return
+
+    const fetchBalances = async () => {
+      try {
+        // Get CKB balance
+        const address = await signer.getRecommendedAddress()
+        const ckbCollector = signer.client.findCellsByLock({ script: address.script }, true)
+        let totalCkb = 0n
+        
+        for await (const cell of ckbCollector) {
+          totalCkb += cell.cellOutput.capacity
+        }
+        setCkbBalance(totalCkb)
+
+        // Get UDT balances
+        // For now, we'll just check against accepted UDTs from protocol
+        const acceptedUdts = protocolData?.accepted_udts || []
+        const udtBalances: typeof walletUdts = []
+
+        // Map accepted UDTs
+        for (const acceptedUdt of acceptedUdts) {
+          udtBalances.push({
+            typeScript: acceptedUdt.type_hash,
+            amount: 0n, // TODO: Fetch actual balance
+            symbol: "UDT", // TODO: Fetch token info
+            decimals: 8,
+            isAccepted: true
+          })
+        }
+
+        setWalletUdts(udtBalances)
+      } catch (error) {
+        console.error("Failed to fetch balances:", error)
+      }
+    }
+
+    fetchBalances()
+  }, [signer, protocolData])
+
+  // Load draft from local storage
+  useEffect(() => {
+    console.log("Draft loading effect - draft:", draft, "draftLoading:", draftLoading)
+    if (draft && !draftLoading && !formData.title) { // Only load if form is empty
+      try {
+        console.log("Loading draft data...")
+        // Convert CampaignDataLike back to form data
+        const metadata = draft.metadata
+        setFormData({
+          title: metadata.title ? mol.String.decode(metadata.title) : "",
+          shortDescription: metadata.short_description ? mol.String.decode(metadata.short_description) : "",
+          longDescription: metadata.long_description ? mol.String.decode(metadata.long_description) : "",
+          category: metadata.categories && metadata.categories.length > 0 ? mol.String.decode(metadata.categories[0]) : "",
+          difficulty: metadata.difficulty === 1 ? "Easy" : metadata.difficulty === 2 ? "Medium" : "Hard",
+          startDate: draft.starting_time ? new Date(Number(draft.starting_time)).toISOString().slice(0, 16) : "",
+          endDate: draft.ending_time ? new Date(Number(draft.ending_time)).toISOString().slice(0, 16) : "",
+          totalPoints: metadata.total_rewards?.points_amount ? metadata.total_rewards.points_amount.toString() : "",
+          logo: metadata.image_url ? mol.String.decode(metadata.image_url) : "",
+        })
+        
+        setCkbReward(metadata.total_rewards?.ckb_amount ? metadata.total_rewards.ckb_amount.toString() : "0")
+        setNftRewards(metadata.total_rewards?.nft_assets || [])
+        setUdtRewards(metadata.total_rewards?.udt_assets?.map(asset => ({
+          amount: asset.amount.toString(),
+          udt_script: asset.udt_type || asset.udt_script
+        })) || [])
+        setRules(draft.rules?.map(rule => mol.String.decode(rule)) || [""])
+        
+        // Convert quests
+        const loadedQuests = draft.quests?.map(quest => ({
+          title: quest.metadata.title ? mol.String.decode(quest.metadata.title) : "",
+          description: quest.metadata.short_description ? mol.String.decode(quest.metadata.short_description) : "",
+          points: Number(quest.points || 0),
+          subtasks: quest.sub_tasks?.map(subtask => ({
+            title: mol.String.decode(subtask.title),
+            type: mol.String.decode(subtask.type),
+            description: mol.String.decode(subtask.description),
+            proofRequired: mol.String.decode(subtask.proof_required),
+          })) || []
+        })) || []
+        setQuests(loadedQuests)
+        console.log("Draft loaded successfully")
+      } catch (error) {
+        console.error("Failed to load draft:", error)
+      }
+    }
+  }, [draft, draftLoading, formData.title]) // Add formData.title to prevent re-loading
+
+  // Helper function to build CampaignDataLike from current form state
+  const buildCampaignData = useCallback((): CampaignDataLike | null => {
+    if (!currentWalletEndorser) return null
+
+    const campaignData: CampaignDataLike = {
+      endorser: {
+        ...currentWalletEndorser,
+        endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
+        endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
+        website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
+        social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+      },
+      created_at: ccc.numFrom(Date.now()),
+      starting_time: ccc.numFrom(formData.startDate ? new Date(formData.startDate).getTime() : Date.now()),
+      ending_time: ccc.numFrom(formData.endDate ? new Date(formData.endDate).getTime() : Date.now() + 30 * 24 * 60 * 60 * 1000),
+      rules: rules.filter(rule => rule.trim()).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8"))),
+      metadata: {
+        verification_requirements: [],
+        last_updated: ccc.numFrom(Date.now()),
+        categories: formData.category ? [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))] : [],
+        difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
+        title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
+        endorser_info: {
+          ...currentWalletEndorser,
+          endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
+          endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
+          website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
+          social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
+        },
+        image_url: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
+        short_description: ccc.hexFrom(ccc.bytesFrom(formData.shortDescription, "utf8")),
+        long_description: ccc.hexFrom(ccc.bytesFrom(formData.longDescription, "utf8")),
+        total_rewards: {
+          points_amount: ccc.numFrom(formData.totalPoints || "0"),
+          ckb_amount: ckbReward,
+          nft_assets: nftRewards,
+          udt_assets: udtRewards
+        }
+      },
+      status: 0,
+      participants_count: 0,
+      total_completions: 0,
+      quests: quests.map((quest, index) => ({
+        quest_id: ccc.numFrom(index + 1),
+        metadata: {
+          title: ccc.hexFrom(ccc.bytesFrom(quest.title, "utf8")),
+          short_description: ccc.hexFrom(ccc.bytesFrom(quest.description, "utf8")),
+          long_description: ccc.hexFrom(ccc.bytesFrom(quest.description, "utf8")),
+          requirements: ccc.hexFrom(ccc.bytesFrom("Complete all subtasks", "utf8")),
+          difficulty: 1,
+          time_estimate: 60
+        },
+        rewards_on_completion: [{
+          points_amount: ccc.numFrom(quest.points),
+          ckb_amount: 0n,
+          nft_assets: [],
+          udt_assets: []
+        }],
+        accepted_submission_lock_hashes: [],
+        completion_deadline: ccc.numFrom(formData.endDate ? new Date(formData.endDate).getTime() : Date.now() + 30 * 24 * 60 * 60 * 1000),
+        status: 0,
+        sub_tasks: quest.subtasks.map((subtask, subIndex) => ({
+          id: subIndex + 1,
+          title: ccc.hexFrom(ccc.bytesFrom(subtask.title, "utf8")),
+          type: ccc.hexFrom(ccc.bytesFrom(subtask.type, "utf8")),
+          description: ccc.hexFrom(ccc.bytesFrom(subtask.description, "utf8")),
+          proof_required: ccc.hexFrom(ccc.bytesFrom(subtask.proofRequired, "utf8")),
+        })),
+        points: quest.points,
+        completion_count: 0
+      }))
+    }
+
+    return campaignData
+  }, [formData, ckbReward, nftRewards, udtRewards, rules, quests, currentWalletEndorser])
+
+  // Save draft function
+  const handleSaveDraft = useCallback(() => {
+    const campaignData = buildCampaignData()
+    if (campaignData && saveDraft(campaignData)) {
+      setLastSaved(new Date())
+      setShowDraftSaved(true)
+      setTimeout(() => setShowDraftSaved(false), 3000)
+    }
+  }, [buildCampaignData, saveDraft])
+
+  // Auto-save effect - debounced to avoid too frequent saves
+  useEffect(() => {
+    // Only auto-save if user is an endorser and form has some data
+    if (!currentWalletEndorser || !formData.title) return
+
+    const timeoutId = setTimeout(() => {
+      const campaignData = buildCampaignData()
+      if (campaignData) {
+        saveDraft(campaignData)
+        setLastSaved(new Date())
+      }
+    }, 2000) // 2 second debounce
+
+    return () => clearTimeout(timeoutId)
+  }, [formData, ckbReward, nftRewards, udtRewards, rules, quests, currentWalletEndorser, buildCampaignData, saveDraft])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
@@ -137,10 +346,6 @@ export default function CreateCampaign() {
 
     console.log("=== CAMPAIGN SUBMISSION STARTED ===")
     console.log("Form data:", formData)
-    console.log("CKB Reward:", ckbReward.toString())
-    console.log("NFT Rewards:", nftRewards)
-    console.log("UDT Rewards:", udtRewards)
-    console.log("Rules:", rules)
 
     try {
       // Validate required fields
@@ -162,57 +367,10 @@ export default function CreateCampaign() {
         throw new Error("Campaign service not available. Please ensure your wallet is connected.")
       }
 
-      console.log("=== BUILDING CAMPAIGN DATA ===")
-      console.log("Current wallet endorser:", currentWalletEndorser)
-
-      // Log string values (strings are sent as-is, encoding happens in the ssri-ckboost library)
-      console.log("String values to be sent:")
-      console.log("Title:", formData.title)
-      console.log("Short desc:", formData.shortDescription)
-      console.log("Long desc:", formData.longDescription)
-      console.log("Category:", formData.category)
-      console.log("Logo:", formData.logo)
-      console.log("Rules:", rules.filter(rule => rule.trim()))
-
-      const campaignData: CampaignDataLike = {
-        endorser: {
-          ...currentWalletEndorser,
-          endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
-          endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
-          website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
-          social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-        },
-        created_at: ccc.numFrom(Date.now()),
-        starting_time: ccc.numFrom(new Date(formData.startDate).getTime()),
-        ending_time: ccc.numFrom(new Date(formData.endDate).getTime()),
-        rules: rules.filter(rule => rule.trim()).map(rule => ccc.hexFrom(ccc.bytesFrom(rule, "utf8"))),
-        metadata: {
-          verification_requirements: [], // No special requirements for now
-          last_updated: ccc.numFrom(Date.now()),
-          categories: [ccc.hexFrom(ccc.bytesFrom(formData.category, "utf8"))],
-          difficulty: formData.difficulty === "Easy" ? 1 : formData.difficulty === "Medium" ? 2 : 3,
-          title: ccc.hexFrom(ccc.bytesFrom(formData.title, "utf8")),
-          endorser_info: {
-            ...currentWalletEndorser,
-            endorser_name: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_name, "utf8")),
-            endorser_description: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.endorser_description, "utf8")),
-            website: ccc.hexFrom(ccc.bytesFrom(currentWalletEndorser.website || "", "utf8")),
-            social_links: currentWalletEndorser.social_links.map(link => ccc.hexFrom(ccc.bytesFrom(link, "utf8"))),
-          },
-          image_url: ccc.hexFrom(ccc.bytesFrom(formData.logo, "utf8")),
-          short_description: ccc.hexFrom(ccc.bytesFrom(formData.shortDescription, "utf8")),
-          long_description: ccc.hexFrom(ccc.bytesFrom(formData.longDescription, "utf8")),
-          total_rewards: {
-            points_amount: ccc.numFrom(formData.totalPoints || "0"),
-            ckb_amount: ckbReward,
-            nft_assets: nftRewards,
-            udt_assets: udtRewards
-          }
-        },
-        status: 0, // Created status
-        participants_count: 0,
-        total_completions: 0,
-        quests: []
+      // Build campaign data using the helper function
+      const campaignData = buildCampaignData()
+      if (!campaignData) {
+        throw new Error("Failed to build campaign data")
       }
 
       console.log("=== FINAL CAMPAIGN DATA ===")
@@ -223,24 +381,17 @@ export default function CreateCampaign() {
         }
         return value
       }, 2))
-      
-      // Additional debugging - check data types
-      console.log("=== DATA TYPE CHECKS ===")
-      console.log("title type:", typeof campaignData.metadata.title)
-      console.log("title value:", campaignData.metadata.title)
-      console.log("short_description type:", typeof campaignData.metadata.short_description)
-      console.log("short_description value:", campaignData.metadata.short_description)
-      console.log("rules[0] type:", typeof campaignData.rules[0])
-      console.log("rules[0] value:", campaignData.rules[0])
 
       // Create campaign using campaign service
       console.log("Calling campaignService.updateCampaign...")
-      const txHash = await campaignService.updateCampaign(
-        campaignData,
-      ) 
+      const txHash = await campaignService.updateCampaign(campaignData) 
 
       console.log("=== CAMPAIGN CREATED SUCCESSFULLY ===")
       console.log("Transaction hash:", txHash)
+      
+      // Delete draft after successful submission
+      deleteDraft()
+      
       setIsSubmitted(true)
 
       // Reset form after success
@@ -251,7 +402,6 @@ export default function CreateCampaign() {
     } catch (error) {
       console.error("=== CAMPAIGN CREATION FAILED ===")
       console.error("Error:", error)
-      console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace')
       setSubmitError(error instanceof Error ? error.message : "Failed to create campaign")
     } finally {
       setIsSubmitting(false)
@@ -547,20 +697,59 @@ export default function CreateCampaign() {
                 Back to Campaign Board
               </Button>
             </Link>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="text-4xl">🎯</div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Create New Campaign
-              </h1>
+            <div className="flex items-between justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="text-4xl">🎯</div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Create New Campaign
+                  </h1>
+                </div>
+                <p className="text-lg text-muted-foreground">
+                  Launch a sponsored campaign with multiple quests to engage the CKB community and drive ecosystem growth.
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSaveDraft}
+                    className="gap-2"
+                    disabled={!currentWalletEndorser}
+                  >
+                    <Save className="w-4 h-4" />
+                    Save Now
+                  </Button>
+                  {currentWalletEndorser && formData.title && (
+                    <Badge variant="secondary" className="text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Auto-save enabled
+                    </Badge>
+                  )}
+                </div>
+                {lastSaved && (
+                  <p className="text-sm text-muted-foreground">
+                    Last saved: {lastSaved.toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
             </div>
-            <p className="text-lg text-muted-foreground">
-              Launch a sponsored campaign with multiple quests to engage the CKB community and drive ecosystem growth.
-            </p>
           </div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Form */}
             <div className="lg:col-span-2">
+              {/* Draft Save Indicator */}
+              {showDraftSaved && (
+                <Alert className="mb-6 bg-green-50 border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    Draft saved successfully
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Error Alert */}
               {submitError && (
                 <Alert className="mb-6 border-red-200 bg-red-50">
@@ -714,7 +903,12 @@ export default function CreateCampaign() {
 
                     {/* CKB Rewards */}
                     <div className="space-y-2">
-                      <Label htmlFor="ckbReward">CKB Reward (Optional)</Label>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="ckbReward">CKB Reward (Optional)</Label>
+                        <span className="text-sm text-muted-foreground">
+                          Available: {(Number(ckbBalance) / 100000000).toFixed(2)} CKB
+                        </span>
+                      </div>
                       <Input
                         id="ckbReward"
                         type="number"
@@ -734,6 +928,11 @@ export default function CreateCampaign() {
                         min="0"
                         step="1"
                       />
+                      {ckbReward > ckbBalance && (
+                        <p className="text-sm text-red-600">
+                          Insufficient balance. You need {((Number(ckbReward) - Number(ckbBalance)) / 100000000).toFixed(2)} more CKB.
+                        </p>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         Total CKB funding target for the campaign
                       </p>
@@ -785,50 +984,112 @@ export default function CreateCampaign() {
                       <div>
                         <Label>UDT (Token) Rewards (Optional)</Label>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Add User Defined Tokens to be managed by the campaign. Leave args empty to create a new connected type hash.
+                          Select from tokens in your wallet or add custom tokens. Protocol-accepted tokens are marked.
                         </p>
                       </div>
-                      {udtRewards.map((udt, index) => (
-                        <div key={index} className="space-y-2">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                value={udt.amount === 0n ? "" : udt.amount.toString()}
-                                onChange={(e) => updateUdtReward(index, "amount", e.target.value)}
-                                placeholder="Amount"
-                                min="1"
-                                className="w-32"
-                              />
-                              <Input
-                                value={typeof udt.udt_script.codeHash === 'string' ? udt.udt_script.codeHash : ccc.hexFrom(udt.udt_script.codeHash)}
-                                onChange={(e) => updateUdtReward(index, "codeHash", e.target.value)}
-                                placeholder="UDT Type Script Code Hash (0x...)"
-                              />
-                              <Input
-                                value={typeof udt.udt_script.args === 'string' ? udt.udt_script.args : ccc.hexFrom(udt.udt_script.args)}
-                                onChange={(e) => updateUdtReward(index, "args", e.target.value)}
-                                placeholder="UDT Args (0x...)"
-                                className="w-48"
-                              />
-                              {udtRewards.length > 0 && (
-                                <Button type="button" variant="outline" size="sm" onClick={() => removeUdtReward(index)}>
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+
+                      {/* Wallet UDTs Dropdown */}
+                      {walletUdts.length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Select from Wallet</Label>
+                          <Select
+                            onValueChange={(value) => {
+                              const selectedUdt = walletUdts[parseInt(value)]
+                              if (selectedUdt) {
+                                setUdtRewards([...udtRewards, {
+                                  amount: 0n,
+                                  udt_script: selectedUdt.typeScript
+                                }])
+                              }
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a token from your wallet" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {walletUdts.map((udt, idx) => (
+                                <SelectItem key={idx} value={idx.toString()}>
+                                  <div className="flex items-center gap-2">
+                                    <span>{udt.symbol || 'Unknown Token'}</span>
+                                    {udt.isAccepted && (
+                                      <Badge variant="secondary" className="text-xs">Accepted</Badge>
+                                    )}
+                                    <span className="text-muted-foreground text-sm">
+                                      Balance: {(Number(udt.amount) / Math.pow(10, udt.decimals || 8)).toFixed(2)}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      {udtRewards.map((udt, index) => {
+                        const matchingWalletUdt = walletUdts.find(wu => 
+                          wu.typeScript.codeHash === udt.udt_script.codeHash && 
+                          wu.typeScript.args === udt.udt_script.args
+                        )
+                        
+                        return (
+                          <div key={index} className="space-y-2 border rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{matchingWalletUdt?.symbol || 'Custom Token'}</span>
+                                {matchingWalletUdt?.isAccepted && (
+                                  <Badge variant="secondary" className="text-xs">Protocol Accepted</Badge>
+                                )}
+                              </div>
+                              <Button type="button" variant="outline" size="sm" onClick={() => removeUdtReward(index)}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  value={udt.amount === 0n ? "" : udt.amount.toString()}
+                                  onChange={(e) => updateUdtReward(index, "amount", e.target.value)}
+                                  placeholder="Amount"
+                                  min="1"
+                                  className="w-32"
+                                />
+                                {matchingWalletUdt && (
+                                  <span className="text-sm text-muted-foreground">
+                                    Available: {(Number(matchingWalletUdt.amount) / Math.pow(10, matchingWalletUdt.decimals || 8)).toFixed(2)}
+                                  </span>
+                                )}
+                              </div>
+                              {!matchingWalletUdt && (
+                                <>
+                                  <Input
+                                    value={typeof udt.udt_script.codeHash === 'string' ? udt.udt_script.codeHash : ccc.hexFrom(udt.udt_script.codeHash)}
+                                    onChange={(e) => updateUdtReward(index, "codeHash", e.target.value)}
+                                    placeholder="UDT Type Script Code Hash (0x...)"
+                                  />
+                                  <Input
+                                    value={typeof udt.udt_script.args === 'string' ? udt.udt_script.args : ccc.hexFrom(udt.udt_script.args)}
+                                    onChange={(e) => updateUdtReward(index, "args", e.target.value)}
+                                    placeholder="UDT Args (0x...)"
+                                  />
+                                </>
                               )}
                             </div>
                           </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addUdtReward}
-                        className="w-full bg-transparent"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Token Reward
-                      </Button>
+                        )
+                      })}
+                      
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={addUdtReward}
+                          className="flex-1 bg-transparent"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Custom Token
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -876,7 +1137,7 @@ export default function CreateCampaign() {
                         {quests.map((quest, index) => (
                           <div key={index} className="border rounded-lg p-4 space-y-2">
                             <div className="flex justify-between items-start">
-                              <div>
+                              <div className="flex-1 mr-4">
                                 <h4 className="font-semibold">{quest.title}</h4>
                                 <p className="text-sm text-muted-foreground">{quest.description}</p>
                                 <p className="text-sm mt-1">
@@ -886,16 +1147,29 @@ export default function CreateCampaign() {
                                   <span className="font-medium">Subtasks:</span> {quest.subtasks.length}
                                 </p>
                               </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setQuests(quests.filter((_, i) => i !== index))
-                                }}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingQuestIndex(index)
+                                    setShowQuestForm(true)
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setQuests(quests.filter((_, i) => i !== index))
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -904,7 +1178,10 @@ export default function CreateCampaign() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setShowQuestForm(true)}
+                      onClick={() => {
+                        setEditingQuestIndex(null)
+                        setShowQuestForm(true)
+                      }}
                       className="w-full bg-transparent"
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -1092,18 +1369,34 @@ export default function CreateCampaign() {
         </div>
       </main>
 
-      {/* Quest Creation Dialog */}
-      <Dialog open={showQuestForm} onOpenChange={setShowQuestForm}>
+      {/* Quest Creation/Edit Dialog */}
+      <Dialog open={showQuestForm} onOpenChange={(open) => {
+        if (!open) {
+          setEditingQuestIndex(null)
+        }
+        setShowQuestForm(open)
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Quest</DialogTitle>
+            <DialogTitle>{editingQuestIndex !== null ? 'Edit Quest' : 'Create New Quest'}</DialogTitle>
           </DialogHeader>
           <QuestCreationForm
+            initialData={editingQuestIndex !== null ? quests[editingQuestIndex] : undefined}
             onSave={(quest) => {
-              setQuests([...quests, quest])
+              if (editingQuestIndex !== null) {
+                const newQuests = [...quests]
+                newQuests[editingQuestIndex] = quest
+                setQuests(newQuests)
+              } else {
+                setQuests([...quests, quest])
+              }
               setShowQuestForm(false)
+              setEditingQuestIndex(null)
             }}
-            onCancel={() => setShowQuestForm(false)}
+            onCancel={() => {
+              setShowQuestForm(false)
+              setEditingQuestIndex(null)
+            }}
           />
         </DialogContent>
       </Dialog>
@@ -1113,9 +1406,21 @@ export default function CreateCampaign() {
 
 // Quest Creation Form Component
 function QuestCreationForm({ 
+  initialData,
   onSave, 
   onCancel 
 }: { 
+  initialData?: {
+    title: string
+    description: string
+    points: number
+    subtasks: Array<{
+      title: string
+      type: string
+      description: string
+      proofRequired: string
+    }>
+  }
   onSave: (quest: {
     title: string
     description: string
@@ -1130,16 +1435,16 @@ function QuestCreationForm({
   onCancel: () => void
 }) {
   const [questData, setQuestData] = useState({
-    title: "",
-    description: "",
-    points: 0,
+    title: initialData?.title || "",
+    description: initialData?.description || "",
+    points: initialData?.points || 0,
   })
   const [subtasks, setSubtasks] = useState<Array<{
     title: string
     type: string
     description: string
     proofRequired: string
-  }>>([])
+  }>>(initialData?.subtasks || [])
 
   const addSubtask = () => {
     setSubtasks([...subtasks, {
@@ -1299,7 +1604,7 @@ function QuestCreationForm({
           Cancel
         </Button>
         <Button type="submit">
-          Create Quest
+          {initialData ? 'Update Quest' : 'Create Quest'}
         </Button>
       </DialogFooter>
     </form>

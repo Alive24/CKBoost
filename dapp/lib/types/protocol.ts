@@ -47,7 +47,7 @@ export interface ProtocolMetrics {
 }
 
 // Change tracking types for protocol updates
-export interface FieldChange<T = any> {
+export interface FieldChange<T = unknown> {
   fieldPath: string
   oldValue: T
   newValue: T
@@ -106,7 +106,7 @@ export interface ProtocolContextType {
   getApprovedCampaign: (id: string) => CampaignDataLike | undefined
   
   // Change detection
-  detectChanges: (formData: any) => ProtocolChanges
+  detectChanges: (formData: unknown) => ProtocolChanges
   
   // Wallet connection
   walletAddress: string | null

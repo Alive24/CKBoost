@@ -34,7 +34,7 @@ pub fn create_ckboost_collector() -> Result<CellCollector<RuleBasedClassifier>, 
 /// Convenience function to create a mock CKBoost classifier and collector for testing
 #[cfg(test)]
 pub fn create_mock_ckboost_collector() -> CellCollector<RuleBasedClassifier> {
-    use crate::generated::ckboost::{ProtocolData, ProtocolConfig, ScriptCodeHashes, Byte32, Byte32Vec};
+    use crate::{generated::ckboost::{Byte32, ProtocolConfig, ProtocolData, ScriptCodeHashes}, types::ScriptVec};
     use molecule::prelude::*;
     
     // Create mock protocol data for testing
@@ -44,8 +44,8 @@ pub fn create_mock_ckboost_collector() -> CellCollector<RuleBasedClassifier> {
         .ckb_boost_campaign_type_code_hash(Byte32::from([2u8; 32]))
         .ckb_boost_campaign_lock_code_hash(Byte32::from([12u8; 32]))
         .ckb_boost_user_type_code_hash(Byte32::from([3u8; 32]))
-        .accepted_udt_type_code_hashes(Byte32Vec::new_builder().build())
-        .accepted_dob_type_code_hashes(Byte32Vec::new_builder().build())
+        .accepted_udt_type_scripts(ScriptVec::new_builder().build())
+        .accepted_dob_type_scripts(ScriptVec::new_builder().build())
         .build();
         
     let protocol_config = ProtocolConfig::new_builder()

@@ -174,7 +174,7 @@ export function CommunityContributions() {
   const [tipProposals, setTipProposals] = useState(MOCK_TIP_PROPOSALS)
   const [currentUserAllowlisted] = useState(true)
 
-  const handleTipInitiated = (contributionId: string, tipData: any) => {
+  const handleTipInitiated = (contributionId: string, tipData: TipProposal) => {
     const contribution = contributions.find((c) => c.id === contributionId)
     if (!contribution) return
 
