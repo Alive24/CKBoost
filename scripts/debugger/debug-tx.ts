@@ -256,8 +256,17 @@ async function main() {
     console.log(`  jq '.tx' tx.json`);
     console.log(`  jq '.tx.outputs' tx.json`);
     
+    // Clean up generated files after debugging
+    console.log('\n🧹 Cleaning up generated files...');
+    cleanIntermediateFiles();
+    
   } catch (error) {
     console.error('\n❌ Error:', error);
+    
+    // Clean up files even on error
+    console.log('\n🧹 Cleaning up generated files...');
+    cleanIntermediateFiles();
+    
     process.exit(1);
   }
 }
