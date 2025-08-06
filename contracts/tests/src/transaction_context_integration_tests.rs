@@ -58,7 +58,7 @@ fn create_protocol_data(admin_lock_hash: [u8; 32], _tipping_proposal: Option<Vec
     
     // Build ProtocolData
     let protocol_data = ProtocolDataBuilder::default()
-        .campaigns_approved(CampaignDataVec::default())
+        .campaigns_approved(Byte32Vec::new_builder().build())
         .tipping_proposals(TippingProposalDataVec::default())
         .tipping_config(tipping_config)
         .endorsers_whitelist(EndorserInfoVec::default())

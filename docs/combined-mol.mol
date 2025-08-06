@@ -40,6 +40,7 @@ vector UDTAssetVec <UDTAsset>;
 
 // Campaign funding information
 table AssetList {
+    points_amount: Uint64,      // Total points target for the campaign
     ckb_amount: Uint64,        // Total funding target for the campaign
     nft_assets: ScriptVec,     // NFT assets to be managed by campaign
     udt_assets: UDTAssetVec, // UDT assets to be managed by campaign

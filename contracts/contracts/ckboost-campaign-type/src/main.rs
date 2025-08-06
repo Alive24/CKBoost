@@ -39,7 +39,7 @@ fn program_entry_wrap() -> Result<(), Error> {
         // 
         // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
         let args = load_script()?.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice()).map_err(|_| Error::MoleculeVerificationError)?;
+        let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice()).map_err(|_| Error::InvalidConnectedTypeId)?;
         match validate_type_id(connected_type_id.type_id().into()) {
             Ok(_) => fallback()?,
             Err(err) => {
@@ -65,14 +65,14 @@ fn program_entry_wrap() -> Result<(), Error> {
                 None
             } else {
                 let parsed_tx = ckb_std::ckb_types::packed::Transaction::from_compatible_slice(&ckb_std::high_level::decode_hex(argv[1].as_ref())?)
-                    .map_err(|_| Error::MoleculeVerificationError)?;
+                    .map_err(|_| Error::InvalidBaseTransactionForSSRI)?;
                 Some(parsed_tx)
             };
             
             // Parse campaign_data from molecule serialized bytes (argv[2])
             let campaign_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
             let campaign_data = ckboost_shared::types::CampaignData::from_slice(&campaign_data_bytes)
-                .map_err(|_| Error::MoleculeVerificationError)?;
+                .map_err(|_| Error::InvalidCampaignData)?;
             
             // Call the update_campaign method and return the transaction
             let result_tx = crate::modules::CKBoostCampaignType::update_campaign(tx, campaign_data)?;

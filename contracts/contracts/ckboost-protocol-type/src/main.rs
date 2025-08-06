@@ -69,14 +69,14 @@ fn program_entry_wrap() -> Result<(), Error> {
                 None
             } else {
                 let parsed_tx = Transaction::from_compatible_slice(&ckb_std::high_level::decode_hex(argv[1].as_ref())?)
-                    .map_err(|_| Error::MoleculeVerificationError)?;
+                    .map_err(|_| Error::InvalidBaseTransactionForSSRI)?;
                 Some(parsed_tx)
             };
             
             // Parse protocol_data from molecule serialized bytes (argv[2])
             let protocol_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
             let protocol_data = ProtocolData::from_slice(&protocol_data_bytes)
-                .map_err(|_| Error::MoleculeVerificationError)?;
+                .map_err(|_| Error::InvalidProtocolData)?;
             
             // Call the update_protocol method and return the transaction
             let result_tx = CKBoostProtocolType::update_protocol(tx, protocol_data)?;

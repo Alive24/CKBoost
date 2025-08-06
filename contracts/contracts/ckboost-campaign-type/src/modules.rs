@@ -71,7 +71,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         let args = current_script.args();
         let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice())
-            .map_err(|_| Error::MoleculeVerificationError);
+            .map_err(|_| Error::InvalidConnectedTypeId);
 
         // Track the index where the campaign cell will be in the inputs
         let campaign_input_index: usize;

@@ -23,10 +23,12 @@ pub enum Error {
     SSRIMethodsNotImplemented,
     SSRIMethodRequireHigherLevel,
     InvalidVmVersion,
+    InvalidBaseTransactionForSSRI,
 
     // * Type ID Error
     InvalidTypeIDCellNum,
     TypeIDNotMatch,
+    InvalidConnectedTypeId,
 
     // * Molecule Error
     MoleculeVerificationError,
