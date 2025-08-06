@@ -39,7 +39,9 @@ fn program_entry_wrap() -> Result<(), Error> {
         // 
         // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
         let args = load_script()?.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice()).map_err(|_| Error::InvalidConnectedTypeId)?;
+        debug!("args: {:?}", args);
+        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data()).map_err(|_| Error::InvalidConnectedTypeId)?;
+        debug!("connected_type_id: {:?}", connected_type_id);
         match validate_type_id(connected_type_id.type_id().into()) {
             Ok(_) => fallback()?,
             Err(err) => {

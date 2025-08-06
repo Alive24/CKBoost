@@ -70,7 +70,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         debug!("current_script: {:?}", current_script);
 
         let args = current_script.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.as_slice())
+        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
             .map_err(|_| Error::InvalidConnectedTypeId);
 
         // Track the index where the campaign cell will be in the inputs

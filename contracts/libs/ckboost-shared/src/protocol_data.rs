@@ -60,8 +60,9 @@ pub trait ProtocolDataExt {
         
         // No protocol cell found in CellDeps
         // Try to check outputs for protocol creation/update scenarios
-        
+        debug!("No protocol cell found in CellDeps, checking outputs for protocol creation/update scenarios");
         // Try to get the current script (this might fail if not in script context)
+        
         match load_script() {
             Ok(current_script) => {
                 let current_code_hash: [u8; 32] = current_script.code_hash().unpack();
