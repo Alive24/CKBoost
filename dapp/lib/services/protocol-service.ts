@@ -36,7 +36,7 @@ export class ProtocolService {
 
     // Get the protocol type code outpoint and deployment info
     const network = DeploymentManager.getCurrentNetwork();
-    const deployment = deploymentManager.getCurrentDeployment(
+    const deployment = deploymentManager.getCurrentDeployment(  
       network,
       "ckboostProtocolType"
     );
@@ -94,14 +94,21 @@ export class ProtocolService {
     return txHash;
   }
 
-  async getProtocolData(): Promise<ReturnType<typeof ProtocolData.decode>> {
-    const protocolCell = await fetchProtocolCell(this.signer);
+  async getProtocolData(protocolCell: ccc.Cell): Promise<ReturnType<typeof ProtocolData.decode>> {
     if (!protocolCell) {
       throw new Error(
         "Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface."
       );
     }
     return ProtocolData.decode(protocolCell.outputData);
+  }
+
+  async getProtocolCell(): Promise<ccc.Cell> {
+    const protocolCell = await fetchProtocolCell(this.signer);
+    if (!protocolCell) {
+      throw new Error("Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface.");
+    }
+    return protocolCell;
   }
 
   /**

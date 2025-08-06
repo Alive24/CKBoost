@@ -1,8 +1,9 @@
 import { ccc } from "@ckb-ccc/core";
 import { ssri } from "@ckb-ccc/ssri";
-import {
-  CampaignData,
-  type CampaignDataLike,
+import { 
+  CampaignData, 
+  ConnectedTypeID, 
+  type CampaignDataLike
 } from "../generated";
 
 /**
@@ -16,6 +17,7 @@ import {
  */
 export class Campaign extends ssri.Trait {
   public readonly script: ccc.Script;
+  public readonly connectedProtocolCell: ccc.Cell;
 
   /**
    * Constructs a new Campaign instance.
@@ -27,12 +29,14 @@ export class Campaign extends ssri.Trait {
   constructor(
     code: ccc.OutPointLike,
     script: ccc.ScriptLike,
+    connectedProtocolCell: ccc.Cell,
     config?: {
       executor?: ssri.Executor | null;
     } | null
   ) {
     super(code, config?.executor);
     this.script = ccc.Script.from(script);
+    this.connectedProtocolCell = connectedProtocolCell;
   }
 
   /**
@@ -96,6 +100,43 @@ export class Campaign extends ssri.Trait {
           depType: "code",
         });
 
+        // Find the campaign cell output (should be the first output with the campaign type script)
+        const campaignCellOutputIndex = resTx.res.outputs.findIndex(
+          (output) => output.type?.codeHash === this.script.codeHash
+        );
+        
+        if (campaignCellOutputIndex === -1) {
+          throw new Error("Campaign cell output not found in transaction");
+        }
+
+        // Get the protocol cell type hash
+        const connectedProtocolCellTypeHash = this.connectedProtocolCell.cellOutput.type?.hash();
+        if (!connectedProtocolCellTypeHash) {
+          throw new Error("ConnectedProtocolCellTypeHash is not found");
+        }
+        // Create ConnectedTypeID with the protocol cell type hash
+        let campaignCellTypeArgs = resTx.res.outputs[campaignCellOutputIndex].type?.args;
+        if (!campaignCellTypeArgs) {
+          throw new Error("campaignCellTypeArgs is empty.")
+        }
+        let connectedTypeId = ConnectedTypeID.decode(campaignCellTypeArgs)
+
+        connectedTypeId.connected_type_hash = connectedProtocolCellTypeHash;
+
+        // Encode ConnectedTypeID and set it as the campaign type script args
+        const connectedTypeIdBytes = ConnectedTypeID.encode(connectedTypeId);
+        const connectedTypeIdHex = ccc.hexFrom(connectedTypeIdBytes);
+        
+        // Update the campaign cell's type script args with the ConnectedTypeID
+        if (resTx.res.outputs[campaignCellOutputIndex].type) {
+          resTx.res.outputs[campaignCellOutputIndex].type.args = connectedTypeIdHex;
+        }
+
+        // Add the protocol cell as a dependency
+        resTx.res.addCellDeps({
+          outPoint: this.connectedProtocolCell.outPoint,
+          depType: "code",
+        });
         return resTx;
       } else {
         throw new Error("Failed to update campaign");

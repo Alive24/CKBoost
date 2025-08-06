@@ -26,6 +26,7 @@ import { ProtocolService } from "../services/protocol-service";
 interface ProtocolContextType {
   // Protocol data
   protocolData: ReturnType<typeof ProtocolData.decode> | null;
+  protocolCell: ccc.Cell | null;
   metrics: ProtocolMetrics | null;
   transactions: ProtocolTransaction[];
   isLoading: boolean;
@@ -62,6 +63,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   const [protocolData, setProtocolData] = useState<ReturnType<
     typeof ProtocolData.decode
   > | null>(null);
+  const [protocolCell, setProtocolCell] = useState<ccc.Cell | null>(null);
   const [metrics, setMetrics] = useState<ProtocolMetrics | null>(null);
   const [transactions, setTransactions] = useState<ProtocolTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -100,12 +102,15 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setError(null);
 
-        const [data, metricsData, transactionsData] = await Promise.all([
-          protocolService.getProtocolData(),
+        const [metricsData, transactionsData, protocolCell] = await Promise.all([
           protocolService.getProtocolMetrics(),
           protocolService.getProtocolTransactions(),
+          protocolService.getProtocolCell(),
         ]);
 
+        const data = await protocolService.getProtocolData(protocolCell);
+
+        setProtocolCell(protocolCell);
         setProtocolData(data);
         setMetrics(metricsData);
         setTransactions(transactionsData);
@@ -198,11 +203,13 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setError(null);
 
-      const [data, metricsData, transactionsData] = await Promise.all([
-        protocolService.getProtocolData(),
+      const [metricsData, transactionsData, protocolCell] = await Promise.all([
         protocolService.getProtocolMetrics(),
         protocolService.getProtocolTransactions(),
+        protocolService.getProtocolCell(),
       ]);
+
+      const data = await protocolService.getProtocolData(protocolCell);
 
       setProtocolData(data);
       setMetrics(metricsData);
@@ -324,12 +331,15 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   };
 
   const getApprovedCampaign = (id: string): CampaignDataLike | undefined => {
-    return protocolData?.campaigns_approved?.find((c: CampaignDataLike) => c.status === id);
+    // TODO: To implement.
+    throw new Error(`To be implemented ${id} `)
+    // return protocolData?.campaigns_approved?.find((campaignTypeHashHex: ccc.Hex) => c.status === id);
   };
 
   const value: ProtocolContextType = {
     // Protocol data
     protocolData,
+    protocolCell,
     metrics,
     transactions,
     isLoading,

@@ -154,21 +154,21 @@ export function useCampaigns() {
 }
 
 // Helper hook for campaign-specific data
-export function useCampaign(typeHash?: ccc.Hex) {
+export function useCampaign(protocolCell: ccc.Cell | null, typeHash?: ccc.Hex) {
   const executorUrl =
   process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
   const executor = new ssri.ExecutorJsonRpc(executorUrl);
   const signer = ccc.useSigner();
   const { getCampaignByTypeHash, isLoading } = useCampaigns();
 
-  // Return early if signer is not available
-  if (!signer) {
+  // Return early if signer or protocolCell is not available
+  if (!signer || !protocolCell) {
     return {
       campaign: null,
       campaignService: null,
       campaignCell: undefined,
-      isLoading: false,
-      error: "Wallet not connected"
+      isLoading: !protocolCell, // Loading if protocol cell is not yet available
+      error: !signer ? "Wallet not connected" : null
     };
   }
 
@@ -191,10 +191,10 @@ export function useCampaign(typeHash?: ccc.Hex) {
       hashType: "type" as const,
       args: "0x", // Empty args - SSRI will calculate and fill the Connected Type ID
     });
-    campaign = new Campaign(outPoint, campaignTypeScript, {
+    campaign = new Campaign(outPoint, campaignTypeScript, protocolCell,{
       executor: executor,
     });
-    campaignService = new CampaignService(signer, campaign);
+    campaignService = new CampaignService(signer, campaign, protocolCell);
   } else {
     campaignCell = getCampaignByTypeHash(typeHash);
     if (!campaignCell?.outPoint) {
@@ -206,12 +206,13 @@ export function useCampaign(typeHash?: ccc.Hex) {
     campaign = new Campaign(
       campaignCell?.outPoint,
       campaignCell?.cellOutput.type,
+      protocolCell,
       {
         executor: executor,
       }
     )
   }
-  campaignService = new CampaignService(signer, campaign);
+  campaignService = new CampaignService(signer, campaign, protocolCell);
   return {
     campaign,
     campaignService,

@@ -53,6 +53,7 @@ export default function CreateCampaign() {
   const signer = ccc.useSigner();
   const {
     protocolData,
+    protocolCell,
     isLoading: protocolLoading,
     error: protocolError,
   } = useProtocol();
@@ -99,8 +100,13 @@ export default function CreateCampaign() {
   const [quests, setQuests] = useState<
     Array<{
       title: string;
-      description: string;
+      description?: string; // For backward compatibility
+      shortDescription?: string;
+      longDescription?: string;
+      difficulty?: string;
+      timeEstimate?: number;
       points: number;
+      ckbReward?: bigint;
       subtasks: Array<{
         title: string;
         type: string;
@@ -126,7 +132,9 @@ export default function CreateCampaign() {
     }>
   >([]);
 
-  const { campaign, campaignService, isLoading, error } = useCampaign();
+
+  // useCampaign requires protocolCell - handle loading state properly
+  const { campaign, campaignService, isLoading: campaignLoading, error: campaignError } = useCampaign(protocolCell);
 
   // Check wallet connection status
   useEffect(() => {
@@ -385,17 +393,17 @@ export default function CreateCampaign() {
       quests: quests.map((quest, index) => ({
         quest_id: ccc.numFrom(index + 1),
         metadata: {
-          title: quest.title, // Keep as plain string
-          short_description: quest.description, // Keep as plain string
-          long_description: quest.description, // Keep as plain string
+          title: quest.title || "", // Keep as plain string
+          short_description: quest.shortDescription || quest.description || "Complete the quest objectives", // Keep as plain string
+          long_description: quest.longDescription || quest.description || "Complete all required subtasks to earn rewards", // Keep as plain string
           requirements: "Complete all subtasks", // Keep as plain string
-          difficulty: 1,
-          time_estimate: 60,
+          difficulty: quest.difficulty === "Medium" ? 2 : quest.difficulty === "Hard" ? 3 : 1,
+          time_estimate: quest.timeEstimate || 60,
         },
         rewards_on_completion: [
           {
-            points_amount: ccc.numFrom(quest.points),
-            ckb_amount: 0n,
+            points_amount: ccc.numFrom(quest.points || 0),
+            ckb_amount: quest.ckbReward || 0n,
             nft_assets: [],
             udt_assets: [],
           },
@@ -407,12 +415,12 @@ export default function CreateCampaign() {
             : Date.now() + 30 * 24 * 60 * 60 * 1000) / 1000) // Convert to seconds
         ),
         status: 0,
-        sub_tasks: quest.subtasks.map((subtask, subIndex) => ({
+        sub_tasks: (quest.subtasks || []).map((subtask, subIndex) => ({
           id: subIndex + 1,
-          title: subtask.title, // Keep as plain string
-          type: subtask.type, // Keep as plain string
-          description: subtask.description, // Keep as plain string
-          proof_required: subtask.proofRequired, // Keep as plain string
+          title: subtask.title || "", // Keep as plain string
+          type: subtask.type || "task", // Keep as plain string
+          description: subtask.description || "", // Keep as plain string
+          proof_required: subtask.proofRequired || "Proof required", // Keep as plain string
         })),
         points: quest.points,
         completion_count: 0,
@@ -465,6 +473,76 @@ export default function CreateCampaign() {
     buildCampaignData,
     saveDraft,
   ]);
+
+  // Debug function to fill form with mock data
+  const fillWithMockData = () => {
+    // Set basic campaign info
+    setFormData({
+      title: "Test Campaign " + Math.floor(Math.random() * 1000),
+      shortDescription: "This is a test campaign for development purposes",
+      longDescription: "This is a comprehensive test campaign designed to validate the CKBoost platform functionality. It includes multiple quests, rewards, and verification requirements to ensure all features work correctly.",
+      category: "Education",
+      difficulty: "Easy",
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+      totalPoints: "5000",
+      logo: "https://via.placeholder.com/150",
+    });
+
+    // Set rewards
+    setCkbReward(100n * (10n ** 8n)); // 100 CKB
+    setNftRewards([]);
+    setUdtRewards([]);
+
+    // Set rules
+    setRules(["Complete all quests to earn rewards", "Must verify wallet ownership", "One submission per wallet"]);
+
+    // Set quests with subtasks
+    setQuests([
+      {
+        title: "Test Quest 1",
+        shortDescription: "Complete social media tasks",
+        longDescription: "This quest involves various social media interactions to test the platform",
+        difficulty: "Easy",
+        timeEstimate: 30,
+        points: 2500,
+        ckbReward: 50n * (10n ** 8n), // 50 CKB
+        subtasks: [
+          {
+            title: "Follow on Twitter",
+            type: "social",
+            description: "Follow @CKBoost on Twitter",
+            proofRequired: "Screenshot of following"
+          },
+          {
+            title: "Join Discord",
+            type: "social",
+            description: "Join the CKBoost Discord server",
+            proofRequired: "Discord username"
+          }
+        ]
+      },
+      {
+        title: "Test Quest 2",
+        shortDescription: "Complete technical tasks",
+        longDescription: "This quest tests technical integration capabilities",
+        difficulty: "Medium",
+        timeEstimate: 60,
+        points: 2500,
+        ckbReward: 50n * (10n ** 8n), // 50 CKB
+        subtasks: [
+          {
+            title: "Deploy Smart Contract",
+            type: "technical",
+            description: "Deploy a test smart contract on CKB testnet",
+            proofRequired: "Transaction hash"
+          }
+        ]
+      }
+    ]);
+
+    console.log("✅ Form filled with mock data");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -771,8 +849,8 @@ export default function CreateCampaign() {
     );
   }
 
-  // Show protocol loading state
-  if (protocolLoading) {
+  // Show loading state if protocol or campaign is loading
+  if (protocolLoading || campaignLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -789,8 +867,8 @@ export default function CreateCampaign() {
     );
   }
 
-  // Show protocol error
-  if (protocolError) {
+  // Show protocol or campaign error
+  if (protocolError || campaignError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -804,7 +882,7 @@ export default function CreateCampaign() {
             </p>
             <Alert className="mb-6">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>{protocolError}</AlertDescription>
+              <AlertDescription>{protocolError || campaignError}</AlertDescription>
             </Alert>
             <Button onClick={() => window.location.reload()} variant="outline">
               Retry
@@ -884,6 +962,16 @@ export default function CreateCampaign() {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2">
+                  {/* Debug button for testing */}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={fillWithMockData}
+                    className="gap-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                    title="Fill form with test data (for testing only)"
+                  >
+                    🧪 Test Data
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -1773,15 +1861,39 @@ export default function CreateCampaign() {
           </DialogHeader>
           <QuestCreationForm
             initialData={
-              editingQuestIndex !== null ? quests[editingQuestIndex] : undefined
+              editingQuestIndex !== null && quests[editingQuestIndex]
+                ? {
+                    title: quests[editingQuestIndex].title,
+                    description: quests[editingQuestIndex].description || 
+                                quests[editingQuestIndex].shortDescription || 
+                                quests[editingQuestIndex].longDescription || 
+                                "",
+                    points: quests[editingQuestIndex].points,
+                    subtasks: quests[editingQuestIndex].subtasks || []
+                  }
+                : undefined
             }
             onSave={(quest) => {
               if (editingQuestIndex !== null) {
                 const newQuests = [...quests];
-                newQuests[editingQuestIndex] = quest;
+                // Preserve the extended fields when updating
+                newQuests[editingQuestIndex] = {
+                  ...quests[editingQuestIndex],
+                  title: quest.title,
+                  description: quest.description,
+                  shortDescription: quest.description,
+                  longDescription: quest.description,
+                  points: quest.points,
+                  subtasks: quest.subtasks
+                };
                 setQuests(newQuests);
               } else {
-                setQuests([...quests, quest]);
+                // For new quests, set both short and long descriptions
+                setQuests([...quests, {
+                  ...quest,
+                  shortDescription: quest.description,
+                  longDescription: quest.description
+                }]);
               }
               setShowQuestForm(false);
               setEditingQuestIndex(null);

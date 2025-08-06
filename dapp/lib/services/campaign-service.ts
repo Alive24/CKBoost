@@ -20,10 +20,12 @@ import { deploymentManager } from "../ckb/deployment-manager";
 export class CampaignService {
   private signer: ccc.Signer;
   private campaign: Campaign;
+  private protocolCell: ccc.Cell;
 
-  constructor(signer: ccc.Signer, campaign: Campaign) {
+  constructor(signer: ccc.Signer, campaign: Campaign, protocolCell: ccc.Cell) {
     this.signer = signer;
     this.campaign = campaign;
+    this.protocolCell = protocolCell;
 
     // Get the protocol type code outpoint and deployment info
     const network = DeploymentManager.getCurrentNetwork();
@@ -58,6 +60,10 @@ export class CampaignService {
 
     if (!this.campaign) {
       throw new Error("Campaign not initialized. Please try again.");
+    }
+
+    if (!this.protocolCell) {
+      throw new Error("Protocol cell not found. Campaign Cell must be tied to a protocol cell.");
     }
 
     try {
@@ -105,6 +111,51 @@ export class CampaignService {
       // Complete fees and send transaction
       await updateTx.completeInputsByCapacity(this.signer);
       await updateTx.completeFeeBy(this.signer);
+      
+      // Log the transaction bytes before sending
+      const txBytes = updateTx.toBytes();
+      const txHex = ccc.hexFrom(txBytes);
+      console.log("=== TRANSACTION BYTES TO RPC ===");
+      console.log("Transaction Structure:", {
+        version: updateTx.version,
+        cellDeps: updateTx.cellDeps.map(dep => ({
+          outPoint: {
+            txHash: dep.outPoint.txHash,
+            index: dep.outPoint.index
+          },
+          depType: dep.depType
+        })),
+        inputs: updateTx.inputs.map(input => ({
+          previousOutput: {
+            txHash: input.previousOutput.txHash,
+            index: input.previousOutput.index
+          },
+          since: input.since
+        })),
+        outputs: updateTx.outputs.map(output => ({
+          capacity: output.capacity.toString(),
+          lock: {
+            codeHash: output.lock.codeHash,
+            hashType: output.lock.hashType,
+            args: output.lock.args
+          },
+          type: output.type ? {
+            codeHash: output.type.codeHash,
+            hashType: output.type.hashType,
+            args: output.type.args
+          } : null
+        })),
+        outputsData: updateTx.outputsData.map(data => 
+          typeof data === 'string' ? data : ccc.hexFrom(data)
+        ),
+        witnesses: updateTx.witnesses.map(witness => 
+          typeof witness === 'string' ? witness : ccc.hexFrom(witness)
+        )
+      });
+      console.log("Transaction Hex:", txHex);
+      console.log("Transaction Size:", txBytes.length, "bytes");
+      console.log("=== END TRANSACTION BYTES ===");
+      
       const txHash = await this.signer.sendTransaction(updateTx);
 
       console.log("Campaign updated:", { campaignTypeHash, txHash });
