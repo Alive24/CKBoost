@@ -38,3 +38,5 @@ CKBoost.code-workspace
 .claude/
 .cursor/
 */tsconfig.tsbuildinfo
+scripts/debugger/raw_tx.json
+scripts/debugger/tx.json
