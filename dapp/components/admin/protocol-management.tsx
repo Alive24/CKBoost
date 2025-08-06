@@ -890,6 +890,11 @@ export function ProtocolManagement() {
     setShowChangesOnly(!showChangesOnly);
   };
 
+  // Helper function to check if a section should be shown
+  const shouldShowSection = (hasChanges: boolean): boolean => {
+    return !showChangesOnly || hasChanges;
+  };
+
   const resetAllChanges = () => {
     if (
       !confirm(
@@ -1567,6 +1572,7 @@ export function ProtocolManagement() {
         isProtocolNotFoundError) && (
         <div className="space-y-6">
           {/* Admin Management - Add Admin and Current Admins */}
+          {shouldShowSection(pendingChanges.admins) && (
           <div className="grid lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -1766,8 +1772,10 @@ export function ProtocolManagement() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Tipping Configuration */}
+          {shouldShowSection(pendingChanges.tippingConfig) && (
           <Card
             className={pendingChanges.tippingConfig ? "border-orange-500" : ""}
           >
@@ -1847,8 +1855,10 @@ export function ProtocolManagement() {
               </Form>
             </CardContent>
           </Card>
+          )}
 
           {/* Script Code Hashes Configuration */}
+          {shouldShowSection(pendingChanges.scriptCodeHashes) && (
           <Card
             className={
               pendingChanges.scriptCodeHashes ? "border-orange-500" : ""
@@ -1874,7 +1884,11 @@ export function ProtocolManagement() {
                         <FormItem>
                           <FormLabel>Protocol Type Code Hash</FormLabel>
                           <FormControl>
-                            <Input placeholder="0x..." {...field} value={field.value.toString()} />
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
                           <FormMessage />
@@ -1888,7 +1902,11 @@ export function ProtocolManagement() {
                         <FormItem>
                           <FormLabel>Protocol Lock Code Hash</FormLabel>
                           <FormControl>
-                            <Input placeholder="0x..." {...field} value={field.value.toString()} />
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
                           <FormMessage />
@@ -1902,7 +1920,11 @@ export function ProtocolManagement() {
                         <FormItem>
                           <FormLabel>Campaign Type Code Hash</FormLabel>
                           <FormControl>
-                            <Input placeholder="0x..." {...field} value={field.value.toString()} />
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
                           <FormMessage />
@@ -1916,7 +1938,11 @@ export function ProtocolManagement() {
                         <FormItem>
                           <FormLabel>Campaign Lock Code Hash</FormLabel>
                           <FormControl>
-                            <Input placeholder="0x..." {...field} value={field.value.toString()} />
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
                           <FormMessage />
@@ -1930,7 +1956,11 @@ export function ProtocolManagement() {
                         <FormItem>
                           <FormLabel>User Type Code Hash</FormLabel>
                           <FormControl>
-                            <Input placeholder="0x..." {...field} value={field.value.toString()} />
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
                           </FormControl>
                           <FormDescription>Byte32</FormDescription>
                           <FormMessage />
@@ -2050,8 +2080,10 @@ export function ProtocolManagement() {
               </Form>
             </CardContent>
           </Card>
+          )}
 
           {/* Endorsers Management */}
+          {shouldShowSection(pendingChanges.endorsers) && (
           <div className="grid lg:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
@@ -2492,6 +2524,7 @@ export function ProtocolManagement() {
               </CardContent>
             </Card>
           </div>
+          )}
 
           {/* Protocol Summary or Deployment Button */}
           {configStatus === "partial" ||

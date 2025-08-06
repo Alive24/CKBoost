@@ -19,6 +19,7 @@ import {
   ProtocolMetrics,
   ProtocolTransaction,
   ProtocolChanges,
+  FieldChange,
 } from "../types/protocol";
 import { ProtocolService } from "../services/protocol-service";
 
@@ -316,7 +317,102 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       throw new Error("Protocol data not available");
     }
 
-    return calculateChanges(formData);
+    const data = formData as {
+      adminLockHashes: string[];
+      scriptCodeHashes: {
+        ckb_boost_protocol_type_code_hash: string;
+        ckb_boost_protocol_lock_code_hash: string;
+        ckb_boost_campaign_type_code_hash: string;
+        ckb_boost_campaign_lock_code_hash: string;
+        ckb_boost_user_type_code_hash: string;
+      };
+      tippingConfig: {
+        approval_requirement_thresholds: string[];
+        expiration_duration: number;
+      };
+    };
+
+    // Helper function to create field change
+    const createFieldChange = <T,>(fieldPath: string, oldValue: T, newValue: T): FieldChange<T> => {
+      // Custom stringify that handles BigInt
+      const stringify = (value: any): string => {
+        return JSON.stringify(value, (_, v) => 
+          typeof v === 'bigint' ? v.toString() : v
+        );
+      };
+      
+      return {
+        fieldPath,
+        oldValue,
+        newValue,
+        hasChanged: stringify(oldValue) !== stringify(newValue)
+      };
+    };
+
+    // Calculate admin lock hash changes
+    const currentAdmins = protocolData.protocol_config.admin_lock_hash_vec.map(
+      (hash) => ccc.hexFrom(hash as ccc.BytesLike)
+    );
+
+    // Calculate script code hash changes
+    const scriptCodeHashes = protocolData.protocol_config.script_code_hashes;
+
+    // Calculate changes
+    const changes: ProtocolChanges = {
+      protocolConfig: {
+        adminLockHashes: createFieldChange(
+          'protocolConfig.adminLockHashes',
+          currentAdmins, 
+          data.adminLockHashes
+        )
+      },
+      scriptCodeHashes: {
+        ckbBoostProtocolTypeCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostProtocolTypeCodeHash',
+          scriptCodeHashes.ckb_boost_protocol_type_code_hash,
+          data.scriptCodeHashes.ckb_boost_protocol_type_code_hash
+        ),
+        ckbBoostProtocolLockCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostProtocolLockCodeHash',
+          scriptCodeHashes.ckb_boost_protocol_lock_code_hash,
+          data.scriptCodeHashes.ckb_boost_protocol_lock_code_hash
+        ),
+        ckbBoostCampaignTypeCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostCampaignTypeCodeHash',
+          scriptCodeHashes.ckb_boost_campaign_type_code_hash,
+          data.scriptCodeHashes.ckb_boost_campaign_type_code_hash
+        ),
+        ckbBoostCampaignLockCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostCampaignLockCodeHash',
+          scriptCodeHashes.ckb_boost_campaign_lock_code_hash,
+          data.scriptCodeHashes.ckb_boost_campaign_lock_code_hash
+        ),
+        ckbBoostUserTypeCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostUserTypeCodeHash',
+          scriptCodeHashes.ckb_boost_user_type_code_hash,
+          data.scriptCodeHashes.ckb_boost_user_type_code_hash
+        )
+      },
+      tippingConfig: {
+        approvalRequirementThresholds: createFieldChange(
+          'tippingConfig.approvalRequirementThresholds',
+          protocolData.tipping_config.approval_requirement_thresholds,
+          data.tippingConfig.approval_requirement_thresholds
+        ),
+        expirationDuration: createFieldChange(
+          'tippingConfig.expirationDuration',
+          protocolData.tipping_config.expiration_duration,
+          data.tippingConfig.expiration_duration
+        )
+      },
+      endorsers: {
+        added: [],
+        updated: [],
+        removed: []
+      }
+    };
+
+    return changes;
   };
 
   // Helper functions
