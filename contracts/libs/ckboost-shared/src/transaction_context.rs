@@ -15,8 +15,9 @@ pub fn create_transaction_context() -> Result<TransactionContext<RuleBasedClassi
     let collector = ckb_deterministic::cell_classifier::CellCollector::new(classifier);
     
     // Create transaction context using the collector
+    // Note: This will classify all cells including CellDeps
+    // The third CellDep (index 2) is typically a depGroup which may cause issues
     let context = TransactionContext::new(collector)?;
-
     
     Ok(context)
 }

@@ -227,15 +227,18 @@ impl CKBoostCampaign for CKBoostCampaignType {
             .build();
 
         // Determine where to place the witness
-        let witness_index = if let Some(output_idx) = campaign_output_index {
-            debug!("Placing recipe witness at output index: {}", output_idx);
-            output_idx
-        } else {
-            debug!(
-                "No campaign output, placing recipe witness at input index: {}",
+        let witness_index = match campaign_output_index {
+            Some(output_idx) => {
+                debug!("Placing recipe witness at output index: {}", output_idx);
+                output_idx
+            }
+            None => {
+                debug!(
+                    "No campaign output, placing recipe witness at input index: {}",
+                    campaign_input_index
+                );
                 campaign_input_index
-            );
-            campaign_input_index
+            }
         };
 
         // Build witnesses vector with recipe witness at the correct index
@@ -249,11 +252,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // Copy existing witnesses or create empty ones up to witness_index
                 for i in 0..witness_index {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
-                    } else {
-                        let empty_witness = WitnessArgsBuilder::default().build();
-                        builder = builder.push(empty_witness.as_bytes().pack());
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
                     }
                 }
 
@@ -262,18 +268,26 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // Add remaining witnesses after witness_index
                 for i in (witness_index + 1)..total_inputs {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
-                    } else {
-                        let empty_witness = WitnessArgsBuilder::default().build();
-                        builder = builder.push(empty_witness.as_bytes().pack());
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
                     }
                 }
 
                 // Add any extra witnesses that might exist beyond input count
                 for i in total_inputs..witnesses.len() {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            // Should not happen since we're iterating within bounds, but handle gracefully
+                        }
                     }
                 }
 
@@ -477,11 +491,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                         // Copy existing witnesses or create empty ones up to campaign_output_index
                         for i in 0..campaign_output_index {
-                            if let Some(witness) = witnesses.get(i) {
-                                builder = builder.push(witness);
-                            } else {
-                                let empty_witness = WitnessArgsBuilder::default().build();
-                                builder = builder.push(empty_witness.as_bytes().pack());
+                            match witnesses.get(i) {
+                                Some(witness) => {
+                                    builder = builder.push(witness);
+                                }
+                                None => {
+                                    let empty_witness = WitnessArgsBuilder::default().build();
+                                    builder = builder.push(empty_witness.as_bytes().pack());
+                                }
                             }
                         }
 
@@ -490,11 +507,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                         // Add remaining witnesses
                         for i in (campaign_output_index + 1)..total_inputs {
-                            if let Some(witness) = witnesses.get(i) {
-                                builder = builder.push(witness);
-                            } else {
-                                let empty_witness = WitnessArgsBuilder::default().build();
-                                builder = builder.push(empty_witness.as_bytes().pack());
+                            match witnesses.get(i) {
+                                Some(witness) => {
+                                    builder = builder.push(witness);
+                                }
+                                None => {
+                                    let empty_witness = WitnessArgsBuilder::default().build();
+                                    builder = builder.push(empty_witness.as_bytes().pack());
+                                }
                             }
                         }
 

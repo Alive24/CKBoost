@@ -17,6 +17,7 @@ pub fn create_ckboost_classifier(
     let classifier = RuleBasedClassifier::new("CKBoostClassifier")
         .add_known_script(KnownScript::XUdt, KnownScript::XUdt.cell_class())
         .add_known_script(KnownScript::Spore, KnownScript::Spore.cell_class())
+        .add_known_script(KnownScript::TypeId, KnownScript::TypeId.cell_class())
         .add_type_code_hash(data.protocol_type_code_hash(), CellClass::custom("protocol"))
         .add_type_code_hash(data.campaign_type_code_hash(), CellClass::custom("campaign"))
         .add_type_code_hash(data.user_type_code_hash(), CellClass::custom("user"));

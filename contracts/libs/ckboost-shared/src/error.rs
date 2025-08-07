@@ -119,7 +119,7 @@ pub enum Error {
     MissingCellDep,
     MissingHeaderDep,
     DataParsing,
-    InvalidCellRelationship,
+    CellRelationshipRuleViolation,
     CustomRuleFailed,
     
     // Script argument validation errors
@@ -167,7 +167,7 @@ impl From<ckb_deterministic::errors::Error> for Error {
             ckb_deterministic::errors::Error::WrongMethodPath => Error::WrongMethodPath,
             ckb_deterministic::errors::Error::InvalidArgumentCount => Error::InvalidArgumentCount,
             ckb_deterministic::errors::Error::CellCountViolation => Error::CellCountViolation,
-            ckb_deterministic::errors::Error::CellRelationshipRuleViolation => Error::InvalidCellRelationship,
+            ckb_deterministic::errors::Error::CellRelationshipRuleViolation => Error::CellRelationshipRuleViolation,
             ckb_deterministic::errors::Error::MissingCellDep => Error::MissingCellDep,
             ckb_deterministic::errors::Error::MissingHeaderDep => Error::MissingHeaderDep,
             _ => Error::Unknown,

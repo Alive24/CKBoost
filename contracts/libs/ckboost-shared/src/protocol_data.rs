@@ -1,14 +1,17 @@
 // cspell:ignore celldeps udts
 pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec, ScriptVec, Script};
+use crate::Error;
+use ckb_deterministic::known_scripts::{self, get_script_info};
 use ckb_std::{
     debug, 
-    high_level::{load_cell_data, load_cell_type, load_script, QueryIter},
+    high_level::{load_cell_data, load_cell_type, load_cell_type_hash, load_script, decode_hex},
     ckb_constants::Source,
     ckb_types::prelude::*,
 };
 use ckb_ssri_std::utils::high_level::{find_cell_data_by_out_point, find_out_point_by_type};
 use molecule::prelude::*;
 use alloc::vec::Vec;
+use alloc::ffi::CString;
 
 /// Extension trait for ProtocolData with helper methods for cell classification
 pub trait ProtocolDataExt {
@@ -24,87 +27,128 @@ pub trait ProtocolDataExt {
     /// 
     /// Since protocol cells have restricted locks (only protocol manager can unlock),
     /// we don't need to check inputs - we can directly check outputs.
-    fn from_protocol_cell() -> Result<ProtocolData, crate::error::Error> {
+    fn from_protocol_cell() -> Result<ProtocolData, Error> {
         debug!("Loading protocol data from protocol cell");
         
-        // First, try to find ANY cell with type script in CellDeps that can be parsed as ProtocolData
-        let cell_deps_iter = QueryIter::new(load_cell_type, Source::CellDep);
-        for (index, type_script_opt) in cell_deps_iter.enumerate() {
-            match type_script_opt {
-                Some(_type_script) => {
-                    debug!("Found type script in CellDep at index {}, attempting to parse as ProtocolData", index);
-                    
-                    // Try to load and parse the cell data as ProtocolData
-                    match load_cell_data(index, Source::CellDep) {
-                        Ok(data) => {
-                            match ProtocolData::from_slice(&data) {
-                                Ok(protocol_data) => {
-                                    debug!("Successfully loaded protocol data from CellDep at index {}", index);
-                                    return Ok(protocol_data);
-                                }
-                                Err(_) => {
-                                    debug!("Cell at CellDep index {} is not ProtocolData, continuing", index);
-                                    continue;
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            debug!("Failed to load cell data from CellDep at index {}: {:?}", index, e);
-                            continue;
-                        }
-                    }
-                }
-                None => continue,
-            }
-        }
-        
-        // No protocol cell found in CellDeps
-        // Try to check outputs for protocol creation/update scenarios
-        debug!("No protocol cell found in CellDeps, checking outputs for protocol creation/update scenarios");
-        // Try to get the current script (this might fail if not in script context)
-        
+        // Get the current script to extract the connected_type_hash from args
         match load_script() {
             Ok(current_script) => {
-                let current_code_hash: [u8; 32] = current_script.code_hash().unpack();
-                debug!("Current script code hash: {:?}", current_code_hash);
+                let args = current_script.args();
+                debug!("Current script args length: {}", args.len());
                 
-                // Check outputs for cells with the same code hash and try to parse as ProtocolData
-                // This handles both creation and update scenarios since only protocol manager can unlock protocol cells
-                debug!("Checking outputs for cells with current script type");
-                
-                let outputs_iter = QueryIter::new(load_cell_type, Source::Output);
-                for (index, type_script_opt) in outputs_iter.enumerate() {
-                    match type_script_opt {
-                        Some(type_script) => {
-                            let output_code_hash: [u8; 32] = type_script.code_hash().unpack();
-                            match output_code_hash == current_code_hash {
-                                true => {
-                                    debug!("Found cell with same type script in Output at index {}", index);
+                // Parse the args as ConnectedTypeID to get the connected_type_hash
+                use crate::generated::ckboost::ConnectedTypeID;
+                match ConnectedTypeID::from_slice(&args.raw_data()) {
+                    Ok(connected_type_id) => {
+                        let connected_hash = connected_type_id.connected_type_hash();
+                        debug!("Looking for protocol cell with type hash: {:?}", connected_hash);
+                        
+                        // Now search CellDeps for a cell with matching type script hash
+                        // Check only first 3 CellDeps to avoid issues
+                        for index in 0..3 {
+                            debug!("Checking CellDep at index {}", index);
+                            match load_cell_type_hash(index, Source::CellDep) {
+                                Ok(Some(type_hash)) => {
+                                    debug!("CellDep {} type script hash: {:?}", index, type_hash);
                                     
-                                    // Try to parse this cell as ProtocolData
-                                    match load_cell_data(index, Source::Output) {
-                                        Ok(data) => {
-                                            match ProtocolData::from_slice(&data) {
-                                                Ok(protocol_data) => {
-                                                    debug!("Successfully loaded protocol data from Output");
-                                                    return Ok(protocol_data);
-                                                }
-                                                Err(_) => {
-                                                    debug!("Found a protocol cell but the data is invalid. Should not happen.");
-                                                    return Err(crate::error::Error::ProtocolDataInvalid);
+                                    // Check if this matches our connected_type_hash
+                                    if type_hash.as_slice() == connected_hash.as_slice() {
+                                        debug!("Found matching protocol cell at CellDep index {}", index);
+                                        
+                                        // Load and parse the protocol data
+                                        match load_cell_data(index, Source::CellDep) {
+                                            Ok(data) => {
+                                                match ProtocolData::from_slice(&data) {
+                                                    Ok(protocol_data) => {
+                                                        debug!("Successfully loaded protocol data from CellDep at index {}", index);
+                                                        return Ok(protocol_data);
+                                                    }
+                                                    Err(e) => {
+                                                        debug!("Failed to parse protocol data: {:?}", e);
+                                                        return Err(crate::error::Error::ProtocolDataInvalid);
+                                                    }
                                                 }
                                             }
-                                        }
-                                        Err(e) => {
-                                            debug!("Failed to load cell data: {:?}", e);
-                                            return Err(crate::error::Error::ProtocolDataNotLoaded);
+                                            Err(e) => {
+                                                debug!("Failed to load cell data: {:?}", e);
+                                                return Err(crate::error::Error::ProtocolDataNotLoaded);
+                                            }
                                         }
                                     }
                                 }
-                                false => continue,
+                                Ok(None) => {
+                                    debug!("CellDep {} has no type script", index);
+                                }
+                                Err(_) => {
+                                    debug!("No more CellDeps at index {}", index);
+                                    break;
+                                }
                             }
                         }
-                        None => continue,
+                        
+                        debug!("Protocol cell not found in CellDeps");
+                        return Err(crate::error::Error::ProtocolCellNotFound);
+                    }
+                    Err(e) => {
+                        debug!("Failed to parse args as ConnectedTypeID: {:?}", e);
+                        
+                        // Fallback: Check outputs for protocol creation scenario
+                        debug!("Checking outputs for protocol creation scenario");
+                        
+                        // Check outputs for cells with the same code hash as current script
+                        let current_code_hash: [u8; 32] = current_script.code_hash().unpack();
+                        debug!("Current script code hash: {:?}", current_code_hash);
+                        
+                        // Check outputs for cells with the same code hash and try to parse as ProtocolData
+                        // This handles both creation and update scenarios since only protocol manager can unlock protocol cells
+                        debug!("Checking outputs for cells with current script type");
+                        
+                        // Using manual index control to avoid QueryIter issues
+                        let mut index = 0;
+                        loop {
+                            match load_cell_type(index, Source::Output) {
+                                Ok(type_script_opt) => match type_script_opt {
+                                    Some(type_script) => {
+                                        let output_code_hash: [u8; 32] = type_script.code_hash().unpack();
+                                        if output_code_hash == current_code_hash {
+                                            debug!("Found cell with same type script in Output at index {}", index);
+                                            
+                                            // Try to parse this cell as ProtocolData
+                                            match load_cell_data(index, Source::Output) {
+                                                Ok(data) => {
+                                                    match ProtocolData::from_slice(&data) {
+                                                        Ok(protocol_data) => {
+                                                            debug!("Successfully loaded protocol data from Output");
+                                                            return Ok(protocol_data);
+                                                        }
+                                                        Err(_) => {
+                                                            debug!("Found a protocol cell but the data is invalid. Should not happen.");
+                                                            return Err(crate::error::Error::ProtocolDataInvalid);
+                                                        }
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    debug!("Failed to load cell data: {:?}", e);
+                                                    return Err(crate::error::Error::ProtocolDataNotLoaded);
+                                                }
+                                            }
+                                        } else {
+                                            index += 1;
+                                            continue;
+                                        }
+                                    }
+                                    None => {
+                                        index += 1;
+                                        continue;
+                                    }
+                                },
+                                Err(_) => {
+                                    // No more Outputs to check
+                                    debug!("Finished checking {} Outputs", index);
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
             }

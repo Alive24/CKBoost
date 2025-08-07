@@ -11,7 +11,7 @@ pub mod common {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), DeterministicError> {
         // Get the protocol cells from input and output.
-        let input_protocol_cells = match context.input_cells.get_known("protocol") {
+        let input_protocol_cells = match context.input_cells.get_custom("protocol") {
             Some(cells) => cells,
             None => {
                 // Only creation scenario when the recipe is update protocol has no input protocol cell
@@ -26,7 +26,7 @@ pub mod common {
         };
         let output_protocol_cells = context
             .output_cells
-            .get_known("protocol")
+            .get_custom("protocol")
             .ok_or(DeterministicError::CellCountViolation)?;
 
         // Should have exactly one protocol cell in input and output (singleton pattern)
@@ -119,13 +119,13 @@ pub mod update_protocol {
             use molecule::prelude::*;
 
             // Get the protocol cells from input and output
-            let input_protocol_cells = match context.input_cells.get_known("protocol") {
+            let input_protocol_cells = match context.input_cells.get_custom("protocol") {
                 Some(cells) => cells,
                 None => return Ok(()), // Creation scenario - no input protocol cell to validate
             };
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Should have exactly one protocol cell in input and output (singleton pattern)
@@ -246,11 +246,11 @@ pub mod update_tipping_proposal {
             // Get protocol cells
             let input_protocol_cells = context
                 .input_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Verify singleton
@@ -292,11 +292,11 @@ pub mod update_tipping_proposal {
             // Get protocol cells
             let input_protocol_cells = context
                 .input_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Parse protocol data
@@ -344,11 +344,11 @@ pub mod update_tipping_proposal {
             // Get protocol cells
             let input_protocol_cells = context
                 .input_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Parse protocol data
@@ -418,11 +418,11 @@ pub mod update_tipping_proposal {
             // Get protocol cells
             let input_protocol_cells = context
                 .input_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Parse protocol data
@@ -493,11 +493,11 @@ pub mod update_tipping_proposal {
             // Get protocol cells
             let input_protocol_cells = context
                 .input_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
             let output_protocol_cells = context
                 .output_cells
-                .get_known("protocol")
+                .get_custom("protocol")
                 .ok_or(DeterministicError::CellCountViolation)?;
 
             // Parse protocol data

@@ -17,7 +17,7 @@ pub mod common {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), DeterministicError> {
         // Get the user cells from input and output
-        let input_user_cells = match context.input_cells.get_known("user") {
+        let input_user_cells = match context.input_cells.get_custom("user") {
             Some(cells) => cells,
             None => {
                 // Only creation scenario when the recipe is create user has no input user cell
@@ -32,7 +32,7 @@ pub mod common {
         };
         let output_user_cells = context
             .output_cells
-            .get_known("user")
+            .get_custom("user")
             .ok_or(DeterministicError::CellCountViolation)?;
 
         // For each user cell, verify lock and type hashes remain unchanged

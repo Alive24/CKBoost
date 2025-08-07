@@ -217,12 +217,15 @@ impl CKBoostProtocol for CKBoostProtocolType {
         
         // Determine where to place the witness:
         // Prefer output index if we have a protocol output, otherwise use input index
-        let witness_index = if let Some(output_idx) = protocol_output_index {
-            debug!("Placing recipe witness at output index: {}", output_idx);
-            output_idx
-        } else {
-            debug!("No protocol output, placing recipe witness at input index: {}", protocol_input_index);
-            protocol_input_index
+        let witness_index = match protocol_output_index {
+            Some(output_idx) => {
+                debug!("Placing recipe witness at output index: {}", output_idx);
+                output_idx
+            }
+            None => {
+                debug!("No protocol output, placing recipe witness at input index: {}", protocol_input_index);
+                protocol_input_index
+            }
         };
         
         // Build witnesses vector with recipe witness at the correct index
@@ -236,12 +239,15 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 
                 // Copy existing witnesses or create empty ones up to witness_index
                 for i in 0..witness_index {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
-                    } else {
-                        // Create empty WitnessArgs for missing witnesses
-                        let empty_witness = WitnessArgsBuilder::default().build();
-                        builder = builder.push(empty_witness.as_bytes().pack());
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            // Create empty WitnessArgs for missing witnesses
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
                     }
                 }
                 
@@ -250,19 +256,27 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 
                 // Add remaining witnesses after witness_index
                 for i in (witness_index + 1)..total_inputs {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
-                    } else {
-                        // Create empty WitnessArgs for missing witnesses
-                        let empty_witness = WitnessArgsBuilder::default().build();
-                        builder = builder.push(empty_witness.as_bytes().pack());
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            // Create empty WitnessArgs for missing witnesses
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
                     }
                 }
                 
                 // Add any extra witnesses that might exist beyond input count
                 for i in total_inputs..witnesses.len() {
-                    if let Some(witness) = witnesses.get(i) {
-                        builder = builder.push(witness);
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            // Should not happen since we're iterating within bounds, but handle gracefully
+                        }
                     }
                 }
                 
