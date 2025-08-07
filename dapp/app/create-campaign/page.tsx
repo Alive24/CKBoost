@@ -338,11 +338,11 @@ export default function CreateCampaign() {
     const campaignData: CampaignDataLike = {
       endorser: {
         ...currentWalletEndorser,
-        // Keep strings as plain strings - mol encoder will handle encoding
-        endorser_name: currentWalletEndorser.endorser_name,
-        endorser_description: currentWalletEndorser.endorser_description,
-        website: currentWalletEndorser.website || "",
-        social_links: currentWalletEndorser.social_links,
+        // Encode strings to Molecule format for storage
+        endorser_name: mol.String.encode(currentWalletEndorser.endorser_name),
+        endorser_description: mol.String.encode(currentWalletEndorser.endorser_description),
+        website: mol.String.encode(currentWalletEndorser.website || ""),
+        social_links: currentWalletEndorser.social_links.map(link => mol.String.encode(link)),
       },
       created_at: ccc.numFrom(Math.floor(Date.now() / 1000)), // Convert to seconds
       starting_time: ccc.numFrom(
@@ -355,12 +355,12 @@ export default function CreateCampaign() {
       ),
       rules: rules
         .filter((rule) => rule.trim())
-        .map((rule) => rule), // Keep as plain strings
+        .map((rule) => mol.String.encode(rule)), // Encode for storage
       metadata: {
         verification_requirements: [],
         last_updated: ccc.numFrom(Math.floor(Date.now() / 1000)), // Convert to seconds
         categories: formData.category
-          ? [formData.category] // Keep as plain string
+          ? [mol.String.encode(formData.category)] // Encode for storage
           : [],
         difficulty:
           formData.difficulty === "Easy"
@@ -368,18 +368,18 @@ export default function CreateCampaign() {
             : formData.difficulty === "Medium"
             ? 2
             : 3,
-        title: formData.title, // Keep as plain string
+        title: mol.String.encode(formData.title), // Encode for storage
         endorser_info: {
           ...currentWalletEndorser,
-          // Keep all strings as plain strings
-          endorser_name: currentWalletEndorser.endorser_name,
-          endorser_description: currentWalletEndorser.endorser_description,
-          website: currentWalletEndorser.website || "",
-          social_links: currentWalletEndorser.social_links,
+          // Encode all strings for storage
+          endorser_name: mol.String.encode(currentWalletEndorser.endorser_name),
+          endorser_description: mol.String.encode(currentWalletEndorser.endorser_description),
+          website: mol.String.encode(currentWalletEndorser.website || ""),
+          social_links: currentWalletEndorser.social_links.map(link => mol.String.encode(link)),
         },
-        image_url: formData.logo, // Keep as plain string
-        short_description: formData.shortDescription, // Keep as plain string
-        long_description: formData.longDescription, // Keep as plain string
+        image_url: mol.String.encode(formData.logo), // Encode for storage
+        short_description: mol.String.encode(formData.shortDescription), // Encode for storage
+        long_description: mol.String.encode(formData.longDescription), // Encode for storage
         total_rewards: {
           points_amount: ccc.numFrom(formData.totalPoints || "0"),
           ckb_amount: ckbReward,
@@ -393,10 +393,10 @@ export default function CreateCampaign() {
       quests: quests.map((quest, index) => ({
         quest_id: ccc.numFrom(index + 1),
         metadata: {
-          title: quest.title || "", // Keep as plain string
-          short_description: quest.shortDescription || quest.description || "Complete the quest objectives", // Keep as plain string
-          long_description: quest.longDescription || quest.description || "Complete all required subtasks to earn rewards", // Keep as plain string
-          requirements: "Complete all subtasks", // Keep as plain string
+          title: mol.String.encode(quest.title || ""), // Encode for storage
+          short_description: mol.String.encode(quest.shortDescription || quest.description || "Complete the quest objectives"), // Encode for storage
+          long_description: mol.String.encode(quest.longDescription || quest.description || "Complete all required subtasks to earn rewards"), // Encode for storage
+          requirements: mol.String.encode("Complete all subtasks"), // Encode for storage
           difficulty: quest.difficulty === "Medium" ? 2 : quest.difficulty === "Hard" ? 3 : 1,
           time_estimate: quest.timeEstimate || 60,
         },
@@ -417,10 +417,10 @@ export default function CreateCampaign() {
         status: 0,
         sub_tasks: (quest.subtasks || []).map((subtask, subIndex) => ({
           id: subIndex + 1,
-          title: subtask.title || "", // Keep as plain string
-          type: subtask.type || "task", // Keep as plain string
-          description: subtask.description || "", // Keep as plain string
-          proof_required: subtask.proofRequired || "Proof required", // Keep as plain string
+          title: mol.String.encode(subtask.title || ""), // Encode for storage
+          type: mol.String.encode(subtask.type || "task"), // Encode for storage
+          description: mol.String.encode(subtask.description || ""), // Encode for storage
+          proof_required: mol.String.encode(subtask.proofRequired || "Proof required"), // Encode for storage
         })),
         points: quest.points,
         completion_count: 0,
@@ -597,6 +597,27 @@ export default function CreateCampaign() {
             // Convert BigInt to string for logging
             if (typeof value === "bigint") {
               return value.toString() + "n";
+            }
+            // Convert Uint8Array to readable string for logging
+            if (value instanceof Uint8Array || (value && typeof value === 'object' && '0' in value && '1' in value)) {
+              // Try to decode as string for better readability in logs
+              try {
+                const decoder = new TextDecoder();
+                const bytes = value instanceof Uint8Array ? value : new Uint8Array(Object.values(value));
+                // Skip the first 4 bytes (length prefix) if present
+                const hasLengthPrefix = bytes.length > 4 && bytes[0] === bytes.length - 4;
+                const textBytes = hasLengthPrefix ? bytes.slice(4) : bytes;
+                const text = decoder.decode(textBytes);
+                // Only return as string if it's valid text
+                if (text && /^[\x20-\x7E]*$/.test(text)) {
+                  return `[Uint8Array: "${text}"]`;
+                }
+              } catch {
+                // If decoding fails, show as hex
+              }
+              // Fallback to hex representation
+              const bytes = value instanceof Uint8Array ? value : new Uint8Array(Object.values(value));
+              return `[Uint8Array: 0x${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}]`;
             }
             return value;
           },

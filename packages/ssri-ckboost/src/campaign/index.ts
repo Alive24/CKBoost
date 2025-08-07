@@ -119,9 +119,35 @@ export class Campaign extends ssri.Trait {
         if (!campaignCellTypeArgs) {
           throw new Error("campaignCellTypeArgs is empty.")
         }
-        let connectedTypeId = ConnectedTypeID.decode(campaignCellTypeArgs)
-
-        connectedTypeId.connected_type_hash = connectedProtocolCellTypeHash;
+        
+        // Handle different type args formats
+        let connectedTypeId;
+        const argsBytes = ccc.bytesFrom(campaignCellTypeArgs);
+        
+        if (argsBytes.length === 0 || campaignCellTypeArgs === "0x") {
+          // Empty args - create new ConnectedTypeID with a generated type_id
+          // Generate a unique type_id based on the transaction hash and output index
+          const txHash = resTx.res.hash();
+          const typeIdBytes = ccc.bytesFrom(txHash).slice(0, 32);
+          
+          connectedTypeId = {
+            type_id: ccc.hexFrom(typeIdBytes),
+            connected_type_hash: connectedProtocolCellTypeHash,
+          };
+        } else if (argsBytes.length === 32) {
+          // Direct protocol reference - wrap in ConnectedTypeID
+          // Use the existing 32 bytes as the type_id
+          connectedTypeId = {
+            type_id: campaignCellTypeArgs,
+            connected_type_hash: connectedProtocolCellTypeHash,
+          };
+        } else if (argsBytes.length === 76) {
+          // Already a ConnectedTypeID - decode and update
+          connectedTypeId = ConnectedTypeID.decode(campaignCellTypeArgs);
+          connectedTypeId.connected_type_hash = connectedProtocolCellTypeHash;
+        } else {
+          throw new Error(`Invalid campaign type args length: ${argsBytes.length}. Expected 0, 32, or 76 bytes.`);
+        }
 
         // Encode ConnectedTypeID and set it as the campaign type script args
         const connectedTypeIdBytes = ConnectedTypeID.encode(connectedTypeId);

@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { 
@@ -19,13 +18,9 @@ import {
   Eye, 
   Users, 
   Trophy, 
-  Calendar, 
   CheckCircle,
   Clock,
-  AlertCircle,
   DollarSign,
-  UserCheck,
-  Crown,
   X,
   FileText,
   Star,
@@ -33,7 +28,6 @@ import {
   Zap,
   Search,
   Filter,
-  UserPlus,
   MessageCircle,
   Fingerprint
 } from "lucide-react"
@@ -513,7 +507,7 @@ export default function PlatformAdminDashboard() {
   const [selectedStatus, setSelectedStatus] = useState("all")
   const [selectedVerification, setSelectedVerification] = useState("all")
   const [selectedRole, setSelectedRole] = useState("all")
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedUser, setSelectedUser] = useState<typeof PLATFORM_USERS[0] | null>(null)
   const [isUserDetailsOpen, setIsUserDetailsOpen] = useState(false)
   const [newReward, setNewReward] = useState({
     period: "",
@@ -635,7 +629,7 @@ export default function PlatformAdminDashboard() {
     return matchesSearch && matchesStatus && matchesVerification && matchesRole
   })
 
-  const handleUserClick = (user: any) => {
+  const handleUserClick = (user: typeof PLATFORM_USERS[0]) => {
     setSelectedUser(user)
     setIsUserDetailsOpen(true)
   }
@@ -672,30 +666,9 @@ export default function PlatformAdminDashboard() {
     }
   }
 
-  // Check if user meets verification requirements based on new logic
-  const meetsVerificationRequirements = (user: any, eligibilityRules: any) => {
-    if (!eligibilityRules.verificationRequired) return true
-
-    // If user has KYC or DID, they meet identity verification requirements
-    // (unless these specific methods are excluded)
-    const hasKyc = user.verificationStatus.kyc && eligibilityRules.acceptableVerifications.includes("kyc")
-    const hasDid = user.verificationStatus.did && eligibilityRules.acceptableVerifications.includes("did")
-    
-    if (hasKyc || hasDid) {
-      return true // KYC or DID fulfills identity verification requirement
-    }
-
-    // If no KYC/DID, check other acceptable verification methods
-    const hasTelegram = user.verificationStatus.telegram && eligibilityRules.acceptableVerifications.includes("telegram")
-    const hasManualReview = user.verificationStatus.manualReview && 
-                           eligibilityRules.acceptableVerifications.includes("manual") && 
-                           !eligibilityRules.excludeManualReview
-
-    return hasTelegram || hasManualReview
-  }
 
   // Get user's verification status summary
-  const getUserVerificationSummary = (user: any) => {
+  const getUserVerificationSummary = (user: typeof PLATFORM_USERS[0]) => {
     if (user.verificationStatus.kyc || user.verificationStatus.did) {
       return { status: "identity_verified", color: "bg-green-100 text-green-800", text: "Identity Verified" }
     }
@@ -858,7 +831,7 @@ export default function PlatformAdminDashboard() {
                         <div className="flex-1">
                           <p className="text-sm font-medium">New campaign application</p>
                           <p className="text-xs text-muted-foreground">
-                            "NFT Art Showcase Campaign" submitted by NFT Creator DAO
+                            &quot;NFT Art Showcase Campaign&quot; submitted by NFT Creator DAO
                           </p>
                         </div>
                         <span className="text-xs text-muted-foreground">1h ago</span>
@@ -1272,7 +1245,7 @@ export default function PlatformAdminDashboard() {
                         <div>
                           <Label className="text-sm font-medium mb-2 block">Campaign Participation</Label>
                           <div className="space-y-2">
-                            {selectedUser.campaignParticipation.map((campaign: any, index: number) => (
+                            {selectedUser.campaignParticipation.map((campaign, index) => (
                               <div key={index} className="flex items-center justify-between p-3 border dark:border-gray-700 rounded-lg">
                                 <div>
                                   <div className="font-medium text-sm">{campaign.campaignName}</div>
