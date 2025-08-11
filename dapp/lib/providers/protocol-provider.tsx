@@ -51,6 +51,9 @@ interface ProtocolContextType {
   userBalance: string | null;
   isWalletConnected: boolean;
   isAdmin: boolean;
+  
+  // Signer for blockchain operations
+  signer: ccc.Signer | undefined;
 }
 
 // Create context
@@ -161,23 +164,33 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         setUserBalance(ccc.fixedPointToString(balance));
 
         // Check if user is admin
-        if (protocolData) {
-          // Convert address to lock hash for admin check
-          // This is a simplified check - in practice you'd need to derive the lock hash properly
-          const userLockHash = addr; // Simplified - would need proper conversion
-          const isUserAdmin =
-            protocolData.protocol_config.admin_lock_hash_vec.some(
-              (adminHash: ccc.HexLike) => {
-                const hashHex =
-                  typeof adminHash === "string"
-                    ? adminHash
-                    : ccc.hexFrom(new Uint8Array(adminHash));
-                return hashHex
-                  .toLowerCase()
-                  .includes(userLockHash.toLowerCase());
-              }
-            );
-          setIsAdmin(isUserAdmin);
+        if (protocolData && signer) {
+          try {
+            // Get the user's lock script and calculate its hash
+            const userLockScript = (await signer.getRecommendedAddressObj()).script;
+            const userLockHash = userLockScript.hash();
+            
+            console.log("Admin check:", {
+              userAddress: addr,
+              userLockHash,
+              adminHashes: protocolData.protocol_config.admin_lock_hash_vec
+            });
+            
+            const isUserAdmin =
+              protocolData.protocol_config.admin_lock_hash_vec.some(
+                (adminHash: ccc.HexLike) => {
+                  const hashHex =
+                    typeof adminHash === "string"
+                      ? adminHash
+                      : ccc.hexFrom(new Uint8Array(adminHash));
+                  return hashHex.toLowerCase() === userLockHash.toLowerCase();
+                }
+              );
+            setIsAdmin(isUserAdmin);
+          } catch (adminCheckErr) {
+            console.error("Failed to check admin status:", adminCheckErr);
+            setIsAdmin(false);
+          }
         }
       } catch (err) {
         console.error("Failed to update user info:", err);
@@ -459,6 +472,9 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     userBalance,
     isWalletConnected,
     isAdmin,
+    
+    // Signer for blockchain operations
+    signer,
   };
 
   return (

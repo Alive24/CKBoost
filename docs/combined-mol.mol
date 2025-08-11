@@ -101,7 +101,6 @@ table CampaignData {
     ending_time: Uint64,
     rules: StringVec,             // Campaign-specific rules
     metadata: CampaignMetadata,
-    status: byte,       // 0=created, 1=funding, 2=reviewing, 3=approved, 4=active, 5=completed
     quests: QuestDataVec,
     participants_count: Uint32,
     total_completions: Uint32,    // Total quest completions across all participants

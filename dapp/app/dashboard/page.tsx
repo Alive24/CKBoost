@@ -1,6 +1,7 @@
 "use client"
 
 import { Navigation } from "@/components/navigation"
+import { formatDateConsistent } from "@/lib/utils/debug"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -293,7 +294,7 @@ export default function Dashboard() {
                       <div>
                         <div className="font-medium text-sm">{deadline.title}</div>
                         <div className="text-xs text-muted-foreground">
-                          Due {new Date(deadline.deadline).toLocaleDateString()}
+                          Due {formatDateConsistent(deadline.deadline)}
                         </div>
                       </div>
                       <Badge variant={deadline.daysLeft <= 3 ? "destructive" : "secondary"}>
@@ -323,7 +324,7 @@ export default function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm">{formatActivityText(activity)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {new Date(activity.timestamp).toLocaleDateString()}
+                          {formatDateConsistent(activity.timestamp)}
                         </div>
                       </div>
                     </div>

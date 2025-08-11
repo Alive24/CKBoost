@@ -2,7 +2,10 @@
 // This file contains functions to interact with CKB blockchain for campaign data
 
 import { ccc } from "@ckb-ccc/core"
-import type { UserSubmissionRecordLike } from "ssri-ckboost/types"
+import type { UserSubmissionRecordLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
+import { ConnectedTypeID, ProtocolData } from "ssri-ckboost/types"
+import { debug } from "@/lib/utils/debug"
+import { fetchProtocolCell } from "./protocol-cells"
 
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true // Set to true when blockchain is available
@@ -50,26 +53,58 @@ export async function fetchCampaignByTypeHash(typeHash: ccc.Hex, signer?: ccc.Si
   }
 
   try {
-    // TODO: Implement campaign-specific cell search by type hash
-    // const client = signer.client
+    debug.group('fetchCampaignByTypeHash')
+    debug.log('Searching for campaign with type hash:', typeHash)
     
-    // Search for specific campaign cell by its type hash
-    // const campaignCells = await client.findCells({
-    //   script: {
-    //     codeHash: typeHash,
-    //     hashType: "type",
-    //     args: "0x"
-    //   },
-    //   scriptType: "type"
-    // })
-
-    // if (campaignCells.length === 0) return undefined
-    // return parseCampaignCell(campaignCells[0])
+    const client = signer.client
     
+    // First, we need to get the protocol cell to find the campaign code hash
+    const protocolCell = await fetchProtocolCell(signer)
+    if (!protocolCell) {
+      debug.error("Protocol cell not found")
+      debug.groupEnd()
+      return undefined
+    }
+    
+    // Parse protocol data to get campaign code hash
+    const protocolData = ProtocolData.decode(protocolCell.outputData)
+    const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+    
+    debug.log('Campaign code hash from protocol:', campaignCodeHash)
+    
+    // Now search for campaigns with this code hash
+    const searchKey: ccc.ClientFindCellsParams = {
+      script: {
+        codeHash: campaignCodeHash,
+        hashType: "type" as const,
+        args: "0x" // Empty args to match all campaigns
+      },
+      scriptType: "type",
+      scriptSearchMode: "prefix"
+    }
+    
+    debug.log('Searching for campaigns with code hash:', campaignCodeHash)
+    
+    // Iterate through campaign cells and find the one with matching type hash
+    for await (const cell of client.findCells(searchKey)) {
+      if (cell.cellOutput.type) {
+        const cellTypeHash = cell.cellOutput.type.hash()
+        debug.log('Checking cell with type hash:', cellTypeHash)
+        if (cellTypeHash === typeHash) {
+          debug.log('✅ Found campaign cell with matching type hash')
+          debug.groupEnd()
+          return cell
+        }
+      }
+    }
+    
+    debug.warn('No campaign found with type hash:', typeHash)
+    debug.groupEnd()
     return undefined
     
   } catch (error) {
-    console.error(`Failed to fetch campaign ${typeHash}:`, error)
+    debug.error(`Failed to fetch campaign ${typeHash}:`, error)
+    debug.groupEnd()
     return undefined
   }
 }
@@ -120,5 +155,112 @@ export async function fetchUserSubmissionRecords(_userAddress: string, signer?: 
   } catch (error) {
     console.error("Failed to fetch user progress:", error)
     return new Map()
+  }
+}
+
+/**
+ * Fetch all campaign cells connected to a specific protocol
+ * @param signer - CCC signer instance
+ * @param campaignCodeHash - Campaign type code hash from protocol data
+ * @param protocolTypeHash - Protocol type hash to filter campaigns
+ * @returns Array of campaign cells connected to the protocol
+ */
+export async function fetchCampaignsConnectedToProtocol(
+  signer: ccc.Signer,
+  campaignCodeHash: ccc.Hex,
+  protocolTypeHash: ccc.Hex
+): Promise<ccc.Cell[]> {
+  debug.group('fetchCampaignsConnectedToProtocol')
+  debug.log('Input parameters:', {
+    campaignCodeHash,
+    protocolTypeHash,
+    signerPresent: !!signer
+  })
+
+  if (!signer) {
+    debug.error("Signer is required to fetch campaigns")
+    debug.groupEnd()
+    throw new Error("Signer is required to fetch campaigns")
+  }
+
+  try {
+    const client = signer.client
+    debug.log('CKB Client initialized:', !!client)
+    
+    // Search for all campaign cells by code hash
+    debug.log('Searching for campaign cells with code hash:', campaignCodeHash)
+    debug.time('Campaign cell search')
+    
+    // Create a proper search key for campaigns with this code hash
+    const searchKey: ccc.ClientFindCellsParams = {
+      script: {
+        codeHash: campaignCodeHash,
+        hashType: "type" as const,
+        args: "0x" // Empty args to match all campaigns
+      },
+      scriptType: "type",
+      scriptSearchMode: "prefix"
+    }
+    
+    debug.log('Search parameters:', searchKey)
+    
+    // Use the async iterator to collect cells
+    const campaignCells: ccc.Cell[] = []
+    try {
+      for await (const cell of client.findCells(searchKey)) {
+        campaignCells.push(cell)
+        if (campaignCells.length >= 100) break // Limit to 100 campaigns
+      }
+    } catch (iterError) {
+      debug.warn('Error iterating cells:', iterError)
+    }
+    
+    debug.timeEnd('Campaign cell search')
+    debug.log(`Found ${campaignCells.length} total campaign cells`)
+    
+    // Filter campaigns connected to our protocol
+    const connectedCampaigns: ccc.Cell[] = []
+    
+    for (const cell of campaignCells) {
+      try {
+        // Parse the campaign type args as ConnectedTypeID
+        if (cell.cellOutput.type && cell.cellOutput.type.args) {
+          debug.log('Parsing campaign cell:', {
+            typeHash: cell.cellOutput.type?.hash(),
+            args: cell.cellOutput.type.args
+          })
+          
+          const argsBytes = ccc.bytesFrom(cell.cellOutput.type.args)
+          const connectedTypeId = ConnectedTypeID.decode(argsBytes) as ConnectedTypeIDLike
+          
+          debug.log('Parsed ConnectedTypeID:', {
+            type_id: connectedTypeId.type_id,
+            connected_type_hash: connectedTypeId.connected_type_hash
+          })
+          
+          // Check if this campaign is connected to our protocol
+          if (connectedTypeId.connected_type_hash === protocolTypeHash) {
+            debug.log('✅ Campaign is connected to our protocol')
+            connectedCampaigns.push(cell)
+          } else {
+            debug.log('❌ Campaign is connected to different protocol:', connectedTypeId.connected_type_hash)
+          }
+        } else {
+          debug.warn('Campaign cell has no type script or args')
+        }
+      } catch (parseError) {
+        debug.warn("Failed to parse campaign args:", parseError)
+        // Continue to next campaign if parsing fails
+      }
+    }
+    
+    debug.info(`✨ Found ${connectedCampaigns.length} campaigns connected to protocol ${protocolTypeHash}`)
+    debug.groupEnd()
+    return connectedCampaigns
+    
+  } catch (error) {
+    debug.error("Failed to fetch campaigns connected to protocol:", error)
+    debug.groupEnd()
+    return []
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState } from "react"
@@ -92,7 +93,7 @@ export default function CreateQuest() {
   }
 
   const handleCreateCampaign = () => {
-    router.push("/create-campaign")
+    router.push("/campaign-admin/create-campaign")
   }
 
   return (

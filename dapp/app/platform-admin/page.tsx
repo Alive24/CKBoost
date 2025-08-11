@@ -1,7 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
+import { ccc } from "@ckb-ccc/core"
+import { fetchCampaignsConnectedToProtocol } from "@/lib/ckb/campaign-cells"
+import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
+import { ProtocolData, CampaignData } from "ssri-ckboost/types"
+import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -500,7 +505,7 @@ const PENDING_VERIFICATIONS = [
 ]
 
 export default function PlatformAdminDashboard() {
-  const { protocolData } = useProtocol()
+  const { protocolData, signer } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isRewardDialogOpen, setIsRewardDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -509,6 +514,88 @@ export default function PlatformAdminDashboard() {
   const [selectedRole, setSelectedRole] = useState("all")
   const [selectedUser, setSelectedUser] = useState<typeof PLATFORM_USERS[0] | null>(null)
   const [isUserDetailsOpen, setIsUserDetailsOpen] = useState(false)
+  const [connectedCampaigns, setConnectedCampaigns] = useState<ccc.Cell[]>([])
+  const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false)
+  
+  // Fetch campaigns connected to the protocol
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      debug.group('Platform Admin - Fetch Campaigns')
+      debug.log('Signer status:', { signerPresent: !!signer })
+      
+      if (!signer) {
+        debug.warn('No signer available, skipping campaign fetch')
+        debug.groupEnd()
+        return
+      }
+      
+      setIsLoadingCampaigns(true)
+      try {
+        // Get protocol cell to extract campaign code hash
+        debug.log('Fetching protocol cell...')
+        const protocolCell = await fetchProtocolCell(signer)
+        
+        if (!protocolCell) {
+          debug.error("Protocol cell not found")
+          debug.groupEnd()
+          return
+        }
+        
+        debug.log('Protocol cell found:', {
+          typeHash: protocolCell.cellOutput.type?.hash(),
+          dataLength: protocolCell.outputData.length
+        })
+
+        // Parse protocol data to get campaign code hash
+        debug.log('Parsing protocol data...')
+        const protocolDataParsed = ProtocolData.decode(protocolCell.outputData)
+        const campaignCodeHash = protocolDataParsed.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+        
+        debug.log('Extracted campaign code hash:', campaignCodeHash)
+        
+        // Get the protocol type hash (from the protocol cell's type script)
+        const protocolTypeHash = protocolCell.cellOutput.type?.hash() || "0x"
+        debug.log('Protocol type hash:', protocolTypeHash)
+        
+        // Fetch campaigns connected to this protocol
+        debug.log('Fetching campaigns connected to protocol...')
+        const campaigns = await fetchCampaignsConnectedToProtocol(
+          signer,
+          campaignCodeHash as ccc.Hex,
+          protocolTypeHash as ccc.Hex
+        )
+        
+        debug.log(`Received ${campaigns.length} connected campaigns`)
+        setConnectedCampaigns(campaigns)
+        
+        // Log campaign details
+        if (campaigns.length > 0) {
+          debug.group('Campaign Details')
+          campaigns.forEach((campaign, index) => {
+            try {
+              const campaignData = CampaignData.decode(campaign.outputData)
+              debug.log(`Campaign ${index + 1}:`, {
+                title: campaignData.metadata.title,
+                typeHash: campaign.cellOutput.type?.hash(),
+                categories: campaignData.metadata.categories
+              })
+            } catch (e) {
+              debug.error(`Failed to parse campaign ${index + 1}:`, e)
+            }
+          })
+          debug.groupEnd()
+        }
+      } catch (error) {
+        debug.error("Failed to fetch campaigns:", error)
+      } finally {
+        setIsLoadingCampaigns(false)
+        debug.groupEnd()
+      }
+    }
+
+    fetchCampaigns()
+  }, [signer])
+  
   const [newReward, setNewReward] = useState({
     period: "",
     type: "monthly",
@@ -571,11 +658,8 @@ export default function PlatformAdminDashboard() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
+    // Use consistent date formatting to avoid hydration mismatch
+    return formatDateConsistent(dateString)
   }
 
   const handleCreateReward = () => {
@@ -913,83 +997,121 @@ export default function PlatformAdminDashboard() {
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold">Campaign Application Reviews</h2>
                 <Badge className="bg-yellow-100 text-yellow-800">
-                  {totalPendingCampaigns} Pending Review
+                  {connectedCampaigns.length} Connected Campaigns
                 </Badge>
               </div>
-
+              
+              {isLoadingCampaigns ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading campaigns from blockchain...</p>
+                  </div>
+                </div>
+              ) : connectedCampaigns.length === 0 ? (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-lg font-medium mb-2">No campaigns found</p>
+                    <p className="text-sm text-muted-foreground">
+                      Campaigns connected to this protocol will appear here once they are deployed.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
               <div className="grid gap-6">
-                {PENDING_CAMPAIGNS.map((campaign) => (
-                  <Card key={campaign.id}>
+                {connectedCampaigns.map((campaign, index) => {
+                  try {
+                    const campaignData = CampaignData.decode(campaign.outputData)
+                    const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
+                    
+                    return (
+                  <Card key={index}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div>
-                          <CardTitle className="text-xl">{campaign.title}</CardTitle>
-                          <p className="text-muted-foreground mt-1">{campaign.description}</p>
+                          <CardTitle className="text-xl">{campaignData.metadata.title}</CardTitle>
+                          <p className="text-muted-foreground mt-1">{campaignData.metadata.short_description}</p>
                           <div className="flex items-center gap-2 mt-3">
-                            <Badge className={getStatusColor(campaign.status)}>
-                              {campaign.status.replace('_', ' ')}
+                            <Badge className="bg-green-100 text-green-800">
+                              Active
                             </Badge>
-                            <Badge variant="outline" className={getCategoryColor(campaign.category)}>
-                              {campaign.category}
-                            </Badge>
+                            {campaignData.metadata.categories.map((category, catIndex) => (
+                              <Badge key={catIndex} variant="outline" className={getCategoryColor(category)}>
+                                {category}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm text-muted-foreground mb-1">Submitted by</div>
-                          <div className="font-medium">{campaign.submitter}</div>
-                          <div className="text-xs text-muted-foreground">{campaign.submitterEmail}</div>
+                          <div className="text-sm text-muted-foreground mb-1">Created by</div>
+                          <div className="font-medium">{campaignData.endorser.endorser_name || "Unknown"}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Hash: {campaignTypeHash.slice(0, 10)}...
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                         <div>
-                          <div className="text-sm text-muted-foreground">Requested Budget</div>
-                          <div className="font-semibold">{campaign.requestedBudget} CKB</div>
+                          <div className="text-sm text-muted-foreground">Created At</div>
+                          <div className="font-semibold">
+                            {campaignData.created_at ? 
+                              formatDateConsistent(new Date(Number(campaignData.created_at))) : 
+                              "Unknown"}
+                          </div>
                         </div>
                         <div>
                           <div className="text-sm text-muted-foreground">Duration</div>
-                          <div className="font-semibold">{campaign.duration}</div>
+                          <div className="font-semibold">
+                            {campaignData.ending_time && campaignData.starting_time ? 
+                              `${Math.ceil((Number(campaignData.ending_time) - Number(campaignData.starting_time)) / (1000 * 60 * 60 * 24))} days` : 
+                              "Ongoing"}
+                          </div>
                         </div>
                         <div>
-                          <div className="text-sm text-muted-foreground">Planned Quests</div>
-                          <div className="font-semibold">{campaign.questsPlanned}</div>
+                          <div className="text-sm text-muted-foreground">Total Quests</div>
+                          <div className="font-semibold">{campaignData.quests.length}</div>
                         </div>
                         <div>
-                          <div className="text-sm text-muted-foreground">Submitted</div>
-                          <div className="font-semibold">{formatDate(campaign.submittedDate)}</div>
+                          <div className="text-sm text-muted-foreground">Participants</div>
+                          <div className="font-semibold">{campaignData.participants_count || 0}</div>
                         </div>
                       </div>
 
                       <div className="mb-4">
-                        <div className="text-sm text-muted-foreground mb-2">Supporting Documents</div>
-                        <div className="flex gap-2">
-                          {campaign.documents.map((doc, index) => (
-                            <Badge key={index} variant="outline" className="bg-blue-50 dark:bg-blue-900">
-                              📄 {doc}
-                            </Badge>
-                          ))}
-                        </div>
+                        <div className="text-sm text-muted-foreground mb-2">Description</div>
+                        <p className="text-sm">{campaignData.metadata.long_description}</p>
                       </div>
 
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-1" />
-                          Review Details
-                        </Button>
-                        <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                          <X className="w-4 h-4 mr-1" />
-                          Reject
-                        </Button>
-                        <Button size="sm">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Approve
-                        </Button>
+                        <Link href={`/campaign/${campaignTypeHash}`}>
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-4 h-4 mr-1" />
+                            View Details
+                          </Button>
+                        </Link>
+                        <Link href={`/campaign/${campaignTypeHash}`}>
+                          <Button 
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Review & Approve
+                          </Button>
+                        </Link>
                       </div>
                     </CardContent>
                   </Card>
-                ))}
+                    )
+                  } catch (error) {
+                    console.warn("Failed to parse campaign data:", error)
+                    return null
+                  }
+                })}
               </div>
+              )}
             </TabsContent>
 
                         <TabsContent value="users" className="space-y-6">

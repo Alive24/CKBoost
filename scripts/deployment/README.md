@@ -76,7 +76,7 @@ cat .env.contracts >> dapp/.env.local
 ### Step 4: Create First Campaign
 
 After protocol deployment, you can create campaigns via:
-- The dApp UI at `/create-campaign`
+- The dApp UI at `/campaign-admin/create-campaign`
 - Or programmatically using the campaign service
 
 ## File Outputs

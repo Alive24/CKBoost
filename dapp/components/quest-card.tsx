@@ -9,8 +9,7 @@ import { Clock, Star, Users, ChevronDown, ChevronUp, Coins } from "lucide-react"
 import Link from "next/link"
 import type { QuestDataLike } from "ssri-ckboost/types"
 import { getDifficultyString, getTimeEstimateString, getQuestIcon, getQuestRewards } from "@/lib/types"
-import { ccc } from "@ckb-ccc/core"
-import { mol } from "@ckb-ccc/mol"
+import { ccc, mol } from "@ckb-ccc/core"
 
 interface QuestCardProps {
   quest: QuestDataLike

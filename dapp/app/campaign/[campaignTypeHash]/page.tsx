@@ -1,0 +1,628 @@
+/* eslint-disable react/no-unescaped-entities */
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
+import { Navigation } from "@/components/navigation"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Trophy, 
+  Calendar, 
+  Users, 
+  Target,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  Star,
+  ArrowLeft,
+  Play,
+  Lock,
+  Award
+} from "lucide-react"
+import Link from "next/link"
+import { ccc } from "@ckb-ccc/core"
+import { useProtocol } from "@/lib/providers/protocol-provider"
+import { fetchCampaignByTypeHash } from "@/lib/ckb/campaign-cells"
+import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
+import { debug, formatDateConsistent } from "@/lib/utils/debug"
+import { useRouter } from "next/navigation"
+import { getDifficultyString } from "@/lib"
+
+export default function CampaignDetailPage() {
+  const params = useParams()
+  const campaignTypeHash = params.campaignTypeHash as ccc.Hex
+  const router = useRouter()
+  const { signer, protocolData, isAdmin } = useProtocol()
+  const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState("overview")
+  const [isApproving, setIsApproving] = useState(false)
+
+  useEffect(() => {
+    const fetchCampaign = async () => {
+      if (!signer || !campaignTypeHash) {
+        debug.warn("No signer or campaign type hash available")
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        debug.log("Fetching campaign with type hash:", campaignTypeHash)
+        const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer)
+        
+        if (campaignCell) {
+          const campaignData = CampaignData.decode(campaignCell.outputData)
+          setCampaign({
+            ...campaignData,
+            typeHash: campaignTypeHash,
+            cell: campaignCell
+          })
+        } else {
+          debug.warn("Campaign not found")
+        }
+      } catch (error) {
+        debug.error("Failed to fetch campaign:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchCampaign()
+  }, [signer, campaignTypeHash])
+
+  const handleApproveCampaign = async () => {
+    if (!signer || !protocolData || !campaignTypeHash) {
+      debug.error("Missing required data for campaign approval")
+      return
+    }
+
+    setIsApproving(true)
+    try {
+      debug.log("Approving campaign:", campaignTypeHash)
+      
+      // Add the campaign type hash to the campaigns_approved list
+      const updatedCampaignsApproved = [...(protocolData.campaigns_approved || []), campaignTypeHash]
+      
+      // TODO: Call the actual blockchain transaction to update protocol data
+      // This would involve creating a transaction that updates the protocol cell
+      // with the new campaigns_approved list
+      
+      debug.log("Campaign approved successfully:", campaignTypeHash)
+      alert("Campaign approved successfully! (Note: Blockchain transaction not implemented yet)")
+      
+      // Refresh the page or navigate back
+      router.push('/platform-admin')
+    } catch (error) {
+      debug.error("Failed to approve campaign:", error)
+      alert("Failed to approve campaign. Please try again.")
+    } finally {
+      setIsApproving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading campaign details...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (!campaign) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-7xl mx-auto">
+            <Card>
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h2 className="text-2xl font-bold mb-2">Campaign Not Found</h2>
+                  <p className="text-muted-foreground mb-6">
+                    The campaign you're looking for doesn't exist or has been removed.
+                  </p>
+                  <Link href="/">
+                    <Button>
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back to Campaigns
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  const getStatusColor = (status: string | undefined) => {
+    const statusStr = String(status || "").toLowerCase()
+    switch (statusStr) {
+      case "active":
+        return "bg-green-100 text-green-800"
+      case "upcoming":
+        return "bg-blue-100 text-blue-800"
+      case "completed":
+        return "bg-gray-100 text-gray-800"
+      case "under-review":
+        return "bg-yellow-100 text-yellow-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  const getDifficultyColor = (difficulty: string | undefined) => {
+    const difficultyStr = String(difficulty || "").toLowerCase()
+    switch (difficultyStr) {
+      case "beginner":
+      case "easy":
+        return "bg-green-100 text-green-800"
+      case "intermediate":
+      case "medium":
+        return "bg-yellow-100 text-yellow-800"
+      case "advanced":
+      case "hard":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
+  }
+
+  // Convert BigInt timestamps to numbers (blockchain stores in seconds, JS needs milliseconds)
+  const startTimestamp = typeof campaign.starting_time === 'bigint' 
+    ? Number(campaign.starting_time) * 1000
+    : Number(campaign.starting_time) * 1000
+  const endTimestamp = typeof campaign.ending_time === 'bigint'
+    ? Number(campaign.ending_time) * 1000
+    : Number(campaign.ending_time) * 1000
+    
+  // Check if campaign is approved
+  const isApproved = protocolData?.campaigns_approved?.some((approved: string) => 
+    approved.toLowerCase() === campaignTypeHash.toLowerCase()
+  ) || false
+  
+  // Debug logging for approval status
+  debug.log('Campaign approval check:', {
+    isAdmin,
+    isApproved,
+    campaignTypeHash,
+    campaigns_approved: protocolData?.campaigns_approved,
+    protocolDataExists: !!protocolData
+  })
+
+  // Calculate campaign status based on dates and approval
+  const now = new Date()
+  const startDate = new Date(startTimestamp)
+  const endDate = new Date(endTimestamp)
+  const status = !isApproved ? "under-review" : now < startDate ? "upcoming" : now > endDate ? "completed" : "active"
+
+  // Calculate progress (only if approved)
+  const totalDuration = endDate.getTime() - startDate.getTime()
+  const elapsed = Math.max(0, Math.min(now.getTime() - startDate.getTime(), totalDuration))
+  const progress = isApproved && totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0
+
+  // Calculate total points distributed
+  const totalPoints = campaign.quests?.reduce((sum: number, quest: typeof campaign.quests[0]) => {
+    const points = quest.points || 100
+    return sum + Number(points)
+  }, 0) || 0
+  
+  // Debug quest structure
+  if (campaign?.quests && campaign.quests.length > 0) {
+    debug.log('Quest structure:', {
+      firstQuest: campaign.quests[0],
+      questKeys: Object.keys(campaign.quests[0] || {}),
+      totalQuests: campaign.quests.length
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <Navigation />
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Back Button */}
+          <Link href="/">
+            <Button variant="ghost" className="mb-6">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Campaigns
+            </Button>
+          </Link>
+
+          {/* Campaign Header */}
+          <Card className="mb-8">
+            <CardHeader>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Avatar className="w-16 h-16">
+                      <AvatarFallback className="bg-gradient-to-br from-purple-200 to-blue-200 text-lg font-bold">
+                        {campaign.metadata?.title?.substring(0, 2).toUpperCase() || "C"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <CardTitle className="text-3xl">
+                        {campaign.metadata?.title || "Untitled Campaign"}
+                      </CardTitle>
+                      <CardDescription className="text-lg mt-1">
+                        {campaign.metadata?.short_description || "No description available"}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className={getStatusColor(status)}>
+                      {status}
+                    </Badge>
+                    {campaign.metadata?.categories?.map((category: string, index: number) => (
+                      <Badge key={index} variant="outline">
+                        {category}
+                      </Badge>
+                    ))}
+                    {campaign.metadata?.difficulty && (
+                      <Badge className={getDifficultyColor(getDifficultyString(campaign.metadata.difficulty))}>
+                        {getDifficultyString(campaign.metadata.difficulty)}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="text-right">
+                  {/* Show approval button for platform admins */}
+                  {isAdmin && !isApproved ? (
+                    <Button 
+                      size="lg" 
+                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={handleApproveCampaign}
+                      disabled={isApproving}
+                    >
+                      {isApproving ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                          Approving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          Approve Campaign
+                        </>
+                      )}
+                    </Button>
+                  ) : isAdmin && isApproved ? (
+                    <Badge className="bg-green-100 text-green-800 px-4 py-2 text-lg">
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      Approved
+                    </Badge>
+                  ) : isApproved ? (
+                    <Link href={`/campaign/${campaignTypeHash}/quest/1`}>
+                      <Button size="lg" className="flex items-center gap-2">
+                        <Play className="w-5 h-5" />
+                        Start Campaign
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Badge className="bg-yellow-100 text-yellow-800 px-4 py-2 text-lg">
+                      <Clock className="w-5 h-5 mr-2" />
+                      Under Review
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Campaign Progress - only show if approved */}
+              {isApproved ? (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Campaign Progress</span>
+                    <span className="font-medium">{progress.toFixed(0)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-3" />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Started: {formatDateConsistent(startDate)}</span>
+                    <span>Ends: {formatDateConsistent(endDate)}</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
+                    <AlertCircle className="w-5 h-5" />
+                    <span className="font-medium">This campaign is under review</span>
+                  </div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-2">
+                    Campaign will be available once approved by platform administrators.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Campaign Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Quests</p>
+                    <p className="text-2xl font-bold">{campaign.quests?.length || 0}</p>
+                  </div>
+                  <Target className="w-8 h-8 text-blue-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Points</p>
+                    <p className="text-2xl font-bold">{totalPoints}</p>
+                  </div>
+                  <Trophy className="w-8 h-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Participants</p>
+                    <p className="text-2xl font-bold">0</p>
+                  </div>
+                  <Users className="w-8 h-8 text-purple-600" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Created By</p>
+                    <p className="text-sm font-medium truncate">
+                      {campaign.endorser?.endorser_name || "Unknown"}
+                    </p>
+                  </div>
+                  <Star className="w-8 h-8 text-yellow-600" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="quests">Quests</TabsTrigger>
+              <TabsTrigger value="rewards">Rewards</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="overview" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campaign Description</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground whitespace-pre-wrap">
+                    {campaign.metadata?.long_description || campaign.metadata?.short_description || "No detailed description available."}
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campaign Rules</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {campaign.rules?.map((rule: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                        <span>{rule}</span>
+                      </li>
+                    )) || <li className="text-muted-foreground">No specific rules defined</li>}
+                  </ul>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="quests" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Campaign Quests</CardTitle>
+                  <CardDescription>
+                    Review quest requirements and subtasks
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {campaign.quests?.map((quest: typeof campaign.quests[0], index: number) => (
+                      <div key={index} className="border rounded-lg">
+                        <div className="p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-lg mb-2">
+                                {quest.metadata?.title || `Quest ${Number(quest.quest_id) || index + 1}`}
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {quest.metadata?.short_description || quest.metadata?.long_description || ""}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <Badge className="bg-green-100 text-green-800">
+                                <Trophy className="w-3 h-3 mr-1" />
+                                {Number(quest.points) || 100} points
+                              </Badge>
+                              {quest.metadata?.time_estimate && (
+                                <Badge variant="outline">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  {Number(quest.metadata.time_estimate)} mins
+                                </Badge>
+                              )}
+                              {quest.metadata?.difficulty && (
+                                <Badge variant="outline">
+                                  Difficulty: {Number(quest.metadata.difficulty)}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quest Requirements */}
+                          {(quest.metadata?.requirements) && (
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                              <h4 className="font-medium text-sm mb-2 text-blue-900 dark:text-blue-100">Requirements</h4>
+                              <p className="text-sm text-blue-800 dark:text-blue-200">
+                                {quest.metadata?.requirements}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Subtasks */}
+                          {quest.sub_tasks && quest.sub_tasks.length > 0 && (
+                            <div className="border-t pt-3">
+                              <h4 className="font-medium text-sm mb-3">Subtasks ({quest.sub_tasks.length})</h4>
+                              <div className="space-y-2">
+                                {quest.sub_tasks.map((subtask: typeof quest.sub_tasks[0], subIndex: number) => (
+                                  <div key={subIndex} className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex items-center justify-center">
+                                        <span className="text-xs font-medium text-gray-600">{Number(subtask.id) || subIndex + 1}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium">
+                                        {subtask.title || `Subtask ${Number(subtask.id) || subIndex + 1}`}
+                                      </p>
+                                      {subtask.description && (
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                          {subtask.description}
+                                        </p>
+                                      )}
+                                      <div className="flex flex-wrap gap-2 mt-2">
+                                        {subtask.type && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Type: {subtask.type}
+                                          </Badge>
+                                        )}
+                                        {subtask.proof_required && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Proof: {subtask.proof_required}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Quest Actions */}
+                          <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Users className="w-4 h-4" />
+                              <span>0 participants</span>
+                            </div>
+                            {isApproved ? (
+                              <Button variant="outline" size="sm">
+                                <Play className="w-4 h-4 mr-1" />
+                                Start Quest
+                              </Button>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Available after approval
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )) || (
+                      <div className="text-center py-8">
+                        <Target className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                        <p className="text-muted-foreground">No quests available yet</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="rewards" className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Reward Distribution</CardTitle>
+                  <CardDescription>
+                    How rewards are distributed among participants
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">Total Points Pool</span>
+                        <span className="text-2xl font-bold">
+                          {totalPoints} Points
+                        </span>
+                      </div>
+                      <Progress value={0} className="h-2" />
+                      <p className="text-xs text-muted-foreground mt-1">0% distributed</p>
+                    </div>
+
+                    {/* Show individual quest rewards */}
+                    {campaign.quests && campaign.quests.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="font-medium">Quest Rewards</h4>
+                        <div className="space-y-2">
+                          {campaign.quests.map((quest: typeof campaign.quests[0], index: number) => (
+                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
+                              <span className="text-sm">{quest.metadata.title || `Quest ${index + 1}`}</span>
+                              <Badge variant="outline">
+                                {quest.points.toString() || 100} points
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Distribution Rules</h4>
+                      <ul className="space-y-1 text-sm text-muted-foreground">
+                        {campaign.rules?.map((rule: string, index: number) => (
+                          <li key={index}>• {rule}</li>
+                        )) || (
+                          <>
+                            <li>• Complete quests to earn points</li>
+                            <li>• Points are awarded upon quest completion</li>
+                            <li>• Check individual quest requirements</li>
+                          </>
+                        )}
+                      </ul>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </main>
+    </div>
+  )
+}

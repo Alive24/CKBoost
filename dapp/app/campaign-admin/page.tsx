@@ -1,7 +1,14 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
+import { ccc } from "@ckb-ccc/core"
+import { useProtocol } from "@/lib/providers/protocol-provider"
+import { fetchCampaignsConnectedToProtocol } from "@/lib/ckb/campaign-cells"
+import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
+import { ProtocolData, CampaignData } from "ssri-ckboost/types"
+import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -121,6 +128,7 @@ const OWNED_CAMPAIGNS = [
 ]
 
 export default function CampaignAdminDashboard() {
+  const { signer } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
   const [staffForm, setStaffForm] = useState({
@@ -128,6 +136,99 @@ export default function CampaignAdminDashboard() {
     campaignTypeHash: "",
     role: "reviewer"
   })
+  const [connectedCampaigns, setConnectedCampaigns] = useState<ccc.Cell[]>([])
+  const [pendingReviews, setPendingReviews] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Fetch campaigns connected to the protocol
+  useEffect(() => {
+    const fetchCampaigns = async () => {
+      debug.group('Campaign Admin - Fetch Campaigns')
+      debug.log('Signer status:', { signerPresent: !!signer })
+      
+      if (!signer) {
+        debug.warn('No signer available, skipping campaign fetch')
+        debug.groupEnd()
+        return
+      }
+      
+      setIsLoading(true)
+      try {
+        // Get protocol cell to extract campaign code hash
+        debug.log('Fetching protocol cell...')
+        const protocolCell = await fetchProtocolCell(signer)
+        
+        if (!protocolCell) {
+          debug.error("Protocol cell not found")
+          debug.groupEnd()
+          return
+        }
+        
+        debug.log('Protocol cell found:', {
+          typeHash: protocolCell.cellOutput.type?.hash(),
+          dataLength: protocolCell.outputData.length
+        })
+
+        // Parse protocol data to get campaign code hash
+        debug.log('Parsing protocol data...')
+        const protocolData = ProtocolData.decode(protocolCell.outputData)
+        const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+        
+        debug.log('Extracted campaign code hash:', campaignCodeHash)
+        
+        // Get the protocol type hash (from the protocol cell's type script)
+        const protocolTypeHash = protocolCell.cellOutput.type?.hash() || "0x"
+        debug.log('Protocol type hash:', protocolTypeHash)
+        
+        // Fetch campaigns connected to this protocol
+        debug.log('Fetching campaigns connected to protocol...')
+        const campaigns = await fetchCampaignsConnectedToProtocol(
+          signer,
+          campaignCodeHash as ccc.Hex,
+          protocolTypeHash as ccc.Hex
+        )
+        
+        debug.log(`Received ${campaigns.length} connected campaigns`)
+        setConnectedCampaigns(campaigns)
+        
+        // Process campaigns to extract pending reviews
+        const reviews: any[] = []
+        for (const campaign of campaigns) {
+          try {
+            const campaignData = CampaignData.decode(campaign.outputData)
+            debug.log('Processing campaign:', {
+              title: campaignData.metadata.title,
+              questCount: campaignData.quests.length
+            })
+            
+            // Check for pending quest submissions that need review
+            // This is a placeholder - actual implementation would check user submissions
+            if (campaignData.quests && campaignData.quests.length > 0) {
+              // Add mock review data for now - replace with actual submission data
+              reviews.push({
+                campaignTitle: campaignData.metadata.title,
+                campaignTypeHash: campaign.cellOutput.type?.hash(),
+                questCount: campaignData.quests.length,
+                // Add more review data as needed
+              })
+            }
+          } catch (error) {
+            debug.warn("Failed to parse campaign data:", error)
+          }
+        }
+        
+        debug.log(`Processed ${reviews.length} pending reviews`)
+        setPendingReviews(reviews)
+      } catch (error) {
+        debug.error("Failed to fetch campaigns:", error)
+      } finally {
+        setIsLoading(false)
+        debug.groupEnd()
+      }
+    }
+
+    fetchCampaigns()
+  }, [signer])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -173,11 +274,8 @@ export default function CampaignAdminDashboard() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    })
+    // Use consistent date formatting to avoid hydration mismatch
+    return formatDateConsistent(dateString)
   }
 
   const handleAddStaff = () => {
@@ -239,7 +337,7 @@ export default function CampaignAdminDashboard() {
                     </div>
                   </div>
                 </div>
-                <Link href="/create-campaign">
+                <Link href="/campaign-admin/create-campaign">
                   <Button className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
                     Create Campaign
@@ -653,86 +751,86 @@ export default function CampaignAdminDashboard() {
             <TabsContent value="reviews" className="space-y-6">
           <Card>
             <CardHeader>
-                  <CardTitle>Pending Quest Reviews</CardTitle>
+                  <CardTitle>Campaign Application Reviews</CardTitle>
             </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Mock pending reviews */}
-                    <div className="flex items-center gap-4 p-4 border rounded-lg">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-green-200 to-blue-200">
-                          CN
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">CryptoNinja</p>
-                            <p className="text-sm text-muted-foreground">
-                              Submitted "Raid the CKB Announcement"
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Review
-              </Button>
-                            <Button size="sm">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Approve
-              </Button>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline">Social Media</Badge>
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                            CKB Ecosystem Growth Initiative
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">2h ago</span>
-                        </div>
+                  {isLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                        <p className="text-sm text-muted-foreground">Loading campaigns...</p>
                       </div>
                     </div>
-
-                    <div className="flex items-center gap-4 p-4 border rounded-lg">
-                      <Avatar className="w-10 h-10">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-200 to-pink-200">
-                          BD
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">BlockchainDev</p>
-                            <p className="text-sm text-muted-foreground">
-                              Submitted "Deploy Smart Contract"
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4 mr-1" />
-                              Review
-              </Button>
-                            <Button size="sm">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Approve
-              </Button>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge variant="outline">Development</Badge>
-                          <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                            CKB Ecosystem Growth Initiative
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">4h ago</span>
-                          <div className="ml-auto">
-                            <Badge variant="outline" className="bg-purple-100 text-purple-800">
-                              Assigned to Review Manager
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
+                  ) : connectedCampaigns.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No campaigns found connected to this protocol.</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Campaigns will appear here once they are deployed and connected to your protocol.
+                      </p>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {connectedCampaigns.map((campaign, index) => {
+                        try {
+                          const campaignData = CampaignData.decode(campaign.outputData)
+                          const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
+                          
+                          return (
+                            <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
+                              <Avatar className="w-10 h-10">
+                                <AvatarFallback className="bg-gradient-to-br from-blue-200 to-purple-200">
+                                  {campaignData.metadata.title.substring(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium">{campaignData.metadata.title}</p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {campaignData.metadata.short_description}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Type Hash: {campaignTypeHash.slice(0, 10)}...{campaignTypeHash.slice(-8)}
+                                    </p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Link href={`/campaign/${campaignTypeHash}`}>
+                                      <Button variant="outline" size="sm">
+                                        <Eye className="w-4 h-4 mr-1" />
+                                        View Campaign
+                                      </Button>
+                                    </Link>
+                                    <Link href={`/campaign-admin/${campaignTypeHash}`}>
+                                      <Button size="sm">
+                                        <Settings className="w-4 h-4 mr-1" />
+                                        Manage
+                                      </Button>
+                                    </Link>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Badge variant="outline">
+                                    {campaignData.quests.length} Quests
+                                  </Badge>
+                                  {campaignData.metadata.categories.map((category, catIndex) => (
+                                    <Badge key={catIndex} variant="outline" className="bg-blue-100 text-blue-800">
+                                      {category}
+                                    </Badge>
+                                  ))}
+                                  <span className="text-xs text-muted-foreground">
+                                    Created by: {campaignData.endorser.endorser_name || "Unknown"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        } catch (error) {
+                          console.warn("Failed to parse campaign data for display:", error)
+                          return null
+                        }
+                      })}
+                    </div>
+                  )}
             </CardContent>
           </Card>
             </TabsContent>
