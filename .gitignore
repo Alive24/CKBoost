@@ -37,6 +37,7 @@ CKBoost.code-workspace
 .bmad*/
 .claude/
 .cursor/
-*/tsconfig.tsbuildinfo
+*/*.tsbuildinfo
 scripts/debugger/raw_tx.json
 scripts/debugger/tx.json
+dapp/tsconfig.tsbuildinfo

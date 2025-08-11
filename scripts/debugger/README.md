@@ -31,17 +31,22 @@ npm run debug
 
 ### Debug specific script
 ```bash
-npm run debug -- --script output.0.type
+npm run debug --script output.0.type
 ```
 
 ### Use custom binary
 ```bash
-npm run debug -- --script output.0.type --bin ../../contracts/build/release/ckboost-campaign-type
+npm run debug --script output.0.type --bin ../../contracts/build/release/ckboost-campaign-type
 ```
 
 ### Debug with custom cycle limit
 ```bash
-npm run debug -- --script input.0.lock --cycles 100000000
+npm run debug --script input.0.lock --cycles 100000000
+```
+
+### Debug with raw transaction
+```bash
+pnpm run debug --raw-tx --script input.1.type
 ```
 
 ## Command Options

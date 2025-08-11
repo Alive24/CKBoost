@@ -2,12 +2,12 @@
   "current": {
     "testnet": {
       "ckboostProtocolType": {
-        "transactionHash": "0x1ed71ac3d7fe1371f085f020e74bd2e22eb9bf56755a3d8b4532672b143bc448",
+        "transactionHash": "0x2343a251ffc72a136672b0f6796e42c256d448dfff38cb86ff0416f8a1269a54",
         "index": 0,
-        "deployedAt": "2025-08-06T18:09:29.369Z",
+        "deployedAt": "2025-08-11T08:29:32.045Z",
         "contractName": "ckboost-protocol-type",
-        "tag": "v0.0.33",
-        "dataHash": "0x991f1063b2905f46e82b193c049eca81cf4f88bf66e8711c9ef99fc84fe8ceec",
+        "tag": "v0.0.34",
+        "dataHash": "0x579d0c6f250b453279975b2cbab3760db3b770bc0f6099b78553ae25554ce6a7",
         "typeScript": {
           "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
           "hashType": "type",
@@ -2016,6 +2016,30 @@
         },
         "isTypeId": true,
         "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-protocol-type",
+        "transactionHash": "0x2343a251ffc72a136672b0f6796e42c256d448dfff38cb86ff0416f8a1269a54",
+        "index": 0,
+        "deployedAt": "2025-08-11T08:29:32.045Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x579d0c6f250b453279975b2cbab3760db3b770bc0f6099b78553ae25554ce6a7",
+        "contractSize": 276928,
+        "tag": "v0.0.34",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x1ed71ac3d7fe1371f085f020e74bd2e22eb9bf56755a3d8b4532672b143bc448",
+          "index": 0,
+          "deployedAt": "2025-08-06T18:09:29.369Z",
+          "tag": "v0.0.33"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xb5dba040d1860ab77ca4aab156c981f8075c407a2b53bd5855a79b6b25ee41e2"
+        },
+        "isTypeId": true,
+        "typeHash": "0x8bed7ce362f1817292c0173ce9854ec359f3bca621882618d28392643f58c6c6"
       }
     ],
     "mainnet": []

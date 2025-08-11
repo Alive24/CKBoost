@@ -21,14 +21,13 @@ import {
   Star,
   ArrowLeft,
   Play,
-  Lock,
-  Award
+  Lock
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { fetchCampaignByTypeHash } from "@/lib/ckb/campaign-cells"
-import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
+import { CampaignData, CampaignDataLike, ProtocolDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { useRouter } from "next/navigation"
 import { getDifficultyString } from "@/lib"
@@ -37,11 +36,12 @@ export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeHash = params.campaignTypeHash as ccc.Hex
   const router = useRouter()
-  const { signer, protocolData, isAdmin } = useProtocol()
+  const { signer, protocolData, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const [isApproving, setIsApproving] = useState(false)
+  const [selectedQuestIndex, setSelectedQuestIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchCampaign = async () => {
@@ -76,8 +76,9 @@ export default function CampaignDetailPage() {
   }, [signer, campaignTypeHash])
 
   const handleApproveCampaign = async () => {
-    if (!signer || !protocolData || !campaignTypeHash) {
+    if (!signer || !protocolData || !campaignTypeHash || !updateProtocol) {
       debug.error("Missing required data for campaign approval")
+      alert("Please ensure your wallet is connected and you have admin privileges.")
       return
     }
 
@@ -85,21 +86,56 @@ export default function CampaignDetailPage() {
     try {
       debug.log("Approving campaign:", campaignTypeHash)
       
+      // Ensure the type hash is properly formatted as ccc.Hex (0x + 64 hex chars)
+      const formattedTypeHash = campaignTypeHash.startsWith('0x') 
+        ? campaignTypeHash as ccc.Hex
+        : `0x${campaignTypeHash}` as ccc.Hex
+      
+      // Check if already approved
+      if (protocolData.campaigns_approved?.some((hash: ccc.Hex) => 
+        hash.toLowerCase() === formattedTypeHash.toLowerCase()
+      )) {
+        alert("This campaign is already approved.")
+        setIsApproving(false)
+        return
+      }
+      
       // Add the campaign type hash to the campaigns_approved list
-      const updatedCampaignsApproved = [...(protocolData.campaigns_approved || []), campaignTypeHash]
+      const updatedCampaignsApproved = [
+        ...(protocolData.campaigns_approved || []), 
+        formattedTypeHash
+      ] as ccc.Hex[]
       
-      // TODO: Call the actual blockchain transaction to update protocol data
-      // This would involve creating a transaction that updates the protocol cell
-      // with the new campaigns_approved list
+      // Create updated protocol data with the new campaign approval
+      const updatedProtocolData: ProtocolDataLike = {
+        ...protocolData,
+        campaigns_approved: updatedCampaignsApproved,
+        // Ensure tipping_proposals is properly typed
+        tipping_proposals: protocolData.tipping_proposals.map(proposal => ({
+          ...proposal,
+          tipping_transaction_hash: proposal.tipping_transaction_hash || null
+        }))
+      } as ProtocolDataLike
       
-      debug.log("Campaign approved successfully:", campaignTypeHash)
-      alert("Campaign approved successfully! (Note: Blockchain transaction not implemented yet)")
+      debug.log("Updating protocol with approved campaign:", {
+        typeHash: formattedTypeHash,
+        totalApproved: updatedCampaignsApproved.length
+      })
       
-      // Refresh the page or navigate back
+      // Call the blockchain transaction to update protocol data
+      const txHash = await updateProtocol(updatedProtocolData)
+      
+      debug.log("Transaction submitted:", txHash)
+      alert(`Campaign approved successfully! Transaction: ${txHash}`)
+      
+      // Refresh protocol data to get the updated state
+      await refreshProtocolData()
+      
+      // Navigate back to admin dashboard
       router.push('/platform-admin')
     } catch (error) {
       debug.error("Failed to approve campaign:", error)
-      alert("Failed to approve campaign. Please try again.")
+      alert(`Failed to approve campaign: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsApproving(false)
     }
@@ -444,16 +480,18 @@ export default function CampaignDetailPage() {
             </TabsContent>
 
             <TabsContent value="quests" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Campaign Quests</CardTitle>
-                  <CardDescription>
-                    Review quest requirements and subtasks
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {campaign.quests?.map((quest: typeof campaign.quests[0], index: number) => (
+              {selectedQuestIndex === null ? (
+                // Quest List View
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Campaign Quests</CardTitle>
+                    <CardDescription>
+                      Review quest requirements and subtasks
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {campaign?.quests?.map((quest: typeof campaign.quests[0], index: number) => (
                       <div key={index} className="border rounded-lg">
                         <div className="p-4">
                           <div className="flex items-start justify-between mb-3">
@@ -541,9 +579,13 @@ export default function CampaignDetailPage() {
                               <span>0 participants</span>
                             </div>
                             {isApproved ? (
-                              <Button variant="outline" size="sm">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => setSelectedQuestIndex(index)}
+                              >
                                 <Play className="w-4 h-4 mr-1" />
-                                Start Quest
+                                View Quest
                               </Button>
                             ) : (
                               <Badge variant="outline" className="text-xs">
@@ -562,6 +604,176 @@ export default function CampaignDetailPage() {
                   </div>
                 </CardContent>
               </Card>
+              ) : (
+              // Quest Detail View
+              <div className="space-y-6">
+                {/* Back to Quest List */}
+                <Button 
+                  variant="ghost" 
+                  className="mb-4"
+                  onClick={() => setSelectedQuestIndex(null)}
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back to Quest List
+                </Button>
+                
+                {campaign?.quests && selectedQuestIndex !== null && campaign.quests[selectedQuestIndex] && (() => {
+                  const quest = campaign.quests[selectedQuestIndex]
+                  return (
+                    <>
+                      {/* Quest Header */}
+                      <Card>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-2xl">
+                                {quest.metadata?.title || `Quest ${selectedQuestIndex + 1}`}
+                              </CardTitle>
+                              <CardDescription className="mt-2">
+                                {quest.metadata?.short_description || ""}
+                              </CardDescription>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Badge className="bg-green-100 text-green-800">
+                                <Trophy className="w-4 h-4 mr-1" />
+                                {Number(quest.points) || 100} points
+                              </Badge>
+                              {quest.metadata?.difficulty && (
+                                <Badge variant="outline">
+                                  Difficulty: {getDifficultyString(quest.metadata.difficulty)}
+                                </Badge>
+                              )}
+                              {quest.metadata?.time_estimate && (
+                                <Badge variant="outline">
+                                  <Clock className="w-4 h-4 mr-1" />
+                                  {Number(quest.metadata.time_estimate)} mins
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            {/* Quest Description */}
+                            {quest.metadata?.long_description && (
+                              <div>
+                                <h3 className="font-semibold mb-2">Description</h3>
+                                <p className="text-muted-foreground whitespace-pre-wrap">
+                                  {quest.metadata.long_description}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* Requirements */}
+                            {quest.metadata?.requirements && (
+                              <div>
+                                <h3 className="font-semibold mb-2">Requirements</h3>
+                                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                  <p className="text-sm">{quest.metadata.requirements}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Subtasks */}
+                      {quest.sub_tasks && quest.sub_tasks.length > 0 && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Quest Tasks</CardTitle>
+                            <CardDescription>
+                              Complete all tasks to earn your rewards
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {quest.sub_tasks.map((subtask: typeof quest.sub_tasks[0], subIndex: number) => (
+                                <div key={subIndex} className="border rounded-lg p-4">
+                                  <div className="flex items-start gap-4">
+                                    <div className="flex-shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <span className="font-semibold">{subIndex + 1}</span>
+                                      </div>
+                                    </div>
+                                    <div className="flex-1">
+                                      <h4 className="font-semibold mb-1">
+                                        {subtask.title || `Task ${subIndex + 1}`}
+                                      </h4>
+                                      {subtask.description && (
+                                        <p className="text-sm text-muted-foreground mb-3">
+                                          {subtask.description}
+                                        </p>
+                                      )}
+                                      <div className="flex flex-wrap gap-2">
+                                        {subtask.type && (
+                                          <Badge variant="outline">
+                                            Type: {subtask.type}
+                                          </Badge>
+                                        )}
+                                        {subtask.proof_required && (
+                                          <Badge variant="outline">
+                                            Proof: {subtask.proof_required}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <Button variant="outline" size="sm" disabled>
+                                        <Lock className="w-4 h-4 mr-1" />
+                                        Pending
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      
+                      {/* Quest Actions */}
+                      <Card>
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold mb-1">Ready to Start?</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Complete this quest to earn {Number(quest.points) || 100} points
+                              </p>
+                            </div>
+                            <Button size="lg" className="bg-green-600 hover:bg-green-700">
+                              <Play className="w-5 h-5 mr-2" />
+                              Start Quest
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      {/* Navigation between quests */}
+                      <div className="flex justify-between">
+                        <Button 
+                          variant="outline"
+                          disabled={selectedQuestIndex === 0}
+                          onClick={() => setSelectedQuestIndex(prev => prev !== null ? prev - 1 : 0)}
+                        >
+                          <ArrowLeft className="w-4 h-4 mr-2" />
+                          Previous Quest
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          disabled={!campaign?.quests || selectedQuestIndex >= campaign.quests.length - 1}
+                          onClick={() => setSelectedQuestIndex(prev => prev !== null ? prev + 1 : 0)}
+                        >
+                          Next Quest
+                          <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
+                        </Button>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+              )}
             </TabsContent>
 
             <TabsContent value="rewards" className="space-y-6">
@@ -586,15 +798,15 @@ export default function CampaignDetailPage() {
                     </div>
 
                     {/* Show individual quest rewards */}
-                    {campaign.quests && campaign.quests.length > 0 && (
+                    {campaign?.quests && campaign.quests.length > 0 && (
                       <div className="space-y-2">
                         <h4 className="font-medium">Quest Rewards</h4>
                         <div className="space-y-2">
                           {campaign.quests.map((quest: typeof campaign.quests[0], index: number) => (
                             <div key={index} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                              <span className="text-sm">{quest.metadata.title || `Quest ${index + 1}`}</span>
+                              <span className="text-sm">{quest.metadata?.title || `Quest ${index + 1}`}</span>
                               <Badge variant="outline">
-                                {quest.points.toString() || 100} points
+                                {Number(quest.points) || 100} points
                               </Badge>
                             </div>
                           ))}

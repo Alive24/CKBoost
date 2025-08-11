@@ -341,14 +341,14 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       };
       tippingConfig: {
         approval_requirement_thresholds: string[];
-        expiration_duration: number;
+        expiration_duration: number | bigint;
       };
     };
 
     // Helper function to create field change
     const createFieldChange = <T,>(fieldPath: string, oldValue: T, newValue: T): FieldChange<T> => {
       // Custom stringify that handles BigInt
-      const stringify = (value: any): string => {
+      const stringify = (value: unknown): string => {
         return JSON.stringify(value, (_, v) => 
           typeof v === 'bigint' ? v.toString() : v
         );
@@ -409,13 +409,13 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       tippingConfig: {
         approvalRequirementThresholds: createFieldChange(
           'tippingConfig.approvalRequirementThresholds',
-          protocolData.tipping_config.approval_requirement_thresholds,
+          protocolData.tipping_config.approval_requirement_thresholds.map((t: ccc.NumLike) => t.toString()),
           data.tippingConfig.approval_requirement_thresholds
         ),
         expirationDuration: createFieldChange(
           'tippingConfig.expirationDuration',
-          protocolData.tipping_config.expiration_duration,
-          data.tippingConfig.expiration_duration
+          Number(protocolData.tipping_config.expiration_duration),
+          Number(data.tippingConfig.expiration_duration)
         )
       },
       endorsers: {

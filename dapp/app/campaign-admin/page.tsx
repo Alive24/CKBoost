@@ -5,9 +5,9 @@ import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { fetchCampaignsConnectedToProtocol } from "@/lib/ckb/campaign-cells"
+import { fetchCampaignsOwnedByUser } from "@/lib/ckb/campaign-cells"
 import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
-import { ProtocolData, CampaignData } from "ssri-ckboost/types"
+import { ProtocolData, CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,7 +32,6 @@ import {
   DollarSign,
   UserPlus,
   Crown,
-  Shield,
   Trash2
 } from "lucide-react"
 import Link from "next/link"
@@ -48,84 +47,6 @@ const CURRENT_USER = {
   permissions: ["manage_campaigns", "review_quests", "manage_staff"]
 }
 
-// Mock staff members for campaigns
-const CAMPAIGN_STAFF = [
-  {
-    id: 1,
-    name: "Review Manager",
-    email: "reviewer@ckboost.com",
-    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqvglkprurm00l7hrs3rfqmmzyy3ll7djdsujdm6",
-    avatar: "RM",
-    role: "reviewer",
-    campaignTypeHashes: ["0x0000000000000000000000000000000000000000000000000000000000000001", "0x0000000000000000000000000000000000000000000000000000000000000002"],
-    addedDate: "2024-01-10",
-    permissions: ["review_quest_submissions"]
-  },
-  {
-    id: 2,
-    name: "Community Manager",
-    email: "community@ckboost.com", 
-    address: "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsqdj4xq5uer6gr8ndxzuj0nwmf34rnk9ysa0ksk",
-    avatar: "CM",
-    role: "moderator",
-    campaignTypeHashes: ["0x0000000000000000000000000000000000000000000000000000000000000001"],
-    addedDate: "2024-01-12",
-    permissions: ["review_quest_submissions", "manage_participants"]
-  }
-]
-
-// Mock campaigns owned by current user
-const OWNED_CAMPAIGNS = [
-  {
-    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
-    title: "CKB Ecosystem Growth Initiative",
-    description: "Help expand the CKB ecosystem through social engagement and development",
-    status: "active",
-    startDate: "2024-01-15",
-    endDate: "2024-03-15",
-    totalBudget: 5000,
-    spentBudget: 1250,
-    participants: 156,
-    questsCount: 6,
-    activeQuests: 4,
-    completedQuests: 89,
-    pendingReviews: 12,
-    category: "Ecosystem",
-    difficulty: "Mixed",
-    staffCount: 2,
-    totalRewards: {
-      points: 2500,
-      tokens: [
-        { symbol: "CKB", amount: 1000 },
-        { symbol: "SPORE", amount: 500 },
-      ],
-    },
-  },
-  {
-    typeHash: "0x0000000000000000000000000000000000000000000000000000000000000002",
-    title: "DeFi Education Campaign",
-    description: "Learn and teach about DeFi concepts on CKB",
-    status: "draft",
-    startDate: "2024-04-01",
-    endDate: "2024-06-01",
-    totalBudget: 3000,
-    spentBudget: 0,
-    participants: 0,
-    questsCount: 3,
-    activeQuests: 0,
-    completedQuests: 0,
-    pendingReviews: 0,
-    category: "Education",
-    difficulty: "Medium",
-    staffCount: 1,
-    totalRewards: {
-      points: 1500,
-      tokens: [
-        { symbol: "CKB", amount: 500 },
-      ],
-    },
-  },
-]
 
 export default function CampaignAdminDashboard() {
   const { signer } = useProtocol()
@@ -136,25 +57,39 @@ export default function CampaignAdminDashboard() {
     campaignTypeHash: "",
     role: "reviewer"
   })
-  const [connectedCampaigns, setConnectedCampaigns] = useState<ccc.Cell[]>([])
-  const [pendingReviews, setPendingReviews] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [ownedCampaigns, setOwnedCampaigns] = useState<(CampaignDataLike & { 
+    typeHash: ccc.Hex
+    status: string
+    isConnected: boolean
+    isApproved: boolean
+    totalPoints: number
+    participants: number  // computed from submissions
+    completedQuests: number  // computed from submissions
+    pendingReviews: number  // computed from submissions
+  })[]>([])
+  const [pendingReviews, setPendingReviews] = useState<{
+    campaignTitle: string
+    campaignTypeHash: string
+    questCount: number
+  }[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch campaigns connected to the protocol
+  // Fetch campaigns owned by the current user
   useEffect(() => {
     const fetchCampaigns = async () => {
-      debug.group('Campaign Admin - Fetch Campaigns')
+      debug.group('Campaign Admin - Fetch User Campaigns')
       debug.log('Signer status:', { signerPresent: !!signer })
       
       if (!signer) {
         debug.warn('No signer available, skipping campaign fetch')
         debug.groupEnd()
+        setIsLoading(false)
         return
       }
       
       setIsLoading(true)
       try {
-        // Get protocol cell to extract campaign code hash
+        // Get protocol cell to extract campaign code hash and check connections
         debug.log('Fetching protocol cell...')
         const protocolCell = await fetchProtocolCell(signer)
         
@@ -169,56 +104,119 @@ export default function CampaignAdminDashboard() {
           dataLength: protocolCell.outputData.length
         })
 
-        // Parse protocol data to get campaign code hash
+        // Parse protocol data to get campaign code hash and approved campaigns
         debug.log('Parsing protocol data...')
         const protocolData = ProtocolData.decode(protocolCell.outputData)
         const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
-        
-        debug.log('Extracted campaign code hash:', campaignCodeHash)
-        
-        // Get the protocol type hash (from the protocol cell's type script)
         const protocolTypeHash = protocolCell.cellOutput.type?.hash() || "0x"
-        debug.log('Protocol type hash:', protocolTypeHash)
         
-        // Fetch campaigns connected to this protocol
-        debug.log('Fetching campaigns connected to protocol...')
-        const campaigns = await fetchCampaignsConnectedToProtocol(
+        debug.log('Extracted data:', {
+          campaignCodeHash,
+          protocolTypeHash,
+          approvedCampaigns: protocolData.campaigns_approved?.length || 0
+        })
+        
+        // Fetch campaigns owned by the current user
+        debug.log('Fetching campaigns owned by user...')
+        const userCampaigns = await fetchCampaignsOwnedByUser(
           signer,
-          campaignCodeHash as ccc.Hex,
-          protocolTypeHash as ccc.Hex
+          campaignCodeHash as ccc.Hex
         )
         
-        debug.log(`Received ${campaigns.length} connected campaigns`)
-        setConnectedCampaigns(campaigns)
+        debug.log(`Found ${userCampaigns.length} campaigns owned by user`)
         
-        // Process campaigns to extract pending reviews
-        const reviews: any[] = []
-        for (const campaign of campaigns) {
+        // Process campaigns and check their connection status
+        const processedCampaigns: typeof ownedCampaigns = []
+        const reviews: typeof pendingReviews = []
+        
+        for (const campaign of userCampaigns) {
           try {
             const campaignData = CampaignData.decode(campaign.outputData)
-            debug.log('Processing campaign:', {
-              title: campaignData.metadata.title,
-              questCount: campaignData.quests.length
+            const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
+            
+            // Check if campaign is connected to the protocol
+            const isConnected = campaign.cellOutput.type?.args && (() => {
+              try {
+                const argsBytes = ccc.bytesFrom(campaign.cellOutput.type!.args)
+                const connectedTypeId = ConnectedTypeID.decode(argsBytes)
+                return connectedTypeId.connected_type_hash === protocolTypeHash
+              } catch {
+                return false
+              }
+            })()
+            
+            // Check if campaign is approved
+            debug.log('Checking approval for campaign:', {
+              campaignTypeHash,
+              approvedList: protocolData.campaigns_approved,
+              approvedCount: protocolData.campaigns_approved?.length || 0
             })
             
-            // Check for pending quest submissions that need review
-            // This is a placeholder - actual implementation would check user submissions
-            if (campaignData.quests && campaignData.quests.length > 0) {
-              // Add mock review data for now - replace with actual submission data
+            const isApproved = protocolData.campaigns_approved?.some(
+              (approved: string) => {
+                const match = approved.toLowerCase() === campaignTypeHash.toLowerCase()
+                if (match) {
+                  debug.log('✅ Campaign is approved:', campaignTypeHash)
+                }
+                return match
+              }
+            ) || false
+            
+            // Calculate campaign status
+            const now = Date.now()
+            const startTime = Number(campaignData.starting_time) * 1000
+            const endTime = Number(campaignData.ending_time) * 1000
+            const status = !isConnected ? "not-connected" :
+                          !isApproved ? "under-review" : 
+                          now < startTime ? "draft" : 
+                          now > endTime ? "completed" : "active"
+            
+            // Calculate total points
+            const totalPoints = campaignData.quests?.reduce((sum: number, quest) => {
+              return sum + Number(quest.points || 100)
+            }, 0) || 0
+            
+            // Process campaign for display
+            const campaignInfo: typeof ownedCampaigns[0] = {
+              ...campaignData,
+              typeHash: campaignTypeHash,
+              status,
+              isConnected: isConnected || false,
+              isApproved,
+              totalPoints,
+              participants: 0, // Would need submission data to calculate
+              completedQuests: 0, // Would need submission data
+              pendingReviews: 0 // Would need submission data
+            }
+            
+            processedCampaigns.push(campaignInfo)
+            
+            // Check for pending reviews (placeholder - would need submission data)
+            if (status === "active" && campaignData.quests && campaignData.quests.length > 0) {
+              // This would check actual submission data
               reviews.push({
                 campaignTitle: campaignData.metadata.title,
-                campaignTypeHash: campaign.cellOutput.type?.hash(),
+                campaignTypeHash,
                 questCount: campaignData.quests.length,
-                // Add more review data as needed
               })
             }
+            
+            debug.log('Processed campaign:', {
+              title: campaignInfo.metadata.title,
+              status: campaignInfo.status,
+              isConnected: campaignInfo.isConnected,
+              isApproved: campaignInfo.isApproved
+            })
+            
           } catch (error) {
             debug.warn("Failed to parse campaign data:", error)
           }
         }
         
-        debug.log(`Processed ${reviews.length} pending reviews`)
+        debug.log(`Processed ${processedCampaigns.length} campaigns`)
+        setOwnedCampaigns(processedCampaigns)
         setPendingReviews(reviews)
+        
       } catch (error) {
         debug.error("Failed to fetch campaigns:", error)
       } finally {
@@ -235,9 +233,13 @@ export default function CampaignAdminDashboard() {
       case "active":
         return "bg-green-100 text-green-800"
       case "draft":
-        return "bg-yellow-100 text-yellow-800"
-      case "completed":
         return "bg-blue-100 text-blue-800"
+      case "completed":
+        return "bg-purple-100 text-purple-800"
+      case "under-review":
+        return "bg-yellow-100 text-yellow-800"
+      case "not-connected":
+        return "bg-gray-100 text-gray-800"
       case "paused":
         return "bg-gray-100 text-gray-800"
       default:
@@ -260,18 +262,19 @@ export default function CampaignAdminDashboard() {
     }
   }
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case "reviewer":
-        return "bg-blue-100 text-blue-800"
-      case "moderator":
-        return "bg-purple-100 text-purple-800"
-      case "admin":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  // Commented out - can be used later for staff management
+  // const getRoleColor = (role: string) => {
+  //   switch (role) {
+  //     case "reviewer":
+  //       return "bg-blue-100 text-blue-800"
+  //     case "moderator":
+  //       return "bg-purple-100 text-purple-800"
+  //     case "admin":
+  //       return "bg-red-100 text-red-800"
+  //     default:
+  //       return "bg-gray-100 text-gray-800"
+  //   }
+  // }
 
   const formatDate = (dateString: string) => {
     // Use consistent date formatting to avoid hydration mismatch
@@ -284,12 +287,12 @@ export default function CampaignAdminDashboard() {
     setStaffForm({ email: "", campaignTypeHash: "", role: "reviewer" })
   }
 
-  const totalActiveCampaigns = OWNED_CAMPAIGNS.filter(c => c.status === "active").length
-  const totalParticipants = OWNED_CAMPAIGNS.reduce((sum, c) => sum + c.participants, 0)
-  const totalBudget = OWNED_CAMPAIGNS.reduce((sum, c) => sum + c.totalBudget, 0)
-  const totalSpent = OWNED_CAMPAIGNS.reduce((sum, c) => sum + c.spentBudget, 0)
-  const totalPendingReviews = OWNED_CAMPAIGNS.reduce((sum, c) => sum + c.pendingReviews, 0)
-  const totalStaff = CAMPAIGN_STAFF.length
+  // Calculate stats from real campaigns or use mock data as fallback
+  const campaignsToShow =  ownedCampaigns
+  const totalActiveCampaigns = campaignsToShow.filter(c => c.status === "active").length
+  const totalParticipants = campaignsToShow.reduce((sum, c) => sum + (c.participants || 0), 0)
+  const totalPendingReviews = campaignsToShow.reduce((sum, c) => sum + (c.pendingReviews || 0), 0)
+  const totalStaff = 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -337,7 +340,7 @@ export default function CampaignAdminDashboard() {
                     </div>
                   </div>
                 </div>
-                <Link href="/campaign-admin/create-campaign">
+                <Link href="/campaign-admin/new">
                   <Button className="flex items-center gap-2">
                     <Plus className="w-4 h-4" />
                     Create Campaign
@@ -382,8 +385,6 @@ export default function CampaignAdminDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">Budget Used</p>
-                    <p className="text-2xl font-bold">{((totalSpent / totalBudget) * 100).toFixed(1)}%</p>
-                    <p className="text-xs text-muted-foreground">{totalSpent} / {totalBudget} CKB</p>
                   </div>
                   <div className="p-3 bg-purple-100 rounded-full">
                     <DollarSign className="w-6 h-6 text-purple-600" />
@@ -533,21 +534,111 @@ export default function CampaignAdminDashboard() {
             </TabsContent>
 
             <TabsContent value="campaigns" className="space-y-6">
+              {isLoading ? (
+                // Loading state
+                <div className="flex items-center justify-center py-16">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                    <p className="text-muted-foreground">Loading campaigns...</p>
+                  </div>
+                </div>
+              ) : campaignsToShow.length === 0 ? (
+                // Empty state
+                <Card>
+                  <CardContent className="py-16">
+                    <div className="text-center">
+                      <Trophy className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">No Campaigns Yet</h3>
+                      <p className="text-muted-foreground mb-6">
+                        You haven't created any campaigns yet. Get started by creating your first campaign!
+                      </p>
+                      <Link href="/campaign-admin/create-campaign">
+                        <Button size="lg" className="flex items-center gap-2 mx-auto">
+                          <Plus className="w-5 h-5" />
+                          Create Your First Campaign
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Campaign Status Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Approved Campaigns</p>
+                        <p className="text-2xl font-bold">
+                          {campaignsToShow.filter(c => c.isApproved).length}
+                        </p>
+                      </div>
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pending Approval</p>
+                        <p className="text-2xl font-bold">
+                          {campaignsToShow.filter(c => !c.isApproved && c.isConnected).length}
+                        </p>
+                      </div>
+                      <Clock className="w-8 h-8 text-yellow-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Not Connected</p>
+                        <p className="text-2xl font-bold">
+                          {campaignsToShow.filter(c => !c.isConnected).length}
+                        </p>
+                      </div>
+                      <AlertCircle className="w-8 h-8 text-gray-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              
               <div className="grid gap-6">
-                {OWNED_CAMPAIGNS.map((campaign) => (
+                {campaignsToShow.map((campaign) => (
                   <Card key={campaign.typeHash}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle className="text-xl">{campaign.title}</CardTitle>
-                          <p className="text-muted-foreground mt-1">{campaign.description}</p>
+                          <CardTitle className="text-xl">{campaign.metadata?.title || "Untitled"}</CardTitle>
+                          <p className="text-muted-foreground mt-1">{campaign.metadata?.short_description || "No description"}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge className={getStatusColor(campaign.status)}>
                             {campaign.status}
                           </Badge>
-                          <Badge variant="outline" className={getCategoryColor(campaign.category)}>
-                            {campaign.category}
+                          {campaign.isApproved && (
+                            <Badge className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Approved
+                            </Badge>
+                          )}
+                          {!campaign.isApproved && campaign.isConnected && (
+                            <Badge className="bg-yellow-100 text-yellow-800">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Pending Approval
+                            </Badge>
+                          )}
+                          {!campaign.isConnected && (
+                            <Badge className="bg-gray-100 text-gray-800">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Not Connected
+                            </Badge>
+                          )}
+                          <Badge variant="outline" className={getCategoryColor(campaign.metadata?.categories?.[0] || "General")}>
+                            {campaign.metadata?.categories?.[0] || "General"}
                           </Badge>
                         </div>
                       </div>
@@ -557,35 +648,35 @@ export default function CampaignAdminDashboard() {
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
                             <Users className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.participants}</span>
+                            <span className="font-semibold">{campaign.participants || 0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Participants</p>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
                             <Trophy className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.questsCount}</span>
+                            <span className="font-semibold">{campaign.quests?.length || 0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Total Quests</p>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-purple-600 mb-1">
                             <CheckCircle className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.completedQuests}</span>
+                            <span className="font-semibold">{campaign.completedQuests || 0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Completions</p>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-orange-600 mb-1">
                             <AlertCircle className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.pendingReviews}</span>
+                            <span className="font-semibold">{campaign.pendingReviews || 0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Pending Reviews</p>
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-indigo-600 mb-1">
                             <UserPlus className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.staffCount}</span>
+                            <span className="font-semibold">{0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Staff Members</p>
                         </div>
@@ -594,41 +685,56 @@ export default function CampaignAdminDashboard() {
                       <div className="mb-4">
                         <div className="flex justify-between text-sm mb-2">
                           <span>Budget Used</span>
-                          <span>{campaign.spentBudget} / {campaign.totalBudget} CKB</span>
+                          <span>{Number(campaign.metadata?.total_rewards.points_amount || 0)} / {Number(campaign.metadata?.total_rewards.points_amount || 0)} CKB</span>
                         </div>
-                        <Progress value={(campaign.spentBudget / campaign.totalBudget) * 100} className="h-2" />
+                        <Progress value={((Number(campaign.metadata?.total_rewards.points_amount || 0)) / (Number(campaign.metadata?.total_rewards.points_amount || 1))) * 100} className="h-2" />
                       </div>
 
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-muted-foreground">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            {formatDate(campaign.startDate)} - {formatDate(campaign.endDate)}
+                            {formatDate(new Date(Number(campaign.starting_time) * 1000).toISOString())} - {formatDate(new Date(Number(campaign.ending_time) * 1000).toISOString())}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {!campaign.isConnected && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                              title="Connect campaign to protocol"
+                            >
+                              <Settings className="w-4 h-4 mr-1" />
+                              Connect to Protocol
+                            </Button>
+                          )}
                           <Link href={`/campaign/${campaign.typeHash}`}>
                             <Button variant="outline" size="sm">
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
                           </Link>
-                          <Link href={`/campaign/${campaign.typeHash}/create-quest`}>
+                          <Link href={`/campaign-admin/${campaign.typeHash}?tab=quests`}>
                             <Button variant="outline" size="sm">
                               <Plus className="w-4 h-4 mr-1" />
                               Add Quest
                             </Button>
                           </Link>
-                          <Button variant="outline" size="sm">
-                            <Edit className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
+                          <Link href={`/campaign-admin/${campaign.typeHash}`}>
+                            <Button variant="outline" size="sm">
+                              <Edit className="w-4 h-4 mr-1" />
+                              Manage
+                            </Button>
+                          </Link>
                         </div>
-                  </div>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
               </div>
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="staff" className="space-y-6">
@@ -668,9 +774,9 @@ export default function CampaignAdminDashboard() {
                           onChange={(e) => setStaffForm({ ...staffForm, campaignTypeHash: e.target.value })}
                         >
                           <option value="">Select campaign</option>
-                          {OWNED_CAMPAIGNS.map((campaign) => (
+                          {ownedCampaigns.map((campaign) => (
                             <option key={campaign.typeHash} value={campaign.typeHash}>
-                              {campaign.title}
+                              {campaign.metadata?.title}
                             </option>
                           ))}
                         </select>
@@ -699,37 +805,28 @@ export default function CampaignAdminDashboard() {
               </div>
 
               <div className="grid gap-4">
-                {CAMPAIGN_STAFF.map((staff) => (
-                  <Card key={staff.id}>
+                {ownedCampaigns.map((staff) => (
+                  <Card key={staff.typeHash}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <Avatar className="w-12 h-12">
                             <AvatarFallback className="bg-gradient-to-br from-blue-200 to-purple-200">
-                              {staff.avatar}
+                              {staff.metadata?.endorser_info.endorser_name}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <div className="font-semibold">{staff.name}</div>
-                            <div className="text-sm text-muted-foreground">{staff.email}</div>
-                            <div className="text-xs text-muted-foreground">{staff.address}</div>
+                            <div className="font-semibold">{staff.metadata?.endorser_info.endorser_name}</div>
+                            <div className="text-sm text-muted-foreground">{staff.metadata?.endorser_info.endorser_description}</div>
+                            <div className="text-xs text-muted-foreground">{staff.metadata?.endorser_info.website}</div>
                             <div className="flex items-center gap-2 mt-2">
-                              <Badge className={getRoleColor(staff.role)}>
-                                {staff.role}
-                              </Badge>
                               <span className="text-xs text-muted-foreground">
-                                Added {formatDate(staff.addedDate)}
+                                Added {formatDate(new Date(Number(staff.created_at) * 1000).toISOString())}
                               </span>
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
-                          <div className="text-sm font-medium mb-1">
-                            Access to {staff.campaignTypeHashes.length} campaign{staff.campaignTypeHashes.length !== 1 ? 's' : ''}
-                          </div>
-                          <div className="text-xs text-muted-foreground mb-3">
-                            {staff.permissions.join(", ")}
-                          </div>
                           <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm">
                               <Edit className="w-4 h-4 mr-1" />
@@ -761,7 +858,7 @@ export default function CampaignAdminDashboard() {
                         <p className="text-sm text-muted-foreground">Loading campaigns...</p>
                       </div>
                     </div>
-                  ) : connectedCampaigns.length === 0 ? (
+                  ) : ownedCampaigns.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No campaigns found connected to this protocol.</p>
                       <p className="text-sm text-muted-foreground mt-2">
@@ -770,24 +867,24 @@ export default function CampaignAdminDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {connectedCampaigns.map((campaign, index) => {
+                      {ownedCampaigns.map((campaign, index) => {
                         try {
-                          const campaignData = CampaignData.decode(campaign.outputData)
-                          const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
+                          // Campaign is already processed with all needed fields
+                          const campaignTypeHash = campaign.typeHash || "0x"
                           
                           return (
                             <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
                               <Avatar className="w-10 h-10">
                                 <AvatarFallback className="bg-gradient-to-br from-blue-200 to-purple-200">
-                                  {campaignData.metadata.title.substring(0, 2).toUpperCase()}
+                                  {(campaign.metadata?.title || "CA").substring(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1">
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <p className="font-medium">{campaignData.metadata.title}</p>
+                                    <p className="font-medium">{campaign.metadata?.title || "Untitled"}</p>
                                     <p className="text-sm text-muted-foreground">
-                                      {campaignData.metadata.short_description}
+                                      {campaign.metadata?.short_description || "No description"}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
                                       Type Hash: {campaignTypeHash.slice(0, 10)}...{campaignTypeHash.slice(-8)}
@@ -810,15 +907,15 @@ export default function CampaignAdminDashboard() {
                                 </div>
                                 <div className="flex items-center gap-2 mt-2">
                                   <Badge variant="outline">
-                                    {campaignData.quests.length} Quests
+                                    {campaign.quests?.length || 0} Quests
                                   </Badge>
-                                  {campaignData.metadata.categories.map((category, catIndex) => (
+                                  {campaign.metadata?.categories?.map((category: string, catIndex: number) => (
                                     <Badge key={catIndex} variant="outline" className="bg-blue-100 text-blue-800">
                                       {category}
                                     </Badge>
                                   ))}
                                   <span className="text-xs text-muted-foreground">
-                                    Created by: {campaignData.endorser.endorser_name || "Unknown"}
+                                    Created by: {campaign.endorser?.endorser_name || "Unknown"}
                                   </span>
                                 </div>
                               </div>

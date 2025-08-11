@@ -159,6 +159,83 @@ export async function fetchUserSubmissionRecords(_userAddress: string, signer?: 
 }
 
 /**
+ * Fetch all campaign cells owned by the current user
+ * @param signer - CCC signer instance with user's lock script
+ * @param campaignCodeHash - Campaign type code hash from protocol data
+ * @returns Array of campaign cells owned by the user
+ */
+export async function fetchCampaignsOwnedByUser(
+  signer: ccc.Signer,
+  campaignCodeHash: ccc.Hex
+): Promise<ccc.Cell[]> {
+  debug.group('fetchCampaignsOwnedByUser')
+  debug.log('Input parameters:', {
+    campaignCodeHash,
+    signerPresent: !!signer
+  })
+
+  if (!signer) {
+    debug.error("Signer is required to fetch campaigns")
+    debug.groupEnd()
+    throw new Error("Signer is required to fetch campaigns")
+  }
+
+  try {
+    const client = signer.client
+    const { script: userLockScript } = await signer.getRecommendedAddressObj()
+    
+    debug.log('User lock script:', {
+      codeHash: userLockScript.codeHash,
+      hashType: userLockScript.hashType,
+      args: userLockScript.args
+    })
+    
+    // Search for campaign cells locked by the user's lock script
+    debug.log('Searching for campaign cells owned by user...')
+    debug.time('Campaign cell search')
+    
+    // First, search for all cells locked by the user
+    const searchKey = {
+      script: userLockScript,
+      scriptType: "lock" as const,
+      scriptSearchMode: "exact" as const
+    }
+    
+    debug.log('Search parameters:', searchKey)
+    
+    // Collect cells that are campaigns (have the campaign type script)
+    const campaignCells: ccc.Cell[] = []
+    try {
+      for await (const cell of client.findCells(searchKey)) {
+        // Check if this cell has the campaign type script
+        if (cell.cellOutput.type && 
+            cell.cellOutput.type.codeHash === campaignCodeHash &&
+            cell.cellOutput.type.hashType === "type") {
+          debug.log('Found campaign cell owned by user:', {
+            typeHash: cell.cellOutput.type.hash(),
+            capacity: cell.cellOutput.capacity
+          })
+          campaignCells.push(cell)
+        }
+        if (campaignCells.length >= 100) break // Limit to 100 campaigns
+      }
+    } catch (iterError) {
+      debug.warn('Error iterating cells:', iterError)
+    }
+    
+    debug.timeEnd('Campaign cell search')
+    debug.info(`✨ Found ${campaignCells.length} campaigns owned by user`)
+    debug.groupEnd()
+    return campaignCells
+    
+  } catch (error) {
+    debug.error("Failed to fetch user's campaigns:", error)
+    debug.groupEnd()
+    return []
+  }
+}
+
+/**
  * Fetch all campaign cells connected to a specific protocol
  * @param signer - CCC signer instance
  * @param campaignCodeHash - Campaign type code hash from protocol data
@@ -192,14 +269,14 @@ export async function fetchCampaignsConnectedToProtocol(
     debug.time('Campaign cell search')
     
     // Create a proper search key for campaigns with this code hash
-    const searchKey: ccc.ClientFindCellsParams = {
+    const searchKey = {
       script: {
         codeHash: campaignCodeHash,
         hashType: "type" as const,
         args: "0x" // Empty args to match all campaigns
       },
-      scriptType: "type",
-      scriptSearchMode: "prefix"
+      scriptType: "type" as const,
+      scriptSearchMode: "prefix" as const
     }
     
     debug.log('Search parameters:', searchKey)

@@ -11,18 +11,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle, Save } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Info, AlertTriangle, Calendar, Loader2, CheckCircle, Save, X } from "lucide-react"
 import Link from "next/link"
 import { ccc, ScriptLike } from "@ckb-ccc/connector-react"
 import type { CampaignDataLike, EndorserInfoLike, UDTAssetLike } from "ssri-ckboost/types"
 // import { useCampaignDraft } from "@/lib/hooks/use-campaign-draft"
 
+// Simplified form data interface
+export interface SimplifiedCampaignFormData {
+  title: string
+  shortDescription: string
+  longDescription: string
+  categories: string[]
+  difficulty: string
+  startDate: string
+  endDate: string
+  totalPoints: string
+  logo: string
+  rules: string[]
+}
+
 interface CampaignFormProps {
-  mode: 'create' | 'edit'
+  mode: 'create' | 'edit' | 'inline'  // Added 'inline' mode for embedded editing
   campaignTypeHash?: string
   initialData?: CampaignDataLike
-  onSubmit: (data: CampaignDataLike) => Promise<void>
-  currentWalletEndorser: EndorserInfoLike | null
+  onSubmit: (data: SimplifiedCampaignFormData | CampaignDataLike) => Promise<void>
+  onCancel?: () => void
+  currentWalletEndorser?: EndorserInfoLike | null
+  simplified?: boolean  // If true, returns SimplifiedCampaignFormData
+  submitLabel?: string
+  className?: string
 }
 
 export function CampaignForm({ 
