@@ -27,7 +27,8 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Sparkles
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
@@ -198,6 +199,82 @@ export default function CampaignManagementPage() {
     }
     window.history.replaceState({}, '', url.toString())
   }, [activeTab])
+
+  const fillTestData = () => {
+    const testData: CampaignFormData = {
+      title: "Learn CKB Development",
+      shortDescription: "Master the basics of CKB blockchain development through hands-on tasks",
+      longDescription: "This comprehensive campaign will guide you through the fundamentals of CKB blockchain development. You'll learn about the Cell model, write smart contracts in Rust, understand the UTXO model, and build your first dApp. Perfect for developers looking to expand their blockchain skills.",
+      categories: ["Education", "Development"],
+      difficulty: 2,
+      startDate: new Date().toISOString().slice(0, 16),
+      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16), // 30 days from now
+      totalPoints: "5000",
+      logo: "🎓",
+      rules: [
+        "Complete quests in any order",
+        "Submit proof of completion for each task",
+        "Points are awarded upon verification",
+        "Collaboration is encouraged"
+      ]
+    }
+    setCampaignForm(testData)
+    
+    // Test quests for reference (would be added via the Quest dialog)
+    /* const testQuests = [
+      {
+        title: "Setup Development Environment",
+        shortDescription: "Install and configure CKB development tools",
+        longDescription: "Set up your local development environment with CKB node, SDK, and development tools",
+        points: 500,
+        difficulty: 1,
+        timeEstimate: 60,
+        requirements: "Basic command line knowledge",
+        subtasks: [
+          {
+            title: "Install CKB Node",
+            description: "Download and install CKB node for your operating system",
+            type: "technical",
+            proof_required: "Screenshot of running node"
+          },
+          {
+            title: "Install CKB SDK",
+            description: "Install the CKB SDK and verify installation",
+            type: "technical",
+            proof_required: "Screenshot of SDK version output"
+          }
+        ]
+      },
+      {
+        title: "Write Your First Smart Contract",
+        shortDescription: "Create a simple smart contract in Rust",
+        longDescription: "Learn the basics of smart contract development on CKB by writing a simple contract",
+        points: 1000,
+        difficulty: 2,
+        timeEstimate: 120,
+        requirements: "Rust programming knowledge, completed environment setup",
+        subtasks: [
+          {
+            title: "Create Contract Project",
+            description: "Initialize a new Rust project for your smart contract",
+            type: "technical",
+            proof_required: "GitHub repository link"
+          },
+          {
+            title: "Implement Contract Logic",
+            description: "Write the main contract logic following CKB patterns",
+            type: "technical",
+            proof_required: "Code snippet of main function"
+          }
+        ]
+      }
+    ] */
+    
+    // Note: In create mode, quests would need to be stored separately
+    // until the campaign is created on the blockchain
+    // For now, we can show a message about adding quests after filling test data
+    alert("Test campaign data filled! You can now add test quests from the Quests tab.")
+  }
 
   const handleSaveCampaign = async () => {
     setIsSaving(true)
@@ -442,11 +519,17 @@ export default function CampaignManagementPage() {
 
           {/* Main Content Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsList className={isCreateMode ? "grid w-full grid-cols-2" : "grid w-full grid-cols-4"}>
+              <TabsTrigger value="overview">
+                {isCreateMode ? "Campaign Details" : "Overview"}
+              </TabsTrigger>
               <TabsTrigger value="quests">Quests</TabsTrigger>
-              <TabsTrigger value="submissions">Submissions</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
+              {!isCreateMode && (
+                <>
+                  <TabsTrigger value="submissions">Submissions</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </>
+              )}
             </TabsList>
 
             {/* Overview Tab */}
@@ -455,16 +538,28 @@ export default function CampaignManagementPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle>Campaign Details</CardTitle>
-                    {!editingCampaign && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => setEditingCampaign(true)}
-                      >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit Campaign
-                      </Button>
-                    )}
+                    <div className="flex gap-2">
+                      {isCreateMode && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={fillTestData}
+                        >
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          Fill Test Data
+                        </Button>
+                      )}
+                      {!editingCampaign && !isCreateMode && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setEditingCampaign(true)}
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit Campaign
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -585,7 +680,7 @@ export default function CampaignManagementPage() {
                           onClick={handleSaveCampaign}
                           disabled={isSaving}
                         >
-                          {isSaving ? "Saving..." : (isCreateMode ? "Create Campaign" : "Save Changes")}
+                          {isSaving ? (isCreateMode ? "Creating Campaign..." : "Saving...") : (isCreateMode ? "Create Campaign" : "Save Changes")}
                         </Button>
                       </div>
                     </div>
@@ -825,7 +920,28 @@ export default function CampaignManagementPage() {
 
               {/* Quest List */}
               <div className="space-y-4">
-                {campaign?.quests && campaign.quests.length > 0 ? (
+                {isCreateMode && (!campaign?.quests || campaign.quests.length === 0) ? (
+                  <Card>
+                    <CardContent className="py-12">
+                      <div className="text-center space-y-4">
+                        <Target className="w-12 h-12 mx-auto text-muted-foreground" />
+                        <div>
+                          <h3 className="font-semibold text-lg">No Quests Yet</h3>
+                          <p className="text-muted-foreground mt-2">
+                            Add quests to define the tasks participants will complete in your campaign
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={() => setIsAddingQuest(true)}
+                          className="mt-4"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Your First Quest
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : campaign?.quests && campaign.quests.length > 0 ? (
                   campaign.quests.map((quest, index) => (
                     <Card key={index}>
                       <CardHeader>
