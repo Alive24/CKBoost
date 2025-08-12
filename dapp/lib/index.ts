@@ -12,6 +12,7 @@ export { CampaignService } from './services/campaign-service'
 
 // Utils (campaign utilities)
 export * from './utils/campaign-utils'
+export { cellToCampaignDisplay, type CampaignDisplay } from './utils/campaign-utils'
 
 // CKB Integration (for advanced users)
 export * from './ckb/campaign-cells'

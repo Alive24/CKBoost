@@ -23,10 +23,10 @@ import {
 import Link from "next/link";
 import Image from "next/image";
 
-import { Campaign, getDaysUntilEnd } from "@/lib";
+import { getDaysUntilEnd, type CampaignDisplay } from "@/lib";
 
 interface CampaignCardProps {
-  campaign: Campaign;
+  campaign: CampaignDisplay;
   onCategoryClick?: (category: string) => void;
   onDifficultyClick?: (difficulty: string) => void;
   onStatusClick?: (status: string) => void;
@@ -47,7 +47,7 @@ const CURRENT_USER_VERIFICATION = {
 };
 
 // Helper function to check if user meets verification requirements based on new logic
-const meetsVerificationRequirements = (requirements: any) => {
+const meetsVerificationRequirements = (requirements: Record<string, boolean> | undefined) => {
   if (!requirements) return true;
 
   // Check if campaign refuses manual review
@@ -268,7 +268,7 @@ export function CampaignCard({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-600" />
-              <span>{campaign.participants} participants</span>
+              <span>{Number(campaign.participants_count || 0)} participants</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-orange-600" />
@@ -525,7 +525,7 @@ export function CampaignCard({
 
         {/* Action Button - Always at bottom */}
         <div className="mt-4 pt-4">
-          <Link href={`/campaign/${campaign.typeHash}`} className="block">
+          <Link href={`/campaign/${campaign.typeHash || ''}`} className="block">
             <Button className="w-full">View Campaign</Button>
           </Link>
         </div>

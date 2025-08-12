@@ -2,6 +2,7 @@
 // This file contains functions to interact with CKB blockchain for campaign data
 
 import { ccc } from "@ckb-ccc/core"
+import { cccA } from "@ckb-ccc/core/advanced";
 import type { UserSubmissionRecordLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
 import { ConnectedTypeID, ProtocolData } from "ssri-ckboost/types"
 import { debug } from "@/lib/utils/debug"
@@ -73,7 +74,7 @@ export async function fetchCampaignByTypeHash(typeHash: ccc.Hex, signer?: ccc.Si
     debug.log('Campaign code hash from protocol:', campaignCodeHash)
     
     // Now search for campaigns with this code hash
-    const searchKey: ccc.ClientFindCellsParams = {
+    const searchKey: cccA.ClientCollectableSearchKeyLike = {
       script: {
         codeHash: campaignCodeHash,
         hashType: "type" as const,

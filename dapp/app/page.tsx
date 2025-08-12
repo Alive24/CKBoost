@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, Star, X } from "lucide-react"
 import Link from "next/link"
-import { getDerivedStatus, useCampaigns } from "@/lib"
+import { getDerivedStatus, useCampaigns, cellToCampaignDisplay } from "@/lib"
 
 
 export default function HomePage() {
@@ -19,7 +19,26 @@ export default function HomePage() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
 
   // Use campaign provider
-  const { campaigns, featuredCampaigns, isLoading, error } = useCampaigns()
+  const { campaigns: campaignCells, featuredCampaigns: featuredCells, isLoading, error } = useCampaigns()
+
+  // Convert Cell data to display format
+  const campaigns = campaignCells.map(cell => {
+    try {
+      return cellToCampaignDisplay(cell)
+    } catch (err) {
+      console.error("Failed to convert campaign cell:", err)
+      return null
+    }
+  }).filter(c => c !== null)
+
+  const featuredCampaigns = featuredCells.map(cell => {
+    try {
+      return cellToCampaignDisplay(cell)
+    } catch (err) {
+      console.error("Failed to convert featured campaign cell:", err)
+      return null
+    }
+  }).filter(c => c !== null)
 
   const hasActiveFilters = searchTerm !== "" || selectedDifficulties.length > 0 || selectedCategories.length > 0 || selectedStatuses.length > 0
 
@@ -39,7 +58,7 @@ export default function HomePage() {
     
     // Handle status filter with derived status
     const derivedStatus = getDerivedStatus(campaign)
-    let matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(derivedStatus)
+    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(derivedStatus)
 
     return matchesSearch && matchesDifficulty && matchesCategory && matchesStatus
   })

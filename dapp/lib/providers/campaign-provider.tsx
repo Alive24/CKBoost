@@ -11,6 +11,10 @@ import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
+import { fetchProtocolCell } from "../ckb/protocol-cells";
+import { fetchCampaignByTypeHash } from "../ckb/campaign-cells";
+import { ProtocolData } from "ssri-ckboost/types";
+import { debug } from "../utils/debug";
 
 // Types for campaign provider
 interface CampaignContextType {
@@ -58,10 +62,53 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setError(null);
 
-        // Use campaign service to get data (mock or real CKB)
-        const allCampaigns = await CampaignService.getAllCampaigns(signer);
-        // Convert to UI format
-        setCampaigns(allCampaigns);
+        if (!signer) {
+          debug.warn("No signer available, skipping campaign load");
+          setIsLoading(false);
+          return;
+        }
+
+        // First, fetch the protocol cell to get approved campaigns
+        try {
+          const protocolCell = await fetchProtocolCell(signer);
+          
+          if (protocolCell) {
+            const protocolData = ProtocolData.decode(protocolCell.outputData);
+            debug.log("Found approved campaigns:", protocolData.campaigns_approved);
+            
+            // Fetch each approved campaign
+            const approvedCampaignCells: ccc.Cell[] = [];
+            
+            for (const campaignTypeHash of protocolData.campaigns_approved || []) {
+              try {
+                debug.log("Fetching campaign with type hash:", campaignTypeHash);
+                const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer);
+                
+                if (campaignCell) {
+                  approvedCampaignCells.push(campaignCell);
+                  debug.log("Loaded campaign:", campaignTypeHash);
+                } else {
+                  debug.warn("Campaign not found:", campaignTypeHash);
+                }
+              } catch (error) {
+                debug.error(`Failed to fetch campaign ${campaignTypeHash}:`, error);
+              }
+            }
+            
+            debug.log(`Loaded ${approvedCampaignCells.length} approved campaigns`);
+            setCampaigns(approvedCampaignCells);
+          } else {
+            debug.warn("Protocol cell not found");
+            // Fallback to mock data or empty
+            const allCampaigns = await CampaignService.getAllCampaigns(signer);
+            setCampaigns(allCampaigns);
+          }
+        } catch (protocolError) {
+          debug.error("Failed to fetch protocol data:", protocolError);
+          // Fallback to campaign service
+          const allCampaigns = await CampaignService.getAllCampaigns(signer);
+          setCampaigns(allCampaigns);
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to load campaigns"
@@ -109,10 +156,45 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setError(null);
 
-      // Refresh from service
-      const allCampaigns = await CampaignService.getAllCampaigns(signer);
-      // Convert to UI format
-      console.log(allCampaigns)
+      if (!signer) {
+        debug.warn("No signer available, skipping campaign refresh");
+        setIsLoading(false);
+        return;
+      }
+
+      // Fetch approved campaigns from protocol
+      try {
+        const protocolCell = await fetchProtocolCell(signer);
+        
+        if (protocolCell) {
+          const protocolData = ProtocolData.decode(protocolCell.outputData);
+          
+          const approvedCampaignCells: ccc.Cell[] = [];
+          
+          for (const campaignTypeHash of protocolData.campaigns_approved || []) {
+            try {
+              const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer);
+              
+              if (campaignCell) {
+                approvedCampaignCells.push(campaignCell);
+              }
+            } catch (error) {
+              debug.error(`Failed to fetch campaign ${campaignTypeHash}:`, error);
+            }
+          }
+          
+          setCampaigns(approvedCampaignCells);
+        } else {
+          // Fallback to campaign service
+          const allCampaigns = await CampaignService.getAllCampaigns(signer);
+          setCampaigns(allCampaigns);
+        }
+      } catch (protocolError) {
+        debug.error("Failed to fetch protocol data:", protocolError);
+        // Fallback to campaign service
+        const allCampaigns = await CampaignService.getAllCampaigns(signer);
+        setCampaigns(allCampaigns);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to refresh campaigns"

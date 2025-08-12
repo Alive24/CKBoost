@@ -91,6 +91,23 @@ export default function CampaignManagementPage() {
     rules: [""] as string[]
   })
 
+  // Local quests state for create mode
+  const [localQuests, setLocalQuests] = useState<Array<{
+    title: string
+    shortDescription: string
+    longDescription: string
+    points: number
+    difficulty: number
+    timeEstimate: number
+    requirements: string
+    subtasks: Array<{
+      title: string
+      description: string
+      type: string
+      proof_required: string
+    }>
+  }>>([])
+
   // Start in edit mode for creation
   useEffect(() => {
     if (isCreateMode) {
@@ -201,9 +218,10 @@ export default function CampaignManagementPage() {
   }, [activeTab])
 
   const fillTestData = () => {
+    const randomNum = Math.floor(Math.random() * 1000)
     const testData: CampaignFormData = {
-      title: "Learn CKB Development",
-      shortDescription: "Master the basics of CKB blockchain development through hands-on tasks",
+      title: `Learn CKB Development ${randomNum}`,
+      shortDescription: `Master the basics of CKB blockchain development through hands-on tasks ${randomNum}`,
       longDescription: "This comprehensive campaign will guide you through the fundamentals of CKB blockchain development. You'll learn about the Cell model, write smart contracts in Rust, understand the UTXO model, and build your first dApp. Perfect for developers looking to expand their blockchain skills.",
       categories: ["Education", "Development"],
       difficulty: 2,
@@ -281,8 +299,12 @@ export default function CampaignManagementPage() {
     try {
       if (isCreateMode) {
         // TODO: Implement blockchain transaction to create campaign
-        debug.log("Creating new campaign with form data:", campaignForm)
-        alert("Campaign creation functionality will be implemented with blockchain integration")
+        const campaignDataToCreate = {
+          ...campaignForm,
+          quests: localQuests
+        }
+        debug.log("Creating new campaign with data:", campaignDataToCreate)
+        alert(`Campaign creation will be implemented with blockchain integration.\n\nCampaign: ${campaignForm.title}\nQuests: ${localQuests.length}`)
         // After successful creation, redirect to the new campaign's management page
         // router.push(`/campaign-admin/${newCampaignTypeHash}`)
       } else {
@@ -302,9 +324,15 @@ export default function CampaignManagementPage() {
   const handleAddQuest = async () => {
     setIsSaving(true)
     try {
-      // TODO: Implement blockchain transaction to add quest
-      debug.log("Adding quest:", questForm)
-      alert("Quest addition functionality will be implemented with blockchain integration")
+      if (isCreateMode) {
+        // In create mode, add quest to local state
+        setLocalQuests([...localQuests, questForm])
+        debug.log("Added quest to local state:", questForm)
+      } else {
+        // TODO: Implement blockchain transaction to add quest to existing campaign
+        debug.log("Adding quest to existing campaign:", questForm)
+        alert("Quest addition to existing campaigns will be implemented with blockchain integration")
+      }
     } catch (error) {
       debug.error("Failed to add quest:", error)
       alert("Failed to add quest")
@@ -440,9 +468,11 @@ export default function CampaignManagementPage() {
     )
   }
 
-  const totalPoints = campaign?.quests?.reduce((sum, quest) => {
-    return sum + Number(quest.points || 100)
-  }, 0) || 0
+  const totalPoints = isCreateMode 
+    ? localQuests.reduce((sum, quest) => sum + quest.points, 0)
+    : (campaign?.quests?.reduce((sum, quest) => {
+        return sum + Number(quest.points || 100)
+      }, 0) || 0)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -735,7 +765,7 @@ export default function CampaignManagementPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-muted-foreground">Total Quests</p>
-                        <p className="text-2xl font-bold">{campaign?.quests?.length || 0}</p>
+                        <p className="text-2xl font-bold">{isCreateMode ? localQuests.length : (campaign?.quests?.length || 0)}</p>
                       </div>
                       <Target className="w-8 h-8 text-blue-600" />
                     </div>
@@ -813,6 +843,42 @@ export default function CampaignManagementPage() {
                           ? "Update the quest details and requirements."
                           : "Create a new quest for your campaign. Quests are tasks that participants complete to earn points."}
                       </DialogDescription>
+                      {isCreateMode && editingQuestIndex === null && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => {
+                            const questRandom = Math.floor(Math.random() * 1000)
+                            setQuestForm({
+                              title: `Write Your First Smart Contract ${questRandom}`,
+                              shortDescription: `Create a simple smart contract in Rust ${questRandom}`,
+                              longDescription: "Learn the basics of smart contract development on CKB by writing a simple contract that demonstrates basic functionality",
+                              points: 1000,
+                              difficulty: 2,
+                              timeEstimate: 120,
+                              requirements: "Rust programming knowledge, completed environment setup",
+                              subtasks: [
+                                {
+                                  title: "Create Contract Project",
+                                  description: "Initialize a new Rust project for your smart contract",
+                                  type: "technical",
+                                  proof_required: "GitHub repository link"
+                                },
+                                {
+                                  title: "Implement Contract Logic",
+                                  description: "Write the main contract logic following CKB patterns",
+                                  type: "technical",
+                                  proof_required: "Code snippet of main function"
+                                }
+                              ]
+                            })
+                          }}
+                        >
+                          <Sparkles className="w-4 h-4 mr-1" />
+                          Fill Test Quest
+                        </Button>
+                      )}
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div>
@@ -886,6 +952,154 @@ export default function CampaignManagementPage() {
                           placeholder="What participants need to complete this quest"
                         />
                       </div>
+                      
+                      {/* Subtasks Management */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Label>Subtasks</Label>
+                          <div className="flex gap-2">
+                            {isCreateMode && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const subtaskRandom = Math.floor(Math.random() * 1000)
+                                  setQuestForm({
+                                    ...questForm,
+                                    subtasks: [
+                                      ...questForm.subtasks,
+                                      {
+                                        title: `Sample Subtask ${subtaskRandom}`,
+                                        description: `Complete this technical task to progress ${subtaskRandom}`,
+                                        type: "technical",
+                                        proof_required: "Screenshot or link to completed work"
+                                      }
+                                    ]
+                                  })
+                                }}
+                              >
+                                <Sparkles className="w-4 h-4 mr-1" />
+                                Test Subtask
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setQuestForm({
+                                  ...questForm,
+                                  subtasks: [
+                                    ...questForm.subtasks,
+                                    {
+                                      title: "",
+                                      description: "",
+                                      type: "technical",
+                                      proof_required: ""
+                                    }
+                                  ]
+                                })
+                              }}
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Subtask
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        {questForm.subtasks.length === 0 ? (
+                          <div className="text-center py-4 border rounded-lg text-sm text-muted-foreground">
+                            No subtasks added yet. Add subtasks to break down the quest into steps.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {questForm.subtasks.map((subtask, index) => (
+                              <Card key={index} className="p-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-start justify-between">
+                                    <h4 className="font-medium">Subtask {index + 1}</h4>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        setQuestForm({
+                                          ...questForm,
+                                          subtasks: questForm.subtasks.filter((_, i) => i !== index)
+                                        })
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4 text-destructive" />
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <Label>Title</Label>
+                                      <Input
+                                        value={subtask.title}
+                                        onChange={(e) => {
+                                          const newSubtasks = [...questForm.subtasks]
+                                          newSubtasks[index] = { ...subtask, title: e.target.value }
+                                          setQuestForm({ ...questForm, subtasks: newSubtasks })
+                                        }}
+                                        placeholder="e.g., Setup environment"
+                                      />
+                                    </div>
+                                    
+                                    <div>
+                                      <Label>Type</Label>
+                                      <select
+                                        className="w-full p-2 border rounded-md"
+                                        value={subtask.type}
+                                        onChange={(e) => {
+                                          const newSubtasks = [...questForm.subtasks]
+                                          newSubtasks[index] = { ...subtask, type: e.target.value }
+                                          setQuestForm({ ...questForm, subtasks: newSubtasks })
+                                        }}
+                                      >
+                                        <option value="technical">Technical</option>
+                                        <option value="social">Social</option>
+                                        <option value="content">Content</option>
+                                        <option value="research">Research</option>
+                                        <option value="onchain">On-chain</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                  
+                                  <div>
+                                    <Label>Description</Label>
+                                    <Textarea
+                                      rows={2}
+                                      value={subtask.description}
+                                      onChange={(e) => {
+                                        const newSubtasks = [...questForm.subtasks]
+                                        newSubtasks[index] = { ...subtask, description: e.target.value }
+                                        setQuestForm({ ...questForm, subtasks: newSubtasks })
+                                      }}
+                                      placeholder="Detailed instructions..."
+                                    />
+                                  </div>
+                                  
+                                  <div>
+                                    <Label>Proof Required</Label>
+                                    <Input
+                                      value={subtask.proof_required}
+                                      onChange={(e) => {
+                                        const newSubtasks = [...questForm.subtasks]
+                                        newSubtasks[index] = { ...subtask, proof_required: e.target.value }
+                                        setQuestForm({ ...questForm, subtasks: newSubtasks })
+                                      }}
+                                      placeholder="e.g., Screenshot, GitHub link"
+                                    />
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => {
@@ -920,7 +1134,7 @@ export default function CampaignManagementPage() {
 
               {/* Quest List */}
               <div className="space-y-4">
-                {isCreateMode && (!campaign?.quests || campaign.quests.length === 0) ? (
+                {isCreateMode && localQuests.length === 0 ? (
                   <Card>
                     <CardContent className="py-12">
                       <div className="text-center space-y-4">
@@ -941,6 +1155,70 @@ export default function CampaignManagementPage() {
                       </div>
                     </CardContent>
                   </Card>
+                ) : isCreateMode && localQuests.length > 0 ? (
+                  localQuests.map((quest, index) => (
+                    <Card key={index}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg">
+                              {quest.title || `Quest ${index + 1}`}
+                            </CardTitle>
+                            <CardDescription className="mt-1">
+                              {quest.shortDescription}
+                            </CardDescription>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-green-100 text-green-800">
+                              <Trophy className="w-3 h-3 mr-1" />
+                              {quest.points} points
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Remove quest from local state
+                                setLocalQuests(localQuests.filter((_, i) => i !== index))
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {quest.longDescription && (
+                          <p className="text-sm text-muted-foreground mb-4">
+                            {quest.longDescription}
+                          </p>
+                        )}
+                        {quest.requirements && (
+                          <div className="mb-4">
+                            <p className="text-sm font-medium mb-1">Requirements:</p>
+                            <p className="text-sm text-muted-foreground">{quest.requirements}</p>
+                          </div>
+                        )}
+                        {quest.subtasks && quest.subtasks.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium mb-2">Subtasks ({quest.subtasks.length}):</p>
+                            <div className="space-y-2">
+                              {quest.subtasks.map((subtask, subIndex) => (
+                                <div key={subIndex} className="flex items-start gap-2 text-sm">
+                                  <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-xs">
+                                    {subIndex + 1}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="font-medium">{subtask.title}</p>
+                                    <p className="text-muted-foreground text-xs">{subtask.description}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
                 ) : campaign?.quests && campaign.quests.length > 0 ? (
                   campaign.quests.map((quest, index) => (
                     <Card key={index}>
