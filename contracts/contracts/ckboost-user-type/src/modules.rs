@@ -10,7 +10,7 @@ use ckb_std::{
         packed::{
             Byte32Vec, BytesOpt, BytesVecBuilder, CellDepVecBuilder, CellInput,
             CellInputVecBuilder, CellOutputBuilder, CellOutputVecBuilder, RawTransactionBuilder,
-            ScriptBuilder, ScriptOptBuilder, Transaction, TransactionBuilder, WitnessArgsBuilder,
+            ScriptOptBuilder, Transaction, TransactionBuilder, WitnessArgsBuilder,
         },
         prelude::*,
     },
@@ -90,7 +90,7 @@ impl CKBoostUser for CKBoostUserType {
         let user_outpoint = find_out_point_by_type(current_script.clone())?;
 
         // The user cell will be added at the current end of inputs
-        let user_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
+        let _user_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
 
         // Add user cell as input
         let user_input = CellInput::new_builder()

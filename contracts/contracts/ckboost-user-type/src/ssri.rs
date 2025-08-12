@@ -2,7 +2,7 @@ use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
 };
 use ckboost_shared::{
-    types::{UserData, UserSubmissionRecord, UserVerificationData},
+    types::{UserData, UserVerificationData},
     Error,
 };
 use ckb_std::ckb_types::packed::Transaction;

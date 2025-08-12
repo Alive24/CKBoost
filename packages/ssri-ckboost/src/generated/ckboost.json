@@ -537,7 +537,7 @@
           "type": "AssetListVec"
         },
         {
-          "name": "accepted_submission_lock_hashes",
+          "name": "accepted_submission_user_type_ids",
           "type": "Byte32Vec"
         },
         {

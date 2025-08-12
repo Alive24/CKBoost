@@ -10,6 +10,7 @@ use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
 use ckb_std::syscalls::{pipe, write};
+use molecule::prelude::Entity;
 
 #[cfg(not(any(feature = "library", test)))]
 ckb_std::entry!(program_entry);
@@ -21,7 +22,7 @@ pub mod ssri;
 pub mod fallback;
 pub mod recipes;
 
-use crate::fallback::fallback;
+use crate::{fallback::fallback, ssri::CKBoostUser};
 
 fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
@@ -47,7 +48,27 @@ fn program_entry_wrap() -> Result<(), Error> {
         invalid_method: Error::SSRIMethodsNotFound,
         invalid_args: Error::SSRIMethodsArgsInvalid,
         
-        // TODO: Implement SSRI methods for user operations
+        "CKBoostUser.submit_quest" => {
+            debug!("Entered CKBoostUser.submit_quest");
+            
+            // Parse optional transaction (argv[1])
+            let tx: Option<ckb_std::ckb_types::packed::Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
+                None
+            } else {
+                let parsed_tx = ckb_std::ckb_types::packed::Transaction::from_compatible_slice(&ckb_std::high_level::decode_hex(argv[1].as_ref())?)
+                    .map_err(|_| Error::InvalidBaseTransactionForSSRI)?;
+                Some(parsed_tx)
+            };
+            
+            // Parse user_data from molecule serialized bytes (argv[2])
+            let user_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
+            let user_data = ckboost_shared::types::UserData::from_slice(&user_data_bytes)
+                .map_err(|_| Error::InvalidCampaignData)?;
+            
+            // Call the submit_quest method and return the transaction
+            let result_tx = crate::modules::CKBoostUserType::submit_quest(tx, user_data)?;
+            Ok(Cow::from(result_tx.as_bytes().to_vec()))
+        },
     )?;
     
     let pipe = pipe()?;

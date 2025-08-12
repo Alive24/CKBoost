@@ -87,8 +87,8 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 debug!("Found existing campaign cell, updating it");
 
                 // The type_id in ConnectedTypeID is the actual campaign type ID
-                let campaign_type_id = connected_type_id.type_id();
-                let connected_type_hash = connected_type_id.connected_type_hash();
+                let _campaign_type_id = connected_type_id.type_id();
+                let _connected_type_hash = connected_type_id.connected_type_hash();
 
                 // Try to find existing campaign cell with this type ID
                 let campaign_outpoint = find_out_point_by_type(current_script.clone())?;

@@ -56,7 +56,7 @@ export const QuestData = mol.table({
   quest_id: mol.Uint32,
   metadata: QuestMetadata,
   rewards_on_completion: AssetListVec,
-  accepted_submission_lock_hashes: mol.Byte32Vec,
+  accepted_submission_user_type_ids: mol.Byte32Vec,
   completion_deadline: mol.Uint64,
   status: mol.Uint8,
   sub_tasks: QuestSubTaskDataVec,
@@ -217,7 +217,7 @@ export interface QuestDataLike {
   quest_id: ccc.NumLike;
   metadata: QuestMetadataLike;
   rewards_on_completion: AssetListLike[];
-  accepted_submission_lock_hashes: ccc.HexLike[];
+  accepted_submission_user_type_ids: ccc.HexLike[];
   completion_deadline: ccc.NumLike;
   status: ccc.NumLike;
   sub_tasks: QuestSubTaskDataLike[];
