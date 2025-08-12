@@ -647,43 +647,113 @@ _This guide ensures Claude Code has immediate access to Task Master's essential 
 ```
 
 
-## CKB dApp / Smart Contract Development with AI
-These rules are for CKB projects:
+## Quest Submission System Architecture (In Progress)
+
+### Overview
+The quest submission system enables users to submit quest completions to their own UserData cells, with campaign admins approving submissions by adding user type_ids to the quest's `accepted_submission_user_type_ids` field.
+
+### Key Components
+
+#### Contract Layer (ckboost-user-type)
+- **SSRI Methods**: `submit_quest`, `verify_submit_quest` 
+- **UserData Cell**: Stores user verification data and submission records
+- **ConnectedTypeID**: Links user cells to protocol with type_id for O(1) lookups
+- **Validation Recipes**: Ensures proper user cell updates and submission data integrity
+
+#### dApp Infrastructure
+- **user-cells.ts**: Cell fetching and type_id extraction utilities
+- **user-service.ts**: Business logic for submissions and user data management
+- **user-provider.tsx**: React context for User SSRI instance and state
+- **SSRI User Class**: TypeScript interface for contract interactions
+
+#### Data Flow
+1. User submits quest completion → Updates UserData cell with submission record
+2. Submission includes: campaign_type_hash, quest_id, timestamp, content
+3. Admin reviews submissions → Fetches user submissions by type_id
+4. Admin approves → Updates campaign cell's quest.accepted_submission_user_type_ids
+5. User verification → Check if user type_id is in accepted list
+
+### Implementation Status
+- ✅ Schema updated: `accepted_submission_lock_hashes` → `accepted_submission_user_type_ids`
+- 🔄 Contract framework: Implementing SSRI methods in ckboost-user-type
+- 🔄 dApp framework: Creating user services and providers
+- ⏳ UI Integration: Adding submission tabs to campaign pages
+- ⏳ Admin approval: Implementing type_id based approval workflow
+
+## CKB dApp / Smart Contract Development Guidelines
+
+### Core Development Principles
 - **Visual Prototyping First**: Use v0.dev for visual prototyping and start from the corresponding code downloaded.
     - Use @ckb-ccc/connector-react as the global wallet connector
-- **Smart Contract Design Second**:  With visual prototype indicator the businesses,  build cell data structure design and transaction Skeleton.
-- **Test-driven Design Third**: With transaction skeletons, we should start to build integration tests to set the expected behaviors and boundries for the whole project.
+- **Smart Contract Design Second**: With visual prototype indicator the businesses, build cell data structure design and transaction Skeleton.
+- **Test-driven Design Third**: With transaction skeletons, we should start to build integration tests to set the expected behaviors and boundaries for the whole project.
 
+### Critical Type System Guidelines
+
+- **USE GENERATED TYPES**: Always use types generated from Molecule schema - NEVER create duplicate type definitions
+  - Import from `ckboost_shared::types` in contracts (e.g., `UserData`, `CampaignData`, `ConnectedTypeID`)
+  - Import from `ssri-ckboost` package in dApp (includes both exact types and `Like` types for flexibility)
+  - Generated types ensure binary compatibility and prevent serialization errors
+- **ConnectedTypeID Pattern**: Campaign and user cells (NOT protocol) use ConnectedTypeID args containing:
+  - `type_id`: Unique identifier for O(1) cell lookups (32 bytes)
+  - `connected_type_hash`: Protocol type hash for validation (32 bytes)
+- **Type Script Args**: Always validate and parse args as ConnectedTypeID for campaign/user cells, standard type_id for protocol cell
+
+### SSRI Method Patterns
+- **Transaction Building**: All SSRI methods accept `Option<Transaction>` to enable composition
+- **Return Transactions**: Methods return complete `Transaction` objects, not just builders
+- **Validation Methods**: Each action method has corresponding `verify_` method for Type Script validation
+- **Recipe Pattern**: Use transaction recipes for witness data and validation rules
+
+
+### dApp Service Layer Architecture
+- **Cell Fetching Pattern**: Create dedicated `*-cells.ts` files for each cell type:
+  - `fetchByTypeId()`: O(1) lookup using type_id from ConnectedTypeID
+  - `fetchByTypeHash()`: Fallback O(n) search when type_id unknown
+  - `extractTypeId()`: Helper to get type_id from cell's ConnectedTypeID args
+- **Service Layer**: Create `*-service.ts` for business logic:
+  - Encapsulate SSRI trait calls
+  - Handle transaction building and signing
+  - Manage state updates and error handling
+- **Provider Pattern**: Use React Context providers for global state:
+  - Manage SSRI trait instances
+  - Cache cell data with appropriate invalidation
+  - Provide hooks for component consumption
 
 ### Cell Data Structure Design
 Follow established patterns for common Cell structures:
 
-**Example: xUDT Cell Structure**:
+**CKBoost Cell Pattern with ConnectedTypeID**:
 ```yaml
 data:
-    <amount: <uint128> <xUDT data>
+    <molecule_encoded_data>  # UserData or CampaignData
 type:
-    code_hash: xUDT type script
-    args: <owner lock script hash> <xUDT args>
-    rule: 
-      - Only owner can mint
-      - Only lock script owner can transfer
+    code_hash: ckboost-*-type contract
+    args: <ConnectedTypeID>
+      type_id: <32 bytes>  # Unique identifier for O(1) lookup
+      connected_type_hash: <32 bytes>  # Protocol reference
 lock:
-    code: <user lock>
-    args: <user lock args>
-    rules: <user lock rules>
+    code: <owner lock>
+    args: <owner lock args>
+    rules: <standard lock rules>
 ```
 
 ### Custom Cell Data Structures with Molecule Schema
-For custom Cell data structures, use Molecule Schema format. Example of a Pausable Data Cell:
+For custom Cell data structures, use Molecule Schema format. Always use the shared schema definitions:
 
 ```mol
-table UDTPausableData {
-    pause_list:      Byte32Vec,
-    next_type_script:      ScriptOpt,
+# Import shared definitions - DO NOT DUPLICATE
+import blockchain;
+
+# Use existing types for consistency
+table UserData {
+    verification_data: UserVerificationData,
+    total_points_earned: Uint32,
+    last_activity_timestamp: Uint64,
+    submission_records: UserSubmissionRecordVec,
 }
 ```
-If definining multiple schema, share the base definitions.
+If defining multiple schema, share the base definitions.
 
 Also use build.rs to ensure identical generated content.
 
@@ -707,6 +777,22 @@ fn main() {
 } 
 ```
 
+### Error Handling Best Practices
+
+- **Contract Errors**: Use the shared `Error` enum from `ckboost_shared::Error`
+- **dApp Errors**: Provide meaningful error messages with context for debugging
+- **Type Validation**: Always validate ConnectedTypeID parsing before using type_id
+- **Transaction Failures**: Handle both signing failures and on-chain execution errors
+- **Cell Not Found**: Implement graceful fallbacks when cells don't exist yet
+
+### Testing Strategy
+
+- **Contract Tests**: Use the existing test framework in contracts/tests
+- **Integration Tests**: Test complete transaction flows with mock cells
+- **Type Compatibility**: Always test Molecule serialization/deserialization roundtrips
+- **O(1) Lookups**: Verify type_id based fetching works correctly
+- **Edge Cases**: Test with empty submissions, duplicate submissions, invalid type_ids
+
 ### Transaction Skeleton/Recipe Design Pattern
 When designing transactions, use this YAML template structure:
 
@@ -717,9 +803,9 @@ Inputs:
       args: <args explanation>
       rules: <Lock Script validation requirements in list>
     type: <type-script-name>
-      args: <args explanation>
+      args: <ConnectedTypeID with type_id and connected_type_hash>
       rules: <Type Script validation requirements in list>
-    data: <data explanation>
+    data: <Molecule-encoded data structure>
     capacity: <required Occupied Capacity if not specified>
 
 Outputs:
@@ -728,9 +814,9 @@ Outputs:
       args: <args explanation>
       rules: <Lock Script validation requirements in list>
     type: <type-script-name>  
-      args: <args explanation>
+      args: <ConnectedTypeID - same as input for updates>
       rules: <Type Script validation requirements in list>
-    data: <data explanation>
+    data: <Updated Molecule-encoded data>
 
 HeaderDeps:
   header-dep:
@@ -741,22 +827,24 @@ CellDeps:
     <required relationship between dependent Cells>
 
 Witnesses:
-  0: <Witness 0 content>
+  0: <Transaction recipe with SSRI method name>
 ```
 
 We can simplify in prototyping phase (omit common witnesses, code CellDeps, change cells) but validate in actual implementation.
 
-
 ## Architecture
+
 We would try our best use serverless architecture by doing the following:
-- Host dApp on Netlify, and use Netilify Function to serve as public API triggerable manually or with Cloudflare workers
+
+- Host dApp on Netlify, and use Netlify Function to serve as public API triggerable manually or with Cloudflare workers
 - Store almost all data on chain, and use local storage or Neon serverless database for cases that it can optimize performance or user experience, but all data fundamentally relevant to business should be stored on chain. Design CRUD process based on the features of blockchain, e.g: You don't need to store complete history if a reference to a transaction is enough.
 
+### Typical folder structure
 
-### Typical folder structure:
 - **contracts**: As created by scaffold template
 - **dapp**: As downloaded from v0.dev
 - **docs**: Include transaction skeletons (recipes), external docs, and PRD file.
 
 ### Code Generations
+
 Molecule generates code for Molecule Schema. Don't edit the generated code, but use it as a reference. If implementing, do it in other files.

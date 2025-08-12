@@ -295,14 +295,14 @@
         "dependencies": [
           4
         ],
-        "status": "pending",
+        "status": "in-progress",
         "subtasks": [
           {
             "id": 1,
             "title": "Quest Participation Interface",
             "description": "Build user interface for browsing available quests, viewing quest details, and joining quests",
             "dependencies": [],
-            "details": "Create components for quest discovery, quest card display, quest details modal, and participation flow. Include filtering, search, and category organization.",
+            "details": "Create components for quest discovery, quest card display, quest details modal, and participation flow. Include filtering, search, and category organization.\n<info added on 2025-08-12T12:01:46.116Z>\nImplementation update: Quest submission system using UserData cells for storing user submissions directly on user-owned cells. Framework includes user proof submission to their own cells, followed by admin approval process where admins add user type_ids to the quest's accepted_submission_user_type_ids field. This approach provides decentralized storage while maintaining admin control over quest completion validation.\n</info added on 2025-08-12T12:01:46.116Z>",
             "status": "pending",
             "testStrategy": ""
           },
@@ -695,7 +695,7 @@
     ],
     "metadata": {
       "created": "2025-07-07T18:41:01.894Z",
-      "updated": "2025-07-31T03:48:46.598Z",
+      "updated": "2025-08-12T12:00:52.774Z",
       "description": "Tasks for master context"
     }
   }
