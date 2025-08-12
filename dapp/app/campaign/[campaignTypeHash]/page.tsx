@@ -26,21 +26,18 @@ import {
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { fetchCampaignByTypeHash } from "@/lib/ckb/campaign-cells"
-import { CampaignData, CampaignDataLike, ProtocolDataLike } from "ssri-ckboost/types"
+import { fetchCampaignByTypeHash, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
+import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
-import { useRouter } from "next/navigation"
 import { getDifficultyString } from "@/lib"
 
 export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeHash = params.campaignTypeHash as ccc.Hex
-  const router = useRouter()
-  const { signer, protocolData, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
+  const { signer, protocolData } = useProtocol()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
-  const [isApproving, setIsApproving] = useState(false)
   const [selectedQuestIndex, setSelectedQuestIndex] = useState<number | null>(null)
 
   useEffect(() => {
@@ -75,102 +72,6 @@ export default function CampaignDetailPage() {
     fetchCampaign()
   }, [signer, campaignTypeHash])
 
-  const handleApproveCampaign = async () => {
-    if (!signer || !protocolData || !campaignTypeHash || !updateProtocol) {
-      debug.error("Missing required data for campaign approval")
-      alert("Please ensure your wallet is connected and you have admin privileges.")
-      return
-    }
-
-    setIsApproving(true)
-    try {
-      debug.log("Approving campaign:", campaignTypeHash)
-      
-      // Ensure the type hash is properly formatted as ccc.Hex (0x + 64 hex chars)
-      const formattedTypeHash = campaignTypeHash.startsWith('0x') 
-        ? campaignTypeHash as ccc.Hex
-        : `0x${campaignTypeHash}` as ccc.Hex
-      
-      // Extract type_id from the campaign cell for optimized storage
-      let identifierToStore: ccc.Hex = formattedTypeHash // Default to type_hash for backward compatibility
-      
-      // Try to get the campaign cell from state to extract its type_id
-      if (campaign && campaign.cell && campaign.cell.cellOutput.type && campaign.cell.cellOutput.type.args) {
-        try {
-          const { extractTypeIdFromCampaignCell } = await import('@/lib/ckb/campaign-cells')
-          const typeId = extractTypeIdFromCampaignCell(campaign.cell)
-          if (typeId) {
-            identifierToStore = typeId
-            debug.log("Using type_id for optimized storage:", typeId)
-          } else {
-            debug.log("Could not extract type_id, falling back to type_hash")
-          }
-        } catch (error) {
-          debug.warn("Failed to extract type_id:", error)
-        }
-      }
-      
-      // Check if already approved (check both type_id and type_hash for compatibility)
-      const isAlreadyApproved = protocolData.campaigns_approved?.some((identifier: ccc.Hex) => {
-        // Check if it matches the type_hash
-        if (identifier.toLowerCase() === formattedTypeHash.toLowerCase()) {
-          return true
-        }
-        // Also check if it matches the type_id we're about to store
-        if (identifier.toLowerCase() === identifierToStore.toLowerCase()) {
-          return true
-        }
-        return false
-      })
-      
-      if (isAlreadyApproved) {
-        alert("This campaign is already approved.")
-        setIsApproving(false)
-        return
-      }
-      
-      // Add the campaign identifier (type_id or type_hash) to the campaigns_approved list
-      const updatedCampaignsApproved = [
-        ...(protocolData.campaigns_approved || []), 
-        identifierToStore
-      ] as ccc.Hex[]
-      
-      // Create updated protocol data with the new campaign approval
-      const updatedProtocolData: ProtocolDataLike = {
-        ...protocolData,
-        campaigns_approved: updatedCampaignsApproved,
-        // Ensure tipping_proposals is properly typed
-        tipping_proposals: protocolData.tipping_proposals.map(proposal => ({
-          ...proposal,
-          tipping_transaction_hash: proposal.tipping_transaction_hash || null
-        }))
-      } as ProtocolDataLike
-      
-      debug.log("Updating protocol with approved campaign:", {
-        typeHash: formattedTypeHash,
-        storedIdentifier: identifierToStore,
-        isTypeId: identifierToStore !== formattedTypeHash,
-        totalApproved: updatedCampaignsApproved.length
-      })
-      
-      // Call the blockchain transaction to update protocol data
-      const txHash = await updateProtocol(updatedProtocolData)
-      
-      debug.log("Transaction submitted:", txHash)
-      alert(`Campaign approved successfully! Transaction: ${txHash}`)
-      
-      // Refresh protocol data to get the updated state
-      await refreshProtocolData()
-      
-      // Navigate back to admin dashboard
-      router.push('/platform-admin')
-    } catch (error) {
-      debug.error("Failed to approve campaign:", error)
-      alert(`Failed to approve campaign: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsApproving(false)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -258,14 +159,18 @@ export default function CampaignDetailPage() {
     ? Number(campaign.ending_time) * 1000
     : Number(campaign.ending_time) * 1000
     
-  // Check if campaign is approved
-  const isApproved = protocolData?.campaigns_approved?.some((approved: string) => 
-    approved.toLowerCase() === campaignTypeHash.toLowerCase()
-  ) || false
+  // Extract type_id for comparison if campaign has a cell
+  const campaignTypeId = campaign?.cell ? extractTypeIdFromCampaignCell(campaign.cell) : undefined
+  
+  // Check if campaign is approved using helper function
+  const isApproved = isCampaignApproved(
+    campaignTypeHash,
+    campaignTypeId,
+    protocolData?.campaigns_approved as ccc.Hex[] | undefined
+  )
   
   // Debug logging for approval status
   debug.log('Campaign approval check:', {
-    isAdmin,
     isApproved,
     campaignTypeHash,
     campaigns_approved: protocolData?.campaigns_approved,
@@ -351,32 +256,8 @@ export default function CampaignDetailPage() {
                 </div>
                 
                 <div className="text-right">
-                  {/* Show approval button for platform admins */}
-                  {isAdmin && !isApproved ? (
-                    <Button 
-                      size="lg" 
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
-                      onClick={handleApproveCampaign}
-                      disabled={isApproving}
-                    >
-                      {isApproving ? (
-                        <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
-                          Approving...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="w-5 h-5" />
-                          Approve Campaign
-                        </>
-                      )}
-                    </Button>
-                  ) : isAdmin && isApproved ? (
-                    <Badge className="bg-green-100 text-green-800 px-4 py-2 text-lg">
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      Approved
-                    </Badge>
-                  ) : isApproved ? (
+                  {/* Show action button based on approval status */}
+                  {isApproved ? (
                     <Link href={`/campaign/${campaignTypeHash}/quest/1`}>
                       <Button size="lg" className="flex items-center gap-2">
                         <Play className="w-5 h-5" />

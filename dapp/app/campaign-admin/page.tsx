@@ -5,7 +5,7 @@ import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { fetchCampaignsOwnedByUser } from "@/lib/ckb/campaign-cells"
+import { fetchCampaignsOwnedByUser, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
 import { ProtocolData, CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
@@ -145,22 +145,15 @@ export default function CampaignAdminDashboard() {
               }
             })()
             
-            // Check if campaign is approved
-            debug.log('Checking approval for campaign:', {
-              campaignTypeHash,
-              approvedList: protocolData.campaigns_approved,
-              approvedCount: protocolData.campaigns_approved?.length || 0
-            })
+            // Extract type_id for comparison
+            const campaignTypeId = extractTypeIdFromCampaignCell(campaign)
             
-            const isApproved = protocolData.campaigns_approved?.some(
-              (approved: string) => {
-                const match = approved.toLowerCase() === campaignTypeHash.toLowerCase()
-                if (match) {
-                  debug.log('✅ Campaign is approved:', campaignTypeHash)
-                }
-                return match
-              }
-            ) || false
+            // Check if campaign is approved using helper function
+            const isApproved = isCampaignApproved(
+              campaignTypeHash as ccc.Hex,
+              campaignTypeId,
+              protocolData.campaigns_approved as ccc.Hex[] | undefined
+            )
             
             // Calculate campaign status
             const now = Date.now()

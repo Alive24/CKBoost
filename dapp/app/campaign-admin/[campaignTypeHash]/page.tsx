@@ -33,7 +33,8 @@ import {
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { fetchCampaignByTypeHash } from "@/lib/ckb/campaign-cells"
+import type { ProtocolDataLike } from "ssri-ckboost/types"
+import { fetchCampaignByTypeHash, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
@@ -58,7 +59,7 @@ export default function CampaignManagementPage() {
   const router = useRouter()
   const campaignTypeHash = params.campaignTypeHash as string
   const isCreateMode = campaignTypeHash === 'new'
-  const { signer, protocolData } = useProtocol()
+  const { signer, protocolData, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
   
   // Get the initial tab from URL search params (e.g., ?tab=quests)
   const initialTab = searchParams.get('tab') || 'overview'
@@ -126,6 +127,111 @@ export default function CampaignManagementPage() {
     requirements: "",
     subtasks: [] as { title: string; description: string; type: string; proof_required: string }[]
   })
+  
+  // State for approval process
+  const [isApproving, setIsApproving] = useState(false)
+  
+  // Handle campaign approval
+  const handleApproveCampaign = async () => {
+    if (!signer || !protocolData || !campaignTypeHash || !updateProtocol || isCreateMode) {
+      debug.error("Missing required data for campaign approval")
+      alert("Please ensure your wallet is connected and you have admin privileges.")
+      return
+    }
+
+    setIsApproving(true)
+    try {
+      debug.log("Approving campaign:", campaignTypeHash)
+      
+      // Ensure the type hash is properly formatted as ccc.Hex (0x + 64 hex chars)
+      const formattedTypeHash = campaignTypeHash.startsWith('0x') 
+        ? campaignTypeHash as ccc.Hex
+        : `0x${campaignTypeHash}` as ccc.Hex
+      
+      // Extract type_id from the campaign cell for optimized storage
+      let identifierToStore: ccc.Hex = formattedTypeHash // Default to type_hash for backward compatibility
+      
+      // Try to get the campaign cell from state to extract its type_id
+      if (campaign && campaign.cell && campaign.cell.cellOutput.type && campaign.cell.cellOutput.type.args) {
+        try {
+          const typeId = extractTypeIdFromCampaignCell(campaign.cell)
+          if (typeId) {
+            identifierToStore = typeId
+            debug.log("Using type_id for optimized storage:", typeId)
+          } else {
+            debug.log("Could not extract type_id, falling back to type_hash")
+          }
+        } catch (error) {
+          debug.warn("Failed to extract type_id:", error)
+        }
+      }
+      
+      // Check if already approved (check both type_id and type_hash for compatibility)
+      const isAlreadyApproved = protocolData.campaigns_approved?.some((identifier: ccc.Hex) => {
+        // Check if it matches the type_hash
+        if (identifier.toLowerCase() === formattedTypeHash.toLowerCase()) {
+          return true
+        }
+        // Also check if it matches the type_id we're about to store
+        if (identifier.toLowerCase() === identifierToStore.toLowerCase()) {
+          return true
+        }
+        return false
+      })
+      
+      if (isAlreadyApproved) {
+        alert("This campaign is already approved.")
+        setIsApproving(false)
+        return
+      }
+      
+      // Add the campaign identifier (type_id or type_hash) to the campaigns_approved list
+      const updatedCampaignsApproved = [
+        ...(protocolData.campaigns_approved || []), 
+        identifierToStore
+      ] as ccc.Hex[]
+      
+      // Create updated protocol data with the new campaign approval
+      const updatedProtocolData: ProtocolDataLike = {
+        ...protocolData,
+        campaigns_approved: updatedCampaignsApproved,
+        // Ensure tipping_proposals is properly typed
+        tipping_proposals: protocolData.tipping_proposals.map(proposal => ({
+          ...proposal,
+          tipping_transaction_hash: proposal.tipping_transaction_hash || null
+        }))
+      } as ProtocolDataLike
+      
+      debug.log("Updating protocol with approved campaign:", {
+        typeHash: formattedTypeHash,
+        storedIdentifier: identifierToStore,
+        isTypeId: identifierToStore !== formattedTypeHash,
+        totalApproved: updatedCampaignsApproved.length
+      })
+      
+      // Call the blockchain transaction to update protocol data
+      const txHash = await updateProtocol(updatedProtocolData)
+      
+      debug.log("Transaction submitted:", txHash)
+      alert(`Campaign approved successfully! Transaction: ${txHash}`)
+      
+      // Refresh protocol data to get the updated state
+      await refreshProtocolData()
+      
+      // Refresh campaign data to update isApproved status
+      if (campaign) {
+        setCampaign({
+          ...campaign,
+          isApproved: true
+        })
+      }
+    } catch (error) {
+      debug.error("Failed to approve campaign:", error)
+      alert(`Failed to approve campaign: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsApproving(false)
+    }
+  }
 
   // Fetch campaign data (only in edit mode)
   useEffect(() => {
@@ -168,9 +274,15 @@ export default function CampaignManagementPage() {
             }
           })() : false
           
-          const isApproved = protocolData?.campaigns_approved?.some(
-            (approved: string) => approved.toLowerCase() === campaignTypeHash.toLowerCase()
-          ) || false
+          // Extract type_id for comparison
+          const campaignTypeId = extractTypeIdFromCampaignCell(campaignCell)
+          
+          // Check if campaign is approved using helper function
+          const isApproved = isCampaignApproved(
+            campaignTypeHash as ccc.Hex,
+            campaignTypeId,
+            protocolData?.campaigns_approved as ccc.Hex[] | undefined
+          )
           
           setCampaign({
             ...campaignData,
@@ -580,14 +692,44 @@ export default function CampaignManagementPage() {
                         </Button>
                       )}
                       {!editingCampaign && !isCreateMode && (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => setEditingCampaign(true)}
-                        >
-                          <Edit className="w-4 h-4 mr-1" />
-                          Edit Campaign
-                        </Button>
+                        <>
+                          {/* Show approval button for platform admins if campaign is connected but not approved */}
+                          {isAdmin && campaign?.isConnected && !campaign?.isApproved && (
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={handleApproveCampaign}
+                              disabled={isApproving}
+                            >
+                              {isApproving ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                                  Approving...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Approve Campaign
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {/* Show approved badge if campaign is already approved */}
+                          {campaign?.isApproved && (
+                            <Badge className="bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Approved
+                            </Badge>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setEditingCampaign(true)}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit Campaign
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

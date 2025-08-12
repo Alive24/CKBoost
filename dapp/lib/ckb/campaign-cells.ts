@@ -367,6 +367,42 @@ export async function convertTypeHashToTypeId(
   return typeHash
 }
 
+/**
+ * Check if a campaign is approved by comparing with campaigns_approved list
+ * Supports both type_hash and type_id for backward compatibility
+ * @param campaignTypeHash - Campaign type hash
+ * @param campaignTypeId - Campaign type ID (optional)
+ * @param approvedList - List of approved campaign identifiers (type_hashes or type_ids)
+ * @returns Boolean indicating if campaign is approved
+ */
+export function isCampaignApproved(
+  campaignTypeHash: ccc.Hex,
+  campaignTypeId: ccc.Hex | undefined,
+  approvedList: ccc.Hex[] | undefined
+): boolean {
+  if (!approvedList || approvedList.length === 0) {
+    return false
+  }
+  
+  return approvedList.some((identifier: ccc.Hex) => {
+    // Check if it matches the type_hash
+    const matchesTypeHash = identifier.toLowerCase() === campaignTypeHash.toLowerCase()
+    // Check if it matches the type_id
+    const matchesTypeId = campaignTypeId && identifier.toLowerCase() === campaignTypeId.toLowerCase()
+    
+    if (matchesTypeHash || matchesTypeId) {
+      debug.log('Campaign is approved:', {
+        campaignTypeHash,
+        campaignTypeId,
+        matchedBy: matchesTypeHash ? 'type_hash' : 'type_id',
+        identifier
+      })
+    }
+    
+    return matchesTypeHash || matchesTypeId
+  })
+}
+
 export async function fetchCampaignsConnectedToProtocol(
   signer: ccc.Signer,
   campaignCodeHash: ccc.Hex,
