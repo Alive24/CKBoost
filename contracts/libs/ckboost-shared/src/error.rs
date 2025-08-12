@@ -97,6 +97,7 @@ pub enum Error {
     InsufficientFunding,
     QuestLimitExceeded,
     UnauthorizedOperation,
+    UserCellNotFound,
     InvalidTransaction,
     MissingTransactionInput,
     

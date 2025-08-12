@@ -183,6 +183,68 @@ pub mod update_user_verification {
     }
 }
 
+pub mod submit_quest {
+    use super::common;
+    use alloc::{string::ToString, vec};
+    use ckb_deterministic::{
+        cell_classifier::RuleBasedClassifier,
+        validation::{CellCountConstraint, TransactionValidationRules},
+    };
+
+    pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
+        TransactionValidationRules::new(b"submitQuest".to_vec())
+            .with_arguments(1)
+            // Protocol cells not allowed in quest submission
+            .with_custom_cell(
+                "protocol",
+                CellCountConstraint::exactly(0),
+                CellCountConstraint::exactly(0),
+            )
+            // Campaign cells: read-only access for validation
+            .with_custom_cell(
+                "campaign",
+                CellCountConstraint::at_most(1),
+                CellCountConstraint::exactly(0),
+            )
+            // User cells: exactly 1 in, 1 out (update with submission)
+            .with_custom_cell(
+                "user",
+                CellCountConstraint::exactly(1),
+                CellCountConstraint::exactly(1),
+            )
+            .with_cell_relationship(
+                "script_immutability".to_string(),
+                "Script immutability must be maintained during quest submission".to_string(),
+                vec!["user".to_string()],
+                common::script_immutability,
+            )
+            .with_business_rule(
+                "submission_validation".to_string(),
+                "Validate quest submission data and user eligibility".to_string(),
+                vec!["user".to_string(), "campaign".to_string()],
+                business_logic::submission_validation,
+            )
+    }
+
+    pub mod business_logic {
+        use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::errors::Error as DeterministicError;
+        use ckboost_shared::transaction_context::TransactionContext;
+
+        // **Submission validation**: Ensure submission is valid
+        pub fn submission_validation(
+            _context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            // TODO: Implement submission validation
+            // 1. Verify campaign exists and is active
+            // 2. Verify quest exists in campaign
+            // 3. Check user hasn't already submitted for this quest
+            // 4. Validate submission content format
+            Ok(())
+        }
+    }
+}
+
 pub mod update_user_stats {
     use super::common;
     use alloc::{string::ToString, vec};
@@ -249,6 +311,7 @@ pub fn get_all_rules() -> Vec<TransactionValidationRules<RuleBasedClassifier>> {
     vec![
         create_user::get_rules(),
         update_user_verification::get_rules(),
+        submit_quest::get_rules(),
         update_user_stats::get_rules(),
     ]
 }
