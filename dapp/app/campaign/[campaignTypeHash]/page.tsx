@@ -91,19 +91,48 @@ export default function CampaignDetailPage() {
         ? campaignTypeHash as ccc.Hex
         : `0x${campaignTypeHash}` as ccc.Hex
       
-      // Check if already approved
-      if (protocolData.campaigns_approved?.some((hash: ccc.Hex) => 
-        hash.toLowerCase() === formattedTypeHash.toLowerCase()
-      )) {
+      // Extract type_id from the campaign cell for optimized storage
+      let identifierToStore: ccc.Hex = formattedTypeHash // Default to type_hash for backward compatibility
+      
+      // Try to get the campaign cell from state to extract its type_id
+      if (campaign && campaign.cell && campaign.cell.cellOutput.type && campaign.cell.cellOutput.type.args) {
+        try {
+          const { extractTypeIdFromCampaignCell } = await import('@/lib/ckb/campaign-cells')
+          const typeId = extractTypeIdFromCampaignCell(campaign.cell)
+          if (typeId) {
+            identifierToStore = typeId
+            debug.log("Using type_id for optimized storage:", typeId)
+          } else {
+            debug.log("Could not extract type_id, falling back to type_hash")
+          }
+        } catch (error) {
+          debug.warn("Failed to extract type_id:", error)
+        }
+      }
+      
+      // Check if already approved (check both type_id and type_hash for compatibility)
+      const isAlreadyApproved = protocolData.campaigns_approved?.some((identifier: ccc.Hex) => {
+        // Check if it matches the type_hash
+        if (identifier.toLowerCase() === formattedTypeHash.toLowerCase()) {
+          return true
+        }
+        // Also check if it matches the type_id we're about to store
+        if (identifier.toLowerCase() === identifierToStore.toLowerCase()) {
+          return true
+        }
+        return false
+      })
+      
+      if (isAlreadyApproved) {
         alert("This campaign is already approved.")
         setIsApproving(false)
         return
       }
       
-      // Add the campaign type hash to the campaigns_approved list
+      // Add the campaign identifier (type_id or type_hash) to the campaigns_approved list
       const updatedCampaignsApproved = [
         ...(protocolData.campaigns_approved || []), 
-        formattedTypeHash
+        identifierToStore
       ] as ccc.Hex[]
       
       // Create updated protocol data with the new campaign approval
@@ -119,6 +148,8 @@ export default function CampaignDetailPage() {
       
       debug.log("Updating protocol with approved campaign:", {
         typeHash: formattedTypeHash,
+        storedIdentifier: identifierToStore,
+        isTypeId: identifierToStore !== formattedTypeHash,
         totalApproved: updatedCampaignsApproved.length
       })
       

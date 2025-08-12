@@ -43,6 +43,83 @@ export async function fetchCampaignCells(signer?: ccc.Signer): Promise<ccc.Cell[
 }
 
 /**
+ * Fetch a specific campaign by type ID (O(1) lookup)
+ * @param typeId - Campaign type ID from ConnectedTypeID args
+ * @param campaignCodeHash - Campaign type code hash from protocol
+ * @param signer - CCC signer instance
+ * @returns Campaign data or undefined if not found
+ */
+export async function fetchCampaignByTypeId(
+  typeId: ccc.Hex,
+  campaignCodeHash: ccc.Hex,
+  signer: ccc.Signer
+): Promise<ccc.Cell | undefined> {
+  if (!signer) {
+    throw new Error("Signer required for fetchCampaignByTypeId")
+  }
+
+  try {
+    debug.group('fetchCampaignByTypeId')
+    debug.log('Searching for campaign with type ID:', typeId)
+    debug.log('Campaign code hash:', campaignCodeHash)
+    
+    const client = signer.client
+    
+    // First, get the protocol cell to find the connected type hash
+    const protocolCell = await fetchProtocolCell(signer)
+    if (!protocolCell || !protocolCell.cellOutput.type) {
+      debug.error("Protocol cell not found or has no type script")
+      debug.groupEnd()
+      return undefined
+    }
+    
+    const protocolTypeHash = protocolCell.cellOutput.type.hash()
+    debug.log('Protocol type hash:', protocolTypeHash)
+    
+    // Construct the ConnectedTypeID args
+    const connectedTypeId: ConnectedTypeIDLike = {
+      type_id: typeId,
+      connected_type_hash: protocolTypeHash
+    }
+    
+    // Encode the ConnectedTypeID args
+    const encodedArgs = ConnectedTypeID.encode(connectedTypeId)
+    const argsHex = ccc.hexFrom(encodedArgs)
+    
+    debug.log('Constructed ConnectedTypeID args:', argsHex)
+    
+    // Create exact search key for the campaign with these specific args
+    const searchKey: cccA.ClientCollectableSearchKeyLike = {
+      script: {
+        codeHash: campaignCodeHash,
+        hashType: "type" as const,
+        args: argsHex
+      },
+      scriptType: "type",
+      scriptSearchMode: "exact"
+    }
+    
+    debug.log('Searching with exact args match')
+    
+    // This should return at most one cell (O(1) lookup)
+    for await (const cell of client.findCells(searchKey)) {
+      debug.log('✅ Found campaign cell with type ID:', typeId)
+      debug.groupEnd()
+      return cell
+    }
+    
+    debug.warn('No campaign found with type ID:', typeId)
+    debug.groupEnd()
+    return undefined
+    
+  } catch (error) {
+    debug.error(`Failed to fetch campaign by type ID ${typeId}:`, error)
+    debug.groupEnd()
+    return undefined
+  }
+}
+
+/**
  * Fetch a specific campaign by type hash from CKB blockchain or return mock data
  * @param typeHash - Campaign type script hash
  * @param signer - CCC signer instance (optional when using mock data)
@@ -243,6 +320,53 @@ export async function fetchCampaignsOwnedByUser(
  * @param protocolTypeHash - Protocol type hash to filter campaigns
  * @returns Array of campaign cells connected to the protocol
  */
+/**
+ * Extract type_id from a campaign cell's ConnectedTypeID args
+ * @param cell - Campaign cell with ConnectedTypeID args
+ * @returns Type ID or undefined if extraction fails
+ */
+export function extractTypeIdFromCampaignCell(cell: ccc.Cell): ccc.Hex | undefined {
+  try {
+    if (!cell.cellOutput.type || !cell.cellOutput.type.args) {
+      return undefined
+    }
+    
+    const argsBytes = ccc.bytesFrom(cell.cellOutput.type.args)
+    const connectedTypeId = ConnectedTypeID.decode(argsBytes) as ConnectedTypeIDLike
+    
+    return connectedTypeId.type_id as ccc.Hex
+  } catch (error) {
+    debug.warn("Failed to extract type_id from campaign cell:", error)
+    return undefined
+  }
+}
+
+/**
+ * Convert a type_hash to type_id by fetching the campaign and extracting its type_id
+ * @param typeHash - Campaign type hash
+ * @param signer - CCC signer instance
+ * @returns Type ID or the original type hash if conversion fails
+ */
+export async function convertTypeHashToTypeId(
+  typeHash: ccc.Hex,
+  signer: ccc.Signer
+): Promise<ccc.Hex> {
+  try {
+    const campaignCell = await fetchCampaignByTypeHash(typeHash, signer)
+    if (campaignCell) {
+      const typeId = extractTypeIdFromCampaignCell(campaignCell)
+      if (typeId) {
+        debug.log(`Converted type_hash ${typeHash} to type_id ${typeId}`)
+        return typeId
+      }
+    }
+  } catch (error) {
+    debug.warn(`Failed to convert type_hash to type_id:`, error)
+  }
+  // Return original type_hash if conversion fails
+  return typeHash
+}
+
 export async function fetchCampaignsConnectedToProtocol(
   signer: ccc.Signer,
   campaignCodeHash: ccc.Hex,

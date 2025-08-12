@@ -12,7 +12,7 @@ import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
 import { fetchProtocolCell } from "../ckb/protocol-cells";
-import { fetchCampaignByTypeHash } from "../ckb/campaign-cells";
+import { fetchCampaignByTypeHash, fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
 import { ProtocolData } from "ssri-ckboost/types";
 import { debug } from "../utils/debug";
 
@@ -76,22 +76,41 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
             const protocolData = ProtocolData.decode(protocolCell.outputData);
             debug.log("Found approved campaigns:", protocolData.campaigns_approved);
             
+            // Get campaign code hash from protocol config
+            const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
+            
             // Fetch each approved campaign
             const approvedCampaignCells: ccc.Cell[] = [];
             
-            for (const campaignTypeHash of protocolData.campaigns_approved || []) {
+            // Check if campaigns_approved contains type_ids (new format) or type_hashes (old format)
+            // Type IDs are 32 bytes (64 hex chars), type hashes are also 32 bytes
+            // We'll try the optimized method first, then fall back to the old method
+            
+            for (const identifier of protocolData.campaigns_approved || []) {
               try {
-                debug.log("Fetching campaign with type hash:", campaignTypeHash);
-                const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer);
+                debug.log("Fetching campaign with identifier:", identifier);
+                
+                // Try optimized fetch by type_id first
+                let campaignCell = await fetchCampaignByTypeId(
+                  identifier as ccc.Hex,
+                  campaignCodeHash as ccc.Hex,
+                  signer
+                );
+                
+                // If not found, fall back to type_hash method (for backward compatibility)
+                if (!campaignCell) {
+                  debug.log("Type ID fetch failed, trying type hash method");
+                  campaignCell = await fetchCampaignByTypeHash(identifier as ccc.Hex, signer);
+                }
                 
                 if (campaignCell) {
                   approvedCampaignCells.push(campaignCell);
-                  debug.log("Loaded campaign:", campaignTypeHash);
+                  debug.log("Loaded campaign:", identifier);
                 } else {
-                  debug.warn("Campaign not found:", campaignTypeHash);
+                  debug.warn("Campaign not found:", identifier);
                 }
               } catch (error) {
-                debug.error(`Failed to fetch campaign ${campaignTypeHash}:`, error);
+                debug.error(`Failed to fetch campaign ${identifier}:`, error);
               }
             }
             
@@ -168,18 +187,29 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         
         if (protocolCell) {
           const protocolData = ProtocolData.decode(protocolCell.outputData);
+          const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
           
           const approvedCampaignCells: ccc.Cell[] = [];
           
-          for (const campaignTypeHash of protocolData.campaigns_approved || []) {
+          for (const identifier of protocolData.campaigns_approved || []) {
             try {
-              const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer);
+              // Try optimized fetch by type_id first
+              let campaignCell = await fetchCampaignByTypeId(
+                identifier as ccc.Hex,
+                campaignCodeHash as ccc.Hex,
+                signer
+              );
+              
+              // Fall back to type_hash method if needed
+              if (!campaignCell) {
+                campaignCell = await fetchCampaignByTypeHash(identifier as ccc.Hex, signer);
+              }
               
               if (campaignCell) {
                 approvedCampaignCells.push(campaignCell);
               }
             } catch (error) {
-              debug.error(`Failed to fetch campaign ${campaignTypeHash}:`, error);
+              debug.error(`Failed to fetch campaign ${identifier}:`, error);
             }
           }
           
