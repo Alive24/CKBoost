@@ -1,9 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import { WalletProvider } from '@/components/wallet-provider'
-import { ThemeProvider } from '@/components/theme-provider'
-import { CampaignProvider } from '@/lib'
-import { ProtocolProvider } from '@/lib/providers/protocol-provider'
+import { Providers } from '@/components/providers'
 
 export const metadata: Metadata = {
   title: 'CKBoost',
@@ -19,20 +16,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <WalletProvider>
-            <CampaignProvider>
-              <ProtocolProvider>
-                {children}
-              </ProtocolProvider>
-            </CampaignProvider>
-          </WalletProvider>
-        </ThemeProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   )

@@ -20,8 +20,7 @@ import {
   AlertCircle,
   Star,
   ArrowLeft,
-  Play,
-  Lock
+  Play
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
@@ -30,25 +29,37 @@ import { fetchCampaignByTypeHash, extractTypeIdFromCampaignCell, isCampaignAppro
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
+import { QuestSubmissionForm } from "@/components/quest-submission-form"
+import { useUser } from "@/lib/providers/user-provider"
 
 export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeHash = params.campaignTypeHash as ccc.Hex
   const { signer, protocolData } = useProtocol()
+  const { currentUserTypeId, hasUserSubmittedQuest } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedQuestIndex, setSelectedQuestIndex] = useState<number | null>(null)
+  const [questSubmissionStatuses, setQuestSubmissionStatuses] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
     const fetchCampaign = async () => {
-      if (!signer || !campaignTypeHash) {
-        debug.warn("No signer or campaign type hash available")
+      // Keep loading state while waiting for signer
+      if (!signer) {
+        debug.warn("Waiting for signer to connect...")
+        // Don't set loading to false here - wait for signer
+        return
+      }
+
+      if (!campaignTypeHash) {
+        debug.warn("No campaign type hash provided")
         setIsLoading(false)
         return
       }
 
       try {
+        setIsLoading(true) // Ensure loading state is set
         debug.log("Fetching campaign with type hash:", campaignTypeHash)
         const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer)
         
@@ -61,9 +72,11 @@ export default function CampaignDetailPage() {
           })
         } else {
           debug.warn("Campaign not found")
+          setCampaign(null) // Explicitly set to null when not found
         }
       } catch (error) {
         debug.error("Failed to fetch campaign:", error)
+        setCampaign(null) // Set to null on error
       } finally {
         setIsLoading(false)
       }
@@ -72,8 +85,31 @@ export default function CampaignDetailPage() {
     fetchCampaign()
   }, [signer, campaignTypeHash])
 
+  // Check submission statuses for all quests
+  useEffect(() => {
+    async function checkSubmissionStatuses() {
+      if (!currentUserTypeId || !campaign?.quests) return
 
-  if (isLoading) {
+      const statuses: Record<number, boolean> = {}
+      for (let i = 0; i < campaign.quests.length; i++) {
+        const quest = campaign.quests[i]
+        const questId = Number(quest.quest_id || i + 1)
+        const submitted = await hasUserSubmittedQuest(
+          currentUserTypeId,
+          campaignTypeHash,
+          questId
+        )
+        statuses[questId] = submitted
+      }
+      setQuestSubmissionStatuses(statuses)
+    }
+
+    checkSubmissionStatuses()
+  }, [currentUserTypeId, campaign, campaignTypeHash, hasUserSubmittedQuest])
+
+
+  // Show loading state while waiting for signer or while fetching campaign
+  if (isLoading || (!signer && !campaign)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -81,7 +117,9 @@ export default function CampaignDetailPage() {
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading campaign details...</p>
+              <p className="text-muted-foreground">
+                {!signer ? "Connecting to wallet..." : "Loading campaign details..."}
+              </p>
             </div>
           </div>
         </main>
@@ -89,6 +127,7 @@ export default function CampaignDetailPage() {
     )
   }
 
+  // Only show "not found" if we've finished loading and there's no campaign
   if (!campaign) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -256,15 +295,8 @@ export default function CampaignDetailPage() {
                 </div>
                 
                 <div className="text-right">
-                  {/* Show action button based on approval status */}
-                  {isApproved ? (
-                    <Link href={`/campaign/${campaignTypeHash}/quest/1`}>
-                      <Button size="lg" className="flex items-center gap-2">
-                        <Play className="w-5 h-5" />
-                        Start Campaign
-                      </Button>
-                    </Link>
-                  ) : (
+                  {/* Show status badge based on approval */}
+                  {!isApproved && (
                     <Badge className="bg-yellow-100 text-yellow-800 px-4 py-2 text-lg">
                       <Clock className="w-5 h-5 mr-2" />
                       Under Review
@@ -487,8 +519,17 @@ export default function CampaignDetailPage() {
                           {/* Quest Actions */}
                           <div className="flex items-center justify-between mt-4 pt-3 border-t">
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Users className="w-4 h-4" />
-                              <span>0 participants</span>
+                              {questSubmissionStatuses[Number(quest.quest_id || index + 1)] ? (
+                                <Badge className="bg-green-100 text-green-800">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Submitted
+                                </Badge>
+                              ) : (
+                                <>
+                                  <Users className="w-4 h-4" />
+                                  <span>0 participants</span>
+                                </>
+                              )}
                             </div>
                             {isApproved ? (
                               <Button 
@@ -496,8 +537,17 @@ export default function CampaignDetailPage() {
                                 size="sm"
                                 onClick={() => setSelectedQuestIndex(index)}
                               >
-                                <Play className="w-4 h-4 mr-1" />
-                                View Quest
+                                {questSubmissionStatuses[Number(quest.quest_id || index + 1)] ? (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    View Submission
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="w-4 h-4 mr-1" />
+                                    Start Quest
+                                  </>
+                                )}
                               </Button>
                             ) : (
                               <Badge variant="outline" className="text-xs">
@@ -589,78 +639,12 @@ export default function CampaignDetailPage() {
                         </CardContent>
                       </Card>
                       
-                      {/* Subtasks */}
-                      {quest.sub_tasks && quest.sub_tasks.length > 0 && (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>Quest Tasks</CardTitle>
-                            <CardDescription>
-                              Complete all tasks to earn your rewards
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              {quest.sub_tasks.map((subtask: typeof quest.sub_tasks[0], subIndex: number) => (
-                                <div key={subIndex} className="border rounded-lg p-4">
-                                  <div className="flex items-start gap-4">
-                                    <div className="flex-shrink-0">
-                                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <span className="font-semibold">{subIndex + 1}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex-1">
-                                      <h4 className="font-semibold mb-1">
-                                        {subtask.title || `Task ${subIndex + 1}`}
-                                      </h4>
-                                      {subtask.description && (
-                                        <p className="text-sm text-muted-foreground mb-3">
-                                          {subtask.description}
-                                        </p>
-                                      )}
-                                      <div className="flex flex-wrap gap-2">
-                                        {subtask.type && (
-                                          <Badge variant="outline">
-                                            Type: {subtask.type}
-                                          </Badge>
-                                        )}
-                                        {subtask.proof_required && (
-                                          <Badge variant="outline">
-                                            Proof: {subtask.proof_required}
-                                          </Badge>
-                                        )}
-                                      </div>
-                                    </div>
-                                    <div>
-                                      <Button variant="outline" size="sm" disabled>
-                                        <Lock className="w-4 h-4 mr-1" />
-                                        Pending
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      
-                      {/* Quest Actions */}
-                      <Card>
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="font-semibold mb-1">Ready to Start?</h3>
-                              <p className="text-sm text-muted-foreground">
-                                Complete this quest to earn {Number(quest.points) || 100} points
-                              </p>
-                            </div>
-                            <Button size="lg" className="bg-green-600 hover:bg-green-700">
-                              <Play className="w-5 h-5 mr-2" />
-                              Start Quest
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      {/* Quest Submission Form */}
+                      <QuestSubmissionForm
+                        quest={quest}
+                        questIndex={selectedQuestIndex}
+                        campaignTypeHash={campaignTypeHash}
+                      />
                       
                       {/* Navigation between quests */}
                       <div className="flex justify-between">

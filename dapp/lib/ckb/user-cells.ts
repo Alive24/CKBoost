@@ -31,12 +31,27 @@ export async function fetchUserByTypeId(
   userTypeCodeHash: ccc.Hex,
   signer: ccc.Signer
 ): Promise<ccc.Cell | undefined> {
-  // Search for cells with this type code hash
+  // First try with the current user's lock script (more efficient)
+  const lockScript = (await signer.getRecommendedAddressObj()).script;
+  
+  for await (const cell of signer.client.findCellsByLock(lockScript, null)) {
+    // Check if this cell has the user type script
+    if (cell.cellOutput.type && 
+        cell.cellOutput.type.codeHash === userTypeCodeHash) {
+      // Verify this is the correct cell by checking the type_id
+      const cellTypeId = extractTypeIdFromUserCell(cell);
+      if (cellTypeId === typeId) {
+        return cell;
+      }
+    }
+  }
+  
+  // If not found with lock script, search all cells with this type (fallback)
   for await (const cell of signer.client.findCellsByType(
     {
       codeHash: userTypeCodeHash,
       hashType: "type",
-      args: ""
+      args: "" // Empty args to match any args
     }
   )) {
     // Verify this is the correct cell by checking the type_id

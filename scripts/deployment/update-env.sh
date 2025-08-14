@@ -17,7 +17,8 @@ echo
 
 # Get the directory of this script
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-ROOT_DIR="$(dirname "$SCRIPT_DIR")"
+# ROOT_DIR should be two levels up from the script (scripts/deployment -> project root)
+ROOT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
 # Function to update or add a key-value pair in .env file
 update_env_var() {
@@ -42,6 +43,38 @@ update_env_var() {
         # Create file with key
         echo "$key=$value" > "$file"
         echo -e "${GREEN}Created${NC} $file with $key"
+    fi
+}
+
+# Function to set a default value only if key doesn't exist or is empty
+set_default_env_var() {
+    local file=$1
+    local key=$2
+    local default_value=$3
+    
+    if [ -f "$file" ]; then
+        # Check if key exists and has a non-empty value
+        if grep -q "^$key=.*[^[:space:]]" "$file"; then
+            # Key exists with non-empty value, preserve it
+            echo -e "${YELLOW}Preserved${NC} existing $key in $file"
+        else
+            # Key doesn't exist or is empty, set default
+            if grep -q "^$key=" "$file"; then
+                # Update empty key
+                sed -i.bak "s|^$key=.*|$key=$default_value|" "$file"
+                echo -e "${BLUE}Set default${NC} $key in $file"
+            else
+                # Add new key
+                echo "$key=$default_value" >> "$file"
+                echo -e "${GREEN}Added default${NC} $key to $file"
+            fi
+            # Remove backup file
+            rm -f "$file.bak"
+        fi
+    else
+        # Create file with key
+        echo "$key=$default_value" > "$file"
+        echo -e "${GREEN}Created${NC} $file with default $key"
     fi
 }
 
@@ -103,6 +136,15 @@ echo
 echo -e "${BLUE}Updating packages/ssri-ckboost/.env.test...${NC}"
 SSRI_ENV="$ROOT_DIR/packages/ssri-ckboost/.env.test"
 
+# Read existing PROTOCOL_TYPE_ARGS if the file exists
+if [ -f "$SSRI_ENV" ]; then
+    EXISTING_PROTOCOL_TYPE_ARGS=$(grep "^PROTOCOL_TYPE_ARGS=" "$SSRI_ENV" | cut -d'=' -f2)
+    if [ -n "$EXISTING_PROTOCOL_TYPE_ARGS" ] && [ "$EXISTING_PROTOCOL_TYPE_ARGS" != "0x" ]; then
+        PROTOCOL_TYPE_ARGS="$EXISTING_PROTOCOL_TYPE_ARGS"
+        echo -e "${YELLOW}Preserving existing PROTOCOL_TYPE_ARGS: $PROTOCOL_TYPE_ARGS${NC}"
+    fi
+fi
+
 if [ ! -f "$SSRI_ENV" ]; then
     # Create default .env.test for ssri-ckboost
     cat > "$SSRI_ENV" << EOF
@@ -115,7 +157,7 @@ SSRI_AUTH=test-auth
 PROTOCOL_CODE_TX_HASH=${PROTOCOL_TX_HASH:-0x0000000000000000000000000000000000000000000000000000000000000000}
 PROTOCOL_CODE_INDEX=${PROTOCOL_INDEX:-0}
 PROTOCOL_CODE_HASH=${PROTOCOL_CODE_HASH:-0x0000000000000000000000000000000000000000000000000000000000000000}
-PROTOCOL_TYPE_ARGS=0x
+PROTOCOL_TYPE_ARGS=${PROTOCOL_TYPE_ARGS:-0x}
 
 # Test Account (DO NOT USE IN PRODUCTION)
 # Generate a test private key for testing
@@ -162,11 +204,11 @@ if [ -n "$PROTOCOL_CODE_HASH" ]; then
     update_env_var "$DAPP_ENV" "NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH" "$PROTOCOL_CODE_HASH"
 fi
 
-# Ensure default values are set
-update_env_var "$DAPP_ENV" "NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE" "type"
-update_env_var "$DAPP_ENV" "NEXT_PUBLIC_PROTOCOL_TYPE_ARGS" "0x"
-update_env_var "$DAPP_ENV" "NEXT_PUBLIC_CKB_NETWORK" "testnet"
-update_env_var "$DAPP_ENV" "NEXT_PUBLIC_CKB_RPC_URL" "https://testnet.ckb.dev"
+# Set default values only if they don't exist or are empty
+set_default_env_var "$DAPP_ENV" "NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE" "type"
+set_default_env_var "$DAPP_ENV" "NEXT_PUBLIC_PROTOCOL_TYPE_ARGS" "0x"
+set_default_env_var "$DAPP_ENV" "NEXT_PUBLIC_CKB_NETWORK" "testnet"
+set_default_env_var "$DAPP_ENV" "NEXT_PUBLIC_CKB_RPC_URL" "https://testnet.ckb.dev"
 
 # Summary
 echo

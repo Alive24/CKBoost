@@ -133,6 +133,7 @@ export class User extends ssri.Trait {
   ): ReturnType<typeof UserSubmissionRecord.encode> {
     const timestamp = BigInt(Date.now());
     
+    // mol.String expects the string directly, it handles the encoding internally
     return UserSubmissionRecord.encode({
       campaign_type_hash: ccc.hexFrom(campaignTypeHash),
       quest_id: questId,

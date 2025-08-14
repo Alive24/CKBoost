@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "chrome-mcp-stdio": {
+      "command": "npx",
+      "args": [
+        "node",
+        "/Users/chuntengxiao/Library/pnpm/global/5/node_modules/mcp-chrome-bridge/dist/mcp/mcp-server-stdio.js"
+      ]
+    }
+  }
+}
+

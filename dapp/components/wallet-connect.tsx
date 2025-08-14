@@ -4,10 +4,11 @@ import React from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import { Wallet, CheckCircle, Copy, ExternalLink, ChevronDown, Shield, AlertCircle, UserCheck, Settings } from "lucide-react"
+import { Wallet, CheckCircle, Copy, ExternalLink, ChevronDown, Shield, AlertCircle, UserCheck, Settings, Search } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ccc } from "@ckb-ccc/connector-react"
+import { NeventParserDialog } from "@/components/nevent-parser-dialog"
 
 // Mock verification status - in real app, this would come from authentication
 const USER_VERIFICATION_STATUS = {
@@ -63,6 +64,7 @@ export function WalletConnect() {
   const signer = ccc.useSigner()
   const [address, setAddress] = React.useState<string>("")
   const [isConnecting, setIsConnecting] = React.useState(false)
+  const [showNeventParser, setShowNeventParser] = React.useState(false)
   const verificationStatus = getVerificationStatus()
   const VerificationIcon = verificationStatus.icon
 
@@ -133,6 +135,7 @@ export function WalletConnect() {
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="flex items-center gap-2 bg-transparent">
@@ -207,6 +210,14 @@ export function WalletConnect() {
         
         <DropdownMenuSeparator />
         
+        {/* Tools */}
+        <DropdownMenuItem onClick={() => setShowNeventParser(true)}>
+          <Search className="w-4 h-4 mr-2" />
+          Parse Nevent Submission
+        </DropdownMenuItem>
+        
+        <DropdownMenuSeparator />
+        
         {/* Admin Actions */}
         {hasPermission("campaign_admin") && (
           <DropdownMenuItem asChild>
@@ -236,5 +247,12 @@ export function WalletConnect() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+    
+    {/* Nevent Parser Dialog */}
+    <NeventParserDialog 
+      open={showNeventParser} 
+      onOpenChange={setShowNeventParser} 
+    />
+    </>
   )
 }
