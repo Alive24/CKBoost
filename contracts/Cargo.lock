@@ -1020,6 +1020,7 @@ dependencies = [
 name = "ckboost-user-type"
 version = "0.1.0"
 dependencies = [
+ "blake2b-ref",
  "ckb-ssri-std",
  "ckb-ssri-std-proc-macro",
  "ckb-std",

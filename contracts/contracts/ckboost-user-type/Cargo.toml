@@ -9,7 +9,7 @@ ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic" }
 ckb-ssri-std = { version = "0.0.1" }
 ckb-ssri-std-proc-macro = { version = "0.0.1" }
 molecule = { version = "0.8.0", default-features = false }
-
+blake2b-ref = "0.3.1"
 ckboost-shared = { path = "../../libs/ckboost-shared" }
 
 

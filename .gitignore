@@ -41,3 +41,4 @@ CKBoost.code-workspace
 scripts/debugger/raw_tx.json
 scripts/debugger/tx.json
 dapp/tsconfig.tsbuildinfo
+dapp/public/tinymce/*

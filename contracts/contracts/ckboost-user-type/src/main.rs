@@ -5,7 +5,10 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
-use ckboost_shared::{type_id::check_type_id_from_script_args, Error};
+use ckb_std::high_level::load_script;
+use ckboost_shared::type_id::validate_type_id;
+use ckboost_shared::types::ConnectedTypeID;
+use ckboost_shared::Error;
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
 use ckb_std::debug;
@@ -28,10 +31,14 @@ fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
 
     if should_fallback()? {
-        // # Validation Rules
+                // # Validation Rules
         // 
-        // 1. **Type ID mechanism**: Ensures the user cell uses the correct type ID
-        match check_type_id_from_script_args() {
+        // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
+        let args = load_script()?.args();
+        debug!("args: {:?}", args);
+        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data()).map_err(|_| Error::InvalidConnectedTypeId)?;
+        debug!("connected_type_id: {:?}", connected_type_id);
+        match validate_type_id(connected_type_id.type_id().into()) {
             Ok(_) => fallback()?,
             Err(err) => {
                 debug!("Contract execution failed with error: {:?}", err);

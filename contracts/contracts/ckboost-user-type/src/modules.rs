@@ -1,4 +1,5 @@
 use alloc::vec;
+use blake2b_ref::Blake2bBuilder;
 use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference,
     serialize_transaction_recipe, transaction_context::TransactionContext,
@@ -10,7 +11,7 @@ use ckb_std::{
         packed::{
             Byte32Vec, BytesOpt, BytesVecBuilder, CellDepVecBuilder, CellInput,
             CellInputVecBuilder, CellOutputBuilder, CellOutputVecBuilder, RawTransactionBuilder,
-            ScriptOptBuilder, Transaction, TransactionBuilder, WitnessArgsBuilder,
+            ScriptBuilder, ScriptOptBuilder, Transaction, TransactionBuilder, WitnessArgsBuilder,
         },
         prelude::*,
     },
@@ -18,7 +19,7 @@ use ckb_std::{
     high_level::load_script,
 };
 use ckboost_shared::{
-    types::{ConnectedTypeID, UserData, UserVerificationData},
+    types::{Byte32 as SharedByte32, ConnectedTypeID, UserData, UserVerificationData},
     Error,
 };
 
@@ -76,46 +77,123 @@ impl CKBoostUser for CKBoostUserType {
             None => CellDepVecBuilder::default(),
         };
 
-        // Get context script and parse ConnectedTypeID from args
+        // Get context script and try to parse ConnectedTypeID from args
         let current_script = load_script()?;
         debug!("current_script: {:?}", current_script);
 
         let args = current_script.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
-            .map_err(|_| Error::InvalidConnectedTypeId)?;
+        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data());
         
-        debug!("connected_type_id: {:?}", connected_type_id);
+        // Track input index for witness placement
+        let user_input_index;
+        // Track output index for user cell (if created/updated)
+        let user_output_index;
+        
+        match connected_type_id {
+            Ok(connected_type_id) => {
+                debug!("Found existing user cell, updating it");
+                debug!("connected_type_id: {:?}", connected_type_id);
 
-        // Find existing user cell with this type ID
-        let user_outpoint = find_out_point_by_type(current_script.clone())?;
+                // Try to find existing user cell with this type ID
+                let user_outpoint = find_out_point_by_type(current_script.clone())?;
 
-        // The user cell will be added at the current end of inputs
-        let _user_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
+                // The user cell will be added at the current end of inputs
+                user_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
 
-        // Add user cell as input
-        let user_input = CellInput::new_builder()
-            .previous_output(user_outpoint.clone())
-            .build();
-        cell_input_vec_builder = cell_input_vec_builder.push(user_input);
+                // Add user cell as input
+                let user_input = CellInput::new_builder()
+                    .previous_output(user_outpoint.clone())
+                    .build();
+                cell_input_vec_builder = cell_input_vec_builder.push(user_input);
 
-        // Get the current user cell to preserve lock script
-        let current_user_cell = find_cell_by_out_point(user_outpoint)
-            .map_err(|_| Error::UserCellNotFound)?;
+                // Get the current user cell to preserve lock script
+                let current_user_cell = find_cell_by_out_point(user_outpoint)
+                    .map_err(|_| Error::UserCellNotFound)?;
 
-        // Track that we're adding a user output at the current output count
-        let user_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
+                // Track that we're adding a user output at the current output count
+                user_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
 
-        // Create output user cell with updated data
-        let new_user_output = CellOutputBuilder::default()
-            .type_(
-                ScriptOptBuilder::default()
-                    .set(Some(current_script))
-                    .build(),
-            )
-            .lock(current_user_cell.lock())
-            .capacity(0u64.pack())
-            .build();
-        cell_output_vec_builder = cell_output_vec_builder.push(new_user_output);
+                // Create output user cell with updated data
+                let new_user_output = CellOutputBuilder::default()
+                    .type_(
+                        ScriptOptBuilder::default()
+                            .set(Some(current_script))
+                            .build(),
+                    )
+                    .lock(current_user_cell.lock())
+                    .capacity(0u64.pack())
+                    .build();
+                cell_output_vec_builder = cell_output_vec_builder.push(new_user_output);
+            }
+            Err(_) => {
+                debug!("No user cell found. Creating a new user cell.");
+                
+                // In creation case, user cell doesn't exist as input
+                // But we still need a witness for the first input (used for type ID calculation)
+                user_input_index = 0;
+                
+                // User creation case - need type ID
+                // For type ID calculation, we need at least one input
+                let (first_input, output_index) = match tx {
+                    Some(ref tx) => {
+                        // Use existing transaction's first input and next output index
+                        let first_input = tx.raw().inputs().get(0)
+                            .ok_or_else(|| {
+                                debug!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
+                                Error::MissingTransactionInput
+                            })?;
+                        (first_input, tx.raw().outputs().len())
+                    }
+                    None => {
+                        // No transaction provided - we cannot create a user cell without inputs
+                        debug!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
+                        return Err(Error::MissingTransactionInput);
+                    }
+                };
+                
+                // Calculate type ID based on first input and output index
+                let mut blake2b = Blake2bBuilder::new(32)
+                    .personal(b"ckb-default-hash")
+                    .build();
+                blake2b.update(first_input.as_slice());
+                blake2b.update(&output_index.to_le_bytes());
+                let mut type_id = [0u8; 32];
+                blake2b.finalize(&mut type_id);
+                
+                // Create ConnectedTypeID with the new type ID and protocol reference
+                let new_connected_type_id = ConnectedTypeID::new_builder()
+                    .type_id(SharedByte32::from_slice(&type_id).unwrap())
+                    // Leave connected_type_hash empty for now and let dapp fill it in with the correct protocol cell type hash
+                    .connected_type_hash(SharedByte32::from_slice(&[0u8; 32]).unwrap())
+                    .build();
+                
+                // Create the type script with ConnectedTypeID as args
+                let new_type_script = ScriptBuilder::default()
+                    .code_hash(current_script.code_hash())
+                    .hash_type(current_script.hash_type())
+                    .args(new_connected_type_id.as_bytes().pack())
+                    .build();
+                
+                // Get first input cell to use its lock for the new user cell
+                let first_input_outpoint = first_input.previous_output();
+                let first_input_cell = find_cell_by_out_point(first_input_outpoint)?;
+                
+                // Track that we're adding a user output at the current output count
+                user_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
+                
+                // Create new user cell
+                let new_user_output = CellOutputBuilder::default()
+                    .type_(
+                        ScriptOptBuilder::default()
+                            .set(Some(new_type_script))
+                            .build(),
+                    )
+                    .lock(first_input_cell.lock())
+                    .capacity(0u64.pack())
+                    .build();
+                cell_output_vec_builder = cell_output_vec_builder.push(new_user_output);
+            }
+        }
 
         // Serialize and add updated user data
         let user_data_bytes = user_data.as_bytes();
