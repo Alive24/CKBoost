@@ -94,15 +94,17 @@ export function ProofSubmissionModal({ quest, isOpen, onClose }: ProofSubmission
             {/* Quest Details */}
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg">
-                <h3 className="font-semibold mb-2">{quest.title}</h3>
-                <p className="text-sm text-muted-foreground mb-3">{quest.description}</p>
+                <h3 className="font-semibold mb-2">{quest.metadata?.title || 'Untitled Quest'}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{quest.metadata?.short_description || 'No description'}</p>
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={getTypeColor(quest.type)}>
-                    {quest.type}
-                  </Badge>
+                  {quest.metadata?.difficulty !== undefined && (
+                    <Badge variant="outline">
+                      Difficulty: {Number(quest.metadata.difficulty)}
+                    </Badge>
+                  )}
                   <div className="flex items-center gap-1 text-yellow-600 font-semibold text-sm">
                     <Star className="w-3 h-3 fill-current" />
-                    {quest.points} points
+                    {Number(quest.points || 0)} points
                   </div>
                 </div>
               </div>
@@ -114,7 +116,7 @@ export function ProofSubmissionModal({ quest, isOpen, onClose }: ProofSubmission
                   <Input
                     id="proof-url"
                     type="url"
-                    placeholder={getProofPlaceholder(quest.type)}
+                    placeholder="https://example.com/proof"
                     value={proofUrl}
                     onChange={(e) => setProofUrl(e.target.value)}
                     required
@@ -159,7 +161,7 @@ export function ProofSubmissionModal({ quest, isOpen, onClose }: ProofSubmission
             <div className="text-6xl mb-4">🎉</div>
             <h3 className="text-xl font-semibold mb-2">Proof Submitted!</h3>
             <p className="text-muted-foreground mb-4">
-              Your submission is being reviewed. You'll earn {quest.points} points once approved.
+              Your submission is being reviewed. You&apos;ll earn {Number(quest.points || 0)} points once approved.
             </p>
             <div className="text-sm text-muted-foreground">This modal will close automatically...</div>
           </div>

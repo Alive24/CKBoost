@@ -4,7 +4,7 @@
 import { ccc } from "@ckb-ccc/core"
 import { cccA } from "@ckb-ccc/core/advanced";
 import type { UserSubmissionRecordLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
-import { ConnectedTypeID, ProtocolData } from "ssri-ckboost/types"
+import { ConnectedTypeID } from "ssri-ckboost/types"
 import { debug } from "@/lib/utils/debug"
 import { fetchProtocolCell } from "./protocol-cells"
 
@@ -79,7 +79,7 @@ export async function fetchCampaignByTypeId(
     // Construct the ConnectedTypeID args
     const connectedTypeId: ConnectedTypeIDLike = {
       type_id: typeId,
-      connected_type_hash: protocolTypeHash
+      connected_key: protocolTypeHash
     }
     
     // Encode the ConnectedTypeID args
@@ -119,73 +119,6 @@ export async function fetchCampaignByTypeId(
   }
 }
 
-/**
- * Fetch a specific campaign by type hash from CKB blockchain or return mock data
- * @param typeHash - Campaign type script hash
- * @param signer - CCC signer instance (optional when using mock data)
- * @returns Campaign data or undefined if not found
- */
-export async function fetchCampaignByTypeHash(typeHash: ccc.Hex, signer?: ccc.Signer): Promise<ccc.Cell | undefined> {
-  if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true")
-  }
-
-  try {
-    debug.group('fetchCampaignByTypeHash')
-    debug.log('Searching for campaign with type hash:', typeHash)
-    
-    const client = signer.client
-    
-    // First, we need to get the protocol cell to find the campaign code hash
-    const protocolCell = await fetchProtocolCell(signer)
-    if (!protocolCell) {
-      debug.error("Protocol cell not found")
-      debug.groupEnd()
-      return undefined
-    }
-    
-    // Parse protocol data to get campaign code hash
-    const protocolData = ProtocolData.decode(protocolCell.outputData)
-    const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
-    
-    debug.log('Campaign code hash from protocol:', campaignCodeHash)
-    
-    // Now search for campaigns with this code hash
-    const searchKey: cccA.ClientCollectableSearchKeyLike = {
-      script: {
-        codeHash: campaignCodeHash,
-        hashType: "type" as const,
-        args: "0x" // Empty args to match all campaigns
-      },
-      scriptType: "type",
-      scriptSearchMode: "prefix"
-    }
-    
-    debug.log('Searching for campaigns with code hash:', campaignCodeHash)
-    
-    // Iterate through campaign cells and find the one with matching type hash
-    for await (const cell of client.findCells(searchKey)) {
-      if (cell.cellOutput.type) {
-        const cellTypeHash = cell.cellOutput.type.hash()
-        debug.log('Checking cell with type hash:', cellTypeHash)
-        if (cellTypeHash === typeHash) {
-          debug.log('✅ Found campaign cell with matching type hash')
-          debug.groupEnd()
-          return cell
-        }
-      }
-    }
-    
-    debug.warn('No campaign found with type hash:', typeHash)
-    debug.groupEnd()
-    return undefined
-    
-  } catch (error) {
-    debug.error(`Failed to fetch campaign ${typeHash}:`, error)
-    debug.groupEnd()
-    return undefined
-  }
-}
 
 
 /**
@@ -223,7 +156,7 @@ export async function fetchUserSubmissionRecords(_userAddress: string, signer?: 
     // const progressMap = new Map<string, UserProgress>()
     // progressCells.forEach(cell => {
     //   const progress = parseUserProgressCell(cell)
-    //   progressMap.set(progress.campaignTypeHash, progress)
+    //   progressMap.set(progress.campaignTypeId, progress)
     // })
     
     // return progressMap
@@ -341,65 +274,34 @@ export function extractTypeIdFromCampaignCell(cell: ccc.Cell): ccc.Hex | undefin
   }
 }
 
-/**
- * Convert a type_hash to type_id by fetching the campaign and extracting its type_id
- * @param typeHash - Campaign type hash
- * @param signer - CCC signer instance
- * @returns Type ID or the original type hash if conversion fails
- */
-export async function convertTypeHashToTypeId(
-  typeHash: ccc.Hex,
-  signer: ccc.Signer
-): Promise<ccc.Hex> {
-  try {
-    const campaignCell = await fetchCampaignByTypeHash(typeHash, signer)
-    if (campaignCell) {
-      const typeId = extractTypeIdFromCampaignCell(campaignCell)
-      if (typeId) {
-        debug.log(`Converted type_hash ${typeHash} to type_id ${typeId}`)
-        return typeId
-      }
-    }
-  } catch (error) {
-    debug.warn(`Failed to convert type_hash to type_id:`, error)
-  }
-  // Return original type_hash if conversion fails
-  return typeHash
-}
 
 /**
  * Check if a campaign is approved by comparing with campaigns_approved list
- * Supports both type_hash and type_id for backward compatibility
- * @param campaignTypeHash - Campaign type hash
- * @param campaignTypeId - Campaign type ID (optional)
- * @param approvedList - List of approved campaign identifiers (type_hashes or type_ids)
+ * Only uses type_id for campaign approval checks
+ * @param campaignTypeId - Campaign type ID
+ * @param approvedList - List of approved campaign type IDs
  * @returns Boolean indicating if campaign is approved
  */
 export function isCampaignApproved(
-  campaignTypeHash: ccc.Hex,
   campaignTypeId: ccc.Hex | undefined,
   approvedList: ccc.Hex[] | undefined
 ): boolean {
-  if (!approvedList || approvedList.length === 0) {
+  if (!campaignTypeId || !approvedList || approvedList.length === 0) {
     return false
   }
   
   return approvedList.some((identifier: ccc.Hex) => {
-    // Check if it matches the type_hash
-    const matchesTypeHash = identifier.toLowerCase() === campaignTypeHash.toLowerCase()
     // Check if it matches the type_id
-    const matchesTypeId = campaignTypeId && identifier.toLowerCase() === campaignTypeId.toLowerCase()
+    const matches = identifier.toLowerCase() === campaignTypeId.toLowerCase()
     
-    if (matchesTypeHash || matchesTypeId) {
+    if (matches) {
       debug.log('Campaign is approved:', {
-        campaignTypeHash,
         campaignTypeId,
-        matchedBy: matchesTypeHash ? 'type_hash' : 'type_id',
         identifier
       })
     }
     
-    return matchesTypeHash || matchesTypeId
+    return matches
   })
 }
 
@@ -473,15 +375,15 @@ export async function fetchCampaignsConnectedToProtocol(
           
           debug.log('Parsed ConnectedTypeID:', {
             type_id: connectedTypeId.type_id,
-            connected_type_hash: connectedTypeId.connected_type_hash
+            connected_key: connectedTypeId.connected_key
           })
           
           // Check if this campaign is connected to our protocol
-          if (connectedTypeId.connected_type_hash === protocolTypeHash) {
+          if (connectedTypeId.connected_key === protocolTypeHash) {
             debug.log('✅ Campaign is connected to our protocol')
             connectedCampaigns.push(cell)
           } else {
-            debug.log('❌ Campaign is connected to different protocol:', connectedTypeId.connected_type_hash)
+            debug.log('❌ Campaign is connected to different protocol:', connectedTypeId.connected_key)
           }
         } else {
           debug.warn('Campaign cell has no type script or args')

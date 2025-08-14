@@ -5,9 +5,9 @@ import { ccc } from '@ckb-ccc/connector-react'
 const DRAFT_KEY_PREFIX = 'ckboost_campaign_draft_'
 const DRAFTS_LIST_KEY = 'ckboost_campaign_drafts'
 
-export function useCampaignDraft(campaignTypeHash?: string) {
-  const draftKey = campaignTypeHash 
-    ? `${DRAFT_KEY_PREFIX}${campaignTypeHash}` 
+export function useCampaignDraft(campaignTypeId?: string) {
+  const draftKey = campaignTypeId 
+    ? `${DRAFT_KEY_PREFIX}${campaignTypeId}` 
     : `${DRAFT_KEY_PREFIX}new`
 
   const [draft, setDraft] = useState<CampaignDataLike | null>(null)
@@ -44,7 +44,7 @@ export function useCampaignDraft(campaignTypeHash?: string) {
         key: draftKey,
         title: extractTitle(draftData),
         lastSaved: Date.now(),
-        campaignTypeHash: campaignTypeHash || null
+        campaignTypeId: campaignTypeId || null
       }
       
       const existingIndex = draftsList.findIndex(d => d.key === draftKey)
@@ -62,7 +62,7 @@ export function useCampaignDraft(campaignTypeHash?: string) {
       console.error('Failed to save draft:', error)
       return false
     }
-  }, [draftKey, campaignTypeHash])
+  }, [draftKey, campaignTypeId])
 
   // Delete draft
   const deleteDraft = useCallback(() => {
@@ -102,7 +102,7 @@ export function getDraftsList(): Array<{
   key: string
   title: string
   lastSaved: number
-  campaignTypeHash: string | null
+  campaignTypeId: string | null
 }> {
   try {
     const saved = localStorage.getItem(DRAFTS_LIST_KEY)

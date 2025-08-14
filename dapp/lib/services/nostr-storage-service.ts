@@ -26,7 +26,7 @@ export class NostrStorageService {
    * This is FREE and doesn't require any authentication
    */
   async storeSubmission(submission: {
-    campaignTypeHash: string;
+    campaignTypeId: string;
     questId: number;
     userAddress: string;
     content: string; // HTML content with base64 images or URLs
@@ -41,8 +41,8 @@ export class NostrStorageService {
       kind: CKBOOST_SUBMISSION_KIND,
       content: submission.content,
       tags: [
-        ["d", `ckboost-submission-${submission.campaignTypeHash}-${submission.questId}`], // Unique identifier
-        ["campaign", submission.campaignTypeHash],
+        ["d", `ckboost-submission-${submission.campaignTypeId}-${submission.questId}`], // Unique identifier
+        ["campaign", submission.campaignTypeId],
         ["quest", submission.questId.toString()],
         ["user", submission.userAddress],
         ["client", "ckboost-dapp"],
@@ -220,7 +220,7 @@ export class NostrStorageService {
             
             // Build the content JSON from event content and tags
             const submissionData = {
-              campaignTypeHash: metadata.campaign || '',
+              campaignTypeId: metadata.campaign || '',
               questId: parseInt(metadata.quest || '0'),
               userAddress: metadata.user || '',
               content: nostrEvent.content,

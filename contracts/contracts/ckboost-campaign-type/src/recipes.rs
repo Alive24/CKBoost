@@ -245,8 +245,8 @@ pub mod update_campaign {
                         DeterministicError::CellRelationshipRuleViolation
                     })?;
                 
-                // Extract the connected_type_hash field (this is the protocol type hash)
-                connected_type_id.connected_type_hash().raw_data().to_vec()
+                // Extract the connected_key field (this is the protocol type hash)
+                connected_type_id.connected_key().raw_data().to_vec()
             } else {
                 // Invalid length - only 32 or 76 bytes allowed
                 debug!("CellRelationshipRuleViolation: Type args must be exactly 32 bytes (direct) or 76 bytes (ConnectedTypeID)");

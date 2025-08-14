@@ -9,7 +9,7 @@ import { nip19 } from 'nostr-tools';
 const CKBOOST_SUBMISSION_KIND = 30078;
 
 interface ParsedSubmission {
-  campaignTypeHash: string;
+  campaignTypeId: string;
   questId: number;
   userAddress: string;
   content: string;
@@ -134,7 +134,7 @@ export function useNostrFetch() {
       } catch {
         // If not JSON, use content directly and build from metadata
         submissionContent = {
-          campaignTypeHash: metadata.campaign || '',
+          campaignTypeId: metadata.campaign || '',
           questId: parseInt(metadata.quest || '0'),
           userAddress: metadata.user || '',
           content: event.content,
@@ -143,7 +143,7 @@ export function useNostrFetch() {
       }
 
       const submission: ParsedSubmission = {
-        campaignTypeHash: submissionContent.campaignTypeHash || metadata.campaign || '',
+        campaignTypeId: submissionContent.campaignTypeId || metadata.campaign || '',
         questId: submissionContent.questId || parseInt(metadata.quest || '0'),
         userAddress: submissionContent.userAddress || metadata.user || '',
         content: submissionContent.content || event.content,

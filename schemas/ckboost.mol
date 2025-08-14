@@ -275,7 +275,7 @@ table UserVerificationData {
 }
 
 table UserSubmissionRecord {
-    campaign_type_hash: Byte32,
+    campaign_type_id: Byte32,
     quest_id: Uint32,
     submission_timestamp: Uint64,
     submission_content: String,
@@ -293,7 +293,7 @@ table UserData {
 
 table ConnectedTypeID {
     type_id: Byte32,
-    connected_type_hash: Byte32,
+    connected_key: Byte32,
 }
 
 

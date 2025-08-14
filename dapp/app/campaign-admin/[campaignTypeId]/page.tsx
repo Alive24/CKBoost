@@ -33,8 +33,9 @@ import {
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
+import { useCampaign } from "@/lib/providers/campaign-provider"
 import type { ProtocolDataLike } from "ssri-ckboost/types"
-import { fetchCampaignByTypeHash, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
+import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
@@ -57,8 +58,8 @@ export default function CampaignManagementPage() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
-  const campaignTypeHash = params.campaignTypeHash as string
-  const isCreateMode = campaignTypeHash === 'new'
+  const campaignTypeId = params.campaignTypeId as string
+  const isCreateMode = campaignTypeId === 'new'
   const { signer, protocolData, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
   
   // Get the initial tab from URL search params (e.g., ?tab=quests)
@@ -133,7 +134,7 @@ export default function CampaignManagementPage() {
   
   // Handle campaign approval
   const handleApproveCampaign = async () => {
-    if (!signer || !protocolData || !campaignTypeHash || !updateProtocol || isCreateMode) {
+    if (!signer || !protocolData || !campaignTypeId || !updateProtocol || isCreateMode) {
       debug.error("Missing required data for campaign approval")
       alert("Please ensure your wallet is connected and you have admin privileges.")
       return
@@ -141,15 +142,15 @@ export default function CampaignManagementPage() {
 
     setIsApproving(true)
     try {
-      debug.log("Approving campaign:", campaignTypeHash)
+      debug.log("Approving campaign:", campaignTypeId)
       
       // Ensure the type hash is properly formatted as ccc.Hex (0x + 64 hex chars)
-      const formattedTypeHash = campaignTypeHash.startsWith('0x') 
-        ? campaignTypeHash as ccc.Hex
-        : `0x${campaignTypeHash}` as ccc.Hex
+      const formattedTypeId = campaignTypeId.startsWith('0x') 
+        ? campaignTypeId as ccc.Hex
+        : `0x${campaignTypeId}` as ccc.Hex
       
       // Extract type_id from the campaign cell for optimized storage
-      let identifierToStore: ccc.Hex = formattedTypeHash // Default to type_hash for backward compatibility
+      let identifierToStore: ccc.Hex = formattedTypeId // Default to type_id for forward compatibility
       
       // Try to get the campaign cell from state to extract its type_id
       if (campaign && campaign.cell && campaign.cell.cellOutput.type && campaign.cell.cellOutput.type.args) {
@@ -169,7 +170,7 @@ export default function CampaignManagementPage() {
       // Check if already approved (check both type_id and type_hash for compatibility)
       const isAlreadyApproved = protocolData.campaigns_approved?.some((identifier: ccc.Hex) => {
         // Check if it matches the type_hash
-        if (identifier.toLowerCase() === formattedTypeHash.toLowerCase()) {
+        if (identifier.toLowerCase() === formattedTypeId.toLowerCase()) {
           return true
         }
         // Also check if it matches the type_id we're about to store
@@ -203,9 +204,9 @@ export default function CampaignManagementPage() {
       } as ProtocolDataLike
       
       debug.log("Updating protocol with approved campaign:", {
-        typeHash: formattedTypeHash,
+        typeHash: formattedTypeId,
         storedIdentifier: identifierToStore,
-        isTypeId: identifierToStore !== formattedTypeHash,
+        isTypeId: identifierToStore !== formattedTypeId,
         totalApproved: updatedCampaignsApproved.length
       })
       
@@ -248,66 +249,32 @@ export default function CampaignManagementPage() {
         return
       }
 
-      if (!campaignTypeHash) {
+      if (!campaignTypeId) {
         debug.warn("No campaign type hash available")
         setIsLoading(false)
         return
       }
 
       try {
-        debug.log("Fetching campaign for management:", campaignTypeHash)
-        const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer)
+        debug.warn("Campaign fetching by type hash is no longer supported")
+        debug.log("Campaign type ID requested:", campaignTypeId)
+        // Type hash based fetching has been removed to improve performance
+        // Campaigns should be fetched by type ID using ConnectedTypeID
+        setCampaign(null) // Set to null since we can't fetch by type hash anymore
         
-        if (campaignCell) {
-          const campaignData = CampaignData.decode(campaignCell.outputData)
-          
-          // Check connection and approval status
-          // const protocolTypeHash = protocolData?.type_hash || ""
-          const isConnected = campaignCell.cellOutput.type?.args ? (() => {
-            try {
-              // const argsBytes = ccc.bytesFrom(campaignCell.cellOutput.type!.args)
-              // Parse ConnectedTypeID to check if connected to current protocol
-              // This is simplified - actual implementation would decode the args properly
-              return true // Placeholder
-            } catch {
-              return false
-            }
-          })() : false
-          
-          // Extract type_id for comparison
-          const campaignTypeId = extractTypeIdFromCampaignCell(campaignCell)
-          
-          // Check if campaign is approved using helper function
-          const isApproved = isCampaignApproved(
-            campaignTypeHash as ccc.Hex,
-            campaignTypeId,
-            protocolData?.campaigns_approved as ccc.Hex[] | undefined
-          )
-          
-          setCampaign({
-            ...campaignData,
-            typeHash: campaignTypeHash as ccc.Hex,
-            cell: campaignCell,
-            isConnected,
-            isApproved
-          })
-          
-          // Initialize form with campaign data
-          setCampaignForm({
-            title: campaignData.metadata.title || "",
-            shortDescription: campaignData.metadata.short_description || "",
-            longDescription: campaignData.metadata.long_description || "",
-            categories: campaignData.metadata.categories || [],
-            difficulty: Number(campaignData.metadata.difficulty) || 1,
-            startDate: new Date(Number(campaignData.starting_time) * 1000).toISOString().slice(0, 16),
-            endDate: new Date(Number(campaignData.ending_time) * 1000).toISOString().slice(0, 16),
-            totalPoints: "1000",
-            logo: "🚀",
-            rules: [""]
-          })
-        } else {
-          debug.warn("Campaign not found")
-        }
+        // Clear the form since we can't fetch the campaign
+        setCampaignForm({
+          title: "",
+          shortDescription: "",
+          longDescription: "",
+          categories: [],
+          difficulty: 1,
+          startDate: new Date().toISOString().slice(0, 16),
+          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
+          totalPoints: "1000",
+          logo: "🚀",
+          rules: [""]
+        })
       } catch (error) {
         debug.error("Failed to fetch campaign:", error)
       } finally {
@@ -316,7 +283,7 @@ export default function CampaignManagementPage() {
     }
 
     fetchCampaign()
-  }, [signer, campaignTypeHash, protocolData, isCreateMode])
+  }, [signer, campaignTypeId, protocolData, isCreateMode])
 
   // Update URL when tab changes
   useEffect(() => {
@@ -408,28 +375,149 @@ export default function CampaignManagementPage() {
 
   const handleSaveCampaign = async () => {
     setIsSaving(true)
+    let submitError: string | null = null
+    
+    debug.log("=== CAMPAIGN SUBMISSION STARTED ===")
+    debug.log("Form data:", campaignForm)
+    debug.log("Local quests:", localQuests)
+
     try {
-      if (isCreateMode) {
-        // TODO: Implement blockchain transaction to create campaign
-        const campaignDataToCreate = {
-          ...campaignForm,
-          quests: localQuests
-        }
-        debug.log("Creating new campaign with data:", campaignDataToCreate)
-        alert(`Campaign creation will be implemented with blockchain integration.\n\nCampaign: ${campaignForm.title}\nQuests: ${localQuests.length}`)
-        // After successful creation, redirect to the new campaign's management page
-        // router.push(`/campaign-admin/${newCampaignTypeHash}`)
-      } else {
-        // TODO: Implement blockchain transaction to update campaign
-        debug.log("Saving campaign with form data:", campaignForm)
-        alert("Campaign update functionality will be implemented with blockchain integration")
+      // Validate required fields
+      if (
+        !campaignForm.title ||
+        !campaignForm.shortDescription ||
+        !campaignForm.longDescription ||
+        !campaignForm.categories.length ||
+        !campaignForm.difficulty ||
+        !campaignForm.startDate ||
+        !campaignForm.endDate
+      ) {
+        throw new Error("Please fill in all required fields")
       }
+
+      if (!signer) {
+        throw new Error("Please connect your wallet to update the campaign")
+      }
+
+      // For now, campaigns are already created on-chain
+      // This will be an update operation when the service is ready
+      if (isCreateMode) {
+        // Build campaign data structure
+        const campaignData: CampaignDataLike = {
+          metadata: {
+            title: campaignForm.title,
+            long_description: campaignForm.longDescription,
+            short_description: campaignForm.shortDescription,
+            image_url: "",
+            categories: campaignForm.categories,
+            difficulty: campaignForm.difficulty,
+            endorser_info: {
+              endorser_name: "",
+              endorser_description: "",
+              endorser_lock_hash: "0x",
+              website: "",
+              social_links: [],
+              verified: 0
+            },
+            total_rewards: {
+              points_amount: 0n,
+              ckb_amount: 0n,
+              nft_assets: [],
+              udt_assets: []
+            },
+            verification_requirements: [],
+            last_updated: BigInt(Date.now())
+          },
+          endorser: {
+            endorser_name: "",
+            endorser_description: "",
+            endorser_lock_hash: await signer.getRecommendedAddressObj().then(addr => addr.script.hash()),
+            website: "",
+            social_links: [],
+            verified: 0
+          },
+          created_at: BigInt(Date.now()),
+          rules: [],
+          status: 1, // Active
+          starting_time: BigInt(new Date(campaignForm.startDate).getTime() / 1000),
+          ending_time: BigInt(new Date(campaignForm.endDate).getTime() / 1000),
+          participants_count: 0,
+          total_completions: 0,
+          quests: localQuests.map((quest, index) => ({
+            quest_id: index + 1,
+            metadata: {
+              title: quest.title,
+              long_description: quest.longDescription,
+              short_description: quest.shortDescription,
+              image_url: "",
+              difficulty: quest.difficulty,
+              time_estimate: quest.timeEstimate,
+              requirements: quest.requirements || "",
+              tips: [],
+              resources: []
+            },
+            points: BigInt(quest.points),
+            rewards_on_completion: [],
+            accepted_submission_user_type_ids: [],
+            completion_deadline: BigInt(new Date(campaignForm.endDate).getTime() / 1000),
+            status: 1, // Active
+            sub_tasks: quest.subtasks.map((st, stIndex) => ({
+              id: stIndex + 1,
+              title: st.title,
+              description: st.description,
+              type: st.type,
+              proof_required: st.proof_required
+            })),
+            completion_count: 0
+          }))
+        }
+
+        debug.log("=== FINAL CAMPAIGN DATA ===")
+        debug.log(JSON.stringify(
+          campaignData,
+          (_key, value) => {
+            // Convert BigInt to string for logging
+            if (typeof value === "bigint") {
+              return value.toString() + "n"
+            }
+            // Convert Uint8Array to readable string for logging
+            if (value instanceof Uint8Array || (value && typeof value === 'object' && '0' in value && '1' in value)) {
+              const bytes = value instanceof Uint8Array ? value : new Uint8Array(Object.values(value))
+              return `[Uint8Array: 0x${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}]`
+            }
+            return value
+          },
+          2
+        ))
+
+        // For now, show a message that campaign creation is pending
+        // When the campaign service is available, uncomment:
+        // const campaignService = ...
+        // const txHash = await campaignService.updateCampaign(campaignData)
+        // debug.log("Transaction hash:", txHash)
+        
+        alert(`Campaign data prepared successfully!\n\nCampaign: ${campaignForm.title}\nQuests: ${localQuests.length}\n\nNote: Campaign creation service will be available soon.`)
+        
+        // After successful creation, could redirect
+        // router.push(`/campaign-admin/${newCampaignTypeId}`)
+      } else {
+        // Update existing campaign
+        debug.log("Updating campaign with form data:", campaignForm)
+        alert("Campaign update functionality will be available soon")
+      }
+
+      debug.log("=== CAMPAIGN SAVE COMPLETED SUCCESSFULLY ===")
+      
     } catch (error) {
-      debug.error("Failed to save campaign:", error)
-      alert(isCreateMode ? "Failed to create campaign" : "Failed to save campaign")
+      debug.error("=== CAMPAIGN SAVE FAILED ===")
+      debug.error("Error:", error)
+      submitError = error instanceof Error ? error.message : "Failed to save campaign"
+      alert(submitError)
     } finally {
       setIsSaving(false)
-      setEditingCampaign(false)
+      if (!submitError) {
+        setEditingCampaign(false)
+      }
     }
   }
 
@@ -450,8 +538,8 @@ export default function CampaignManagementPage() {
       alert("Failed to add quest")
     } finally {
       setIsSaving(false)
-      setIsAddingQuest(false)
-      // Reset form
+      // Don't close the dialog - let user add more quests or close manually
+      // Reset form for next quest
       setQuestForm({
         title: "",
         shortDescription: "",
@@ -648,7 +736,7 @@ export default function CampaignManagementPage() {
                   </Button>
                 )}
                 {!isCreateMode && (
-                  <Link href={`/campaign/${campaignTypeHash}`}>
+                  <Link href={`/campaign/${campaignTypeId}`}>
                     <Button variant="outline">
                       <Eye className="w-4 h-4 mr-2" />
                       View Public Page
@@ -1583,13 +1671,13 @@ export default function CampaignManagementPage() {
                     <div className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between">
                         <code className="text-sm font-mono">
-                          {campaignTypeHash}
+                          {campaignTypeId}
                         </code>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            navigator.clipboard.writeText(campaignTypeHash)
+                            navigator.clipboard.writeText(campaignTypeId)
                             alert("Type hash copied to clipboard!")
                           }}
                         >

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/core"
-import { fetchCampaignsConnectedToProtocol } from "@/lib/ckb/campaign-cells"
+import { fetchCampaignsConnectedToProtocol, extractTypeIdFromCampaignCell } from "@/lib/ckb/campaign-cells"
 import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
 import { ProtocolData, CampaignData } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
@@ -343,10 +343,10 @@ const PLATFORM_USERS = [
       currentStreak: 3,
     },
     campaignParticipation: [
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 3, pointsEarned: 650 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 4, pointsEarned: 580 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 6, pointsEarned: 720 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000065", campaignName: "CKB Testnet Launch Campaign", questsCompleted: 5, pointsEarned: 500 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 3, pointsEarned: 650 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 4, pointsEarned: 580 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 6, pointsEarned: 720 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000065", campaignName: "CKB Testnet Launch Campaign", questsCompleted: 5, pointsEarned: 500 },
     ],
   },
   {
@@ -387,9 +387,9 @@ const PLATFORM_USERS = [
       currentStreak: 5,
     },
     campaignParticipation: [
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 450 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 6, pointsEarned: 780 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000004", campaignName: "NFT Creator Bootcamp", questsCompleted: 7, pointsEarned: 950 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 450 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 6, pointsEarned: 780 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000004", campaignName: "NFT Creator Bootcamp", questsCompleted: 7, pointsEarned: 950 },
     ],
   },
   {
@@ -430,8 +430,8 @@ const PLATFORM_USERS = [
       currentStreak: 0,
     },
     campaignParticipation: [
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 5, pointsEarned: 650 },
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 7, pointsEarned: 1200 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000002", campaignName: "DeFi Education Campaign", questsCompleted: 5, pointsEarned: 650 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000003", campaignName: "Community Builder Program", questsCompleted: 7, pointsEarned: 1200 },
     ],
   },
   {
@@ -472,7 +472,7 @@ const PLATFORM_USERS = [
       currentStreak: 0,
     },
     campaignParticipation: [
-      { campaignTypeHash: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 150 },
+      { campaignTypeId: "0x0000000000000000000000000000000000000000000000000000000000000001", campaignName: "CKB Ecosystem Growth Initiative", questsCompleted: 2, pointsEarned: 150 },
     ],
   }
 ]
@@ -1023,7 +1023,7 @@ export default function PlatformAdminDashboard() {
                 {connectedCampaigns.map((campaign, index) => {
                   try {
                     const campaignData = CampaignData.decode(campaign.outputData)
-                    const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
+                    const campaignTypeId = extractTypeIdFromCampaignCell(campaign) || "0x"
                     
                     return (
                   <Card key={index}>
@@ -1047,7 +1047,7 @@ export default function PlatformAdminDashboard() {
                           <div className="text-sm text-muted-foreground mb-1">Created by</div>
                           <div className="font-medium">{campaignData.endorser.endorser_name || "Unknown"}</div>
                           <div className="text-xs text-muted-foreground mt-1">
-                            Hash: {campaignTypeHash.slice(0, 10)}...
+                            ID: {campaignTypeId.slice(0, 10)}...
                           </div>
                         </div>
                       </div>
@@ -1086,13 +1086,13 @@ export default function PlatformAdminDashboard() {
                       </div>
 
                       <div className="flex items-center justify-end gap-2">
-                        <Link href={`/campaign/${campaignTypeHash}`}>
+                        <Link href={`/campaign/${campaignTypeId}`}>
                           <Button variant="outline" size="sm">
                             <Eye className="w-4 h-4 mr-1" />
                             View Details
                           </Button>
                         </Link>
-                        <Link href={`/campaign/${campaignTypeHash}`}>
+                        <Link href={`/campaign/${campaignTypeId}`}>
                           <Button 
                             size="sm"
                             className="bg-blue-600 hover:bg-blue-700 text-white"

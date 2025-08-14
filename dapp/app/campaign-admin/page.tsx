@@ -54,11 +54,11 @@ export default function CampaignAdminDashboard() {
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
   const [staffForm, setStaffForm] = useState({
     email: "",
-    campaignTypeHash: "",
+    campaignTypeId: "",
     role: "reviewer"
   })
   const [ownedCampaigns, setOwnedCampaigns] = useState<(CampaignDataLike & { 
-    typeHash: ccc.Hex
+    typeId: ccc.Hex
     status: string
     isConnected: boolean
     isApproved: boolean
@@ -69,7 +69,7 @@ export default function CampaignAdminDashboard() {
   })[]>([])
   const [pendingReviews, setPendingReviews] = useState<{
     campaignTitle: string
-    campaignTypeHash: string
+    campaignTypeId: string
     questCount: number
   }[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -132,14 +132,13 @@ export default function CampaignAdminDashboard() {
         for (const campaign of userCampaigns) {
           try {
             const campaignData = CampaignData.decode(campaign.outputData)
-            const campaignTypeHash = campaign.cellOutput.type?.hash() || "0x"
             
             // Check if campaign is connected to the protocol
             const isConnected = campaign.cellOutput.type?.args && (() => {
               try {
                 const argsBytes = ccc.bytesFrom(campaign.cellOutput.type!.args)
                 const connectedTypeId = ConnectedTypeID.decode(argsBytes)
-                return connectedTypeId.connected_type_hash === protocolTypeHash
+                return connectedTypeId.connected_key === protocolTypeHash
               } catch {
                 return false
               }
@@ -150,7 +149,6 @@ export default function CampaignAdminDashboard() {
             
             // Check if campaign is approved using helper function
             const isApproved = isCampaignApproved(
-              campaignTypeHash as ccc.Hex,
               campaignTypeId,
               protocolData.campaigns_approved as ccc.Hex[] | undefined
             )
@@ -172,7 +170,7 @@ export default function CampaignAdminDashboard() {
             // Process campaign for display
             const campaignInfo: typeof ownedCampaigns[0] = {
               ...campaignData,
-              typeHash: campaignTypeHash,
+              typeId: (campaignTypeId || "0x") as ccc.Hex,
               status,
               isConnected: isConnected || false,
               isApproved,
@@ -189,7 +187,7 @@ export default function CampaignAdminDashboard() {
               // This would check actual submission data
               reviews.push({
                 campaignTitle: campaignData.metadata.title,
-                campaignTypeHash,
+                campaignTypeId: campaignTypeId || "0x",
                 questCount: campaignData.quests.length,
               })
             }
@@ -277,7 +275,7 @@ export default function CampaignAdminDashboard() {
   const handleAddStaff = () => {
     console.log("Adding staff:", staffForm)
     setIsAddStaffOpen(false)
-    setStaffForm({ email: "", campaignTypeHash: "", role: "reviewer" })
+    setStaffForm({ email: "", campaignTypeId: "", role: "reviewer" })
   }
 
   // Calculate stats from real campaigns or use mock data as fallback
@@ -601,7 +599,7 @@ export default function CampaignAdminDashboard() {
               
               <div className="grid gap-6">
                 {campaignsToShow.map((campaign) => (
-                  <Card key={campaign.typeHash}>
+                  <Card key={campaign.typeId}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -702,19 +700,19 @@ export default function CampaignAdminDashboard() {
                               Connect to Protocol
                             </Button>
                           )}
-                          <Link href={`/campaign/${campaign.typeHash}`}>
+                          <Link href={`/campaign/${campaign.typeId}`}>
                             <Button variant="outline" size="sm">
                               <Eye className="w-4 h-4 mr-1" />
                               View
                             </Button>
                           </Link>
-                          <Link href={`/campaign-admin/${campaign.typeHash}?tab=quests`}>
+                          <Link href={`/campaign-admin/${campaign.typeId}?tab=quests`}>
                             <Button variant="outline" size="sm">
                               <Plus className="w-4 h-4 mr-1" />
                               Add Quest
                             </Button>
                           </Link>
-                          <Link href={`/campaign-admin/${campaign.typeHash}`}>
+                          <Link href={`/campaign-admin/${campaign.typeId}`}>
                             <Button variant="outline" size="sm">
                               <Edit className="w-4 h-4 mr-1" />
                               Manage
@@ -763,12 +761,12 @@ export default function CampaignAdminDashboard() {
                         <select
                           id="campaign"
                           className="w-full p-2 border rounded-md"
-                          value={staffForm.campaignTypeHash}
-                          onChange={(e) => setStaffForm({ ...staffForm, campaignTypeHash: e.target.value })}
+                          value={staffForm.campaignTypeId}
+                          onChange={(e) => setStaffForm({ ...staffForm, campaignTypeId: e.target.value })}
                         >
                           <option value="">Select campaign</option>
                           {ownedCampaigns.map((campaign) => (
-                            <option key={campaign.typeHash} value={campaign.typeHash}>
+                            <option key={campaign.typeId} value={campaign.typeId}>
                               {campaign.metadata?.title}
                             </option>
                           ))}
@@ -799,7 +797,7 @@ export default function CampaignAdminDashboard() {
 
               <div className="grid gap-4">
                 {ownedCampaigns.map((staff) => (
-                  <Card key={staff.typeHash}>
+                  <Card key={staff.typeId}>
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -863,7 +861,7 @@ export default function CampaignAdminDashboard() {
                       {ownedCampaigns.map((campaign, index) => {
                         try {
                           // Campaign is already processed with all needed fields
-                          const campaignTypeHash = campaign.typeHash || "0x"
+                          const campaignTypeId = campaign.typeId || "0x"
                           
                           return (
                             <div key={index} className="flex items-center gap-4 p-4 border rounded-lg">
@@ -880,17 +878,17 @@ export default function CampaignAdminDashboard() {
                                       {campaign.metadata?.short_description || "No description"}
                                     </p>
                                     <p className="text-xs text-muted-foreground mt-1">
-                                      Type Hash: {campaignTypeHash.slice(0, 10)}...{campaignTypeHash.slice(-8)}
+                                      Type ID: {campaignTypeId.slice(0, 10)}...{campaignTypeId.slice(-8)}
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Link href={`/campaign/${campaignTypeHash}`}>
+                                    <Link href={`/campaign/${campaignTypeId}`}>
                                       <Button variant="outline" size="sm">
                                         <Eye className="w-4 h-4 mr-1" />
                                         View Campaign
                                       </Button>
                                     </Link>
-                                    <Link href={`/campaign-admin/${campaignTypeHash}`}>
+                                    <Link href={`/campaign-admin/${campaignTypeId}`}>
                                       <Button size="sm">
                                         <Settings className="w-4 h-4 mr-1" />
                                         Manage

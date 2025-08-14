@@ -25,7 +25,7 @@ import {
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { fetchCampaignByTypeHash, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
+import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
@@ -34,9 +34,9 @@ import { useUser } from "@/lib/providers/user-provider"
 
 export default function CampaignDetailPage() {
   const params = useParams()
-  const campaignTypeHash = params.campaignTypeHash as ccc.Hex
+  const campaignTypeId = params.campaignTypeId as ccc.Hex
   const { signer, protocolData } = useProtocol()
-  const { currentUserTypeId, hasUserSubmittedQuest } = useUser()
+  const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -52,27 +52,28 @@ export default function CampaignDetailPage() {
         return
       }
 
-      if (!campaignTypeHash) {
-        debug.warn("No campaign type hash provided")
+      if (!campaignTypeId) {
+        debug.warn("No campaign type ID provided")
         setIsLoading(false)
         return
       }
 
       try {
         setIsLoading(true) // Ensure loading state is set
-        debug.log("Fetching campaign with type hash:", campaignTypeHash)
-        const campaignCell = await fetchCampaignByTypeHash(campaignTypeHash as ccc.Hex, signer)
-        
-        if (campaignCell) {
-          const campaignData = CampaignData.decode(campaignCell.outputData)
-          setCampaign({
-            ...campaignData,
-            typeHash: campaignTypeHash,
-            cell: campaignCell
-          })
+        debug.log("Fetching campaign by type ID:", campaignTypeId)
+        const campaignCodeHash = protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash
+        if (!campaignCodeHash) {
+          debug.error("Campaign code hash not found in protocol data")
+          setCampaign(null)
+          return
+        }
+        const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
+        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer)
+        if (cell) {
+          const campaignData = CampaignData.decode(cell.outputData) as CampaignDataLike
+          setCampaign({ ...campaignData, typeHash: cell.cellOutput.type?.hash() || "0x", cell })
         } else {
-          debug.warn("Campaign not found")
-          setCampaign(null) // Explicitly set to null when not found
+          setCampaign(null)
         }
       } catch (error) {
         debug.error("Failed to fetch campaign:", error)
@@ -83,7 +84,7 @@ export default function CampaignDetailPage() {
     }
 
     fetchCampaign()
-  }, [signer, campaignTypeHash])
+  }, [signer, campaignTypeId, protocolData])
 
   // Check submission statuses for all quests
   useEffect(() => {
@@ -96,7 +97,7 @@ export default function CampaignDetailPage() {
         const questId = Number(quest.quest_id || i + 1)
         const submitted = await hasUserSubmittedQuest(
           currentUserTypeId,
-          campaignTypeHash,
+          campaignTypeId,
           questId
         )
         statuses[questId] = submitted
@@ -105,11 +106,11 @@ export default function CampaignDetailPage() {
     }
 
     checkSubmissionStatuses()
-  }, [currentUserTypeId, campaign, campaignTypeHash, hasUserSubmittedQuest])
+  }, [currentUserTypeId, campaign, campaignTypeId, hasUserSubmittedQuest])
 
 
-  // Show loading state while waiting for signer or while fetching campaign
-  if (isLoading || (!signer && !campaign)) {
+  // Show loading state while waiting for signer, campaign data, or user data
+  if (isLoading || userLoading || (!signer && !campaign)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -118,7 +119,9 @@ export default function CampaignDetailPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">
-                {!signer ? "Connecting to wallet..." : "Loading campaign details..."}
+                {!signer ? "Connecting to wallet..." : 
+                 userLoading ? "Loading user data..." : 
+                 "Loading campaign details..."}
               </p>
             </div>
           </div>
@@ -198,12 +201,8 @@ export default function CampaignDetailPage() {
     ? Number(campaign.ending_time) * 1000
     : Number(campaign.ending_time) * 1000
     
-  // Extract type_id for comparison if campaign has a cell
-  const campaignTypeId = campaign?.cell ? extractTypeIdFromCampaignCell(campaign.cell) : undefined
-  
   // Check if campaign is approved using helper function
   const isApproved = isCampaignApproved(
-    campaignTypeHash,
     campaignTypeId,
     protocolData?.campaigns_approved as ccc.Hex[] | undefined
   )
@@ -211,7 +210,7 @@ export default function CampaignDetailPage() {
   // Debug logging for approval status
   debug.log('Campaign approval check:', {
     isApproved,
-    campaignTypeHash,
+    campaignTypeId,
     campaigns_approved: protocolData?.campaigns_approved,
     protocolDataExists: !!protocolData
   })
@@ -641,9 +640,12 @@ export default function CampaignDetailPage() {
                       
                       {/* Quest Submission Form */}
                       <QuestSubmissionForm
-                        quest={quest}
+                        quest={{
+                          quest_id: Number(quest.quest_id),
+                          sub_tasks: quest.sub_tasks
+                        }}
                         questIndex={selectedQuestIndex}
-                        campaignTypeHash={campaignTypeHash}
+                        campaignTypeId={campaignTypeId}
                       />
                       
                       {/* Navigation between quests */}

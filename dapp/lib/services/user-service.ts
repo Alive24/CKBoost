@@ -116,7 +116,7 @@ export class UserService {
    * Creates user cell if it doesn't exist
    */
   async submitQuestWithAutoCreate(
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Full HTML with images
     userVerificationData?: {
@@ -137,14 +137,14 @@ export class UserService {
       const userAddress = await this.signer.getRecommendedAddress();
       
       debug.log("Storing submission on Nostr...", {
-        campaignTypeHash: campaignTypeHash.slice(0, 10) + "...",
+        campaignTypeId: campaignTypeId.slice(0, 10) + "...",
         questId,
         contentSize: submissionContent.length
       });
       
       try {
         neventId = await this.nostrService.storeSubmission({
-          campaignTypeHash,
+          campaignTypeId,
           questId,
           userAddress,
           content: submissionContent,
@@ -197,7 +197,7 @@ export class UserService {
       });
       
       txHash = await this.submitQuest(
-        campaignTypeHash,
+        campaignTypeId,
         questId,
         contentToStore,
         existingUserData.typeId
@@ -211,7 +211,7 @@ export class UserService {
       });
       
       txHash = await this.createUserWithSubmission(
-        campaignTypeHash,
+        campaignTypeId,
         questId,
         contentToStore,
         userVerificationData
@@ -259,7 +259,7 @@ export class UserService {
    * Get user submissions with content (from Nostr if applicable)
    */
   async getUserSubmissionsWithContent(userTypeId: ccc.Hex): Promise<Array<{
-    campaignTypeHash: string;
+    campaignTypeId: string;
     questId: number;
     timestamp: number;
     submissionContent: string;
@@ -288,7 +288,7 @@ export class UserService {
       typeId: userTypeId.slice(0, 10) + "...",
       totalSubmissions: userData.submission_records.length,
       submissions: userData.submission_records.map(r => ({
-        campaign: r.campaign_type_hash?.slice(0, 10) + "...",
+        campaign: r.campaign_type_id?.slice(0, 10) + "...",
         questId: r.quest_id,
         timestamp: r.submission_timestamp
       }))
@@ -297,45 +297,45 @@ export class UserService {
     // Process each submission
     const submissionsWithContent = await Promise.all(
       userData.submission_records.map(async (record) => {
-        // Convert campaign_type_hash to hex string if it's bytes
-        let campaignTypeHash: string;
+        // Convert campaign_type_id to hex string if it's bytes
+        let campaignTypeId: string;
         
-        // Log the raw campaign_type_hash for debugging
+        // Log the raw campaign_type_id for debugging
         debug.log("Processing submission record:", {
-          raw_campaign_type_hash: record.campaign_type_hash,
-          type: typeof record.campaign_type_hash,
-          isUint8Array: record.campaign_type_hash instanceof Uint8Array,
-          length: (record.campaign_type_hash as any)?.length || 'N/A'
+          raw_campaign_type_id: record.campaign_type_id,
+          type: typeof record.campaign_type_id,
+          isUint8Array: record.campaign_type_id && typeof record.campaign_type_id === 'object' && ArrayBuffer.isView(record.campaign_type_id),
+          length: (record.campaign_type_id as { length?: number })?.length || 'N/A'
         });
         
-        if (typeof record.campaign_type_hash === 'string') {
+        if (typeof record.campaign_type_id === 'string') {
           // Already a string, use as-is
-          campaignTypeHash = record.campaign_type_hash;
-        } else if (record.campaign_type_hash instanceof Uint8Array || 
-                   (record.campaign_type_hash && typeof record.campaign_type_hash === 'object' && 'length' in record.campaign_type_hash)) {
+          campaignTypeId = record.campaign_type_id;
+        } else if ((record.campaign_type_id && typeof record.campaign_type_id === 'object' && ArrayBuffer.isView(record.campaign_type_id)) || 
+                   (record.campaign_type_id && typeof record.campaign_type_id === 'object' && 'length' in record.campaign_type_id)) {
           // It's a byte array (Uint8Array or array-like object)
-          const bytes = record.campaign_type_hash instanceof Uint8Array 
-            ? record.campaign_type_hash 
-            : new Uint8Array(Object.values(record.campaign_type_hash));
-          campaignTypeHash = ccc.hexFrom(bytes);
+          const bytes = (record.campaign_type_id && typeof record.campaign_type_id === 'object' && ArrayBuffer.isView(record.campaign_type_id)) 
+            ? record.campaign_type_id 
+            : new Uint8Array(Object.values(record.campaign_type_id));
+          campaignTypeId = ccc.hexFrom(bytes);
         } else {
           // Try to convert whatever it is to bytes first, then to hex
           try {
-            campaignTypeHash = ccc.hexFrom(ccc.bytesFrom(record.campaign_type_hash));
+            campaignTypeId = ccc.hexFrom(ccc.bytesFrom(record.campaign_type_id));
           } catch (e) {
-            debug.error("Failed to convert campaign_type_hash to hex:", e);
-            campaignTypeHash = "0x"; // Fallback to empty hex
+            debug.error("Failed to convert campaign_type_id to hex:", e);
+            campaignTypeId = "0x"; // Fallback to empty hex
           }
         }
         
-        debug.log("Converted campaign type hash:", {
-          original: record.campaign_type_hash,
-          converted: campaignTypeHash,
+        debug.log("Converted campaign type ID:", {
+          original: record.campaign_type_id,
+          converted: campaignTypeId,
           questId: record.quest_id
         });
         
         const submissionData = {
-          campaignTypeHash,
+          campaignTypeId,
           questId: Number(record.quest_id),
           timestamp: Number(record.submission_timestamp),
           submissionContent: record.submission_content,
@@ -389,7 +389,7 @@ export class UserService {
    * Submit a quest (for existing users)
    */
   private async submitQuest(
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Could be nevent ID or actual content
     userTypeId: ccc.Hex
@@ -417,26 +417,26 @@ export class UserService {
     // Check if this quest was already submitted and needs updating
     const existingSubmissionIndex = currentUserData.submission_records.findIndex(
       (record) => {
-        // Convert campaign_type_hash for comparison
-        let recordCampaignHash: string;
-        if (typeof record.campaign_type_hash === 'string') {
-          recordCampaignHash = record.campaign_type_hash;
-        } else if (record.campaign_type_hash instanceof Uint8Array) {
-          recordCampaignHash = ccc.hexFrom(record.campaign_type_hash);
+        // Convert campaign_type_id for comparison
+        let recordCampaignId: string;
+        if (typeof record.campaign_type_id === 'string') {
+          recordCampaignId = record.campaign_type_id;
+        } else if (record.campaign_type_id && typeof record.campaign_type_id === 'object' && ArrayBuffer.isView(record.campaign_type_id)) {
+          recordCampaignId = ccc.hexFrom(record.campaign_type_id);
         } else {
           try {
-            recordCampaignHash = ccc.hexFrom(ccc.bytesFrom(record.campaign_type_hash));
+            recordCampaignId = ccc.hexFrom(ccc.bytesFrom(record.campaign_type_id));
           } catch {
-            recordCampaignHash = "0x";
+            recordCampaignId = "0x";
           }
         }
-        return recordCampaignHash === campaignTypeHash && Number(record.quest_id) === questId;
+        return recordCampaignId === campaignTypeId && Number(record.quest_id) === questId;
       }
     );
 
     // Create new submission record
     const newSubmissionBytes = ckboost.User.createSubmissionRecord(
-      campaignTypeHash,
+      campaignTypeId,
       questId,
       submissionContent // This could be nevent ID or actual content
     );
@@ -444,7 +444,7 @@ export class UserService {
     const newSubmission = ckboost.types.UserSubmissionRecord.decode(newSubmissionBytes);
 
     // Update or add submission
-    let updatedSubmissions = [...currentUserData.submission_records];
+    const updatedSubmissions = [...currentUserData.submission_records];
     if (existingSubmissionIndex >= 0) {
       // Update existing submission (resubmission case)
       updatedSubmissions[existingSubmissionIndex] = newSubmission;
@@ -479,24 +479,13 @@ export class UserService {
       { executor } // Pass the executor in config
     );
 
-    // Create a transaction that consumes the existing user cell
-    const baseTx = ccc.Transaction.from({
-      inputs: [{
-        previousOutput: userCell.outPoint
-      }],
-      outputs: [{
-        lock: userCell.cellOutput.lock,
-        type: userCell.cellOutput.type,
-        capacity: userCell.cellOutput.capacity
-      }],
-      outputsData: [ccc.hexFrom(ckboost.types.UserData.encode(updatedUserData))]
-    });
-
-    // Build transaction using SSRI (it will update the existing transaction)
+    // The SSRI method expects a transaction but will add the user cell input itself
+    // We should provide an empty transaction or null
+    // The contract will find and add the user cell as input based on the type script
     const result = await userInstanceWithScript.submitQuest(
       this.signer,
       updatedUserData,
-      baseTx
+      undefined // Pass undefined - the contract will handle finding and adding the user cell
     );
 
     // Get the transaction from the result
@@ -537,7 +526,7 @@ export class UserService {
    * Create a new user with initial submission
    */
   private async createUserWithSubmission(
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Could be nevent ID or actual content
     verificationData?: {
@@ -570,7 +559,7 @@ export class UserService {
 
     // Create new submission record
     const newSubmissionBytes = ckboost.User.createSubmissionRecord(
-      campaignTypeHash,
+      campaignTypeId,
       questId,
       submissionContent // This could be nevent ID or actual content
     );
@@ -604,10 +593,19 @@ export class UserService {
       { executor } // Pass the executor in config
     );
 
+    // For creation, the contract needs at least one input to calculate type ID
+    // Create a base transaction with at least one input
+    const baseTx = ccc.Transaction.from({});
+    
+    // Add at least one input for capacity (required for type ID calculation)
+    // The contract will use the first input to calculate the type ID
+    await baseTx.completeInputsAtLeastOne(this.signer);
+    
     // Build transaction using SSRI - the contract will handle creation
     const result = await userInstanceForCreation.submitQuest(
       this.signer,
-      userData
+      userData,
+      baseTx // Pass the transaction with at least one input
     );
 
     // The contract returns a transaction with the new user cell
@@ -623,8 +621,8 @@ export class UserService {
     }
     
     // Update the ConnectedTypeID with the protocol type hash
-    // The contract creates it with type_id but empty connected_type_hash
-    let userCellTypeArgs = createTx.outputs[userCellOutputIndex].type?.args;
+    // The contract creates it with type_id but empty connected_key
+    const userCellTypeArgs = createTx.outputs[userCellOutputIndex].type?.args;
     if (!userCellTypeArgs) {
       throw new Error("User cell type args is empty");
     }
@@ -633,7 +631,7 @@ export class UserService {
     const connectedTypeId = ckboost.types.ConnectedTypeID.decode(userCellTypeArgs);
     
     // Update with the correct protocol type hash
-    connectedTypeId.connected_type_hash = ccc.bytesFrom(this.protocolTypeHash);
+    connectedTypeId.connected_key = this.protocolTypeHash as ccc.Hex;
     
     // Encode and update the args
     const updatedConnectedTypeIdBytes = ckboost.types.ConnectedTypeID.encode(connectedTypeId);

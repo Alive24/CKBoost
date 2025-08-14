@@ -2,8 +2,8 @@
 // These work with UI representations of campaigns
 
 import { ccc } from "@ckb-ccc/core"
-import type { CampaignDataLike } from "ssri-ckboost/types"
-import { CampaignData } from "ssri-ckboost/types"
+import type { CampaignDataLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
+import { CampaignData, ConnectedTypeID } from "ssri-ckboost/types"
 import { 
   decodeVerificationRequirements, 
   getDifficultyString,
@@ -29,6 +29,7 @@ export type CampaignDisplay = CampaignDataLike & {
   // Additional computed/UI-specific fields only
   id: string // Generated from typeHash
   typeHash: string // From cell
+  typeId: string | null // From ConnectedTypeID args if available
   status: string // Computed from dates
   startDate: string // ISO string conversion
   endDate: string // ISO string conversion
@@ -69,6 +70,19 @@ export function cellToCampaignDisplay(cell: ccc.Cell): CampaignDisplay {
   // Get type hash from the cell's type script
   const typeHash = cell.cellOutput.type?.hash() || ""
   
+  // Try to extract type ID from ConnectedTypeID args
+  let typeId: string | null = null
+  try {
+    if (cell.cellOutput.type?.args) {
+      const argsBytes = ccc.bytesFrom(cell.cellOutput.type.args)
+      const connectedTypeId = ConnectedTypeID.decode(argsBytes) as ConnectedTypeIDLike
+      typeId = ccc.hexFrom(connectedTypeId.type_id)
+    }
+  } catch (error) {
+    // If decoding fails, type ID remains null
+    console.debug("Failed to extract type ID from campaign cell:", error)
+  }
+  
   // Convert timestamps to ISO date strings
   const startDate = new Date(Number(campaignData.starting_time) * 1000).toISOString()
   const endDate = new Date(Number(campaignData.ending_time) * 1000).toISOString()
@@ -96,8 +110,9 @@ export function cellToCampaignDisplay(cell: ccc.Cell): CampaignDisplay {
     ...campaignData,
     
     // Add computed/UI-specific fields
-    id: typeHash.slice(0, 8), // Use first 8 chars of type hash as ID
+    id: typeId ? typeId.slice(0, 8) : typeHash.slice(0, 8), // Use first 8 chars of type ID (or type hash as fallback) as ID
     typeHash,
+    typeId,
     status,
     startDate,
     endDate,

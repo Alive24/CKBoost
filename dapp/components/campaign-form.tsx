@@ -33,7 +33,7 @@ export interface SimplifiedCampaignFormData {
 
 interface CampaignFormProps {
   mode: 'create' | 'edit' | 'inline'  // Added 'inline' mode for embedded editing
-  campaignTypeHash?: string
+  campaignTypeId?: string
   initialData?: CampaignDataLike
   onSubmit: (data: SimplifiedCampaignFormData | CampaignDataLike) => Promise<void>
   onCancel?: () => void
@@ -45,13 +45,13 @@ interface CampaignFormProps {
 
 export function CampaignForm({ 
   mode, 
-  campaignTypeHash, 
+  campaignTypeId, 
   initialData, 
   onSubmit,
   currentWalletEndorser
 }: CampaignFormProps) {
   // Draft functionality temporarily disabled
-  // const { draft, saveDraft, deleteDraft, autoSave } = useCampaignDraft(campaignTypeHash)
+  // const { draft, saveDraft, deleteDraft, autoSave } = useCampaignDraft(campaignTypeId)
   
   // Form state - initialize from draft or initial data
   const [formData, setFormData] = useState({

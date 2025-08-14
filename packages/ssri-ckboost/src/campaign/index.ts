@@ -132,19 +132,19 @@ export class Campaign extends ssri.Trait {
           
           connectedTypeId = {
             type_id: ccc.hexFrom(typeIdBytes),
-            connected_type_hash: connectedProtocolCellTypeHash,
+            connected_key: connectedProtocolCellTypeHash,
           };
         } else if (argsBytes.length === 32) {
           // Direct protocol reference - wrap in ConnectedTypeID
           // Use the existing 32 bytes as the type_id
           connectedTypeId = {
             type_id: campaignCellTypeArgs,
-            connected_type_hash: connectedProtocolCellTypeHash,
+            connected_key: connectedProtocolCellTypeHash,
           };
         } else if (argsBytes.length === 76) {
           // Already a ConnectedTypeID - decode and update
           connectedTypeId = ConnectedTypeID.decode(campaignCellTypeArgs);
-          connectedTypeId.connected_type_hash = connectedProtocolCellTypeHash;
+          connectedTypeId.connected_key = connectedProtocolCellTypeHash;
         } else {
           throw new Error(`Invalid campaign type args length: ${argsBytes.length}. Expected 0, 32, or 76 bytes.`);
         }
@@ -178,14 +178,14 @@ export class Campaign extends ssri.Trait {
    * Approve a quest completion
    *
    * @param _signer - The signer for the transaction
-   * @param campaignTypeHash - The campaign type hash
+   * @param campaignTypeId - The campaign type ID
    * @param questData - The quest completion data
    * @param tx - Optional existing transaction
    * @returns The updated transaction
    */
   async approveCompletion(
     _signer: ccc.Signer,
-    campaignTypeHash: ccc.HexLike,
+    campaignTypeId: ccc.HexLike,
     questId: ccc.Num,
     userLockHash: ccc.HexLike,
     tx?: ccc.Transaction
@@ -214,7 +214,7 @@ export class Campaign extends ssri.Trait {
       methodPath,
       [
         baseTx.toBytes(),
-        ccc.hexFrom(campaignTypeHash),
+        ccc.hexFrom(campaignTypeId),
         ccc.hexFrom(ccc.numToBytes(questId)),
         ccc.hexFrom(userLockHash),
       ],

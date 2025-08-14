@@ -12,7 +12,7 @@ import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
 import { fetchProtocolCell } from "../ckb/protocol-cells";
-import { fetchCampaignByTypeHash, fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
+import { fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
 import { ProtocolData } from "ssri-ckboost/types";
 import { debug } from "../utils/debug";
 
@@ -90,24 +90,19 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
               try {
                 debug.log("Fetching campaign with identifier:", identifier);
                 
-                // Try optimized fetch by type_id first
-                let campaignCell = await fetchCampaignByTypeId(
+                // Only fetch by type_id (type hash method has been removed)
+                const campaignCell = await fetchCampaignByTypeId(
                   identifier as ccc.Hex,
                   campaignCodeHash as ccc.Hex,
                   signer
                 );
                 
-                // If not found, fall back to type_hash method (for backward compatibility)
-                if (!campaignCell) {
-                  debug.log("Type ID fetch failed, trying type hash method");
-                  campaignCell = await fetchCampaignByTypeHash(identifier as ccc.Hex, signer);
-                }
-                
                 if (campaignCell) {
                   approvedCampaignCells.push(campaignCell);
-                  debug.log("Loaded campaign:", identifier);
+                  debug.log("Loaded campaign by type ID:", identifier);
                 } else {
-                  debug.warn("Campaign not found:", identifier);
+                  debug.warn("Campaign not found with type ID:", identifier);
+                  // Note: Old campaigns using type hash won't be loaded anymore
                 }
               } catch (error) {
                 debug.error(`Failed to fetch campaign ${identifier}:`, error);
@@ -193,17 +188,12 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
           
           for (const identifier of protocolData.campaigns_approved || []) {
             try {
-              // Try optimized fetch by type_id first
-              let campaignCell = await fetchCampaignByTypeId(
+              // Only fetch by type_id (type hash method has been removed)
+              const campaignCell = await fetchCampaignByTypeId(
                 identifier as ccc.Hex,
                 campaignCodeHash as ccc.Hex,
                 signer
               );
-              
-              // Fall back to type_hash method if needed
-              if (!campaignCell) {
-                campaignCell = await fetchCampaignByTypeHash(identifier as ccc.Hex, signer);
-              }
               
               if (campaignCell) {
                 approvedCampaignCells.push(campaignCell);

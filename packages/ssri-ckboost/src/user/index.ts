@@ -121,13 +121,13 @@ export class User extends ssri.Trait {
   /**
    * Create a new submission record
    * 
-   * @param campaignTypeHash - The campaign type hash
+   * @param campaignTypeId - The campaign type ID
    * @param questId - The quest ID
    * @param submissionContent - The submission content (URL to Neon storage)
    * @returns The submission record
    */
   static createSubmissionRecord(
-    campaignTypeHash: ccc.HexLike,
+    campaignTypeId: ccc.HexLike,
     questId: number,
     submissionContent: string
   ): ReturnType<typeof UserSubmissionRecord.encode> {
@@ -135,7 +135,7 @@ export class User extends ssri.Trait {
     
     // mol.String expects the string directly, it handles the encoding internally
     return UserSubmissionRecord.encode({
-      campaign_type_hash: ccc.hexFrom(campaignTypeHash),
+      campaign_type_id: ccc.hexFrom(campaignTypeId),
       quest_id: questId,
       submission_timestamp: timestamp,
       submission_content: submissionContent

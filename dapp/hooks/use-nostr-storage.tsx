@@ -22,7 +22,7 @@ export function useNostrStorage() {
    */
   const storeSubmission = useMutation({
     mutationFn: async (submission: {
-      campaignTypeHash: string;
+      campaignTypeId: string;
       questId: number;
       userAddress: string;
       content: string;
@@ -41,8 +41,8 @@ export function useNostrStorage() {
         kind: CKBOOST_SUBMISSION_KIND,
         content: submission.content,
         tags: [
-          ['d', `ckboost-submission-${submission.campaignTypeHash}-${submission.questId}`],
-          ['campaign', submission.campaignTypeHash],
+          ['d', `ckboost-submission-${submission.campaignTypeId}-${submission.questId}`],
+          ['campaign', submission.campaignTypeId],
           ['quest', submission.questId.toString()],
           ['user', submission.userAddress],
           ['client', 'ckboost-dapp'],

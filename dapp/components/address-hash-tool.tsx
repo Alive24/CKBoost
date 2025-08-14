@@ -25,7 +25,8 @@ export function AddressHashTool() {
     }
 
     // Validate address format
-    if (!validateCKBAddress(address)) {
+    const isValid = await validateCKBAddress(address)
+    if (!isValid) {
       setError("Invalid CKB address format")
       return
     }
@@ -78,8 +79,7 @@ export function AddressHashTool() {
           />
           {address && (
             <div className="text-sm text-muted-foreground">
-              Display: {formatAddressForDisplay(address)} | 
-              Valid: {validateCKBAddress(address) ? "✅" : "❌"}
+              Display: {formatAddressForDisplay(address)}
             </div>
           )}
         </div>

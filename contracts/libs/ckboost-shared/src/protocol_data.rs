@@ -30,17 +30,17 @@ pub trait ProtocolDataExt {
     fn from_protocol_cell() -> Result<ProtocolData, Error> {
         debug!("Loading protocol data from protocol cell");
         
-        // Get the current script to extract the connected_type_hash from args
+        // Get the current script to extract the connected_key from args
         match load_script() {
             Ok(current_script) => {
                 let args = current_script.args();
                 debug!("Current script args length: {}", args.len());
                 
-                // Parse the args as ConnectedTypeID to get the connected_type_hash
+                // Parse the args as ConnectedTypeID to get the connected_key
                 use crate::generated::ckboost::ConnectedTypeID;
                 match ConnectedTypeID::from_slice(&args.raw_data()) {
                     Ok(connected_type_id) => {
-                        let connected_hash = connected_type_id.connected_type_hash();
+                        let connected_hash = connected_type_id.connected_key();
                         debug!("Looking for protocol cell with type hash: {:?}", connected_hash);
                         
                         // Now search CellDeps for a cell with matching type script hash
@@ -51,7 +51,7 @@ pub trait ProtocolDataExt {
                                 Ok(Some(type_hash)) => {
                                     debug!("CellDep {} type script hash: {:?}", index, type_hash);
                                     
-                                    // Check if this matches our connected_type_hash
+                                    // Check if this matches our connected_key
                                     if type_hash.as_slice() == connected_hash.as_slice() {
                                         debug!("Found matching protocol cell at CellDep index {}", index);
                                         

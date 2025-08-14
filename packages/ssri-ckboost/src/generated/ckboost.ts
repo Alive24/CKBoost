@@ -143,7 +143,7 @@ export const UserVerificationData = mol.table({
   identity_verification_data: mol.Bytes
 });
 export const UserSubmissionRecord = mol.table({
-  campaign_type_hash: mol.Byte32,
+  campaign_type_id: mol.Byte32,
   quest_id: mol.Uint32,
   submission_timestamp: mol.Uint64,
   submission_content: mol.String
@@ -157,7 +157,7 @@ export const UserData = mol.table({
 });
 export const ConnectedTypeID = mol.table({
   type_id: mol.Byte32,
-  connected_type_hash: mol.Byte32
+  connected_key: mol.Byte32
 });
 
 // CKB client block type aliases
@@ -311,7 +311,7 @@ export interface UserVerificationDataLike {
 }
 
 export interface UserSubmissionRecordLike {
-  campaign_type_hash: ccc.HexLike;
+  campaign_type_id: ccc.HexLike;
   quest_id: ccc.NumLike;
   submission_timestamp: ccc.NumLike;
   submission_content: string;
@@ -326,6 +326,6 @@ export interface UserDataLike {
 
 export interface ConnectedTypeIDLike {
   type_id: ccc.HexLike;
-  connected_type_hash: ccc.HexLike;
+  connected_key: ccc.HexLike;
 }
 

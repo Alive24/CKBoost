@@ -163,8 +163,8 @@ impl CKBoostUser for CKBoostUserType {
                 // Create ConnectedTypeID with the new type ID and protocol reference
                 let new_connected_type_id = ConnectedTypeID::new_builder()
                     .type_id(SharedByte32::from_slice(&type_id).unwrap())
-                    // Leave connected_type_hash empty for now and let dapp fill it in with the correct protocol cell type hash
-                    .connected_type_hash(SharedByte32::from_slice(&[0u8; 32]).unwrap())
+                    // Leave connected_key empty for now and let dapp fill it in with the correct protocol cell type hash
+                    .connected_key(SharedByte32::from_slice(&[0u8; 32]).unwrap())
                     .build();
                 
                 // Create the type script with ConnectedTypeID as args

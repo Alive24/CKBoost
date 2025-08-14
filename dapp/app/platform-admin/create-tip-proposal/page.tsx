@@ -109,7 +109,7 @@ export default function CreateTipProposalPage() {
               <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 <div>
-                  <div className="font-medium text-green-800">You're authorized to create proposals</div>
+                  <div className="font-medium text-green-800">You&apos;re authorized to create proposals</div>
                   <div className="text-sm text-green-600">
                     You can create tip proposals that will be voted on by the community
                   </div>
@@ -133,7 +133,7 @@ export default function CreateTipProposalPage() {
             <CardHeader>
               <CardTitle>Proposal Details</CardTitle>
               <CardDescription>
-                Provide details about the contribution you'd like to nominate for a community tip.
+                Provide details about the contribution you&apos;d like to nominate for a community tip.
               </CardDescription>
             </CardHeader>
             <CardContent>

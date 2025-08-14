@@ -131,13 +131,13 @@ export function NeventParserDialog({ open, onOpenChange }: NeventParserDialogPro
                   <Label className="text-xs text-muted-foreground">Campaign Type Hash</Label>
                   <div className="flex items-center gap-1">
                     <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-                      {truncateHash(submission.campaignTypeHash)}
+                      {truncateHash(submission.campaignTypeId)}
                     </code>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-6 w-6 p-0"
-                      onClick={() => copyToClipboard(submission.campaignTypeHash, 'campaign')}
+                      onClick={() => copyToClipboard(submission.campaignTypeId, 'campaign')}
                     >
                       {copied === 'campaign' ? (
                         <CheckCircle2 className="h-3 w-3 text-green-500" />
@@ -211,7 +211,7 @@ export function NeventParserDialog({ open, onOpenChange }: NeventParserDialogPro
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Nostr Relays</Label>
                   <div className="flex flex-wrap gap-1">
-                    {submission.relays.map((relay, index) => (
+                    {submission.relays.map((relay: string, index: number) => (
                       <Badge key={index} variant="outline" className="text-xs">
                         {relay}
                       </Badge>

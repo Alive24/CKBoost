@@ -442,7 +442,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   const getApprovedCampaign = (id: string): CampaignDataLike | undefined => {
     // TODO: To implement.
     throw new Error(`To be implemented ${id} `)
-    // return protocolData?.campaigns_approved?.find((campaignTypeHashHex: ccc.Hex) => c.status === id);
+    // return protocolData?.campaigns_approved?.find((campaignTypeIdHex: ccc.Hex) => c.status === id);
   };
 
   const value: ProtocolContextType = {

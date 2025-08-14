@@ -20,7 +20,7 @@ This resulted in O(n) complexity where n is the total number of campaigns on the
 
 Campaign cells use `ConnectedTypeID` as their type script args, which contains:
 - `type_id`: A unique identifier for the campaign (32 bytes)
-- `connected_type_hash`: The type hash of the connected protocol (32 bytes)
+- `connected_key`: The type hash of the connected protocol (32 bytes)
 
 By storing the `type_id` instead of `type_hash` in the protocol's `campaigns_approved` list, we can construct the exact type script args and perform a direct lookup.
 

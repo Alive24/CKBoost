@@ -525,7 +525,7 @@ export function CampaignCard({
 
         {/* Action Button - Always at bottom */}
         <div className="mt-4 pt-4">
-          <Link href={`/campaign/${campaign.typeHash || ''}`} className="block">
+          <Link href={`/campaign/${campaign.typeId || campaign.typeHash || ''}`} className="block">
             <Button className="w-full">View Campaign</Button>
           </Link>
         </div>

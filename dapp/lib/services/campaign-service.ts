@@ -7,7 +7,6 @@ import {
 } from "ssri-ckboost/types";
 import {
   fetchCampaignCells,
-  fetchCampaignByTypeHash,
 } from "../ckb/campaign-cells";
 import { ccc } from "@ckb-ccc/core";
 import { Campaign } from "ssri-ckboost";
@@ -45,13 +44,13 @@ export class CampaignService {
 
   /**
    * Update an existing campaign
-   * @param campaignTypeHash - Campaign type hash to update
+   * @param campaignTypeId - Campaign type ID to update
    * @param updates - Updated campaign data
    * @returns Transaction hash
    */
   async updateCampaign(
     campaignData: CampaignDataLike,
-    campaignTypeHash?: ccc.Hex,
+    campaignTypeId?: ccc.Hex,
     tx?: ccc.Transaction
   ): Promise<ccc.Hex> {
     if (!this.signer) {
@@ -70,38 +69,19 @@ export class CampaignService {
       let updateTx: ccc.Transaction;
       
       // New Campaign
-      if (!campaignTypeHash) {
+      if (!campaignTypeId) {
         const result = await this.campaign.updateCampaign(
           this.signer,
           campaignData
         );
         updateTx = result.res;
       } else {
-        // Fetch current campaign data
-        const currentCampaign = await fetchCampaignByTypeHash(
-          campaignTypeHash,
-          this.signer
+        // Campaign updates now require a type ID, not type hash
+        // The campaign should already have the current data loaded
+        throw new Error(
+          "Campaign updates by type hash are no longer supported. " +
+          "Please use fetchCampaignByTypeId to get the campaign, then update it."
         );
-
-        if (!currentCampaign) {
-          throw new Error(`Campaign ${campaignTypeHash} not found on chain`);
-        }
-
-        const currentCampaignData = CampaignData.decode(
-          currentCampaign.outputData
-        );
-        const updatedCampaignData: CampaignDataLike = {
-          ...currentCampaignData,
-          ...campaignData,
-        };
-
-        // Update campaign using Campaign
-        const result = await this.campaign.updateCampaign(
-          this.signer,
-          updatedCampaignData,
-          tx
-        );
-        updateTx = result.res;
       }
       
       if (!updateTx) {
@@ -158,7 +138,7 @@ export class CampaignService {
       
       const txHash = await this.signer.sendTransaction(updateTx);
 
-      console.log("Campaign updated:", { campaignTypeHash, txHash });
+      console.log("Campaign updated:", { campaignTypeId, txHash });
       return txHash;
     } catch (error) {
       console.error("Failed to update campaign:", error);
@@ -168,13 +148,13 @@ export class CampaignService {
 
   /**
    * Approve a quest completion
-   * @param campaignTypeHash - Campaign type hash
+   * @param campaignTypeId - Campaign type ID
    * @param questId - Quest ID
    * @param userId - User ID who completed the quest
    * @returns Transaction hash
    */
   async approveCompletion(
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: ccc.Num,
     userLockHash: ccc.Hex
   ): Promise<string> {
@@ -189,7 +169,7 @@ export class CampaignService {
     try {
       const { res: tx } = await this.campaign.approveCompletion(
         this.signer,
-        campaignTypeHash as ccc.Hex,
+        campaignTypeId as ccc.Hex,
         questId,
         userLockHash
       );
@@ -200,7 +180,7 @@ export class CampaignService {
       const txHash = await this.signer.sendTransaction(tx);
 
       console.log("Quest completion approved:", {
-        campaignTypeHash,
+        campaignTypeId,
         questId,
         txHash,
       });

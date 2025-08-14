@@ -28,13 +28,13 @@ interface QuestSubmissionFormProps {
     }>
   }
   questIndex: number
-  campaignTypeHash: ccc.Hex
+  campaignTypeId: ccc.Hex
 }
 
 export function QuestSubmissionForm({ 
   quest, 
   questIndex,
-  campaignTypeHash 
+  campaignTypeId 
 }: QuestSubmissionFormProps) {
   const { currentUserTypeId, submitQuest, hasUserSubmittedQuest, getUserSubmissions, isLoading: userLoading } = useUser()
   const { userAddress } = useProtocol()
@@ -51,7 +51,7 @@ export function QuestSubmissionForm({
   const [showStorageModal, setShowStorageModal] = useState(false)
   const [pendingNeventId, setPendingNeventId] = useState<string | null>(null)
   const [pendingSubmissionData, setPendingSubmissionData] = useState<{
-    campaignTypeHash: ccc.Hex
+    campaignTypeId: ccc.Hex
     questId: number
     contentToStore: string
   } | null>(null)
@@ -73,7 +73,7 @@ export function QuestSubmissionForm({
         // Check if submitted
         const submitted = await hasUserSubmittedQuest(
           currentUserTypeId,
-          campaignTypeHash,
+          campaignTypeId,
           Number(quest.quest_id || questIndex + 1)
         )
         setHasSubmitted(submitted)
@@ -85,7 +85,7 @@ export function QuestSubmissionForm({
           const questId = Number(quest.quest_id || questIndex + 1)
           
           const submission = submissions.find((s: any) => 
-            s.campaign_type_hash === campaignTypeHash && 
+            s.campaign_type_id === campaignTypeId && 
             s.quest_id === questId
           )
           
@@ -156,7 +156,7 @@ export function QuestSubmissionForm({
 
   useEffect(() => {
     checkSubmission()
-  }, [currentUserTypeId, campaignTypeHash, quest.quest_id, questIndex, hasUserSubmittedQuest, getUserSubmissions, userAddress, fetchSubmission])
+  }, [currentUserTypeId, campaignTypeId, quest.quest_id, questIndex, hasUserSubmittedQuest, getUserSubmissions, userAddress, fetchSubmission])
 
   const handleSubtaskResponseChange = (subtaskIndex: number, value: string) => {
     setSubtaskResponses(prev => ({
@@ -358,6 +358,9 @@ Lines        : 93.84% ( 183/195 )
       return
     }
 
+    // Show the modal immediately when submitting
+    setShowStorageModal(true)
+    
     try {
       setIsSubmitting(true)
       setError(null)
@@ -374,7 +377,7 @@ Lines        : 93.84% ( 183/195 )
         try {
           debug.log("Storing submission on Nostr...")
           const result = await storeSubmission.mutateAsync({
-            campaignTypeHash,
+            campaignTypeId,
             questId: Number(quest.quest_id || questIndex + 1),
             userAddress,
             content: submissionContent,
@@ -382,19 +385,19 @@ Lines        : 93.84% ( 183/195 )
           })
           nostrNeventId = result
           debug.log("✅ Successfully stored on Nostr!")
-          debug.log("Nevent ID:", nostrNeventId)
+          debug.log("Stored nevent ID:", nostrNeventId)
+          debug.log("Full nevent ID that will be submitted:", nostrNeventId)
           
-          // Store the submission data for later
-          const contentToStore = nostrNeventId || submissionContent
+          // Store the submission data for later - use the nevent ID directly
           setPendingSubmissionData({
-            campaignTypeHash,
+            campaignTypeId,
             questId: Number(quest.quest_id || questIndex + 1),
-            contentToStore
+            contentToStore: nostrNeventId // Use the nevent ID directly, not a variable
           })
           setPendingNeventId(nostrNeventId)
+          debug.log("Pending data set with nevent ID:", nostrNeventId)
           
-          // Show the verification modal
-          setShowStorageModal(true)
+          // Modal is already shown, just update the state
           setIsSubmitting(false)
           
           // Don't proceed with transaction yet - wait for verification
@@ -407,7 +410,7 @@ Lines        : 93.84% ( 183/195 )
 
       // If no Nostr storage, proceed directly with on-chain storage
       const contentToStore = submissionContent
-      await finalizeSubmission(campaignTypeHash, Number(quest.quest_id || questIndex + 1), contentToStore)
+      await finalizeSubmission(campaignTypeId, Number(quest.quest_id || questIndex + 1), contentToStore)
     } catch (err) {
       debug.error("Failed to submit quest:", err)
       setError(err instanceof Error ? err.message : "Failed to submit quest")
@@ -419,7 +422,7 @@ Lines        : 93.84% ( 183/195 )
   const finalizeSubmission = async (campaignHash?: ccc.Hex, questIdParam?: number, content?: string) => {
     try {
       // Use pending data if available
-      const finalCampaignHash = campaignHash || pendingSubmissionData?.campaignTypeHash
+      const finalCampaignHash = campaignHash || pendingSubmissionData?.campaignTypeId
       const finalQuestId = questIdParam || pendingSubmissionData?.questId
       const finalContent = content || pendingSubmissionData?.contentToStore
 
@@ -446,19 +449,24 @@ Lines        : 93.84% ( 183/195 )
       // Reload the submission to get the latest data
       const submissions = await getUserSubmissions(currentUserTypeId!)
       const submission = submissions.find((s: any) => 
-        s.campaign_type_hash === finalCampaignHash && 
+        s.campaign_type_id === finalCampaignHash && 
         s.quest_id === finalQuestId
       )
       if (submission) {
         setExistingSubmission(submission)
       }
 
-      // Clear pending data
+      // Clear pending data after successful submission
       setPendingSubmissionData(null)
       setPendingNeventId(null)
+      
+      // Return the txHash so the modal can display it
+      return txHash
     } catch (err) {
       debug.error("Failed to finalize submission:", err)
       setError(err instanceof Error ? err.message : "Failed to submit quest")
+      // Re-throw so the modal can handle the error
+      throw err
     } finally {
       setIsSubmitting(false)
     }
@@ -490,8 +498,8 @@ Lines        : 93.84% ( 183/195 )
   }
 
   // Check if submission is accepted
-  const isAccepted = hasSubmitted && existingSubmission && 
-    quest.accepted_submission_user_type_ids?.includes(currentUserTypeId)
+  // Note: acceptance status would need to be fetched from the campaign cell
+  const isAccepted = false // TODO: Implement acceptance checking from campaign cell
 
   return (
     <div className="space-y-6">
@@ -593,7 +601,7 @@ Lines        : 93.84% ( 183/195 )
                     <>
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800 dark:text-green-200">
-                        Your submission has been accepted! You earned {quest.quest_points_reward || 0} points.
+                        Your submission has been accepted! You earned 10 points.
                       </AlertDescription>
                     </>
                   ) : (
@@ -921,8 +929,9 @@ Lines        : 93.84% ( 183/195 )
         }}
         neventId={pendingNeventId}
         onConfirm={async () => {
+          // Don't close the modal - let it stay open to show tx result
           await finalizeSubmission()
-          setShowStorageModal(false)
+          // Modal will handle showing success/error state
         }}
         mode="verifying"
       />

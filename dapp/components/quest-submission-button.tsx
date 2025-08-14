@@ -15,17 +15,20 @@ import { ckboost } from "ssri-ckboost"
 import { debug } from "@/lib/utils/debug"
 
 interface QuestSubmissionButtonProps {
-  quest: any // Quest type from the campaign
+  quest: { 
+    quest_id?: number
+    metadata?: { title?: string; description?: string; short_description?: string }
+    sub_tasks?: Array<{ title?: string; description?: string; type?: string; proof_required?: string }> 
+  }
   questIndex: number
-  campaign: any
-  campaignTypeHash: ccc.Hex
+  campaign: unknown // Campaign type not used
+  campaignTypeId: ccc.Hex
 }
 
 export function QuestSubmissionButton({ 
   quest, 
-  questIndex, 
-  campaign,
-  campaignTypeHash 
+  questIndex,
+  campaignTypeId 
 }: QuestSubmissionButtonProps) {
   const { currentUserTypeId, submitQuest, hasUserSubmittedQuest, isLoading: userLoading } = useUser()
   const { userAddress } = useProtocol()
@@ -49,14 +52,14 @@ export function QuestSubmissionButton({
       console.log("Checking submission status for quest", {
         hasUserTypeId: !!currentUserTypeId,
         userTypeId: currentUserTypeId?.slice(0, 10) + "..." || "none",
-        campaignTypeHash: campaignTypeHash.slice(0, 10) + "...",
+        campaignTypeId: campaignTypeId.slice(0, 10) + "...",
         questId: Number(quest.quest_id || questIndex + 1)
       });
       
       if (currentUserTypeId) {
         const submitted = await hasUserSubmittedQuest(
           currentUserTypeId,
-          campaignTypeHash,
+          campaignTypeId,
           Number(quest.quest_id || questIndex + 1)
         )
         console.log("Submission check result:", submitted);
@@ -69,7 +72,7 @@ export function QuestSubmissionButton({
       }
     }
     checkSubmission()
-  }, [currentUserTypeId, campaignTypeHash, quest.quest_id, questIndex, hasUserSubmittedQuest, userAddress])
+  }, [currentUserTypeId, campaignTypeId, quest.quest_id, questIndex, hasUserSubmittedQuest, userAddress])
 
   const handleSubmit = async () => {
     if (!submissionContent && !submissionUrl) {
@@ -94,7 +97,7 @@ export function QuestSubmissionButton({
 
       // Submit quest - this will create user cell if needed
       const txHash = await submitQuest(
-        campaignTypeHash,
+        campaignTypeId,
         Number(quest.quest_id || questIndex + 1),
         fullSubmissionContent,
         isFirstTime ? userVerificationData : undefined
@@ -262,11 +265,11 @@ export function QuestSubmissionButton({
             )}
 
             {/* Submission Requirements */}
-            {quest.metadata?.requirements && (
+            {quest.metadata?.description && (
               <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <h5 className="text-sm font-medium mb-1">Requirements</h5>
                 <p className="text-sm text-blue-800 dark:text-blue-200">
-                  {quest.metadata.requirements}
+                  {quest.metadata.description}
                 </p>
               </div>
             )}

@@ -4,8 +4,8 @@
 
 1. On-chain First:
    - Protocol Data (singleton cell with standard type_id)
-   - Campaign Data (cells with ConnectedTypeID: type_id + connected_type_hash pointing to protocol type hash)
-   - User Data (cells with ConnectedTypeID: type_id + connected_type_hash pointing to protocol type hash)
+   - Campaign Data (cells with ConnectedTypeID: type_id + connected_key pointing to protocol type hash)
+   - User Data (cells with ConnectedTypeID: type_id + connected_key pointing to protocol type hash)
    - Approval Records (user type_ids stored in quest's accepted_submission_user_type_ids)
 2. Off-chain Data:
    - Completion content stored in Neon database (only URLs stored on-chain)

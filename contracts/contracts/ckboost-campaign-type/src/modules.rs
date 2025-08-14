@@ -88,7 +88,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // The type_id in ConnectedTypeID is the actual campaign type ID
                 let _campaign_type_id = connected_type_id.type_id();
-                let _connected_type_hash = connected_type_id.connected_type_hash();
+                let _connected_key = connected_type_id.connected_key();
 
                 // Try to find existing campaign cell with this type ID
                 let campaign_outpoint = find_out_point_by_type(current_script.clone())?;
@@ -160,8 +160,8 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 // Create ConnectedTypeID with the new type ID and protocol reference
                 let new_connected_type_id = ConnectedTypeID::new_builder()
                     .type_id(SharedByte32::from_slice(&type_id).unwrap())
-                    // Leave connected_type_hash empty for now and let dapp fill it in with the correct protocol cell type hash
-                    .connected_type_hash(SharedByte32::from_slice(&[0u8; 32]).unwrap())
+                    // Leave connected_key empty for now and let dapp fill it in with the correct protocol cell type hash
+                    .connected_key(SharedByte32::from_slice(&[0u8; 32]).unwrap())
                     .build();
 
                 // Create the type script with ConnectedTypeID as args
@@ -373,7 +373,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         let current_script = load_script()?;
 
         // Find campaign cell by ID
-        // In a real implementation, this would search through cells to find the one with matching campaign_type_hash
+        // In a real implementation, this would search through cells to find the one with matching campaign_type_id
         // For now, we assume the campaign cell is provided in the transaction
         let _campaign_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
 

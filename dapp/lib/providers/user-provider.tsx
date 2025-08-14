@@ -13,7 +13,7 @@ interface UserContextType {
   currentUserData: ReturnType<typeof ckboost.types.UserData.decode> | null;
   currentUserTypeId: ccc.Hex | null;
   submitQuest: (
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string,
     userVerificationData?: {
@@ -27,7 +27,7 @@ interface UserContextType {
   getUserData: (userTypeId: ccc.Hex) => Promise<ReturnType<typeof ckboost.types.UserData.decode> | null>;
   hasUserSubmittedQuest: (
     userTypeId: ccc.Hex,
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number
   ) => Promise<boolean>;
   isLoading: boolean;
@@ -105,47 +105,56 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // Helper function to load current user data
   const loadCurrentUserData = async (service: UserService) => {
-    if (!signer) return;
+    if (!signer || !protocolData) return;
     
     try {
-      console.log("Loading current user data...");
-      const lockScript = (await signer.getRecommendedAddressObj()).script;
+      console.log("[UserProvider] Starting to load user data...");
+      const startTime = Date.now();
       
-      // Search for user cell by lock script
-      for await (const cell of signer.client.findCellsByLock(lockScript, null)) {
-        // Check if this cell has the user type script
-        if (cell.cellOutput.type && 
-            cell.cellOutput.type.codeHash === protocolData?.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash) {
-          
-          console.log("Found user cell:", {
-            cellOutPoint: cell.outPoint,
-            typeArgs: cell.cellOutput.type.args?.slice(0, 20) + "..."
+      const lockScript = (await signer.getRecommendedAddressObj()).script;
+      const userTypeCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash;
+      
+      console.log("[UserProvider] Lock script hash:", lockScript.hash().slice(0, 10) + "...");
+      console.log("[UserProvider] User type code hash:", userTypeCodeHash.slice(0, 10) + "...");
+      
+      // Import the new function for getting latest user cell
+      const { getLatestUserCellByLock } = await import("../ckb/user-cells");
+      
+      // Get the latest user cell (handles multiple cells properly)
+      const userCell = await getLatestUserCellByLock(lockScript, userTypeCodeHash, signer);
+      
+      if (userCell) {
+        console.log("[UserProvider] Found user cell:", {
+          cellOutPoint: userCell.outPoint,
+          typeArgs: userCell.cellOutput.type?.args?.slice(0, 20) + "...",
+          timeElapsed: `${Date.now() - startTime}ms`
+        });
+        
+        // Extract type ID and parse user data
+        const typeId = extractTypeIdFromUserCell(userCell);
+        const userData = parseUserData(userCell);
+        
+        if (typeId && userData) {
+          console.log("[UserProvider] Successfully loaded user data:", {
+            typeId: typeId.slice(0, 10) + "...",
+            submissions: userData.submission_records.length,
+            totalPoints: userData.total_points_earned,
+            totalTime: `${Date.now() - startTime}ms`
           });
           
-          // Extract type ID and parse user data
-          const typeId = extractTypeIdFromUserCell(cell);
-          const userData = parseUserData(cell);
-          
-          if (typeId && userData) {
-            console.log("Loaded user data:", {
-              typeId: typeId.slice(0, 10) + "...",
-              submissions: userData.submission_records.length,
-              totalPoints: userData.total_points_earned
-            });
-            
-            setCurrentUserTypeId(typeId);
-            setCurrentUserData(userData);
-            break; // Found the user cell, stop searching
-          }
+          setCurrentUserTypeId(typeId);
+          setCurrentUserData(userData);
         }
+      } else {
+        console.log(`[UserProvider] No user cell found for wallet (searched for ${Date.now() - startTime}ms)`);
       }
     } catch (err) {
-      console.error("Failed to load user data:", err);
+      console.error("[UserProvider] Failed to load user data:", err);
     }
   };
 
   const submitQuest = async (
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string,
     userVerificationData?: {
@@ -165,7 +174,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       
       // Use the unified method that handles both create and update
       const result = await userService.submitQuestWithAutoCreate(
-        campaignTypeHash,
+        campaignTypeId,
         questId,
         submissionContent,
         userVerificationData
@@ -208,7 +217,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     // Get submissions with content from Nostr if applicable
     const submissions = await userService.getUserSubmissionsWithContent(userTypeId);
     return submissions.map(s => ({
-      campaign_type_hash: s.campaignTypeHash as ccc.Hex,
+      campaign_type_id: s.campaignTypeId as ccc.Hex,
       quest_id: s.questId,
       submission_timestamp: BigInt(s.timestamp),
       submission_content: s.submissionContent
@@ -227,7 +236,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const hasUserSubmittedQuest = async (
     userTypeId: ccc.Hex,
-    campaignTypeHash: ccc.Hex,
+    campaignTypeId: ccc.Hex,
     questId: number
   ) => {
     if (!userService) {
@@ -239,27 +248,27 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     // Debug logging
     console.log("Checking submissions for quest", { 
       userTypeId: userTypeId.slice(0, 10) + "...",
-      campaignTypeHash: campaignTypeHash,
+      campaignTypeId: campaignTypeId,
       questId,
       totalSubmissions: submissions.length
     });
     
     const found = submissions.some(s => {
-      // Normalize both campaign type hashes for comparison
+      // Normalize both campaign type IDs for comparison
       // Remove 0x prefix if present and compare
-      const cleanSubmissionHash = s.campaignTypeHash.replace(/^0x/i, '').toLowerCase();
-      const cleanCampaignHash = campaignTypeHash.replace(/^0x/i, '').toLowerCase();
+      const cleanSubmissionId = s.campaignTypeId.replace(/^0x/i, '').toLowerCase();
+      const cleanCampaignId = campaignTypeId.replace(/^0x/i, '').toLowerCase();
       
-      const isMatch = cleanSubmissionHash === cleanCampaignHash && s.questId === questId;
+      const isMatch = cleanSubmissionId === cleanCampaignId && s.questId === questId;
       
       console.log("Comparing submission:", {
-        submissionCampaign: s.campaignTypeHash,
-        targetCampaign: campaignTypeHash,
-        cleanSubmission: cleanSubmissionHash.slice(0, 10) + "...",
-        cleanTarget: cleanCampaignHash.slice(0, 10) + "...",
+        submissionCampaign: s.campaignTypeId,
+        targetCampaign: campaignTypeId,
+        cleanSubmission: cleanSubmissionId.slice(0, 10) + "...",
+        cleanTarget: cleanCampaignId.slice(0, 10) + "...",
         submissionQuest: s.questId,
         targetQuest: questId,
-        campaignMatch: cleanSubmissionHash === cleanCampaignHash,
+        campaignMatch: cleanSubmissionId === cleanCampaignId,
         questMatch: s.questId === questId,
         overallMatch: isMatch
       });

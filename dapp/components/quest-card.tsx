@@ -13,10 +13,10 @@ import { ccc, mol } from "@ckb-ccc/core"
 
 interface QuestCardProps {
   quest: QuestDataLike
-  campaignTypeHash: string
+  campaignTypeId: string
 }
 
-export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
+export function QuestCard({ quest, campaignTypeId }: QuestCardProps) {
   const [showSubtasks, setShowSubtasks] = useState(false)
 
   const getDifficultyColor = (difficulty: string) => {
@@ -50,10 +50,10 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
   }
 
   // Extract display values from schema
-  const questTitle = mol.String.decode(quest.title)
-  const questDescription = mol.String.decode(quest.description)
-  const questDifficulty = getDifficultyString(quest.difficulty)
-  const questTimeEstimate = getTimeEstimateString(quest.time_estimate)
+  const questTitle = quest.metadata?.title || 'Untitled Quest'
+  const questDescription = quest.metadata?.short_description || 'No description'
+  const questDifficulty = getDifficultyString(quest.metadata?.difficulty)
+  const questTimeEstimate = getTimeEstimateString(quest.metadata?.time_estimate)
   const questIcon = getQuestIcon(questTitle)
   const questRewards = getQuestRewards(quest)
   
@@ -104,7 +104,7 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">Progress</span>
               <span className="text-sm text-muted-foreground">
-                {completedSubtasks}/{quest.subtasks.length} subtasks
+                {completedSubtasks}/{quest.sub_tasks.length} subtasks
               </span>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setShowSubtasks(!showSubtasks)} className="text-xs">
@@ -170,7 +170,7 @@ export function QuestCard({ quest, campaignTypeHash }: QuestCardProps) {
             <Clock className="w-4 h-4" />
             {questTimeEstimate}
           </div>
-          <Link href={`/campaign/${campaignTypeHash}/quest/${quest.quest_id}`}>
+          <Link href={`/campaign/${campaignTypeId}/quest/${quest.quest_id}`}>
             <Button size="sm">Start Quest</Button>
           </Link>
         </div>

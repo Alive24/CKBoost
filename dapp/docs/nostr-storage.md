@@ -35,7 +35,7 @@ const nostrService = new NostrStorageService(cccClient);
 
 // Store submission with images on Nostr
 const neventId = await nostrService.storeSubmission({
-  campaignTypeHash: "0x123...",
+  campaignTypeId: "0x123...",
   questId: 1,
   userAddress: "ckt1...",
   content: "<h3>Task 1</h3><img src='data:image/png;base64,...'>",

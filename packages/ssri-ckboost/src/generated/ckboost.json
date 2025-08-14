@@ -867,7 +867,7 @@
       "name": "UserSubmissionRecord",
       "fields": [
         {
-          "name": "campaign_type_hash",
+          "name": "campaign_type_id",
           "type": "Byte32"
         },
         {
@@ -920,7 +920,7 @@
           "type": "Byte32"
         },
         {
-          "name": "connected_type_hash",
+          "name": "connected_key",
           "type": "Byte32"
         }
       ]

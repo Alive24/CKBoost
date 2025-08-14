@@ -33,6 +33,8 @@ export function NostrStorageModal({
   const [retryCount, setRetryCount] = useState(0)
   const [isRetrying, setIsRetrying] = useState(false)
   const [isConfirming, setIsConfirming] = useState(false)
+  const [txStatus, setTxStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle")
+  const [txError, setTxError] = useState<string | null>(null)
 
   // Reset state when modal opens
   useEffect(() => {
@@ -95,12 +97,20 @@ export function NostrStorageModal({
     }
 
     setIsConfirming(true)
+    setTxStatus("submitting")
+    setTxError(null)
+    
     try {
       await onConfirm()
-      onClose()
+      setTxStatus("submitted")
+      // Don't close modal immediately - let user see the status
+      // User can manually close or refresh the page
     } catch (err) {
       debug.error("Failed to confirm transaction:", err)
-      setErrorMessage(err instanceof Error ? err.message : "Failed to submit transaction")
+      const errorMsg = err instanceof Error ? err.message : "Failed to submit transaction"
+      setTxError(errorMsg)
+      setTxStatus("error")
+      setErrorMessage(errorMsg)
     } finally {
       setIsConfirming(false)
     }
@@ -312,8 +322,81 @@ export function NostrStorageModal({
             </>
           )}
 
+          {/* Transaction Status Display */}
+          {txStatus !== "idle" && (
+            <Card className={
+              txStatus === "submitted" ? "border-green-200 dark:border-green-800" :
+              txStatus === "error" ? "border-red-200 dark:border-red-800" :
+              "border-blue-200 dark:border-blue-800"
+            }>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  {txStatus === "submitting" && (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Submitting Transaction...
+                    </>
+                  )}
+                  {txStatus === "submitted" && (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      Transaction Submitted!
+                    </>
+                  )}
+                  {txStatus === "error" && (
+                    <>
+                      <XCircle className="w-4 h-4 text-red-600" />
+                      Transaction Failed
+                    </>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {txStatus === "submitted" && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-green-600 dark:text-green-400">
+                      Your quest submission has been successfully sent to the blockchain!
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      The transaction has been submitted. You can refresh the page to see your submission.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={() => window.location.reload()}
+                      >
+                        <RefreshCw className="w-3 h-3 mr-1" />
+                        Refresh Page
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-xs"
+                        onClick={onClose}
+                      >
+                        Close Dialog
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {txStatus === "error" && txError && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      {txError}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Please try again or contact support if the issue persists.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Error Display */}
-          {status === "error" && (
+          {status === "error" && txStatus === "idle" && (
             <Alert className="border-red-200 bg-red-50 dark:bg-red-900/20">
               <AlertTriangle className="h-4 w-4 text-red-600" />
               <AlertDescription className="text-red-800 dark:text-red-200">
@@ -387,9 +470,9 @@ export function NostrStorageModal({
           <Button
             variant="outline"
             onClick={onClose}
-            disabled={isConfirming || isRetrying}
+            disabled={isConfirming || isRetrying || txStatus === "submitting"}
           >
-            Cancel
+            {txStatus === "submitted" ? "Close" : "Cancel"}
           </Button>
           
           {status === "error" && (
@@ -412,13 +495,13 @@ export function NostrStorageModal({
             </Button>
           )}
 
-          {status === "success" && (
+          {status === "success" && txStatus !== "submitted" && (
             <Button
               onClick={handleConfirm}
-              disabled={isConfirming}
+              disabled={isConfirming || txStatus === "submitting"}
               className="bg-green-600 hover:bg-green-700"
             >
-              {isConfirming ? (
+              {isConfirming || txStatus === "submitting" ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Submitting Transaction...

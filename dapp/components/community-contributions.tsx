@@ -321,16 +321,43 @@ export function CommunityContributions() {
             </Card>
 
             {/* Tip Proposals for this Contribution */}
-            {contributionTips.map((proposal) => (
-              <TipProposalCard
-                key={proposal.id}
-                proposal={{
-                  ...proposal,
-                  currentUserApproved: proposal.approvals.some((a) => a.username === "CurrentUser"),
-                  onApprove: handleApprove,
-                }}
-              />
-            ))}
+            {contributionTips.map((proposal) => {
+              // Find the contribution this tip is for
+              const contribution = contributions.find(c => c.id === proposal.contributionId)
+              
+              return (
+                <TipProposalCard
+                  key={proposal.id}
+                  proposal={{
+                    id: proposal.id,
+                    contributionTitle: contribution?.content.slice(0, 100) || "Community Contribution",
+                    contributionDescription: contribution?.content || "",
+                    contributionType: contribution?.type || "comment",
+                    contributionUrl: undefined,
+                    recipientName: proposal.recipientName,
+                    recipientAddress: proposal.recipientAddress,
+                    proposedBy: proposal.initiatedBy,
+                    justification: proposal.reason || proposal.message || "",
+                    communityTipAmount: proposal.amount,
+                    status: proposal.status,
+                    approvals: proposal.approvals.map(a => ({
+                      username: a.username,
+                      timestamp: a.timestamp,
+                      avatar: undefined
+                    })),
+                    requiredApprovals: proposal.requiredApprovals || 5,
+                    createdAt: proposal.createdAt,
+                    completedAt: proposal.completedAt,
+                    likes: 0,
+                    isLiked: false,
+                    comments: [],
+                    additionalTips: [],
+                    currentUserApproved: proposal.approvals.some((a) => a.username === "CurrentUser"),
+                    onApprove: handleApprove,
+                  }}
+                />
+              )
+            })}
           </div>
         )
       })}

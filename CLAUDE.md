@@ -696,7 +696,7 @@ The quest submission system enables users to submit quest completions to their o
   - Generated types ensure binary compatibility and prevent serialization errors
 - **ConnectedTypeID Pattern**: Campaign and user cells (NOT protocol) use ConnectedTypeID args containing:
   - `type_id`: Unique identifier for O(1) cell lookups (32 bytes)
-  - `connected_type_hash`: Protocol type hash for validation (32 bytes)
+  - `connected_key`: Protocol type hash for validation (32 bytes)
 - **Type Script Args**: Always validate and parse args as ConnectedTypeID for campaign/user cells, standard type_id for protocol cell
 
 ### SSRI Method Patterns
@@ -731,7 +731,7 @@ type:
     code_hash: ckboost-*-type contract
     args: <ConnectedTypeID>
       type_id: <32 bytes>  # Unique identifier for O(1) lookup
-      connected_type_hash: <32 bytes>  # Protocol reference
+      connected_key: <32 bytes>  # Protocol reference
 lock:
     code: <owner lock>
     args: <owner lock args>
@@ -803,7 +803,7 @@ Inputs:
       args: <args explanation>
       rules: <Lock Script validation requirements in list>
     type: <type-script-name>
-      args: <ConnectedTypeID with type_id and connected_type_hash>
+      args: <ConnectedTypeID with type_id and connected_key>
       rules: <Type Script validation requirements in list>
     data: <Molecule-encoded data structure>
     capacity: <required Occupied Capacity if not specified>

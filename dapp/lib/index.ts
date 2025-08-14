@@ -17,8 +17,5 @@ export { cellToCampaignDisplay, type CampaignDisplay } from './utils/campaign-ut
 // CKB Integration (for advanced users)
 export * from './ckb/campaign-cells'
 
-// Mock data (for development/testing)
-export * from './mock/mock-campaigns'
-
 // Re-export commonly used SSRI types for convenience
 export type { CampaignDataLike, QuestDataLike } from 'ssri-ckboost/types'

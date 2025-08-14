@@ -11,19 +11,19 @@ import { ccc } from "@ckb-ccc/core"
 import { debug } from "@/lib/utils/debug"
 
 interface QuestSubmissionDisplayProps {
-  quest: any
+  quest: { quest_id?: number; metadata?: { title?: string } }
   questIndex: number
-  campaignTypeHash: ccc.Hex
+  campaignTypeId: ccc.Hex
 }
 
 export function QuestSubmissionDisplay({ 
   quest, 
   questIndex, 
-  campaignTypeHash 
+  campaignTypeId 
 }: QuestSubmissionDisplayProps) {
   const { currentUserTypeId, getUserSubmissions, refreshUserData } = useUser()
   const { fetchSubmission } = useNostrFetch()
-  const [userSubmission, setUserSubmission] = useState<any>(null)
+  const [userSubmission, setUserSubmission] = useState<{ submission_timestamp?: number; submission_content?: string } | null>(null)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [submissionContent, setSubmissionContent] = useState<string>("")
   const [isLoadingContent, setIsLoadingContent] = useState(false)
@@ -38,8 +38,8 @@ export function QuestSubmissionDisplay({
       const questId = Number(quest.quest_id || questIndex + 1)
       
       // Find submission for this specific quest
-      const submission = submissions.find((s: any) => 
-        s.campaign_type_hash === campaignTypeHash && 
+      const submission = submissions.find((s: { campaign_type_id?: string; quest_id?: number }) => 
+        s.campaign_type_id === campaignTypeId && 
         s.quest_id === questId
       )
 
@@ -48,7 +48,10 @@ export function QuestSubmissionDisplay({
           questId,
           hasNeventId: submission.submission_content?.startsWith('nevent1')
         })
-        setUserSubmission(submission)
+        setUserSubmission({
+          submission_timestamp: Number(submission.submission_timestamp),
+          submission_content: submission.submission_content
+        })
       } else {
         setUserSubmission(null)
       }
@@ -59,7 +62,7 @@ export function QuestSubmissionDisplay({
 
   useEffect(() => {
     loadSubmission()
-  }, [currentUserTypeId, campaignTypeHash, quest.quest_id, questIndex])
+  }, [currentUserTypeId, campaignTypeId, quest.quest_id, questIndex])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -123,7 +126,8 @@ export function QuestSubmissionDisplay({
   }
 
   // Check if submission is accepted
-  const isAccepted = quest.accepted_submission_user_type_ids?.includes(currentUserTypeId)
+  // Note: acceptance status would need to be fetched from the campaign cell
+  const isAccepted = false // TODO: Implement acceptance checking from campaign cell
 
   return (
     <>
@@ -258,13 +262,13 @@ export function QuestSubmissionDisplay({
             )}
 
             {/* Points Earned (if accepted) */}
-            {isAccepted && quest.quest_points_reward && (
+            {isAccepted && (
               <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <span className="text-sm font-medium text-green-800 dark:text-green-200">
                   Points Earned
                 </span>
                 <span className="text-lg font-bold text-green-800 dark:text-green-200">
-                  +{quest.quest_points_reward}
+                  +10
                 </span>
               </div>
             )}

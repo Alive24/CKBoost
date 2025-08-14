@@ -305,9 +305,7 @@ export class ProtocolService {
 
       return {
         totalCampaigns: BigInt(data.campaigns_approved.length),
-        activeCampaigns: BigInt(
-          data.campaigns_approved.filter((c: CampaignDataLike) => c.status === 4).length
-        ),
+        activeCampaigns: BigInt(0), // Active campaigns need to be fetched separately by querying each campaign cell
         totalTippingProposals: BigInt(data.tipping_proposals.length),
         pendingTippingProposals: BigInt(
           data.tipping_proposals.filter((p: TippingProposalDataLike) => !p.tipping_transaction_hash)
