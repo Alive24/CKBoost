@@ -6,7 +6,7 @@ import { ccc } from '@ckb-ccc/connector-react'
 
 export type Network = 'testnet' | 'mainnet'
 
-export type ContractType = 'ckboostProtocolType' | 'ckboostCampaignType' | 'ckboostUserType' | 'ckboostProtocolLock' | 'ckboostCampaignLock' | 'ckboostUserLock'
+export type ContractType = 'ckboostProtocolType' | 'ckboostCampaignType' | 'ckboostUserType' | 'ckboostProtocolLock' | 'ckboostCampaignLock' | 'ckboostUserLock' | 'ckboostPointsUdt'
 
 export interface DeploymentRecord {
   transactionHash: ccc.Hex
@@ -27,9 +27,6 @@ export interface DeploymentRecord {
   typeScript?: ccc.ScriptLike
   isTypeId?: boolean
   typeHash?: ccc.Hex
-  // Legacy fields for backward compatibility
-  codeHash?: ccc.Hex
-  hashType?: ccc.HashType
 }
 
 export interface DeploymentHistory {
@@ -41,6 +38,7 @@ export interface DeploymentHistory {
       ckboostProtocolLock: DeploymentRecord | null
       ckboostCampaignLock: DeploymentRecord | null
       ckboostUserLock: DeploymentRecord | null
+      ckboostPointsUdt: DeploymentRecord | null
       // Add other contract types as needed
     }
     mainnet: {
@@ -50,6 +48,7 @@ export interface DeploymentHistory {
       ckboostProtocolLock?: DeploymentRecord | null
       ckboostCampaignLock?: DeploymentRecord | null
       ckboostUserLock?: DeploymentRecord | null
+      ckboostPointsUdt?: DeploymentRecord | null
       // Add other contract types as needed
     }
   }
@@ -100,13 +99,20 @@ export class DeploymentManager {
       return deployment.typeScript
     }
     
-    // Fallback to legacy fields
-    if (deployment.codeHash && deployment.hashType) {
-      return {
-        codeHash: deployment.codeHash,
-        hashType: deployment.hashType,
-        args: '0x' as ccc.Hex // Default args for legacy format
-      }
+    return null
+  }
+
+  /**
+   * Get the code hash for a deployed contract
+   * This returns the actual code hash that should be stored in the protocol cell
+   */
+  getContractCodeHash(network: Network, contractType: ContractType): ccc.Hex | null {
+    const deployment = this.getCurrentDeployment(network, contractType)
+    if (!deployment) return null
+    
+    // Use typeHash if available (this is the actual code hash for type-id contracts)
+    if (deployment.typeHash) {
+      return deployment.typeHash
     }
     
     return null

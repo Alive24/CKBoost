@@ -64,6 +64,7 @@ export interface ProtocolChanges {
     ckbBoostCampaignTypeCodeHash: FieldChange<string>
     ckbBoostCampaignLockCodeHash: FieldChange<string>
     ckbBoostUserTypeCodeHash: FieldChange<string>
+    ckbBoostPointsUdtTypeCodeHash: FieldChange<string>
   }
   tippingConfig: {
     approvalRequirementThresholds: FieldChange<string[]>

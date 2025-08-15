@@ -8,7 +8,7 @@
 #   ./deploy-contracts.sh --all [options]
 #
 # Contract names:
-#   protocol-type, protocol-lock, campaign-type, campaign-lock, user-type
+#   protocol-type, protocol-lock, campaign-type, campaign-lock, user-type, points-udt
 #
 # Options:
 #   --network <network>     Network to deploy to (testnet|mainnet|devnet) [default: testnet]
@@ -19,8 +19,9 @@
 #
 # Examples:
 #   ./deploy-contracts.sh protocol-type                      # Deploy protocol-type to testnet
-#   ./deploy-contracts.sh protocol-type --tag v1.0.0        # Deploy with specific tag
+#   ./deploy-contracts.sh points-udt --tag v1.0.0           # Deploy points-udt with specific tag
 #   ./deploy-contracts.sh protocol-type --upgradeFrom v1.0.0 --tag v2.0.0  # Upgrade contract
+#   ./deploy-contracts.sh points-udt --upgrade              # Interactive upgrade for points-udt
 #   ./deploy-contracts.sh --all --network mainnet --tag v1.0.0  # Deploy all to mainnet
 
 set -e  # Exit on error
@@ -65,7 +66,7 @@ show_usage() {
     echo "       $0 --all [options]"
     echo ""
     echo "Contract names:"
-    echo "  protocol-type, protocol-lock, campaign-type, campaign-lock, user-type"
+    echo "  protocol-type, protocol-lock, campaign-type, campaign-lock, user-type, points-udt"
     echo ""
     echo "Options:"
     echo "  --network <network>     Network to deploy to (testnet|mainnet|devnet) [default: testnet]"
@@ -76,10 +77,10 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0 protocol-type                                      # Deploy protocol-type to testnet"
-    echo "  $0 protocol-type --tag v1.0.0                        # Deploy with specific tag"
+    echo "  $0 points-udt --tag v1.0.0                           # Deploy points-udt with specific tag"
     echo "  $0 protocol-type --upgradeFrom v1.0.0 --tag v2.0.0   # Upgrade from v1.0.0 to v2.0.0"
-    echo "  $0 protocol-type --upgrade                            # Interactive upgrade mode"
-    echo "  $0 --all --network mainnet --tag v1.0.0             # Deploy all to mainnet"
+    echo "  $0 points-udt --upgrade                               # Interactive upgrade mode for points-udt"
+    echo "  $0 --all --network mainnet --tag v1.0.0             # Deploy all to mainnet (includes points-udt)"
     exit 1
 }
 
@@ -114,7 +115,7 @@ while [[ $# -gt 0 ]]; do
         --help|-h)
             show_usage
             ;;
-        protocol-type|protocol-lock|campaign-type|campaign-lock|user-type)
+        protocol-type|protocol-lock|campaign-type|campaign-lock|user-type|points-udt)
             if [ -z "$CONTRACT_NAME" ]; then
                 CONTRACT_NAME="$1"
             else
@@ -259,6 +260,7 @@ get_contract_name() {
         "campaign-type") echo "campaign-type" ;;
         "campaign-lock") echo "campaign-lock" ;;
         "user-type") echo "user-type" ;;
+        "points-udt") echo "points-udt" ;;
         *) echo "" ;;
     esac
 }
@@ -270,6 +272,7 @@ get_contract_path() {
         "campaign-type") echo "./contracts/build/release/ckboost-campaign-type" ;;
         "campaign-lock") echo "./contracts/build/release/ckboost-campaign-lock" ;;
         "user-type") echo "./contracts/build/release/ckboost-user-type" ;;
+        "points-udt") echo "./contracts/build/release/ckboost-points-udt" ;;
         *) echo "" ;;
     esac
 }
@@ -281,6 +284,7 @@ get_contract_type_id() {
         "campaign-type") echo "true" ;;
         "campaign-lock") echo "true" ;;
         "user-type") echo "true" ;;
+        "points-udt") echo "true" ;;
         *) echo "true" ;;
     esac
 }
@@ -294,7 +298,7 @@ if [ "$DEPLOY_ALL" = true ]; then
     
     echo -e "${YELLOW}Deploying all contracts...${NC}\n"
     
-    for contract in "protocol-type" "protocol-lock" "campaign-type" "campaign-lock" "user-type"; do
+    for contract in "protocol-type" "protocol-lock" "campaign-type" "campaign-lock" "user-type" "points-udt"; do
         deploy_contract "$(get_contract_name "$contract")" "$(get_contract_path "$contract")" "$(get_contract_type_id "$contract")"
     done
     
@@ -361,6 +365,7 @@ extract_env_vars() {
     
     # Add note about other contracts
     echo "# Other contracts are deployed but their addresses will be stored in the protocol cell data" >> .env.contracts
+    echo "# Points UDT contract is deployed and will be instantiated per protocol with protocol type hash as args" >> .env.contracts
     echo "# See deployment-summary.json for all contract deployment details" >> .env.contracts
 
     echo -e "${GREEN}✓ All deployments complete!${NC}"

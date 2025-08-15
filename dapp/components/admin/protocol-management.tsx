@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Form,
   FormControl,
@@ -73,6 +74,7 @@ import { ccc, mol } from "@ckb-ccc/connector-react";
 import {
   getProtocolConfigStatus,
   getProtocolDeploymentTemplate,
+  getContractDeploymentStatus,
   deployProtocolCell,
   validateDeploymentParams,
 } from "@/lib/ckb/protocol-deployment";
@@ -126,6 +128,9 @@ const updateScriptCodeHashesSchema = z.object({
     .string()
     .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
   ckb_boost_user_type_code_hash: z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
+  ckb_boost_points_udt_type_code_hash: z
     .string()
     .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid code hash format"),
   accepted_udt_type_code_hashes: z
@@ -217,6 +222,9 @@ export function ProtocolManagement() {
 
   // Get initial values from deployment template for forms
   const deploymentTemplate = useMemo(() => getProtocolDeploymentTemplate(), []);
+  
+  // Check deployment status for all contracts
+  const contractDeploymentStatus = useMemo(() => getContractDeploymentStatus(), []);
 
   const scriptCodeHashesForm = useForm<ScriptCodeHashesLike>({
     resolver: zodResolver(updateScriptCodeHashesSchema),
@@ -236,6 +244,9 @@ export function ProtocolManagement() {
       ckb_boost_user_type_code_hash:
         deploymentTemplate.protocol_config.script_code_hashes
           .ckb_boost_user_type_code_hash,
+      ckb_boost_points_udt_type_code_hash:
+        deploymentTemplate.protocol_config.script_code_hashes
+          .ckb_boost_points_udt_type_code_hash,
       accepted_udt_type_scripts: [],
       accepted_dob_type_scripts: [],
     },
@@ -376,6 +387,9 @@ export function ProtocolManagement() {
               ckb_boost_user_type_code_hash:
                 deploymentTemplate.protocol_config.script_code_hashes
                   .ckb_boost_user_type_code_hash,
+              ckb_boost_points_udt_type_code_hash:
+                deploymentTemplate.protocol_config.script_code_hashes
+                  .ckb_boost_points_udt_type_code_hash,
               accepted_udt_type_scripts: [],
               accepted_dob_type_scripts: [],
             },
@@ -421,6 +435,9 @@ export function ProtocolManagement() {
         ckb_boost_user_type_code_hash:
           protocolData.protocol_config.script_code_hashes
             .ckb_boost_user_type_code_hash,
+        ckb_boost_points_udt_type_code_hash:
+          protocolData.protocol_config.script_code_hashes
+            .ckb_boost_points_udt_type_code_hash,
         accepted_udt_type_scripts: [],
         accepted_dob_type_scripts: [],
       };
@@ -934,6 +951,9 @@ export function ProtocolManagement() {
           ckb_boost_user_type_code_hash:
             protocolData.protocol_config.script_code_hashes
               .ckb_boost_user_type_code_hash,
+          ckb_boost_points_udt_type_code_hash:
+            protocolData.protocol_config.script_code_hashes
+              .ckb_boost_points_udt_type_code_hash,
           accepted_udt_type_scripts:
             protocolData.protocol_config.script_code_hashes
               .accepted_udt_type_scripts || [],
@@ -960,6 +980,8 @@ export function ProtocolManagement() {
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash,
           ckb_boost_user_type_code_hash:
             deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash,
+          ckb_boost_points_udt_type_code_hash:
+            deploymentTemplate.protocol_config.script_code_hashes.ckb_boost_points_udt_type_code_hash,
           accepted_udt_type_scripts: [],
           accepted_dob_type_scripts: [],
         });
@@ -1269,6 +1291,30 @@ export function ProtocolManagement() {
           )}
         </div>
       </div>
+
+      {/* Contract Deployment Status Check */}
+      {!contractDeploymentStatus.allDeployed && (
+        <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+          <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+          <AlertTitle>Some Contracts Not Deployed</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">
+              The following contracts are missing from the deployment records:
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              {contractDeploymentStatus.missingContracts.map(contract => (
+                <li key={contract} className="text-sm">
+                  {contract}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm">
+              The protocol cell will be created with placeholder (zero) hashes for missing contracts. 
+              You'll need to redeploy the protocol cell after all contracts are deployed.
+            </p>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Protocol Deployment Check */}
       {(() => {
@@ -1874,7 +1920,9 @@ export function ProtocolManagement() {
                               value={field.value as string}
                             />
                           </FormControl>
-                          <FormDescription>Byte32</FormDescription>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.protocolType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1892,7 +1940,9 @@ export function ProtocolManagement() {
                               value={field.value as string}
                             />
                           </FormControl>
-                          <FormDescription>Byte32</FormDescription>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.protocolLock ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1910,7 +1960,9 @@ export function ProtocolManagement() {
                               value={field.value as string}
                             />
                           </FormControl>
-                          <FormDescription>Byte32</FormDescription>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.campaignType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1928,7 +1980,9 @@ export function ProtocolManagement() {
                               value={field.value as string}
                             />
                           </FormControl>
-                          <FormDescription>Byte32</FormDescription>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.campaignLock ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -1946,7 +2000,29 @@ export function ProtocolManagement() {
                               value={field.value as string}
                             />
                           </FormControl>
-                          <FormDescription>Byte32</FormDescription>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.userType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={scriptCodeHashesForm.control}
+                      name="ckb_boost_points_udt_type_code_hash"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Points UDT Type Code Hash</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="0x..." 
+                              {...field}
+                              value={field.value as string}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Byte32 {contractDeploymentStatus.pointsUdt ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}

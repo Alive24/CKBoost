@@ -1673,19 +1673,256 @@ export default function CampaignManagementPage() {
 
             {/* Submissions Tab */}
             <TabsContent value="submissions" className="space-y-6">
+              {/* Submissions Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pending Review</p>
+                        <p className="text-2xl font-bold">0</p>
+                      </div>
+                      <Clock className="w-8 h-8 text-yellow-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Approved</p>
+                        <p className="text-2xl font-bold">0</p>
+                      </div>
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Points Minted</p>
+                        <p className="text-2xl font-bold">0</p>
+                      </div>
+                      <Trophy className="w-8 h-8 text-purple-600" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quest Submissions by Quest */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Quest Submissions</CardTitle>
-                  <CardDescription>
-                    Review and approve quest completions from participants
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Quest Submissions</CardTitle>
+                      <CardDescription>
+                        Review and approve quest completions to mint Points rewards
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* Stage 2 Placeholder: UDT Distribution Toggle */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 border rounded-lg opacity-50 cursor-not-allowed" title="UDT distribution coming in Stage 2">
+                        <span className="text-sm text-muted-foreground">UDT Distribution</span>
+                        <Badge variant="outline" className="text-xs">Stage 2</Badge>
+                      </div>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <h3 className="text-lg font-semibold mb-2">No Submissions Yet</h3>
-                    <p className="text-muted-foreground">
-                      Submissions will appear here once participants start completing quests.
+                  {campaign?.quests && campaign.quests.length > 0 ? (
+                    <div className="space-y-6">
+                      {campaign.quests.map((quest, questIndex) => {
+                        // Mock data for demonstration - in production, fetch real submissions
+                        const pendingSubmissions: Array<{
+                          userTypeId: string;
+                          userName: string;
+                          submittedAt: number;
+                          content: string;
+                        }> = []
+                        
+                        const approvedCount = quest.accepted_submission_user_type_ids?.length || 0
+                        
+                        return (
+                          <div key={questIndex} className="border rounded-lg p-4">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <h3 className="font-semibold">
+                                  {quest.metadata.title || `Quest ${questIndex + 1}`}
+                                </h3>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {quest.metadata.short_description}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline">
+                                  <Trophy className="w-3 h-3 mr-1" />
+                                  {Number(quest.points)} points
+                                </Badge>
+                                {approvedCount > 0 && (
+                                  <Badge className="bg-green-100 text-green-800">
+                                    {approvedCount} approved
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Submissions List */}
+                            {pendingSubmissions.length > 0 ? (
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-sm font-medium">
+                                    Pending Submissions ({pendingSubmissions.length})
+                                  </p>
+                                  {pendingSubmissions.length > 0 && (
+                                    <Button 
+                                      size="sm"
+                                      className="bg-purple-600 hover:bg-purple-700"
+                                      onClick={() => {
+                                        // Show approval dialog with Points info
+                                        const totalPoints = Number(quest.points) * pendingSubmissions.length
+                                        if (confirm(`Approve all ${pendingSubmissions.length} submissions?\n\nThis will:\n• Mint ${totalPoints} Points total\n• ${Number(quest.points)} Points per user\n• Update quest completion records\n\nStage 2 (Coming Soon):\n• UDT distribution capabilities`)) {
+                                          // TODO: Call approveCompletions from campaign service
+                                          alert("Approval functionality will be implemented with blockchain integration")
+                                        }
+                                      }}
+                                    >
+                                      <CheckCircle className="w-4 h-4 mr-1" />
+                                      Approve All & Mint Points
+                                    </Button>
+                                  )}
+                                </div>
+                                
+                                {pendingSubmissions.map((submission, subIndex) => (
+                                  <div key={subIndex} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm">{submission.userName}</p>
+                                        <code className="text-xs text-muted-foreground">
+                                          {submission.userTypeId.slice(0, 10)}...
+                                        </code>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Submitted {new Date(submission.submittedAt).toLocaleDateString()}
+                                      </p>
+                                      {submission.content && (
+                                        <p className="text-sm mt-2">{submission.content}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          // View submission details
+                                          alert("Submission details view coming soon")
+                                        }}
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        className="bg-purple-600 hover:bg-purple-700"
+                                        onClick={() => {
+                                          // Approve individual submission with Points minting
+                                          if (confirm(`Approve this submission?\n\nThis will mint ${Number(quest.points)} Points for this user.`)) {
+                                            // TODO: Call approveCompletions with single user
+                                            alert("Individual approval coming soon")
+                                          }
+                                        }}
+                                      >
+                                        <CheckCircle className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <Clock className="w-8 h-8 mx-auto mb-2 text-muted-foreground opacity-50" />
+                                <p className="text-sm text-muted-foreground">
+                                  No pending submissions for this quest
+                                </p>
+                                {approvedCount > 0 && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {approvedCount} submissions already approved
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Points Minting Info */}
+                            <div className="mt-4 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <Trophy className="w-4 h-4 text-purple-600 mt-0.5" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                                    Points Rewards (Stage 1 - Active)
+                                  </p>
+                                  <p className="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                                    Each approved submission mints {Number(quest.points)} protocol Points
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Stage 2 Placeholder: UDT Distribution Info */}
+                            <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg opacity-50">
+                              <div className="flex items-start gap-2">
+                                <Sparkles className="w-4 h-4 text-gray-400 mt-0.5" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                                    UDT Distribution (Stage 2 - Coming Soon)
+                                  </p>
+                                  <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                    Campaign owners will be able to fund quests with custom tokens
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <h3 className="text-lg font-semibold mb-2">No Quests Yet</h3>
+                      <p className="text-muted-foreground">
+                        Add quests first to enable submissions from participants.
+                      </p>
+                      <Button 
+                        onClick={() => setActiveTab("quests")}
+                        className="mt-4"
+                      >
+                        Go to Quests Tab
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Stage 2 Preview: UDT Funding */}
+              <Card className="opacity-50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        Campaign UDT Funding
+                        <Badge variant="outline">Stage 2</Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        Fund your campaign with UDTs for distribution as quest rewards
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Sparkles className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <h3 className="text-lg font-semibold mb-2">UDT Distribution Coming Soon</h3>
+                    <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                      In Stage 2, you'll be able to fund your campaign with custom UDTs and distribute them as quest rewards alongside Points.
                     </p>
                   </div>
                 </CardContent>

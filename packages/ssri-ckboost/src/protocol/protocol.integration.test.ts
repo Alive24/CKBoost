@@ -117,6 +117,7 @@ describe('Protocol Integration Tests', () => {
             ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32), // Replace with actual
             ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32), // Replace with actual
             ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32), // Replace with actual
+            ckb_boost_points_udt_type_code_hash: '0x' + '00'.repeat(32), // Replace with actual
             accepted_udt_type_scripts: [],
             accepted_dob_type_scripts: []
           }
@@ -195,6 +196,7 @@ describe('Protocol Integration Tests', () => {
             ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_points_udt_type_code_hash: '0x' + '00'.repeat(32),
             accepted_udt_type_scripts: [],
             accepted_dob_type_scripts: []
           }
@@ -233,6 +235,7 @@ describe('Protocol Integration Tests', () => {
             ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_points_udt_type_code_hash: '0x' + '00'.repeat(32),
             accepted_udt_type_scripts: [],
             accepted_dob_type_scripts: []
           }
@@ -456,6 +459,7 @@ describe('Protocol Integration Tests', () => {
             ckb_boost_campaign_type_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_campaign_lock_code_hash: '0x' + '00'.repeat(32),
             ckb_boost_user_type_code_hash: '0x' + '00'.repeat(32),
+            ckb_boost_points_udt_type_code_hash: '0x' + '00'.repeat(32),
             accepted_udt_type_scripts: [],
             accepted_dob_type_scripts: []
           }

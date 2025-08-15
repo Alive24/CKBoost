@@ -95,30 +95,88 @@ export function getProtocolConfigStatus(): "none" | "partial" | "complete" {
 }
 
 /**
+ * Get deployment status for all required contracts
+ * @returns Object with deployment status for each contract
+ */
+export function getContractDeploymentStatus(): {
+  protocolType: boolean;
+  protocolLock: boolean;
+  campaignType: boolean;
+  campaignLock: boolean;
+  userType: boolean;
+  pointsUdt: boolean;
+  allDeployed: boolean;
+  missingContracts: string[];
+} {
+  const network = DeploymentManager.getCurrentNetwork();
+  
+  const status = {
+    protocolType: !!deploymentManager.getContractCodeHash(network, "ckboostProtocolType"),
+    protocolLock: !!deploymentManager.getContractCodeHash(network, "ckboostProtocolLock"),
+    campaignType: !!deploymentManager.getContractCodeHash(network, "ckboostCampaignType"),
+    campaignLock: !!deploymentManager.getContractCodeHash(network, "ckboostCampaignLock"),
+    userType: !!deploymentManager.getContractCodeHash(network, "ckboostUserType"),
+    pointsUdt: !!deploymentManager.getContractCodeHash(network, "ckboostPointsUdt"),
+    allDeployed: false,
+    missingContracts: [] as string[],
+  };
+
+  // Check if all are deployed
+  status.allDeployed = 
+    status.protocolType &&
+    status.protocolLock &&
+    status.campaignType &&
+    status.campaignLock &&
+    status.userType &&
+    status.pointsUdt;
+
+  // List missing contracts
+  if (!status.protocolType) status.missingContracts.push("Protocol Type");
+  if (!status.protocolLock) status.missingContracts.push("Protocol Lock");
+  if (!status.campaignType) status.missingContracts.push("Campaign Type");
+  if (!status.campaignLock) status.missingContracts.push("Campaign Lock");
+  if (!status.userType) status.missingContracts.push("User Type");
+  if (!status.pointsUdt) status.missingContracts.push("Points UDT");
+
+  return status;
+}
+
+/**
  * Get protocol deployment template with sensible defaults
  */
 export function getProtocolDeploymentTemplate(): ProtocolDataLike {
   const network = DeploymentManager.getCurrentNetwork();
-  const deployment = deploymentManager.getCurrentDeployment(
-    network,
-    "ckboostProtocolType"
-  );
+  
+  // Fetch all deployed contract code hashes from deployment manager
+  const protocolTypeHash = deploymentManager.getContractCodeHash(network, "ckboostProtocolType");
+  const protocolLockHash = deploymentManager.getContractCodeHash(network, "ckboostProtocolLock");
+  const campaignTypeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType");
+  const campaignLockHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignLock");
+  const userTypeHash = deploymentManager.getContractCodeHash(network, "ckboostUserType");
+  const pointsUdtHash = deploymentManager.getContractCodeHash(network, "ckboostPointsUdt");
 
   return {
     protocol_config: {
       admin_lock_hash_vec: [], // To be filled by user's lock hash
       script_code_hashes: {
-        // Use the typeHash which is the actual protocol contract code hash
+        // Use actual deployed contract code hashes, fallback to zero hash if not deployed
         ckb_boost_protocol_type_code_hash:
-          deployment?.typeHash ||
+          protocolTypeHash ||
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         ckb_boost_protocol_lock_code_hash:
+          protocolLockHash ||
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         ckb_boost_campaign_type_code_hash:
+          campaignTypeHash ||
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         ckb_boost_campaign_lock_code_hash:
+          campaignLockHash ||
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         ckb_boost_user_type_code_hash:
+          userTypeHash ||
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+        ckb_boost_points_udt_type_code_hash:
+          pointsUdtHash ||
           "0x0000000000000000000000000000000000000000000000000000000000000000",
         accepted_udt_type_scripts: [],
         accepted_dob_type_scripts: [],
@@ -531,6 +589,7 @@ export function validateDeploymentParams(
     "ckb_boost_campaign_type_code_hash",
     "ckb_boost_campaign_lock_code_hash",
     "ckb_boost_user_type_code_hash",
+    "ckb_boost_points_udt_type_code_hash",
   ] as const;
 
   scriptFields.forEach((field) => {

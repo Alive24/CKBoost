@@ -795,6 +795,10 @@
           "type": "Byte32"
         },
         {
+          "name": "ckb_boost_points_udt_type_code_hash",
+          "type": "Byte32"
+        },
+        {
           "name": "accepted_udt_type_scripts",
           "type": "ScriptVec"
         },
