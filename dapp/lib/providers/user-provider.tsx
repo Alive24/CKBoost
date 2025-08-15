@@ -54,7 +54,7 @@ const UserContext = createContext<UserContextType>({
 export const useUser = () => useContext(UserContext);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const { signer, protocolData } = useProtocol();
+  const { signer, protocolData, protocolCell } = useProtocol();
   const [userService, setUserService] = useState<UserService | null>(null);
   const [userInstance] = useState<ckboost.User | null>(null);
   const [currentUserData, setCurrentUserData] = useState<ReturnType<typeof ckboost.types.UserData.decode> | null>(null);
@@ -167,6 +167,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!userService) {
       throw new Error("User service not initialized");
     }
+    
+    if (!protocolCell) {
+      throw new Error("Protocol cell not loaded");
+    }
 
     try {
       setIsLoading(true);
@@ -177,6 +181,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         campaignTypeId,
         questId,
         submissionContent,
+        protocolCell,
         userVerificationData
       );
       const txHash = result.txHash;

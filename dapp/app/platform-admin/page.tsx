@@ -4,8 +4,7 @@ import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/core"
 import { fetchCampaignsConnectedToProtocol, extractTypeIdFromCampaignCell } from "@/lib/ckb/campaign-cells"
-import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
-import { ProtocolData, CampaignData } from "ssri-ckboost/types"
+import { CampaignData } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -505,7 +504,7 @@ const PENDING_VERIFICATIONS = [
 ]
 
 export default function PlatformAdminDashboard() {
-  const { protocolData, signer } = useProtocol()
+  const { protocolData, protocolCell, signer } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isRewardDialogOpen, setIsRewardDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -531,12 +530,11 @@ export default function PlatformAdminDashboard() {
       
       setIsLoadingCampaigns(true)
       try {
-        // Get protocol cell to extract campaign code hash
-        debug.log('Fetching protocol cell...')
-        const protocolCell = await fetchProtocolCell(signer)
+        // Use protocol cell and data from context
+        debug.log('Using protocol cell from context...')
         
-        if (!protocolCell) {
-          debug.error("Protocol cell not found")
+        if (!protocolCell || !protocolData) {
+          debug.error("Protocol cell or data not found")
           debug.groupEnd()
           return
         }
@@ -546,10 +544,9 @@ export default function PlatformAdminDashboard() {
           dataLength: protocolCell.outputData.length
         })
 
-        // Parse protocol data to get campaign code hash
-        debug.log('Parsing protocol data...')
-        const protocolDataParsed = ProtocolData.decode(protocolCell.outputData)
-        const campaignCodeHash = protocolDataParsed.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+        // Get campaign code hash from protocol data
+        debug.log('Using protocol data from context...')
+        const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
         
         debug.log('Extracted campaign code hash:', campaignCodeHash)
         

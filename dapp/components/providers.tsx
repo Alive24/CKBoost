@@ -29,13 +29,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
           <NostrProvider>
-            <CampaignProvider>
-              <ProtocolProvider>
+            <ProtocolProvider>
+              <CampaignProvider>
                 <UserProvider>
                   {children}
                 </UserProvider>
-              </ProtocolProvider>
-            </CampaignProvider>
+              </CampaignProvider>
+            </ProtocolProvider>
           </NostrProvider>
         </WalletProvider>
       </QueryClientProvider>

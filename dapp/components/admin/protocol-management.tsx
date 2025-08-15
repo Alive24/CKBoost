@@ -76,7 +76,6 @@ import {
   deployProtocolCell,
   validateDeploymentParams,
 } from "@/lib/ckb/protocol-deployment";
-import { fetchProtocolCell } from "@/lib/ckb/protocol-cells";
 import {
   EndorserInfoLike,
   ProtocolDataLike,
@@ -201,6 +200,7 @@ export function ProtocolManagement() {
     calculateChanges,
     refreshProtocolData,
     isWalletConnected,
+    protocolCell,
   } = useProtocol();
 
   // Get signer at the top level of the component
@@ -295,8 +295,7 @@ export function ProtocolManagement() {
     args: string;
   } | null>(null);
 
-  // State for protocol cell information
-  const [protocolCell, setProtocolCell] = useState<ccc.Cell | null>(null);
+  // Protocol cell is now obtained from useProtocol hook
 
   // Track the baseline values that forms were reset to, to prevent false change detection
   const [baselineValues, setBaselineValues] = useState<{
@@ -622,22 +621,7 @@ export function ProtocolManagement() {
     }
   }, [watchedInputMode, watchedAddress]);
 
-  // Effect to fetch protocol cell information
-  useEffect(() => {
-    const fetchCellInfo = async () => {
-      if (signer && configStatus === "complete") {
-        try {
-          const cell = await fetchProtocolCell(signer);
-          setProtocolCell(cell);
-        } catch (error) {
-          console.error("Failed to fetch protocol cell:", error);
-          setProtocolCell(null);
-        }
-      }
-    };
-
-    fetchCellInfo();
-  }, [signer, configStatus]);
+  // Protocol cell is now obtained from useProtocol hook, no need to fetch separately
 
   const onAddAdmin = async (
     data: AddAdminForm & { inputMode: "address" | "script" }

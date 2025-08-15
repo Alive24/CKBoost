@@ -6,7 +6,6 @@ import { cccA } from "@ckb-ccc/core/advanced";
 import type { UserSubmissionRecordLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
 import { ConnectedTypeID } from "ssri-ckboost/types"
 import { debug } from "@/lib/utils/debug"
-import { fetchProtocolCell } from "./protocol-cells"
 
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true // Set to true when blockchain is available
@@ -47,12 +46,14 @@ export async function fetchCampaignCells(signer?: ccc.Signer): Promise<ccc.Cell[
  * @param typeId - Campaign type ID from ConnectedTypeID args
  * @param campaignCodeHash - Campaign type code hash from protocol
  * @param signer - CCC signer instance
+ * @param protocolCell - Protocol cell from context
  * @returns Campaign data or undefined if not found
  */
 export async function fetchCampaignByTypeId(
   typeId: ccc.Hex,
   campaignCodeHash: ccc.Hex,
-  signer: ccc.Signer
+  signer: ccc.Signer,
+  protocolCell: ccc.Cell
 ): Promise<ccc.Cell | undefined> {
   if (!signer) {
     throw new Error("Signer required for fetchCampaignByTypeId")
@@ -65,8 +66,7 @@ export async function fetchCampaignByTypeId(
     
     const client = signer.client
     
-    // First, get the protocol cell to find the connected type hash
-    const protocolCell = await fetchProtocolCell(signer)
+    // Use the protocol cell passed as parameter
     if (!protocolCell || !protocolCell.cellOutput.type) {
       debug.error("Protocol cell not found or has no type script")
       debug.groupEnd()

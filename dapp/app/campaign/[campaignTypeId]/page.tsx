@@ -35,7 +35,7 @@ import { useUser } from "@/lib/providers/user-provider"
 export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeId = params.campaignTypeId as ccc.Hex
-  const { signer, protocolData } = useProtocol()
+  const { signer, protocolData, protocolCell } = useProtocol()
   const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -68,7 +68,7 @@ export default function CampaignDetailPage() {
           return
         }
         const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
-        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer)
+        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer, protocolCell!)
         if (cell) {
           const campaignData = CampaignData.decode(cell.outputData) as CampaignDataLike
           setCampaign({ ...campaignData, typeHash: cell.cellOutput.type?.hash() || "0x", cell })

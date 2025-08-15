@@ -6,8 +6,7 @@ import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { fetchCampaignsOwnedByUser, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
-import { fetchProtocolCell } from "@/lib/ckb/protocol-cells"
-import { ProtocolData, CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
+import { CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -49,7 +48,7 @@ const CURRENT_USER = {
 
 
 export default function CampaignAdminDashboard() {
-  const { signer } = useProtocol()
+  const { signer, protocolCell, protocolData } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
   const [staffForm, setStaffForm] = useState({
@@ -90,8 +89,7 @@ export default function CampaignAdminDashboard() {
       setIsLoading(true)
       try {
         // Get protocol cell to extract campaign code hash and check connections
-        debug.log('Fetching protocol cell...')
-        const protocolCell = await fetchProtocolCell(signer)
+        debug.log('Using protocol cell from context...')
         
         if (!protocolCell) {
           debug.error("Protocol cell not found")
@@ -104,9 +102,13 @@ export default function CampaignAdminDashboard() {
           dataLength: protocolCell.outputData.length
         })
 
-        // Parse protocol data to get campaign code hash and approved campaigns
-        debug.log('Parsing protocol data...')
-        const protocolData = ProtocolData.decode(protocolCell.outputData)
+        // Use protocol data from context
+        debug.log('Using protocol data from context...')
+        if (!protocolData) {
+          debug.error("Protocol data not found")
+          debug.groupEnd()
+          return
+        }
         const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
         const protocolTypeHash = protocolCell.cellOutput.type?.hash() || "0x"
         

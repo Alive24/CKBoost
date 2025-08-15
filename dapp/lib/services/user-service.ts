@@ -12,7 +12,6 @@ import {
 import { NostrStorageService } from "./nostr-storage-service";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
 import { debug } from "../utils/debug";
-import { fetchProtocolCell } from "../ckb/protocol-cells";
 
 /**
  * User service that provides high-level user operations
@@ -119,6 +118,7 @@ export class UserService {
     campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Full HTML with images
+    protocolCell: ccc.Cell,
     userVerificationData?: {
       name?: string;
       email?: string;
@@ -200,7 +200,8 @@ export class UserService {
         campaignTypeId,
         questId,
         contentToStore,
-        existingUserData.typeId
+        existingUserData.typeId,
+        protocolCell
       );
     } else {
       // Create new user with submission
@@ -214,6 +215,7 @@ export class UserService {
         campaignTypeId,
         questId,
         contentToStore,
+        protocolCell,
         userVerificationData
       );
     }
@@ -392,7 +394,8 @@ export class UserService {
     campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Could be nevent ID or actual content
-    userTypeId: ccc.Hex
+    userTypeId: ccc.Hex,
+    protocolCell: ccc.Cell
   ): Promise<ccc.Hex> {
     // Ensure deployment info is loaded
     await this.ensureDeploymentInfo();
@@ -491,12 +494,6 @@ export class UserService {
     // Get the transaction from the result
     const updateTx = result.res;
     
-    // Fetch the protocol cell and add it as a dependency
-    const protocolCell = await fetchProtocolCell(this.signer);
-    if (!protocolCell) {
-      throw new Error("Protocol cell not found");
-    }
-    
     // Add the protocol cell as a dependency (required for validation)
     updateTx.addCellDeps({
       outPoint: protocolCell.outPoint,
@@ -529,6 +526,7 @@ export class UserService {
     campaignTypeId: ccc.Hex,
     questId: number,
     submissionContent: string, // Could be nevent ID or actual content
+    protocolCell: ccc.Cell,
     verificationData?: {
       name?: string;
       email?: string;
@@ -640,12 +638,6 @@ export class UserService {
     // Update the user cell's type script args with the ConnectedTypeID
     if (createTx.outputs[userCellOutputIndex].type) {
       createTx.outputs[userCellOutputIndex].type.args = updatedConnectedTypeIdArgs;
-    }
-    
-    // Fetch the protocol cell and add it as a dependency
-    const protocolCell = await fetchProtocolCell(this.signer);
-    if (!protocolCell) {
-      throw new Error("Protocol cell not found");
     }
     
     // Add the protocol cell as a dependency (required for validation)

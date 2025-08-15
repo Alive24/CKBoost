@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   Plus, 
   Edit, 
@@ -39,6 +39,9 @@ import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/cam
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
+import { CampaignService } from "@/lib/services/campaign-service"
+import { Campaign } from "ssri-ckboost"
+import { deploymentManager, DeploymentManager } from "@/lib/ckb/deployment-manager"
 
 // Type for simplified campaign form data
 interface CampaignFormData {
@@ -60,7 +63,7 @@ export default function CampaignManagementPage() {
   const router = useRouter()
   const campaignTypeId = params.campaignTypeId as string
   const isCreateMode = campaignTypeId === 'new'
-  const { signer, protocolData, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
+  const { signer, protocolData, protocolCell, isAdmin, updateProtocol, refreshProtocolData } = useProtocol()
   
   // Get the initial tab from URL search params (e.g., ?tab=quests)
   const initialTab = searchParams.get('tab') || 'overview'
@@ -414,7 +417,7 @@ export default function CampaignManagementPage() {
             endorser_info: {
               endorser_name: "",
               endorser_description: "",
-              endorser_lock_hash: "0x",
+              endorser_lock_hash: await signer.getRecommendedAddressObj().then(addr => addr.script.hash()), // Campaign admin's lock hash
               website: "",
               social_links: [],
               verified: 0
@@ -438,7 +441,7 @@ export default function CampaignManagementPage() {
           },
           created_at: BigInt(Date.now()),
           rules: [],
-          status: 1, // Active
+          status: 0, // Created (new campaigns must start with status 0)
           starting_time: BigInt(new Date(campaignForm.startDate).getTime() / 1000),
           ending_time: BigInt(new Date(campaignForm.endDate).getTime() / 1000),
           participants_count: 0,
@@ -460,7 +463,7 @@ export default function CampaignManagementPage() {
             rewards_on_completion: [],
             accepted_submission_user_type_ids: [],
             completion_deadline: BigInt(new Date(campaignForm.endDate).getTime() / 1000),
-            status: 1, // Active
+            status: 0, // Created (new quests must start with status 0)
             sub_tasks: quest.subtasks.map((st, stIndex) => ({
               id: stIndex + 1,
               title: st.title,
@@ -490,16 +493,54 @@ export default function CampaignManagementPage() {
           2
         ))
 
-        // For now, show a message that campaign creation is pending
-        // When the campaign service is available, uncomment:
-        // const campaignService = ...
-        // const txHash = await campaignService.updateCampaign(campaignData)
-        // debug.log("Transaction hash:", txHash)
+        // Create a Campaign service instance to send the transaction
+        if (!signer) {
+          throw new Error("No signer available")
+        }
         
-        alert(`Campaign data prepared successfully!\n\nCampaign: ${campaignForm.title}\nQuests: ${localQuests.length}\n\nNote: Campaign creation service will be available soon.`)
+        // Use the protocol cell from the hook
+        if (!protocolCell) {
+          throw new Error("Protocol cell not found. Please ensure the protocol is deployed.")
+        }
         
-        // After successful creation, could redirect
-        // router.push(`/campaign-admin/${newCampaignTypeId}`)
+        // Get deployment info for the campaign contract
+        const network = DeploymentManager.getCurrentNetwork()
+        const deployment = deploymentManager.getCurrentDeployment(network, "ckboostCampaignType")
+        const outPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType")
+        
+        if (!deployment || !outPoint) {
+          throw new Error("Campaign type contract not found in deployments.json")
+        }
+        
+        // Create executor for SSRI operations
+        const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090"
+        const { ssri } = await import("@ckb-ccc/ssri")
+        const executor = new ssri.ExecutorJsonRpc(executorUrl)
+        
+        // Create Campaign SSRI instance
+        const campaignScript = ccc.Script.from({
+          codeHash: deployment.typeHash as ccc.Hex, // Use typeHash, not codeHash
+          hashType: "type" as const,
+          args: "0x" // Empty args for new campaign
+        })
+        
+        const campaignInstance = new Campaign(
+          outPoint,
+          campaignScript,
+          protocolCell,
+          { executor } // Pass the executor instance
+        )
+        
+        // Create campaign service and send the transaction
+        const campaignService = new CampaignService(signer, campaignInstance, protocolCell)
+        const txHash = await campaignService.updateCampaign(campaignData)
+        
+        debug.log("Campaign created successfully with transaction hash:", txHash)
+        
+        alert(`Campaign created successfully!\n\nCampaign: ${campaignForm.title}\nQuests: ${localQuests.length}\n\nTransaction: ${txHash}`)
+        
+        // Redirect to campaign admin dashboard after successful creation
+        router.push('/campaign-admin')
       } else {
         // Update existing campaign
         debug.log("Updating campaign with form data:", campaignForm)
@@ -521,36 +562,27 @@ export default function CampaignManagementPage() {
     }
   }
 
-  const handleAddQuest = async () => {
-    setIsSaving(true)
-    try {
-      if (isCreateMode) {
-        // In create mode, add quest to local state
-        setLocalQuests([...localQuests, questForm])
-        debug.log("Added quest to local state:", questForm)
-      } else {
-        // TODO: Implement blockchain transaction to add quest to existing campaign
-        debug.log("Adding quest to existing campaign:", questForm)
-        alert("Quest addition to existing campaigns will be implemented with blockchain integration")
-      }
-    } catch (error) {
-      debug.error("Failed to add quest:", error)
-      alert("Failed to add quest")
-    } finally {
-      setIsSaving(false)
-      // Don't close the dialog - let user add more quests or close manually
-      // Reset form for next quest
-      setQuestForm({
-        title: "",
-        shortDescription: "",
-        longDescription: "",
-        points: 100,
-        difficulty: 1,
-        timeEstimate: 30,
-        requirements: "",
-        subtasks: []
-      })
-    }
+  const handleAddQuest = () => {
+    // Always add quest to local state - no blockchain transaction here
+    setLocalQuests([...localQuests, questForm])
+    debug.log("Added quest to local state:", questForm)
+    
+    // Reset form for next quest
+    setQuestForm({
+      title: "",
+      shortDescription: "",
+      longDescription: "",
+      points: 100,
+      difficulty: 1,
+      timeEstimate: 30,
+      requirements: "",
+      subtasks: []
+    })
+    
+    // Close the dialog after adding
+    setIsAddingQuest(false)
+    
+    // Note: The actual blockchain update happens when saving the entire campaign
   }
 
   const handleEditQuest = (questIndex: number) => {
@@ -575,42 +607,42 @@ export default function CampaignManagementPage() {
     setEditingQuestIndex(questIndex)
   }
 
-  const handleSaveEditedQuest = async () => {
-    setIsSaving(true)
-    try {
-      // TODO: Implement blockchain transaction to update quest
-      debug.log("Updating quest at index:", editingQuestIndex, questForm)
-      alert("Quest update functionality will be implemented with blockchain integration")
-    } catch (error) {
-      debug.error("Failed to update quest:", error)
-      alert("Failed to update quest")
-    } finally {
-      setIsSaving(false)
-      setEditingQuestIndex(null)
-      // Reset form
-      setQuestForm({
-        title: "",
-        shortDescription: "",
-        longDescription: "",
-        points: 100,
-        difficulty: 1,
-        timeEstimate: 30,
-        requirements: "",
-        subtasks: []
-      })
-    }
+  const handleSaveEditedQuest = () => {
+    if (editingQuestIndex === null) return
+    
+    // Update quest in local state - no blockchain transaction here
+    const updatedQuests = [...localQuests]
+    updatedQuests[editingQuestIndex] = questForm
+    setLocalQuests(updatedQuests)
+    
+    debug.log("Updated quest in local state at index:", editingQuestIndex, questForm)
+    
+    // Reset form and close edit mode
+    setEditingQuestIndex(null)
+    setIsAddingQuest(false)
+    setQuestForm({
+      title: "",
+      shortDescription: "",
+      longDescription: "",
+      points: 100,
+      difficulty: 1,
+      timeEstimate: 30,
+      requirements: "",
+      subtasks: []
+    })
+    
+    // Note: The actual blockchain update happens when saving the entire campaign
   }
 
-  const handleDeleteQuest = async (questId: number) => {
+  const handleDeleteQuest = (questIndex: number) => {
     if (confirm("Are you sure you want to delete this quest?")) {
-      try {
-        // TODO: Implement blockchain transaction to delete quest
-        debug.log("Deleting quest:", questId)
-        alert("Quest deletion functionality will be implemented with blockchain integration")
-      } catch (error) {
-        debug.error("Failed to delete quest:", error)
-        alert("Failed to delete quest")
-      }
+      // Remove quest from local state - no blockchain transaction here
+      const updatedQuests = localQuests.filter((_, index) => index !== questIndex)
+      setLocalQuests(updatedQuests)
+      
+      debug.log("Deleted quest from local state at index:", questIndex)
+      
+      // Note: The actual blockchain update happens when saving the entire campaign
     }
   }
 
@@ -1042,6 +1074,10 @@ export default function CampaignManagementPage() {
             <TabsContent value="quests" className="space-y-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Campaign Quests</h2>
+                <Button onClick={() => setIsAddingQuest(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Quest
+                </Button>
                 <Dialog open={isAddingQuest || editingQuestIndex !== null} onOpenChange={(open) => {
                   if (!open) {
                     setIsAddingQuest(false)
@@ -1059,12 +1095,6 @@ export default function CampaignManagementPage() {
                     })
                   }
                 }}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Quest
-                    </Button>
-                  </DialogTrigger>
                   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                       <DialogTitle>{editingQuestIndex !== null ? "Edit Quest" : "Add New Quest"}</DialogTitle>
@@ -1349,13 +1379,9 @@ export default function CampaignManagementPage() {
                         Cancel
                       </Button>
                       <Button 
-                        onClick={editingQuestIndex !== null ? handleSaveEditedQuest : handleAddQuest} 
-                        disabled={isSaving}
+                        onClick={editingQuestIndex !== null ? handleSaveEditedQuest : handleAddQuest}
                       >
-                        {isSaving 
-                          ? (editingQuestIndex !== null ? "Saving..." : "Adding...")
-                          : (editingQuestIndex !== null ? "Save Quest" : "Add Quest")
-                        }
+                        {editingQuestIndex !== null ? "Save Quest" : "Add Quest"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>
@@ -1403,6 +1429,18 @@ export default function CampaignManagementPage() {
                               <Trophy className="w-3 h-3 mr-1" />
                               {quest.points} points
                             </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                // Load quest into form for editing
+                                setQuestForm(quest)
+                                setEditingQuestIndex(index)
+                                setIsAddingQuest(true)
+                              }}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"

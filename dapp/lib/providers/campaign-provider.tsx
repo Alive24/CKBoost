@@ -11,10 +11,9 @@ import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
-import { fetchProtocolCell } from "../ckb/protocol-cells";
 import { fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
-import { ProtocolData } from "ssri-ckboost/types";
 import { debug } from "../utils/debug";
+import { useProtocol } from "./protocol-provider";
 
 // Types for campaign provider
 interface CampaignContextType {
@@ -49,6 +48,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState<string | null>(null);
 
+  // Get protocol data from context
+  const { protocolCell, protocolData } = useProtocol();
+
   // CCC hooks
   const signer = ccc.useSigner();
 
@@ -68,58 +70,45 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
           return;
         }
 
-        // First, fetch the protocol cell to get approved campaigns
-        try {
-          const protocolCell = await fetchProtocolCell(signer);
+        // Use protocol data from context instead of fetching again
+        if (protocolCell && protocolData) {
+          debug.log("Found approved campaigns:", protocolData.campaigns_approved);
           
-          if (protocolCell) {
-            const protocolData = ProtocolData.decode(protocolCell.outputData);
-            debug.log("Found approved campaigns:", protocolData.campaigns_approved);
-            
-            // Get campaign code hash from protocol config
-            const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
-            
-            // Fetch each approved campaign
-            const approvedCampaignCells: ccc.Cell[] = [];
-            
-            // Check if campaigns_approved contains type_ids (new format) or type_hashes (old format)
-            // Type IDs are 32 bytes (64 hex chars), type hashes are also 32 bytes
-            // We'll try the optimized method first, then fall back to the old method
-            
-            for (const identifier of protocolData.campaigns_approved || []) {
-              try {
-                debug.log("Fetching campaign with identifier:", identifier);
-                
-                // Only fetch by type_id (type hash method has been removed)
-                const campaignCell = await fetchCampaignByTypeId(
-                  identifier as ccc.Hex,
-                  campaignCodeHash as ccc.Hex,
-                  signer
-                );
-                
-                if (campaignCell) {
-                  approvedCampaignCells.push(campaignCell);
-                  debug.log("Loaded campaign by type ID:", identifier);
-                } else {
-                  debug.warn("Campaign not found with type ID:", identifier);
-                  // Note: Old campaigns using type hash won't be loaded anymore
-                }
-              } catch (error) {
-                debug.error(`Failed to fetch campaign ${identifier}:`, error);
+          // Get campaign code hash from protocol config
+          const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
+          
+          // Fetch each approved campaign
+          const approvedCampaignCells: ccc.Cell[] = [];
+          
+          for (const identifier of protocolData.campaigns_approved || []) {
+            try {
+              debug.log("Fetching campaign with identifier:", identifier);
+              
+              // Only fetch by type_id (type hash method has been removed)
+              const campaignCell = await fetchCampaignByTypeId(
+                identifier as ccc.Hex,
+                campaignCodeHash as ccc.Hex,
+                signer,
+                protocolCell
+              );
+              
+              if (campaignCell) {
+                approvedCampaignCells.push(campaignCell);
+                debug.log("Loaded campaign by type ID:", identifier);
+              } else {
+                debug.warn("Campaign not found with type ID:", identifier);
+                // Note: Old campaigns using type hash won't be loaded anymore
               }
+            } catch (error) {
+              debug.error(`Failed to fetch campaign ${identifier}:`, error);
             }
-            
-            debug.log(`Loaded ${approvedCampaignCells.length} approved campaigns`);
-            setCampaigns(approvedCampaignCells);
-          } else {
-            debug.warn("Protocol cell not found");
-            // Fallback to mock data or empty
-            const allCampaigns = await CampaignService.getAllCampaigns(signer);
-            setCampaigns(allCampaigns);
           }
-        } catch (protocolError) {
-          debug.error("Failed to fetch protocol data:", protocolError);
-          // Fallback to campaign service
+          
+          debug.log(`Loaded ${approvedCampaignCells.length} approved campaigns`);
+          setCampaigns(approvedCampaignCells);
+        } else {
+          debug.warn("Protocol data not available yet");
+          // Fallback to mock data or empty
           const allCampaigns = await CampaignService.getAllCampaigns(signer);
           setCampaigns(allCampaigns);
         }
@@ -133,7 +122,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     };
 
     initializeCampaigns();
-  }, [signer]);
+  }, [signer, protocolCell, protocolData]);
 
   // Update user info when wallet connects
   useEffect(() => {
@@ -176,41 +165,32 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Fetch approved campaigns from protocol
-      try {
-        const protocolCell = await fetchProtocolCell(signer);
+      // Use protocol data from context
+      if (protocolCell && protocolData) {
+        const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
         
-        if (protocolCell) {
-          const protocolData = ProtocolData.decode(protocolCell.outputData);
-          const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash;
-          
-          const approvedCampaignCells: ccc.Cell[] = [];
-          
-          for (const identifier of protocolData.campaigns_approved || []) {
-            try {
-              // Only fetch by type_id (type hash method has been removed)
-              const campaignCell = await fetchCampaignByTypeId(
-                identifier as ccc.Hex,
-                campaignCodeHash as ccc.Hex,
-                signer
-              );
-              
-              if (campaignCell) {
-                approvedCampaignCells.push(campaignCell);
-              }
-            } catch (error) {
-              debug.error(`Failed to fetch campaign ${identifier}:`, error);
+        const approvedCampaignCells: ccc.Cell[] = [];
+        
+        for (const identifier of protocolData.campaigns_approved || []) {
+          try {
+            // Only fetch by type_id (type hash method has been removed)
+            const campaignCell = await fetchCampaignByTypeId(
+              identifier as ccc.Hex,
+              campaignCodeHash as ccc.Hex,
+              signer,
+              protocolCell
+            );
+            
+            if (campaignCell) {
+              approvedCampaignCells.push(campaignCell);
             }
+          } catch (error) {
+            debug.error(`Failed to fetch campaign ${identifier}:`, error);
           }
-          
-          setCampaigns(approvedCampaignCells);
-        } else {
-          // Fallback to campaign service
-          const allCampaigns = await CampaignService.getAllCampaigns(signer);
-          setCampaigns(allCampaigns);
         }
-      } catch (protocolError) {
-        debug.error("Failed to fetch protocol data:", protocolError);
+        
+        setCampaigns(approvedCampaignCells);
+      } else {
         // Fallback to campaign service
         const allCampaigns = await CampaignService.getAllCampaigns(signer);
         setCampaigns(allCampaigns);
