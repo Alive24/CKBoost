@@ -29,12 +29,14 @@ interface QuestSubmissionFormProps {
   }
   questIndex: number
   campaignTypeId: ccc.Hex
+  onSuccess?: () => void | Promise<void>
 }
 
 export function QuestSubmissionForm({ 
   quest, 
   questIndex,
-  campaignTypeId 
+  campaignTypeId,
+  onSuccess 
 }: QuestSubmissionFormProps) {
   const { currentUserTypeId, submitQuest, hasUserSubmittedQuest, getUserSubmissions, isLoading: userLoading } = useUser()
   const { userAddress } = useProtocol()
@@ -358,64 +360,68 @@ Lines        : 93.84% ( 183/195 )
       return
     }
 
-    // Show the modal immediately when submitting
-    setShowStorageModal(true)
+    // Don't set isSubmitting here - it will be set in the modal flow
+    // Just prepare the data and show the modal
     
-    try {
-      setIsSubmitting(true)
-      setError(null)
+    // Format all subtask responses into a single submission (HTML to Markdown-like format)
+    const submissionContent = quest.sub_tasks?.map((subtask, index) => {
+      const response = subtaskResponses[index] || "<p>Not provided</p>"
+      return `<h3>${subtask.title || `Task ${index + 1}`}</h3>\n${response}`
+    }).join("\n\n") || "No subtasks"
 
-      // Format all subtask responses into a single submission (HTML to Markdown-like format)
-      const submissionContent = quest.sub_tasks?.map((subtask, index) => {
-        const response = subtaskResponses[index] || "<p>Not provided</p>"
-        return `<h3>${subtask.title || `Task ${index + 1}`}</h3>\n${response}`
-      }).join("\n\n") || "No subtasks"
+    setError(null)
 
-      // First, store the full content on Nostr using the React hook
-      let nostrNeventId: string | undefined
-      if (nostrConnected && userAddress) {
-        try {
-          debug.log("Storing submission on Nostr...")
-          const result = await storeSubmission.mutateAsync({
-            campaignTypeId,
-            questId: Number(quest.quest_id || questIndex + 1),
-            userAddress,
-            content: submissionContent,
-            timestamp: Date.now()
-          })
-          nostrNeventId = result
-          debug.log("✅ Successfully stored on Nostr!")
-          debug.log("Stored nevent ID:", nostrNeventId)
-          debug.log("Full nevent ID that will be submitted:", nostrNeventId)
-          
-          // Store the submission data for later - use the nevent ID directly
-          setPendingSubmissionData({
-            campaignTypeId,
-            questId: Number(quest.quest_id || questIndex + 1),
-            contentToStore: nostrNeventId // Use the nevent ID directly, not a variable
-          })
-          setPendingNeventId(nostrNeventId)
-          debug.log("Pending data set with nevent ID:", nostrNeventId)
-          
-          // Modal is already shown, just update the state
-          setIsSubmitting(false)
-          
-          // Don't proceed with transaction yet - wait for verification
-          return
-        } catch (nostrError) {
-          console.warn("Failed to store on Nostr, will store on-chain:", nostrError)
-          // Continue without Nostr storage
-        }
+    // First, store the full content on Nostr using the React hook
+    let nostrNeventId: string | undefined
+    
+    // When editing, always create a new Nostr event for the updated content
+    // This ensures the latest content is stored on Nostr
+    if (nostrConnected && userAddress) {
+      try {
+        setIsSubmitting(true)
+        debug.log(isEditMode ? "Updating submission on Nostr..." : "Storing submission on Nostr...")
+        const result = await storeSubmission.mutateAsync({
+          campaignTypeId,
+          questId: Number(quest.quest_id || questIndex + 1),
+          userAddress,
+          content: submissionContent,
+          timestamp: Date.now()
+        })
+        nostrNeventId = result
+        debug.log("✅ Successfully stored on Nostr!")
+        debug.log("Stored nevent ID:", nostrNeventId)
+        debug.log("Full nevent ID that will be submitted:", nostrNeventId)
+        debug.log("Is this an edit?", isEditMode)
+        
+        // Store the submission data for later - use the nevent ID directly
+        setPendingSubmissionData({
+          campaignTypeId,
+          questId: Number(quest.quest_id || questIndex + 1),
+          contentToStore: nostrNeventId // Use the nevent ID directly
+        })
+        setPendingNeventId(nostrNeventId)
+        debug.log("Pending data set with nevent ID:", nostrNeventId)
+        
+        // Show the modal after successful Nostr storage
+        setShowStorageModal(true)
+        setIsSubmitting(false)
+        
+        // Don't proceed with transaction yet - wait for verification
+        return
+      } catch (nostrError) {
+        console.warn("Failed to store on Nostr, will store on-chain:", nostrError)
+        setIsSubmitting(false)
+        // Continue without Nostr storage
       }
-
-      // If no Nostr storage, proceed directly with on-chain storage
-      const contentToStore = submissionContent
-      await finalizeSubmission(campaignTypeId, Number(quest.quest_id || questIndex + 1), contentToStore)
-    } catch (err) {
-      debug.error("Failed to submit quest:", err)
-      setError(err instanceof Error ? err.message : "Failed to submit quest")
-      setIsSubmitting(false)
     }
+
+    // If no Nostr storage, prepare data and show modal for direct submission
+    setPendingSubmissionData({
+      campaignTypeId,
+      questId: Number(quest.quest_id || questIndex + 1),
+      contentToStore: submissionContent
+    })
+    setShowStorageModal(true)
   }
 
   // Separate function to finalize submission after verification
@@ -425,6 +431,16 @@ Lines        : 93.84% ( 183/195 )
       const finalCampaignHash = campaignHash || pendingSubmissionData?.campaignTypeId
       const finalQuestId = questIdParam || pendingSubmissionData?.questId
       const finalContent = content || pendingSubmissionData?.contentToStore
+
+      debug.log("📍 finalizeSubmission called with:", {
+        providedCampaignHash: campaignHash,
+        providedQuestId: questIdParam,
+        providedContent: content?.slice(0, 50),
+        pendingData: pendingSubmissionData,
+        pendingNeventId,
+        finalContent: finalContent?.slice(0, 50),
+        isNeventId: finalContent?.startsWith('nevent1')
+      })
 
       if (!finalCampaignHash || !finalQuestId || !finalContent) {
         throw new Error("Missing submission data")
@@ -459,6 +475,12 @@ Lines        : 93.84% ( 183/195 )
       // Clear pending data after successful submission
       setPendingSubmissionData(null)
       setPendingNeventId(null)
+      
+      // Call the onSuccess callback if provided
+      if (onSuccess) {
+        debug.log("Calling onSuccess callback after successful submission")
+        await onSuccess()
+      }
       
       // Return the txHash so the modal can display it
       return txHash
@@ -923,15 +945,23 @@ Lines        : 93.84% ( 183/195 )
       <NostrStorageModal
         isOpen={showStorageModal}
         onClose={() => {
+          // Only clear data and close modal when user explicitly closes it
           setShowStorageModal(false)
           setPendingNeventId(null)
           setPendingSubmissionData(null)
+          setIsSubmitting(false)
+          // If submission was successful, reload the submission data
+          if (hasSubmitted) {
+            checkSubmission()
+          }
         }}
         neventId={pendingNeventId}
         onConfirm={async () => {
           // Don't close the modal - let it stay open to show tx result
-          await finalizeSubmission()
+          const txHash = await finalizeSubmission()
           // Modal will handle showing success/error state
+          // Return the txHash so modal can display success
+          return txHash
         }}
         mode="verifying"
       />

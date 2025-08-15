@@ -12,6 +12,7 @@ interface UserContextType {
   userInstance: ckboost.User | null;
   currentUserData: ReturnType<typeof ckboost.types.UserData.decode> | null;
   currentUserTypeId: ccc.Hex | null;
+  currentUserSubmissions: Map<string, boolean>; // Map of "campaignTypeId:questId" -> submitted
   submitQuest: (
     campaignTypeId: ccc.Hex,
     questId: number,
@@ -40,6 +41,7 @@ const UserContext = createContext<UserContextType>({
   userInstance: null,
   currentUserData: null,
   currentUserTypeId: null,
+  currentUserSubmissions: new Map(),
   submitQuest: async () => {
     throw new Error("UserProvider not initialized");
   },
@@ -59,13 +61,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [userInstance] = useState<ckboost.User | null>(null);
   const [currentUserData, setCurrentUserData] = useState<ReturnType<typeof ckboost.types.UserData.decode> | null>(null);
   const [currentUserTypeId, setCurrentUserTypeId] = useState<ccc.Hex | null>(null);
+  const [currentUserSubmissions, setCurrentUserSubmissions] = useState<Map<string, boolean>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Initialize user service when signer and protocol data are available
+  // Initialize user service when signer, protocol data, and protocol cell are available
   useEffect(() => {
     async function initializeUserService() {
-      if (!signer || !protocolData) {
+      if (!signer || !protocolData || !protocolCell) {
         return;
       }
 
@@ -73,18 +76,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(true);
         setError(null);
 
-        // Get user type code hash and protocol type hash from protocol data
+        // Get user type code hash from protocol data
         const userTypeCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash;
         
-        // Get the protocol type hash (this is the type hash of the protocol cell)
-        // The protocol cell should have a type script, and we need its hash
-        // For ConnectedTypeID, we need the protocol's type script hash
-        const protocolTypeArgs = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS || "0x";
-        const protocolTypeHash = ccc.Script.from({
-          codeHash: protocolData.protocol_config.script_code_hashes.ckb_boost_protocol_type_code_hash,
-          hashType: "type",
-          args: protocolTypeArgs // The protocol's type_id from env
-        }).hash();
+        // Get the protocol type hash from the actual protocol cell
+        // This is the hash that user cells need to reference in their ConnectedTypeID
+        if (!protocolCell || !protocolCell.cellOutput.type) {
+          throw new Error("Protocol cell or its type script not found");
+        }
+        const protocolTypeHash = protocolCell.cellOutput.type.hash();
+        
+        console.log("[UserProvider] Protocol type hash from actual cell:", protocolTypeHash);
         
         // Create user service with both hashes
         const service = new UserService(signer, userTypeCodeHash, protocolTypeHash);
@@ -101,7 +103,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     initializeUserService();
-  }, [signer, protocolData]);
+  }, [signer, protocolData, protocolCell]);
 
   // Helper function to load current user data
   const loadCurrentUserData = async (service: UserService) => {
@@ -114,14 +116,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const lockScript = (await signer.getRecommendedAddressObj()).script;
       const userTypeCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash;
       
+      // Get protocol type hash from the service (it should already be initialized)
+      const protocolTypeHash = service.getProtocolTypeHash();
+      
       console.log("[UserProvider] Lock script hash:", lockScript.hash().slice(0, 10) + "...");
       console.log("[UserProvider] User type code hash:", userTypeCodeHash.slice(0, 10) + "...");
+      console.log("[UserProvider] Protocol type hash:", protocolTypeHash.slice(0, 10) + "...");
       
       // Import the new function for getting latest user cell
       const { getLatestUserCellByLock } = await import("../ckb/user-cells");
       
-      // Get the latest user cell (handles multiple cells properly)
-      const userCell = await getLatestUserCellByLock(lockScript, userTypeCodeHash, signer);
+      // Get the latest user cell connected to the current protocol
+      const userCell = await getLatestUserCellByLock(lockScript, userTypeCodeHash, signer, protocolTypeHash);
       
       if (userCell) {
         console.log("[UserProvider] Found user cell:", {
@@ -142,8 +148,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             totalTime: `${Date.now() - startTime}ms`
           });
           
+          // Build the submissions map for quick lookup
+          const submissionsMap = new Map<string, boolean>();
+          userData.submission_records.forEach(record => {
+            // Convert campaign_type_id to hex string if it's bytes
+            let campaignTypeId: string;
+            if (typeof record.campaign_type_id === 'string') {
+              campaignTypeId = record.campaign_type_id;
+            } else if (record.campaign_type_id && typeof record.campaign_type_id === 'object' && ArrayBuffer.isView(record.campaign_type_id)) {
+              campaignTypeId = ccc.hexFrom(record.campaign_type_id);
+            } else {
+              try {
+                campaignTypeId = ccc.hexFrom(ccc.bytesFrom(record.campaign_type_id));
+              } catch {
+                campaignTypeId = "0x";
+              }
+            }
+            
+            const key = `${campaignTypeId}:${record.quest_id}`;
+            submissionsMap.set(key, true);
+          });
+          
+          console.log("[UserProvider] Built submissions map with", submissionsMap.size, "entries");
+          
           setCurrentUserTypeId(typeId);
           setCurrentUserData(userData);
+          setCurrentUserSubmissions(submissionsMap);
         }
       } else {
         console.log(`[UserProvider] No user cell found for wallet (searched for ${Date.now() - startTime}ms)`);
@@ -186,24 +216,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       );
       const txHash = result.txHash;
       
-      // After submission, fetch the updated user data
-      if (signer) {
-        const lockScript = (await signer.getRecommendedAddressObj()).script;
-        const lockHash = lockScript.hash();
-        
-        // getUserByLockHash is a private method, we need to use type assertion
-        const userData = await (userService as unknown as {
-          getUserByLockHash: (lockHash: ccc.Hex) => Promise<{
-            cell: ccc.Cell;
-            typeId: ccc.Hex | null;
-            userData: ReturnType<typeof ckboost.types.UserData.decode> | null;
-          } | null>
-        }).getUserByLockHash(lockHash);
-        if (userData) {
-          setCurrentUserData(userData.userData);
-          setCurrentUserTypeId(userData.typeId);
-        }
-      }
+      // After submission, wait a bit for transaction to be confirmed then refresh user data
+      // The transaction needs time to be confirmed on the blockchain
+      console.log("[UserProvider] Transaction submitted, waiting for confirmation before refreshing user data...");
+      
+      // Wait 3 seconds for transaction confirmation
+      setTimeout(async () => {
+        console.log("[UserProvider] Refreshing user data after transaction...");
+        await refreshUserData();
+      }, 3000);
       
       return txHash;
     } catch (err) {
@@ -234,7 +255,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
     // Fetch user cell and parse data
-    const userCell = await fetchUserByTypeId(userTypeId, protocolData?.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash || "0x", signer!);
+    const userCell = await fetchUserByTypeId(
+      userTypeId, 
+      protocolData?.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash || "0x", 
+      signer!,
+      userService?.getProtocolTypeHash()  // Pass protocol type hash to ensure we get the right cell
+    );
     if (!userCell) return null;
     return parseUserData(userCell);
   };
@@ -244,45 +270,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     campaignTypeId: ccc.Hex,
     questId: number
   ) => {
-    if (!userService) {
-      return false;
-    }
-    // Check if user has submitted by looking at their submission records
-    const submissions = await userService.getUserSubmissionsWithContent(userTypeId);
+    // Use the cached submissions map for instant lookup
+    const key = `${campaignTypeId}:${questId}`;
+    const hasSubmitted = currentUserSubmissions.has(key);
     
-    // Debug logging
-    console.log("Checking submissions for quest", { 
-      userTypeId: userTypeId.slice(0, 10) + "...",
-      campaignTypeId: campaignTypeId,
+    console.log("[UserProvider] Checking submission status:", {
+      campaignTypeId: campaignTypeId.slice(0, 10) + "...",
       questId,
-      totalSubmissions: submissions.length
+      key,
+      hasSubmitted,
+      cachedEntries: currentUserSubmissions.size
     });
     
-    const found = submissions.some(s => {
-      // Normalize both campaign type IDs for comparison
-      // Remove 0x prefix if present and compare
-      const cleanSubmissionId = s.campaignTypeId.replace(/^0x/i, '').toLowerCase();
-      const cleanCampaignId = campaignTypeId.replace(/^0x/i, '').toLowerCase();
-      
-      const isMatch = cleanSubmissionId === cleanCampaignId && s.questId === questId;
-      
-      console.log("Comparing submission:", {
-        submissionCampaign: s.campaignTypeId,
-        targetCampaign: campaignTypeId,
-        cleanSubmission: cleanSubmissionId.slice(0, 10) + "...",
-        cleanTarget: cleanCampaignId.slice(0, 10) + "...",
-        submissionQuest: s.questId,
-        targetQuest: questId,
-        campaignMatch: cleanSubmissionId === cleanCampaignId,
-        questMatch: s.questId === questId,
-        overallMatch: isMatch
-      });
-      
-      return isMatch;
-    });
-    
-    console.log("Final result: user has submitted =", found);
-    return found;
+    return hasSubmitted;
   };
 
   // Add refresh function to manually reload user data
@@ -299,6 +299,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         userInstance,
         currentUserData,
         currentUserTypeId,
+        currentUserSubmissions,
         submitQuest,
         getUserSubmissions,
         getUserData,

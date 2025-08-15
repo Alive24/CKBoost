@@ -111,13 +111,20 @@ export class UserService {
   }
 
   /**
+   * Get the protocol type hash this service is configured with
+   */
+  getProtocolTypeHash(): ccc.Hex {
+    return this.protocolTypeHash;
+  }
+
+  /**
    * Submit a quest completion with optional Nostr storage
    * Creates user cell if it doesn't exist
    */
   async submitQuestWithAutoCreate(
     campaignTypeId: ccc.Hex,
     questId: number,
-    submissionContent: string, // Full HTML with images
+    submissionContent: string, // Full HTML with images OR nevent ID
     protocolCell: ccc.Cell,
     userVerificationData?: {
       name?: string;
@@ -132,8 +139,17 @@ export class UserService {
     let contentToStore: string;
     let neventId: string | undefined;
 
-    // If using Nostr storage, store the full content there first
-    if (this.useNostrStorage && this.nostrService) {
+    // Check if the submissionContent is already a nevent ID
+    if (submissionContent.startsWith('nevent1')) {
+      // It's already a nevent ID, don't store to Nostr again
+      debug.log("Submission content is already a nevent ID", {
+        neventId: submissionContent.slice(0, 20) + "..."
+      });
+      contentToStore = submissionContent;
+      neventId = submissionContent;
+    }
+    // If using Nostr storage and content is not already a nevent ID, store the full content there first
+    else if (this.useNostrStorage && this.nostrService) {
       const userAddress = await this.signer.getRecommendedAddress();
       
       debug.log("Storing submission on Nostr...", {
@@ -193,7 +209,9 @@ export class UserService {
       // User exists, update with submission
       debug.log("Updating existing user with submission", {
         userTypeId: existingUserData.typeId.slice(0, 10) + "...",
-        existingSubmissions: existingUserData.userData?.submission_records.length || 0
+        existingSubmissions: existingUserData.userData?.submission_records.length || 0,
+        contentToStore: contentToStore.slice(0, 50) + "...",
+        isNeventId: contentToStore.startsWith('nevent1')
       });
       
       txHash = await this.submitQuest(
@@ -208,7 +226,9 @@ export class UserService {
       debug.log("Creating new user with first submission", {
         userName: userVerificationData?.name || "Anonymous",
         hasTwitter: !!userVerificationData?.twitter,
-        hasDiscord: !!userVerificationData?.discord
+        hasDiscord: !!userVerificationData?.discord,
+        contentToStore: contentToStore.slice(0, 50) + "...",
+        isNeventId: contentToStore.startsWith('nevent1')
       });
       
       txHash = await this.createUserWithSubmission(
@@ -272,7 +292,8 @@ export class UserService {
     const userCell = await fetchUserByTypeId(
       userTypeId,
       this.userTypeCodeHash,
-      this.signer
+      this.signer,
+      this.protocolTypeHash  // Pass protocol type hash to ensure we get the right cell
     );
 
     if (!userCell) {
@@ -404,7 +425,8 @@ export class UserService {
     const userCell = await fetchUserByTypeId(
       userTypeId,
       this.userTypeCodeHash,
-      this.signer
+      this.signer,
+      this.protocolTypeHash  // Pass protocol type hash to ensure we get the right cell
     );
 
     if (!userCell) {
@@ -438,6 +460,14 @@ export class UserService {
     );
 
     // Create new submission record
+    debug.log("Creating submission record with:", {
+      campaignTypeId: campaignTypeId.slice(0, 10) + "...",
+      questId,
+      submissionContent: submissionContent.slice(0, 50) + "...",
+      isNeventId: submissionContent.startsWith('nevent1'),
+      fullLength: submissionContent.length
+    });
+    
     const newSubmissionBytes = ckboost.User.createSubmissionRecord(
       campaignTypeId,
       questId,
@@ -556,6 +586,14 @@ export class UserService {
     };
 
     // Create new submission record
+    debug.log("Creating submission record with:", {
+      campaignTypeId: campaignTypeId.slice(0, 10) + "...",
+      questId,
+      submissionContent: submissionContent.slice(0, 50) + "...",
+      isNeventId: submissionContent.startsWith('nevent1'),
+      fullLength: submissionContent.length
+    });
+    
     const newSubmissionBytes = ckboost.User.createSubmissionRecord(
       campaignTypeId,
       questId,
@@ -679,7 +717,8 @@ export class UserService {
     const userCell = await fetchUserByLockHash(
       lockHash,
       this.userTypeCodeHash,
-      this.signer
+      this.signer,
+      this.protocolTypeHash  // Pass protocol type hash to filter by protocol connection
     );
 
     if (!userCell) {

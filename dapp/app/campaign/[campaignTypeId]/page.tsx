@@ -36,7 +36,7 @@ export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeId = params.campaignTypeId as ccc.Hex
   const { signer, protocolData, protocolCell } = useProtocol()
-  const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading } = useUser()
+  const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading, refreshUserData } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -58,17 +58,25 @@ export default function CampaignDetailPage() {
         return
       }
 
+      // Wait for both protocolData AND protocolCell to be loaded
+      if (!protocolData || !protocolCell) {
+        debug.log("Waiting for protocol data and cell to load...")
+        // Don't set loading to false here - keep loading state
+        return
+      }
+
       try {
         setIsLoading(true) // Ensure loading state is set
         debug.log("Fetching campaign by type ID:", campaignTypeId)
-        const campaignCodeHash = protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash
+        const campaignCodeHash = protocolData.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash
         if (!campaignCodeHash) {
           debug.error("Campaign code hash not found in protocol data")
           setCampaign(null)
+          setIsLoading(false)
           return
         }
         const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
-        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer, protocolCell!)
+        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer, protocolCell)
         if (cell) {
           const campaignData = CampaignData.decode(cell.outputData) as CampaignDataLike
           setCampaign({ ...campaignData, typeHash: cell.cellOutput.type?.hash() || "0x", cell })
@@ -84,7 +92,7 @@ export default function CampaignDetailPage() {
     }
 
     fetchCampaign()
-  }, [signer, campaignTypeId, protocolData])
+  }, [signer, campaignTypeId, protocolData, protocolCell])
 
   // Check submission statuses for all quests
   useEffect(() => {
@@ -646,6 +654,31 @@ export default function CampaignDetailPage() {
                         }}
                         questIndex={selectedQuestIndex}
                         campaignTypeId={campaignTypeId}
+                        onSuccess={async () => {
+                          // Refresh user data after successful submission
+                          console.log("[CampaignPage] Quest submitted successfully, refreshing data...")
+                          
+                          // Wait a bit for transaction to be confirmed
+                          setTimeout(async () => {
+                            await refreshUserData()
+                            
+                            // Also refresh the submission statuses
+                            if (currentUserTypeId && campaign?.quests) {
+                              const statuses: Record<number, boolean> = {}
+                              for (let i = 0; i < campaign.quests.length; i++) {
+                                const quest = campaign.quests[i]
+                                const questId = Number(quest.quest_id || i + 1)
+                                const submitted = await hasUserSubmittedQuest(
+                                  currentUserTypeId,
+                                  campaignTypeId,
+                                  questId
+                                )
+                                statuses[questId] = submitted
+                              }
+                              setQuestSubmissionStatuses(statuses)
+                            }
+                          }, 3000)
+                        }}
                       />
                       
                       {/* Navigation between quests */}

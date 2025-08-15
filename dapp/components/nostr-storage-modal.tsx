@@ -15,7 +15,7 @@ interface NostrStorageModalProps {
   isOpen: boolean
   onClose: () => void
   neventId: string | null
-  onConfirm: () => Promise<void>
+  onConfirm: () => Promise<string | void>
   mode: "storing" | "verifying"
 }
 
@@ -35,6 +35,7 @@ export function NostrStorageModal({
   const [isConfirming, setIsConfirming] = useState(false)
   const [txStatus, setTxStatus] = useState<"idle" | "submitting" | "submitted" | "error">("idle")
   const [txError, setTxError] = useState<string | null>(null)
+  const [txHash, setTxHash] = useState<string | null>(null)
 
   // Reset state when modal opens
   useEffect(() => {
@@ -43,6 +44,9 @@ export function NostrStorageModal({
       setErrorMessage("")
       setVerifiedContent("")
       setRetryCount(0)
+      setTxStatus("idle")
+      setTxError(null)
+      setTxHash(null)
     }
   }, [isOpen, mode])
 
@@ -99,9 +103,13 @@ export function NostrStorageModal({
     setIsConfirming(true)
     setTxStatus("submitting")
     setTxError(null)
+    setTxHash(null)
     
     try {
-      await onConfirm()
+      const result = await onConfirm()
+      if (typeof result === 'string') {
+        setTxHash(result)
+      }
       setTxStatus("submitted")
       // Don't close modal immediately - let user see the status
       // User can manually close or refresh the page
@@ -143,7 +151,7 @@ export function NostrStorageModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[900px] lg:max-w-[1100px] xl:max-w-[1200px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Cloud className="w-5 h-5" />
@@ -220,7 +228,7 @@ export function NostrStorageModal({
                     </TabsList>
                     
                     <TabsContent value="rendered" className="mt-4">
-                      <div className="border rounded-lg p-4 max-h-96 overflow-y-auto bg-white dark:bg-gray-900 space-y-4">
+                      <div className="border rounded-lg p-4 max-h-[400px] overflow-auto bg-white dark:bg-gray-900 space-y-4">
                         {(() => {
                           // Parse content to extract subtasks
                           const subtaskSections = verifiedContent.split(/<h3>/).filter(Boolean);
@@ -357,8 +365,25 @@ export function NostrStorageModal({
                     <p className="text-sm text-green-600 dark:text-green-400">
                       Your quest submission has been successfully sent to the blockchain!
                     </p>
+                    {txHash && (
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-muted-foreground">Transaction Hash:</label>
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded flex-1 overflow-x-auto font-mono">
+                            {txHash}
+                          </code>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => navigator.clipboard.writeText(txHash)}
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">
-                      The transaction has been submitted. You can refresh the page to see your submission.
+                      The transaction has been submitted. You can refresh the page to see your submission status updated.
                     </p>
                     <div className="flex gap-2">
                       <Button
