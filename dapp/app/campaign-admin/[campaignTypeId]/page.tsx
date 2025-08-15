@@ -27,16 +27,14 @@ import {
   Copy,
   ChevronDown,
   ChevronUp,
-  Link as LinkIcon,
   Sparkles
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/core"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { useCampaign } from "@/lib/providers/campaign-provider"
 import type { ProtocolDataLike } from "ssri-ckboost/types"
-import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
+import { extractTypeIdFromCampaignCell } from "@/lib/ckb/campaign-cells"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
 import { CampaignService } from "@/lib/services/campaign-service"
@@ -253,40 +251,113 @@ export default function CampaignManagementPage() {
       }
 
       if (!campaignTypeId) {
-        debug.warn("No campaign type hash available")
+        debug.warn("No campaign type ID available")
+        setIsLoading(false)
+        return
+      }
+
+      if (!protocolCell || !protocolData) {
+        debug.warn("Protocol data not available yet")
         setIsLoading(false)
         return
       }
 
       try {
-        debug.warn("Campaign fetching by type hash is no longer supported")
-        debug.log("Campaign type ID requested:", campaignTypeId)
-        // Type hash based fetching has been removed to improve performance
-        // Campaigns should be fetched by type ID using ConnectedTypeID
-        setCampaign(null) // Set to null since we can't fetch by type hash anymore
+        debug.log("Fetching campaign by type ID:", campaignTypeId)
         
-        // Clear the form since we can't fetch the campaign
-        setCampaignForm({
-          title: "",
-          shortDescription: "",
-          longDescription: "",
-          categories: [],
-          difficulty: 1,
-          startDate: new Date().toISOString().slice(0, 16),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16),
-          totalPoints: "1000",
-          logo: "🚀",
-          rules: [""]
-        })
+        // Get campaign code hash from protocol config
+        const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+        
+        // Import the fetchCampaignByTypeId function
+        const { fetchCampaignByTypeId, isCampaignApproved } = await import("@/lib/ckb/campaign-cells")
+        
+        // Fetch the campaign by type ID (O(1) lookup)
+        const campaignCell = await fetchCampaignByTypeId(
+          campaignTypeId as ccc.Hex,
+          campaignCodeHash as ccc.Hex,
+          signer,
+          protocolCell
+        )
+        
+        if (campaignCell && campaignCell.outputData) {
+          debug.log("Campaign cell found:", campaignCell)
+          
+          // Parse campaign data from the cell's outputData
+          try {
+            const campaignData = CampaignData.decode(campaignCell.outputData)
+            
+            // Check if the current user is the campaign creator
+            const userAddress = await signer.getRecommendedAddressObj()
+            const userLockHash = userAddress.script.hash()
+            const isCreator = campaignData.endorser.endorser_lock_hash === userLockHash
+            
+            // Check if current user is admin or creator
+            if (!isAdmin && !isCreator) {
+              debug.warn("User is neither admin nor campaign creator")
+              setCampaign(null)
+            } else {
+              // Set campaign data with additional properties
+              setCampaign({
+                ...campaignData,
+                typeHash: campaignCell.cellOutput.type?.hash() || "0x",
+                cell: campaignCell,
+                isConnected: true, // If we found it, it's connected to the protocol
+                isApproved: isCampaignApproved(campaignTypeId as ccc.Hex, protocolData.campaigns_approved)
+              })
+              
+              // Update form with campaign data
+              setCampaignForm({
+                title: campaignData.metadata?.title || "",
+                shortDescription: campaignData.metadata?.short_description || "",
+                longDescription: campaignData.metadata?.long_description || "",
+                categories: campaignData.metadata?.categories || [],
+                difficulty: Number(campaignData.metadata?.difficulty) || 1,
+                startDate: new Date(Number(campaignData.starting_time) * 1000).toISOString().slice(0, 16),
+                endDate: new Date(Number(campaignData.ending_time) * 1000).toISOString().slice(0, 16),
+                totalPoints: "1000",
+                logo: "🚀",
+                rules: campaignData?.rules || [""]
+              })
+              
+              // Also populate local quests if they exist
+              if (campaignData.quests && campaignData.quests.length > 0) {
+                setLocalQuests(campaignData.quests.map(quest => ({
+                  title: quest.metadata.title || "",
+                  shortDescription: quest.metadata.short_description || "",
+                  longDescription: quest.metadata.long_description || "",
+                  points: Number(quest.points) || 100,
+                  difficulty: Number(quest.metadata.difficulty) || 1,
+                  timeEstimate: Number(quest.metadata.time_estimate) || 30,
+                  requirements: quest.metadata.requirements || "",
+                  subtasks: quest.sub_tasks?.map(st => ({
+                    title: st.title || "",
+                    description: st.description || "",
+                    type: st.type || "",
+                    proof_required: st.proof_required || ""
+                  })) || []
+                })))
+              }
+              
+              debug.log("Campaign loaded successfully")
+            }
+          } catch (decodeError) {
+            debug.error("Failed to decode campaign data from cell:", decodeError)
+            setCampaign(null)
+          }
+        } else {
+          debug.warn("Campaign not found with type ID:", campaignTypeId)
+          setCampaign(null)
+        }
       } catch (error) {
         debug.error("Failed to fetch campaign:", error)
+        setCampaign(null)
       } finally {
         setIsLoading(false)
       }
     }
 
     fetchCampaign()
-  }, [signer, campaignTypeId, protocolData, isCreateMode])
+  }, [signer, campaignTypeId, protocolData, protocolCell, isCreateMode, isAdmin])
 
   // Update URL when tab changes
   useEffect(() => {
@@ -736,15 +807,10 @@ export default function CampaignManagementPage() {
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Approved
                     </Badge>
-                  ) : campaign.isConnected ? (
+                  ) : (
                     <Badge className="bg-yellow-100 text-yellow-800">
                       <Clock className="w-3 h-3 mr-1" />
                       Pending Approval
-                    </Badge>
-                  ) : (
-                    <Badge className="bg-gray-100 text-gray-800">
-                      <AlertCircle className="w-3 h-3 mr-1" />
-                      Not Connected
                     </Badge>
                   )}
                     <Badge variant="outline">
@@ -758,15 +824,6 @@ export default function CampaignManagementPage() {
               </div>
               
               <div className="flex items-center gap-2">
-                {!isCreateMode && campaign && !campaign.isConnected && (
-                  <Button 
-                    onClick={handleConnectToProtocol}
-                    className="bg-orange-600 hover:bg-orange-700"
-                  >
-                    <LinkIcon className="w-4 h-4 mr-2" />
-                    Connect to Protocol
-                  </Button>
-                )}
                 {!isCreateMode && (
                   <Link href={`/campaign/${campaignTypeId}`}>
                     <Button variant="outline">

@@ -78,37 +78,38 @@ export default function CampaignAdminDashboard() {
     const fetchCampaigns = async () => {
       debug.group('Campaign Admin - Fetch User Campaigns')
       debug.log('Signer status:', { signerPresent: !!signer })
+      debug.log('Protocol status:', { 
+        protocolCell: !!protocolCell, 
+        protocolData: !!protocolData 
+      })
       
+      // Wait for signer to be available
       if (!signer) {
-        debug.warn('No signer available, skipping campaign fetch')
+        debug.warn('No signer available, waiting...')
         debug.groupEnd()
-        setIsLoading(false)
+        // Keep loading state true while waiting for signer
+        return
+      }
+      
+      // Wait for protocol to be loaded
+      if (!protocolCell || !protocolData) {
+        debug.log('Waiting for protocol to load...', {
+          protocolCell: !!protocolCell,
+          protocolData: !!protocolData
+        })
+        debug.groupEnd()
+        // Keep loading state true while waiting for protocol
         return
       }
       
       setIsLoading(true)
       try {
-        // Get protocol cell to extract campaign code hash and check connections
-        debug.log('Using protocol cell from context...')
-        
-        if (!protocolCell) {
-          debug.error("Protocol cell not found")
-          debug.groupEnd()
-          return
-        }
-        
+        // Protocol is now loaded, we can proceed
+        debug.log('Protocol loaded, fetching campaigns...')
         debug.log('Protocol cell found:', {
           typeHash: protocolCell.cellOutput.type?.hash(),
           dataLength: protocolCell.outputData.length
         })
-
-        // Use protocol data from context
-        debug.log('Using protocol data from context...')
-        if (!protocolData) {
-          debug.error("Protocol data not found")
-          debug.groupEnd()
-          return
-        }
         const campaignCodeHash = protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
         const protocolTypeHash = protocolCell.cellOutput.type?.hash() || "0x"
         
@@ -155,12 +156,17 @@ export default function CampaignAdminDashboard() {
               protocolData.campaigns_approved as ccc.Hex[] | undefined
             )
             
+            // Skip campaigns that are not connected to the protocol
+            if (!isConnected) {
+              debug.log('Skipping campaign - not connected to protocol')
+              continue
+            }
+            
             // Calculate campaign status
             const now = Date.now()
             const startTime = Number(campaignData.starting_time) * 1000
             const endTime = Number(campaignData.ending_time) * 1000
-            const status = !isConnected ? "not-connected" :
-                          !isApproved ? "under-review" : 
+            const status = !isApproved ? "under-review" : 
                           now < startTime ? "draft" : 
                           now > endTime ? "completed" : "active"
             
@@ -169,12 +175,12 @@ export default function CampaignAdminDashboard() {
               return sum + Number(quest.points || 100)
             }, 0) || 0
             
-            // Process campaign for display
+            // Process campaign for display (only connected campaigns)
             const campaignInfo: typeof ownedCampaigns[0] = {
               ...campaignData,
               typeId: (campaignTypeId || "0x") as ccc.Hex,
               status,
-              isConnected: isConnected || false,
+              isConnected: true, // Always true since we only process connected campaigns
               isApproved,
               totalPoints,
               participants: 0, // Would need submission data to calculate
@@ -197,7 +203,6 @@ export default function CampaignAdminDashboard() {
             debug.log('Processed campaign:', {
               title: campaignInfo.metadata.title,
               status: campaignInfo.status,
-              isConnected: campaignInfo.isConnected,
               isApproved: campaignInfo.isApproved
             })
             
@@ -219,7 +224,7 @@ export default function CampaignAdminDashboard() {
     }
 
     fetchCampaigns()
-  }, [signer])
+  }, [signer, protocolCell, protocolData])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -231,8 +236,6 @@ export default function CampaignAdminDashboard() {
         return "bg-purple-100 text-purple-800"
       case "under-review":
         return "bg-yellow-100 text-yellow-800"
-      case "not-connected":
-        return "bg-gray-100 text-gray-800"
       case "paused":
         return "bg-gray-100 text-gray-800"
       default:
@@ -527,12 +530,16 @@ export default function CampaignAdminDashboard() {
             </TabsContent>
 
             <TabsContent value="campaigns" className="space-y-6">
-              {isLoading ? (
+              {isLoading || !protocolCell || !protocolData ? (
                 // Loading state
                 <div className="flex items-center justify-center py-16">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                    <p className="text-muted-foreground">Loading campaigns...</p>
+                    <p className="text-muted-foreground">
+                      {!signer ? "Waiting for wallet connection..." : 
+                       !protocolCell || !protocolData ? "Loading protocol data..." : 
+                       "Loading campaigns..."}
+                    </p>
                   </div>
                 </div>
               ) : campaignsToShow.length === 0 ? (
@@ -557,7 +564,7 @@ export default function CampaignAdminDashboard() {
               ) : (
                 <>
                   {/* Campaign Status Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -577,23 +584,10 @@ export default function CampaignAdminDashboard() {
                       <div>
                         <p className="text-sm text-muted-foreground">Pending Approval</p>
                         <p className="text-2xl font-bold">
-                          {campaignsToShow.filter(c => !c.isApproved && c.isConnected).length}
+                          {campaignsToShow.filter(c => !c.isApproved).length}
                         </p>
                       </div>
                       <Clock className="w-8 h-8 text-yellow-600" />
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Not Connected</p>
-                        <p className="text-2xl font-bold">
-                          {campaignsToShow.filter(c => !c.isConnected).length}
-                        </p>
-                      </div>
-                      <AlertCircle className="w-8 h-8 text-gray-600" />
                     </div>
                   </CardContent>
                 </Card>
@@ -612,22 +606,15 @@ export default function CampaignAdminDashboard() {
                           <Badge className={getStatusColor(campaign.status)}>
                             {campaign.status}
                           </Badge>
-                          {campaign.isApproved && (
+                          {campaign.isApproved ? (
                             <Badge className="bg-green-100 text-green-800">
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Approved
                             </Badge>
-                          )}
-                          {!campaign.isApproved && campaign.isConnected && (
+                          ) : (
                             <Badge className="bg-yellow-100 text-yellow-800">
                               <Clock className="w-3 h-3 mr-1" />
                               Pending Approval
-                            </Badge>
-                          )}
-                          {!campaign.isConnected && (
-                            <Badge className="bg-gray-100 text-gray-800">
-                              <AlertCircle className="w-3 h-3 mr-1" />
-                              Not Connected
                             </Badge>
                           )}
                           <Badge variant="outline" className={getCategoryColor(campaign.metadata?.categories?.[0] || "General")}>
@@ -691,17 +678,6 @@ export default function CampaignAdminDashboard() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {!campaign.isConnected && (
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="border-orange-300 text-orange-600 hover:bg-orange-50"
-                              title="Connect campaign to protocol"
-                            >
-                              <Settings className="w-4 h-4 mr-1" />
-                              Connect to Protocol
-                            </Button>
-                          )}
                           <Link href={`/campaign/${campaign.typeId}`}>
                             <Button variant="outline" size="sm">
                               <Eye className="w-4 h-4 mr-1" />
@@ -844,11 +820,15 @@ export default function CampaignAdminDashboard() {
                   <CardTitle>Campaign Application Reviews</CardTitle>
             </CardHeader>
                 <CardContent>
-                  {isLoading ? (
+                  {isLoading || !protocolCell || !protocolData ? (
                     <div className="flex items-center justify-center py-8">
                       <div className="text-center">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                        <p className="text-sm text-muted-foreground">Loading campaigns...</p>
+                        <p className="text-sm text-muted-foreground">
+                          {!signer ? "Waiting for wallet connection..." : 
+                           !protocolCell || !protocolData ? "Loading protocol data..." : 
+                           "Loading campaigns..."}
+                        </p>
                       </div>
                     </div>
                   ) : ownedCampaigns.length === 0 ? (
