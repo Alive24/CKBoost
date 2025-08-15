@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
+use ckb_deterministic::debug_trace;
 use ckb_std::high_level::load_script;
 use ckboost_shared::type_id::validate_type_id;
 use ckboost_shared::types::ConnectedTypeID;

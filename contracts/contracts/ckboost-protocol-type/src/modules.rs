@@ -1,6 +1,5 @@
 use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
-    create_recipe_with_reference, create_recipe_with_args, serialize_transaction_recipe,
+    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference, debug_trace, serialize_transaction_recipe, transaction_context::TransactionContext
 };
 use ckb_std::{
     debug,

@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
+use ckb_deterministic::debug_trace;
 use ckboost_shared::{type_id::check_type_id_from_script_args, types::ProtocolData, Error};
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;

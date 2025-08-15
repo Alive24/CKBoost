@@ -1,6 +1,6 @@
 use crate::{modules::CKBoostProtocolType, ssri::CKBoostProtocol};
 use ckb_deterministic::{
-    transaction_recipe::TransactionRecipeExt,
+    debug_trace, transaction_recipe::TransactionRecipeExt
 };
 use ckb_std::debug;
 use ckboost_shared::{

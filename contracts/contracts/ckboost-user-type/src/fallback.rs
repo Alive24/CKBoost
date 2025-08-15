@@ -1,7 +1,7 @@
 extern crate alloc;
 
 use ckb_deterministic::{
-    transaction_recipe::TransactionRecipeExt,
+    debug_trace, transaction_recipe::TransactionRecipeExt
 };
 use ckboost_shared::{
     error::Error,

@@ -1,8 +1,7 @@
 use alloc::vec;
 use blake2b_ref::Blake2bBuilder;
 use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference,
-    serialize_transaction_recipe, transaction_context::TransactionContext,
+    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference, debug_trace, serialize_transaction_recipe, transaction_context::TransactionContext
 };
 use ckb_ssri_std::utils::high_level::{find_cell_by_out_point, find_out_point_by_type};
 use ckb_std::{
