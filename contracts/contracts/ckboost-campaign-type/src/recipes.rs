@@ -25,9 +25,9 @@ pub mod helper {
         if campaign_code_hash.as_slice() == expected_code_hash {
             Ok(())
         } else {
-            debug!("CellRelationshipRuleViolation: Campaign code hash mismatch in protocol cell");
-            debug!("  Expected: {:?}", expected_code_hash);
-            debug!("  Got: {:?}", campaign_code_hash.as_slice());
+            ("CellRelationshipRuleViolation: Campaign code hash mismatch in protocol cell");
+            ("  Expected: {:?}", expected_code_hash);
+            ("  Got: {:?}", campaign_code_hash.as_slice());
             Err(DeterministicError::CellRelationshipRuleViolation)
         }
     }
@@ -44,8 +44,8 @@ pub mod helper {
                     // Found a matching type hash, validate the cell data
                     let data = load_cell_data(index, Source::CellDep)
                         .map_err(|e| {
-                            debug!("CellRelationshipRuleViolation: Failed to load cell data at index {}", index);
-                            debug!("  Error: {:?}", e);
+                            ("CellRelationshipRuleViolation: Failed to load cell data at index {}", index);
+                            ("  Error: {:?}", e);
                             DeterministicError::CellRelationshipRuleViolation
                         })?;
 
@@ -60,8 +60,8 @@ pub mod helper {
             }
             index += 1;
         }
-        debug!("CellRelationshipRuleViolation: Protocol cell not found in deps");
-        debug!("  Looking for protocol type hash: {:?}", protocol_type_hash);
+        ("CellRelationshipRuleViolation: Protocol cell not found in deps");
+        ("  Looking for protocol type hash: {:?}", protocol_type_hash);
         Err(DeterministicError::CellRelationshipRuleViolation)
     }
 }
@@ -87,7 +87,7 @@ pub mod common {
                 {
                     return Ok(());
                 } else {
-                    debug!("Missing campaign cell in input");
+                    ("Missing campaign cell in input");
                     return Err(DeterministicError::CellCountViolation);
                 }
             }
@@ -96,7 +96,7 @@ pub mod common {
             .output_cells
             .get_custom("campaign")
             .ok_or_else(|| {
-                debug!("CellCountViolation: Missing campaign cell in output (script_immutability)");
+                ("CellCountViolation: Missing campaign cell in output (script_immutability)");
                 DeterministicError::CellCountViolation
             })?;
 
@@ -105,7 +105,7 @@ pub mod common {
             let output_cell = output_campaign_cells
                 .get(i)
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Output campaign cell {} not found (script_immutability)", i);
+                    ("CellCountViolation: Output campaign cell {} not found (script_immutability)", i);
                     DeterministicError::CellCountViolation
                 })?;
 
@@ -113,9 +113,9 @@ pub mod common {
             expect(&input_cell.lock_hash)
                 .to_equal(&output_cell.lock_hash)
                 .map_err(|_| {
-                    debug!("CellRelationshipRuleViolation: Lock hash mismatch at index {}", i);
-                    debug!("  Input lock hash: {:?}", input_cell.lock_hash);
-                    debug!("  Output lock hash: {:?}", output_cell.lock_hash);
+                    ("CellRelationshipRuleViolation: Lock hash mismatch at index {}", i);
+                    ("  Input lock hash: {:?}", input_cell.lock_hash);
+                    ("  Output lock hash: {:?}", output_cell.lock_hash);
                     DeterministicError::CellRelationshipRuleViolation
                 })?;
 
@@ -125,17 +125,17 @@ pub mod common {
                     expect(&input_hash)
                         .to_equal(&output_hash)
                         .map_err(|_| {
-                            debug!("CellRelationshipRuleViolation: Type hash mismatch at index {}", i);
-                            debug!("  Input type hash: {:?}", input_hash);
-                            debug!("  Output type hash: {:?}", output_hash);
+                            ("CellRelationshipRuleViolation: Type hash mismatch at index {}", i);
+                            ("  Input type hash: {:?}", input_hash);
+                            ("  Output type hash: {:?}", output_hash);
                             DeterministicError::CellRelationshipRuleViolation
                         })?;
                 }
                 _ => {
                     // Either input or output campaign cell has no type hash - this is not allowed
-                    debug!("CellRelationshipRuleViolation: Campaign cell missing type hash at index {}", i);
-                    debug!("  Input has type: {}", input_cell.type_hash.is_some());
-                    debug!("  Output has type: {}", output_cell.type_hash.is_some());
+                    ("CellRelationshipRuleViolation: Campaign cell missing type hash at index {}", i);
+                    ("  Input has type: {}", input_cell.type_hash.is_some());
+                    ("  Output has type: {}", output_cell.type_hash.is_some());
                     return Err(DeterministicError::CellRelationshipRuleViolation);
                 }
             }
@@ -207,12 +207,12 @@ pub mod update_campaign {
                 .output_cells
                 .get_custom("campaign")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing campaign cells in output (reference_to_protocol)");
+                    ("CellCountViolation: Missing campaign cells in output (reference_to_protocol)");
                     DeterministicError::CellCountViolation
                 })?
                 .first()
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Empty campaign cells list in output (reference_to_protocol)");
+                    ("CellCountViolation: Empty campaign cells list in output (reference_to_protocol)");
                     DeterministicError::CellCountViolation
                 })?;
 
@@ -221,7 +221,7 @@ pub mod update_campaign {
                 .type_script
                 .as_ref()
                 .ok_or_else(|| {
-                    debug!("CellRelationshipRuleViolation: Campaign cell has no type script (reference_to_protocol)");
+                    ("CellRelationshipRuleViolation: Campaign cell has no type script (reference_to_protocol)");
                     DeterministicError::CellRelationshipRuleViolation
                 })?;
 
@@ -231,17 +231,17 @@ pub mod update_campaign {
             // Determine the pattern based on exact args length
             let protocol_type_hash = if type_args.len() == 32 {
                 // Pattern 1: Direct reference - args is exactly the protocol type hash
-                debug!("Using direct reference pattern (exactly 32 bytes)");
+                ("Using direct reference pattern (exactly 32 bytes)");
                 type_args.to_vec()
             } else if type_args.len() == 76 {
                 // Pattern 2: ConnectedTypeID - parse the structure
-                debug!("Using ConnectedTypeID pattern (exactly 76 bytes)");
+                ("Using ConnectedTypeID pattern (exactly 76 bytes)");
                 
                 // Parse as ConnectedTypeID
                 let connected_type_id = ConnectedTypeID::from_slice(&type_args)
                     .map_err(|e| {
-                        debug!("CellRelationshipRuleViolation: Failed to parse ConnectedTypeID");
-                        debug!("  Error: {:?}", e);
+                        ("CellRelationshipRuleViolation: Failed to parse ConnectedTypeID");
+                        ("  Error: {:?}", e);
                         DeterministicError::CellRelationshipRuleViolation
                     })?;
                 
@@ -249,9 +249,9 @@ pub mod update_campaign {
                 connected_type_id.connected_key().raw_data().to_vec()
             } else {
                 // Invalid length - only 32 or 76 bytes allowed
-                debug!("CellRelationshipRuleViolation: Type args must be exactly 32 bytes (direct) or 76 bytes (ConnectedTypeID)");
-                debug!("  Got: {} bytes", type_args.len());
-                debug!("  Type args: {:?}", type_args);
+                ("CellRelationshipRuleViolation: Type args must be exactly 32 bytes (direct) or 76 bytes (ConnectedTypeID)");
+                ("  Got: {} bytes", type_args.len());
+                ("  Type args: {:?}", type_args);
                 return Err(DeterministicError::CellRelationshipRuleViolation);
             };
 
@@ -265,6 +265,7 @@ pub mod update_campaign {
 
     pub mod business_logic {
         use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::debug_trace;
         use ckb_deterministic::errors::Error as DeterministicError;
         use ckb_deterministic::assertions::expect;
         use ckb_std::debug;
@@ -276,21 +277,21 @@ pub mod update_campaign {
         pub fn campaign_update_validation(
             context: &TransactionContext<RuleBasedClassifier>,
         ) -> Result<(), DeterministicError> {
-            debug!("[campaign_update_validation] Starting validation");
+            debug_trace!(" Starting validation");
             
             // Get campaign cells
             let input_campaign_cells = context.input_cells.get_custom("campaign");
-            debug!("[campaign_update_validation] Input campaign cells: {:?}", 
+            debug_trace!(" Input campaign cells: {:?}", 
                 input_campaign_cells.as_ref().map(|cells| cells.len()));
             
             let output_campaign_cells = context
                 .output_cells
                 .get_custom("campaign")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing campaign cell in output (campaign_update_validation)");
+                    ("CellCountViolation: Missing campaign cell in output (campaign_update_validation)");
                     DeterministicError::CellCountViolation
                 })?;
-            debug!("[campaign_update_validation] Output campaign cells: {}", output_campaign_cells.len());
+            debug_trace!(" Output campaign cells: {}", output_campaign_cells.len());
 
             // Ensure we have exactly one output campaign
             expect(output_campaign_cells.len()).to_equal(1)?;
@@ -328,14 +329,14 @@ pub mod update_campaign {
                     }
                 }
                 None => {
-                    debug!("[campaign_update_validation] This is a new campaign creation");
+                    debug_trace!(" This is a new campaign creation");
                     
                     // This is a new campaign creation
                     // Verify status is 0 (created)
                     let status = output_campaign_data.status();
-                    debug!("[campaign_update_validation] Campaign status: {}", status);
+                    debug_trace!(" Campaign status: {}", status);
                     if status != 0u8.into() {
-                        debug!("[campaign_update_validation] ERROR: New campaign must have status 0, got {}", status);
+                        debug_trace!(" ERROR: New campaign must have status 0, got {}", status);
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
 
@@ -344,12 +345,12 @@ pub mod update_campaign {
                     let participants = output_campaign_data.participants_count();
                     let completions = output_campaign_data.total_completions();
                     
-                    debug!("[campaign_update_validation] Participants count: {:?}", participants.as_slice());
-                    debug!("[campaign_update_validation] Total completions: {:?}", completions.as_slice());
+                    debug_trace!(" Participants count: {:?}", participants.as_slice());
+                    debug_trace!(" Total completions: {:?}", completions.as_slice());
                     
                     if participants.as_slice() != zero_u32.as_slice() ||
                        completions.as_slice() != zero_u32.as_slice() {
-                        debug!("[campaign_update_validation] ERROR: New campaign must have 0 participants and completions");
+                        debug_trace!(" ERROR: New campaign must have 0 participants and completions");
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
                 }
@@ -358,9 +359,9 @@ pub mod update_campaign {
             // Common validations for both create and update
             // 1. Campaign must have at least one quest
             let quest_count = output_campaign_data.quests().len();
-            debug!("[campaign_update_validation] Quest count: {}", quest_count);
+            debug_trace!(" Quest count: {}", quest_count);
             if quest_count == 0 {
-                debug!("[campaign_update_validation] ERROR: Campaign must have at least one quest");
+                debug_trace!(" ERROR: Campaign must have at least one quest");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -369,11 +370,11 @@ pub mod update_campaign {
             let short_desc_empty = output_campaign_data.metadata().short_description().is_empty();
             let long_desc_empty = output_campaign_data.metadata().long_description().is_empty();
             
-            debug!("[campaign_update_validation] Title empty: {}, short_desc empty: {}, long_desc empty: {}", 
+            debug_trace!(" Title empty: {}, short_desc empty: {}, long_desc empty: {}", 
                 title_empty, short_desc_empty, long_desc_empty);
                 
             if title_empty || short_desc_empty || long_desc_empty {
-                debug!("[campaign_update_validation] ERROR: Title and descriptions must not be empty");
+                debug_trace!(" ERROR: Title and descriptions must not be empty");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -443,14 +444,14 @@ pub mod complete_quest {
                 .input_cells
                 .get_custom("campaign")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing campaign cell in input (quest_completion_validation)");
+                    ("CellCountViolation: Missing campaign cell in input (quest_completion_validation)");
                     DeterministicError::CellCountViolation
                 })?;
             let output_campaign_cells = context
                 .output_cells
                 .get_custom("campaign")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing campaign cell in output (quest_completion_validation)");
+                    ("CellCountViolation: Missing campaign cell in output (quest_completion_validation)");
                     DeterministicError::CellCountViolation
                 })?;
 
@@ -459,14 +460,14 @@ pub mod complete_quest {
                 .input_cells
                 .get_custom("user")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing user cell in input (quest_completion_validation)");
+                    ("CellCountViolation: Missing user cell in input (quest_completion_validation)");
                     DeterministicError::CellCountViolation
                 })?;
             let output_user_cells = context
                 .output_cells
                 .get_custom("user")
                 .ok_or_else(|| {
-                    debug!("CellCountViolation: Missing user cell in output (quest_completion_validation)");
+                    ("CellCountViolation: Missing user cell in output (quest_completion_validation)");
                     DeterministicError::CellCountViolation
                 })?;
 
@@ -476,7 +477,7 @@ pub mod complete_quest {
             
             // Ensure we have at least one user cell
             if input_user_cells.is_empty() || output_user_cells.is_empty() {
-                debug!("No user cells found");
+                ("No user cells found");
                 return Err(DeterministicError::CellCountViolation);
             }
 

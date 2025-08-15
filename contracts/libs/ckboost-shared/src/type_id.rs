@@ -1,6 +1,7 @@
 use crate::error::Error;
 use alloc::vec::Vec;
 use blake2b_ref::Blake2bBuilder;
+use ckb_deterministic::debug_trace;
 use ckb_std::{
     ckb_constants::Source,
     debug,
@@ -19,7 +20,7 @@ fn has_type_id_cell(index: usize, source: Source) -> bool {
             match e {
                 SysError::LengthNotEnough(_) => true,
                 _ => {
-                    debug!("load cell err: {:?}", e);
+                    debug_trace!("load cell err: {:?}", e);
                     false
                 }
             }
@@ -59,7 +60,7 @@ pub fn calculate_type_id(input: &[u8], output_index: usize) -> [u8; 32] {
 /// current transaction confronts to the type ID rules.
 pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
     if has_type_id_cell(1, Source::GroupInput) || has_type_id_cell(1, Source::GroupOutput) {
-        debug!("There can only be at most one input and at most one output type ID cell!");
+        debug_trace!("There can only be at most one input and at most one output type ID cell!");
         return Err(Error::InvalidTypeIDCellNum);
     }
 
@@ -74,9 +75,9 @@ pub fn validate_type_id(type_id: [u8; 32]) -> Result<(), Error> {
         let calculated_type_id = calculate_type_id(input.as_slice(), index);
 
         if calculated_type_id != type_id {
-            debug!("Invalid type ID!");
-            debug!("Calculated type ID: {:x?}", calculated_type_id);
-            debug!("Expected type ID: {:x?}", type_id);
+            debug_trace!("Invalid type ID!");
+            debug_trace!("Calculated type ID: {:x?}", calculated_type_id);
+            debug_trace!("Expected type ID: {:x?}", type_id);
             return Err(Error::TypeIDNotMatch);
         }
     }
@@ -89,7 +90,7 @@ pub fn load_type_id_from_script_args(offset: usize) -> Result<[u8; 32], Error> {
     let script = load_script()?;
     let args = script.as_reader().args();
     if offset + 32 > args.raw_data().len() {
-        debug!("Length of type id is incorrect!");
+        debug_trace!("Length of type id is incorrect!");
         return Err(Error::LengthNotEnough);
     }
     let mut ret = [0; 32];

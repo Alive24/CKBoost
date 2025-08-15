@@ -9,11 +9,11 @@ use ckboost_shared::{
 };
 
 pub fn fallback() -> Result<(), Error> {
-    debug!("Entered fallback with ckb_deterministic integration");
+    debug_trace!("Entered fallback with ckb_deterministic integration");
 
     // Create transaction context using ckb_deterministic framework
     let context = create_transaction_context()?;
-    debug!("Transaction context created successfully in fallback");
+    debug_trace!("Transaction context created successfully in fallback");
 
     match context.recipe.method_path_bytes().as_slice() {
         b"CKBoostProtocol.update_protocol" => {

@@ -47,14 +47,14 @@ fn program_entry_wrap() -> Result<(), Error> {
         match check_type_id_from_script_args() {
             Ok(_) => fallback()?,
             Err(err) => {
-                debug!("Contract execution failed with error: {:?}", err);
+                debug_trace!("Contract execution failed with error: {:?}", err);
                 return Err(err);
             }
         }
         return Ok(());
     }
 
-    debug!("Entering SSRI methods for CKBoost Protocol");
+    debug_trace!("Entering SSRI methods for CKBoost Protocol");
     
     let res: Cow<'static, [u8]> = ssri_methods!(
         argv: &argv,
@@ -62,7 +62,7 @@ fn program_entry_wrap() -> Result<(), Error> {
         invalid_args: Error::SSRIMethodsArgsInvalid,
         
         "CKBoostProtocol.update_protocol" => {
-            debug!("Entered CKBoostProtocol.update_protocol");
+            debug_trace!("Entered CKBoostProtocol.update_protocol");
             
             // Parse optional transaction (argv[1])
             let tx: Option<Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
@@ -83,7 +83,7 @@ fn program_entry_wrap() -> Result<(), Error> {
             Ok(Cow::from(result_tx.as_bytes().to_vec()))
         },
         // "CKBoostProtocol.update_tipping_proposal" => {
-        //     debug!("Entered CKBoostProtocol.update_tipping_proposal");
+        //     debug_trace!("Entered CKBoostProtocol.update_tipping_proposal");
             
         //     // Parse protocol_id
         //     let protocol_id_bytes = decode_hex(argv[1].as_ref())?;
@@ -111,7 +111,7 @@ pub fn program_entry() -> i8 {
     match program_entry_wrap() {
         Ok(_) => 0,
         Err(err) => {
-            debug!("Contract execution failed with error: {:?}", err);
+            debug_trace!("Contract execution failed with error: {:?}", err);
             err as i8
         }
     }

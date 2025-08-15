@@ -3,7 +3,7 @@ use crate::error::Error;
 pub use ckb_deterministic::cell_classifier::{
     CellClass, CellCollector, CellInfo, ClassificationRule, ClassifiedCells, RuleBasedClassifier,
 };
-use ckb_deterministic::known_scripts::KnownScript;
+use ckb_deterministic::{debug_trace, known_scripts::KnownScript};
 
 /// Create a CKBoost classifier with protocol-specific rules
 pub fn create_ckboost_classifier(
@@ -11,7 +11,7 @@ pub fn create_ckboost_classifier(
 ) -> Result<RuleBasedClassifier, Error> {
     use crate::protocol_data::ProtocolDataExt;
     use ckb_std::debug;
-    debug!("Creating CKBoost classifier from protocol data");
+    debug_trace!("Creating CKBoost classifier from protocol data");
 
     // Start with a basic classifier
     let classifier = RuleBasedClassifier::new("CKBoostClassifier")

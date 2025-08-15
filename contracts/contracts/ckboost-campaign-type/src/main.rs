@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::borrow::Cow;
+use ckb_deterministic::{debug_info, debug_trace};
 use ckb_std::high_level::load_script;
 use ckboost_shared::type_id::validate_type_id;
 use ckboost_shared::types::ConnectedTypeID;
@@ -39,20 +40,20 @@ fn program_entry_wrap() -> Result<(), Error> {
         // 
         // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
         let args = load_script()?.args();
-        debug!("args: {:?}", args);
+        debug_info!("args: {:?}", args);
         let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data()).map_err(|_| Error::InvalidConnectedTypeId)?;
-        debug!("connected_type_id: {:?}", connected_type_id);
+        debug_info!("connected_type_id: {:?}", connected_type_id);
         match validate_type_id(connected_type_id.type_id().into()) {
             Ok(_) => fallback()?,
             Err(err) => {
-                debug!("Contract execution failed with error: {:?}", err);
+                debug_trace!("Contract execution failed with error: {:?}", err);
                 return Err(err);
             }
         }
         return Ok(());
     }
 
-    debug!("Entering SSRI methods for CKBoost Campaign");
+    debug_trace!("Entering SSRI methods for CKBoost Campaign");
     
     let res: Cow<'static, [u8]> = ssri_methods!(
         argv: &argv,
@@ -60,7 +61,7 @@ fn program_entry_wrap() -> Result<(), Error> {
         invalid_args: Error::SSRIMethodsArgsInvalid,
         
         "CKBoostCampaign.update_campaign" => {
-            debug!("Entered CKBoostCampaign.update_campaign");
+            debug_trace!("Entered CKBoostCampaign.update_campaign");
             
             // Parse optional transaction (argv[1])
             let tx: Option<ckb_std::ckb_types::packed::Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
@@ -81,7 +82,7 @@ fn program_entry_wrap() -> Result<(), Error> {
             Ok(Cow::from(result_tx.as_bytes().to_vec()))
         },
         // "CKBoostCampaign.approve_completion" => {
-        //     // debug!("Entered CKBoostCampaign.approve_completion");
+        //     // debug_trace!("Entered CKBoostCampaign.approve_completion");
             
         //     // // Parse optional transaction (argv[1])
         //     // let tx: Option<ckb_std::ckb_types::packed::Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
@@ -120,7 +121,7 @@ pub fn program_entry() -> i8 {
     match program_entry_wrap() {
         Ok(_) => 0,
         Err(err) => {
-            debug!("Contract execution failed with error: {:?}", err);
+            debug_trace!("Contract execution failed with error: {:?}", err);
             err as i8
         }
     }

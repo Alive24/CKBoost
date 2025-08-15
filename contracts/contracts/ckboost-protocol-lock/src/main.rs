@@ -18,7 +18,7 @@ ckb_std::default_alloc!(16384, 1258306, 64);
 pub mod modules;
 
 pub fn program_entry() -> i8 {
-    ckb_std::debug!("This is a sample contract!");
+    ckb_std::debug_trace!("This is a sample contract!");
 
     0
 }

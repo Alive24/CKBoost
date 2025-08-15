@@ -35,7 +35,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
         tx: Option<Transaction>,
         protocol_data: ProtocolData,
     ) -> Result<Transaction, Error> {
-        debug!("CKBoostProtocolType::update_protocol - Starting protocol update");
+        debug_trace!("CKBoostProtocolType::update_protocol - Starting protocol update");
         
         // Initialize transaction builders
         let tx_builder = match tx {
@@ -69,10 +69,10 @@ impl CKBoostProtocol for CKBoostProtocolType {
         };
         
         // Try to find existing protocol cell or create new one
-        debug!("load_script");
+        debug_trace!("load_script");
         let current_script = load_script()?;
-        debug!("current_script: {:?}", current_script);
-        debug!("current_script args length: {}", current_script.args().len());
+        debug_trace!("current_script: {:?}", current_script);
+        debug_trace!("current_script args length: {}", current_script.args().len());
         
         // Track the index where the protocol cell will be in the inputs
         let protocol_input_index: usize;
@@ -83,21 +83,21 @@ impl CKBoostProtocol for CKBoostProtocolType {
         // If the arg of current script is empty, we're creating a new protocol cell
         // Otherwise, try to find the existing one
         let protocol_result: Result<ckb_std::ckb_types::packed::OutPoint, ckb_std::error::SysError> = if current_script.args().len() == 0 {
-            debug!("Script args empty - creating new protocol cell");
+            debug_trace!("Script args empty - creating new protocol cell");
             Err(ckb_std::error::SysError::Unknown(0))
         } else {
-            debug!("Script args present - looking for existing protocol cell");
-            debug!("find_out_point_by_type");
+            debug_trace!("Script args present - looking for existing protocol cell");
+            debug_trace!("find_out_point_by_type");
             // TODO (ckb-ssri-std): This might not be able to properly propagate the error if not found
             let result = find_out_point_by_type(current_script.clone());
-            debug!("find_out_point_by_type done");
-            debug!("protocol_result: {:?}", result);
+            debug_trace!("find_out_point_by_type done");
+            debug_trace!("protocol_result: {:?}", result);
             result
         };
 
         match protocol_result {
             Ok(protocol_outpoint) => {
-                debug!("Found existing protocol cell, updating it");
+                debug_trace!("Found existing protocol cell, updating it");
                 
                 // The protocol cell will be added at the current end of inputs
                 protocol_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
@@ -128,7 +128,7 @@ impl CKBoostProtocol for CKBoostProtocolType {
                 cell_output_vec_builder = cell_output_vec_builder.push(new_protocol_output);
             }
             Err(_) => {
-                debug!("No protocol cell found. Creating a new protocol cell.");
+                debug_trace!("No protocol cell found. Creating a new protocol cell.");
                 
                 // In creation case, protocol cell doesn't exist as input
                 // But we still need a witness for the first input (used for type ID calculation)
@@ -142,14 +142,14 @@ impl CKBoostProtocol for CKBoostProtocolType {
                         // Use existing transaction's first input and next output index
                         let first_input = tx.raw().inputs().get(0)
                             .ok_or_else(|| {
-                                debug!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
+                                debug_trace!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
                                 Error::MissingTransactionInput
                             })?;
                         (first_input, tx.raw().outputs().len())
                     }
                     None => {
                     // No transaction provided - we cannot create a protocol cell without inputs
-                        debug!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
+                        debug_trace!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
                         return Err(Error::MissingTransactionInput);
                     }
                 };
@@ -219,11 +219,11 @@ impl CKBoostProtocol for CKBoostProtocolType {
         // Prefer output index if we have a protocol output, otherwise use input index
         let witness_index = match protocol_output_index {
             Some(output_idx) => {
-                debug!("Placing recipe witness at output index: {}", output_idx);
+                debug_trace!("Placing recipe witness at output index: {}", output_idx);
                 output_idx
             }
             None => {
-                debug!("No protocol output, placing recipe witness at input index: {}", protocol_input_index);
+                debug_trace!("No protocol output, placing recipe witness at input index: {}", protocol_input_index);
                 protocol_input_index
             }
         };
@@ -315,13 +315,13 @@ impl CKBoostProtocol for CKBoostProtocolType {
     fn verify_update_protocol(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("Starting verify_update_protocol");
+        debug_trace!("Starting verify_update_protocol");
         
         // Use the recipe validation rules - they will check method path internally
         let validation_rules = recipes::update_protocol::get_rules();
         validation_rules.validate(&context)?;
 
-        debug!("Protocol update transaction validation completed successfully");
+        debug_trace!("Protocol update transaction validation completed successfully");
         Ok(())
     }
 
@@ -337,14 +337,14 @@ impl CKBoostProtocol for CKBoostProtocolType {
     fn verify_update_tipping_proposal(
         _context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("Starting verify_update_tipping_proposal");
+        debug_trace!("Starting verify_update_tipping_proposal");
 
         // TODO: Implement tipping proposal validation using recipe pattern
         // Once tipping_proposal module is added to recipes.rs, use:
         // let validation_rules = recipes::tipping_proposal::get_validation_rules();
         // validation_rules.validate(&context)?;
 
-        debug!("Tipping proposal type script constraint validation completed successfully");
+        debug_trace!("Tipping proposal type script constraint validation completed successfully");
         Ok(())
     }
 }

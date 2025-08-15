@@ -31,12 +31,12 @@ impl CKBoostUser for CKBoostUserType {
     fn update_user_verification(
         _user_verification_data: UserVerificationData,
     ) -> Result<(), Error> {
-        debug!("CKBoostUserType::update_user_verification - SSRI method not implemented");
+        debug_trace!("CKBoostUserType::update_user_verification - SSRI method not implemented");
         Err(Error::SSRIMethodsNotImplemented)
     }
     
     fn verify_update_user_verification() -> Result<(), Error> {
-        debug!("CKBoostUserType::verify_update_user_verification - SSRI method not implemented");
+        debug_trace!("CKBoostUserType::verify_update_user_verification - SSRI method not implemented");
         Err(Error::SSRIMethodsNotImplemented)
     }
     
@@ -44,7 +44,7 @@ impl CKBoostUser for CKBoostUserType {
         tx: Option<Transaction>,
         user_data: UserData,
     ) -> Result<Transaction, Error> {
-        debug!("CKBoostUserType::submit_quest - Starting quest submission");
+        debug_trace!("CKBoostUserType::submit_quest - Starting quest submission");
 
         // Initialize transaction builders
         let tx_builder = match tx {
@@ -79,7 +79,7 @@ impl CKBoostUser for CKBoostUserType {
 
         // Get context script and try to parse ConnectedTypeID from args
         let current_script = load_script()?;
-        debug!("current_script: {:?}", current_script);
+        debug_trace!("current_script: {:?}", current_script);
 
         let args = current_script.args();
         let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data());
@@ -91,8 +91,8 @@ impl CKBoostUser for CKBoostUserType {
         
         match connected_type_id {
             Ok(connected_type_id) => {
-                debug!("Found existing user cell, updating it");
-                debug!("connected_type_id: {:?}", connected_type_id);
+                debug_trace!("Found existing user cell, updating it");
+                debug_trace!("connected_type_id: {:?}", connected_type_id);
 
                 // Try to find existing user cell with this type ID
                 let user_outpoint = find_out_point_by_type(current_script.clone())?;
@@ -126,7 +126,7 @@ impl CKBoostUser for CKBoostUserType {
                 cell_output_vec_builder = cell_output_vec_builder.push(new_user_output);
             }
             Err(_) => {
-                debug!("No user cell found. Creating a new user cell.");
+                debug_trace!("No user cell found. Creating a new user cell.");
                 
                 // In creation case, user cell doesn't exist as input
                 // But we still need a witness for the first input (used for type ID calculation)
@@ -139,14 +139,14 @@ impl CKBoostUser for CKBoostUserType {
                         // Use existing transaction's first input and next output index
                         let first_input = tx.raw().inputs().get(0)
                             .ok_or_else(|| {
-                                debug!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
+                                debug_trace!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
                                 Error::MissingTransactionInput
                             })?;
                         (first_input, tx.raw().outputs().len())
                     }
                     None => {
                         // No transaction provided - we cannot create a user cell without inputs
-                        debug!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
+                        debug_trace!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
                         return Err(Error::MissingTransactionInput);
                     }
                 };
@@ -292,13 +292,13 @@ impl CKBoostUser for CKBoostUserType {
     fn verify_submit_quest(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("Starting verify_submit_quest");
+        debug_trace!("Starting verify_submit_quest");
 
         // Use the recipe validation rules
         let validation_rules = recipes::submit_quest::get_rules();
         validation_rules.validate(&context)?;
 
-        debug!("Quest submission transaction validation completed successfully");
+        debug_trace!("Quest submission transaction validation completed successfully");
         Ok(())
     }
     
@@ -306,14 +306,14 @@ impl CKBoostUser for CKBoostUserType {
         _tx: Option<Transaction>,
         _user_data: UserData,
     ) -> Result<Transaction, Error> {
-        debug!("CKBoostUserType::update_user - SSRI method not implemented");
+        debug_trace!("CKBoostUserType::update_user - SSRI method not implemented");
         Err(Error::SSRIMethodsNotImplemented)
     }
     
     fn verify_update_user(
         _context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("CKBoostUserType::verify_update_user - SSRI method not implemented");
+        debug_trace!("CKBoostUserType::verify_update_user - SSRI method not implemented");
         Err(Error::SSRIMethodsNotImplemented)
     }
 }

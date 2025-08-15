@@ -1,7 +1,7 @@
 // cspell:ignore celldeps udts
 pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec, ScriptVec, Script};
 use crate::Error;
-use ckb_deterministic::known_scripts::{self, get_script_info};
+use ckb_deterministic::{debug_trace, known_scripts::{self, get_script_info}};
 use ckb_std::{
     debug, 
     high_level::{load_cell_data, load_cell_type, load_cell_type_hash, load_script, decode_hex},
@@ -28,80 +28,80 @@ pub trait ProtocolDataExt {
     /// Since protocol cells have restricted locks (only protocol manager can unlock),
     /// we don't need to check inputs - we can directly check outputs.
     fn from_protocol_cell() -> Result<ProtocolData, Error> {
-        debug!("Loading protocol data from protocol cell");
+        debug_trace!("Loading protocol data from protocol cell");
         
         // Get the current script to extract the connected_key from args
         match load_script() {
             Ok(current_script) => {
                 let args = current_script.args();
-                debug!("Current script args length: {}", args.len());
+                debug_trace!("Current script args length: {}", args.len());
                 
                 // Parse the args as ConnectedTypeID to get the connected_key
                 use crate::generated::ckboost::ConnectedTypeID;
                 match ConnectedTypeID::from_slice(&args.raw_data()) {
                     Ok(connected_type_id) => {
                         let connected_hash = connected_type_id.connected_key();
-                        debug!("Looking for protocol cell with type hash: {:?}", connected_hash);
+                        debug_trace!("Looking for protocol cell with type hash: {:?}", connected_hash);
                         
                         // Now search CellDeps for a cell with matching type script hash
                         // Check only first 3 CellDeps to avoid issues
                         for index in 0..3 {
-                            debug!("Checking CellDep at index {}", index);
+                            debug_trace!("Checking CellDep at index {}", index);
                             match load_cell_type_hash(index, Source::CellDep) {
                                 Ok(Some(type_hash)) => {
-                                    debug!("CellDep {} type script hash: {:?}", index, type_hash);
+                                    debug_trace!("CellDep {} type script hash: {:?}", index, type_hash);
                                     
                                     // Check if this matches our connected_key
                                     if type_hash.as_slice() == connected_hash.as_slice() {
-                                        debug!("Found matching protocol cell at CellDep index {}", index);
+                                        debug_trace!("Found matching protocol cell at CellDep index {}", index);
                                         
                                         // Load and parse the protocol data
                                         match load_cell_data(index, Source::CellDep) {
                                             Ok(data) => {
                                                 match ProtocolData::from_slice(&data) {
                                                     Ok(protocol_data) => {
-                                                        debug!("Successfully loaded protocol data from CellDep at index {}", index);
+                                                        debug_trace!("Successfully loaded protocol data from CellDep at index {}", index);
                                                         return Ok(protocol_data);
                                                     }
                                                     Err(e) => {
-                                                        debug!("Failed to parse protocol data: {:?}", e);
+                                                        debug_trace!("Failed to parse protocol data: {:?}", e);
                                                         return Err(crate::error::Error::ProtocolDataInvalid);
                                                     }
                                                 }
                                             }
                                             Err(e) => {
-                                                debug!("Failed to load cell data: {:?}", e);
+                                                debug_trace!("Failed to load cell data: {:?}", e);
                                                 return Err(crate::error::Error::ProtocolDataNotLoaded);
                                             }
                                         }
                                     }
                                 }
                                 Ok(None) => {
-                                    debug!("CellDep {} has no type script", index);
+                                    debug_trace!("CellDep {} has no type script", index);
                                 }
                                 Err(_) => {
-                                    debug!("No more CellDeps at index {}", index);
+                                    debug_trace!("No more CellDeps at index {}", index);
                                     break;
                                 }
                             }
                         }
                         
-                        debug!("Protocol cell not found in CellDeps");
+                        debug_trace!("Protocol cell not found in CellDeps");
                         return Err(crate::error::Error::ProtocolCellNotFound);
                     }
                     Err(e) => {
-                        debug!("Failed to parse args as ConnectedTypeID: {:?}", e);
+                        debug_trace!("Failed to parse args as ConnectedTypeID: {:?}", e);
                         
                         // Fallback: Check outputs for protocol creation scenario
-                        debug!("Checking outputs for protocol creation scenario");
+                        debug_trace!("Checking outputs for protocol creation scenario");
                         
                         // Check outputs for cells with the same code hash as current script
                         let current_code_hash: [u8; 32] = current_script.code_hash().unpack();
-                        debug!("Current script code hash: {:?}", current_code_hash);
+                        debug_trace!("Current script code hash: {:?}", current_code_hash);
                         
                         // Check outputs for cells with the same code hash and try to parse as ProtocolData
                         // This handles both creation and update scenarios since only protocol manager can unlock protocol cells
-                        debug!("Checking outputs for cells with current script type");
+                        debug_trace!("Checking outputs for cells with current script type");
                         
                         // Using manual index control to avoid QueryIter issues
                         let mut index = 0;
@@ -111,24 +111,24 @@ pub trait ProtocolDataExt {
                                     Some(type_script) => {
                                         let output_code_hash: [u8; 32] = type_script.code_hash().unpack();
                                         if output_code_hash == current_code_hash {
-                                            debug!("Found cell with same type script in Output at index {}", index);
+                                            debug_trace!("Found cell with same type script in Output at index {}", index);
                                             
                                             // Try to parse this cell as ProtocolData
                                             match load_cell_data(index, Source::Output) {
                                                 Ok(data) => {
                                                     match ProtocolData::from_slice(&data) {
                                                         Ok(protocol_data) => {
-                                                            debug!("Successfully loaded protocol data from Output");
+                                                            debug_trace!("Successfully loaded protocol data from Output");
                                                             return Ok(protocol_data);
                                                         }
                                                         Err(_) => {
-                                                            debug!("Found a protocol cell but the data is invalid. Should not happen.");
+                                                            debug_trace!("Found a protocol cell but the data is invalid. Should not happen.");
                                                             return Err(crate::error::Error::ProtocolDataInvalid);
                                                         }
                                                     }
                                                 }
                                                 Err(e) => {
-                                                    debug!("Failed to load cell data: {:?}", e);
+                                                    debug_trace!("Failed to load cell data: {:?}", e);
                                                     return Err(crate::error::Error::ProtocolDataNotLoaded);
                                                 }
                                             }
@@ -144,7 +144,7 @@ pub trait ProtocolDataExt {
                                 },
                                 Err(_) => {
                                     // No more Outputs to check
-                                    debug!("Finished checking {} Outputs", index);
+                                    debug_trace!("Finished checking {} Outputs", index);
                                     break;
                                 }
                             }
@@ -153,7 +153,7 @@ pub trait ProtocolDataExt {
                 }
             }
             Err(_) => {
-                debug!("Not in script context or unable to load script, cannot check outputs");
+                debug_trace!("Not in script context or unable to load script, cannot check outputs");
             }
         }
         
@@ -291,39 +291,39 @@ pub fn get_protocol_data() -> Result<ProtocolData, crate::error::Error> {
 /// - `Err(ProtocolCellNotFound)` - No protocol cell found with the given type script
 /// - `Err(ProtocolDataInvalid)` - Protocol cell found but data is malformed
 pub fn get_protocol_data_ssri(protocol_type_script: ckb_std::ckb_types::packed::Script) -> Result<ProtocolData, crate::error::Error> {
-    debug!("Loading protocol data using SSRI pattern");
+    debug_trace!("Loading protocol data using SSRI pattern");
     
     // In SSRI mode, we use find_out_point_by_type to locate the protocol cell
     match find_out_point_by_type(protocol_type_script) {
         Ok(out_point) => {
-            debug!("Found protocol cell outpoint: {:?}", out_point);
+            debug_trace!("Found protocol cell outpoint: {:?}", out_point);
             
             // Load the cell data directly using the outpoint
             // In SSRI, find_cell_data_by_out_point returns the actual cell data
             match find_cell_data_by_out_point(out_point) {
                 Ok(data) => {
-                    debug!("Found protocol cell data");
+                    debug_trace!("Found protocol cell data");
                     
                     // Parse the data as ProtocolData
                     match ProtocolData::from_slice(&data) {
                         Ok(protocol_data) => {
-                            debug!("Successfully loaded protocol data via SSRI");
+                            debug_trace!("Successfully loaded protocol data via SSRI");
                             Ok(protocol_data)
                         }
                         Err(e) => {
-                            debug!("Failed to parse protocol data: {:?}", e);
+                            debug_trace!("Failed to parse protocol data: {:?}", e);
                             Err(crate::error::Error::ProtocolDataInvalid)
                         }
                     }
                 }
                 Err(e) => {
-                    debug!("Failed to find cell by outpoint: {:?}", e);
+                    debug_trace!("Failed to find cell by outpoint: {:?}", e);
                     Err(crate::error::Error::ProtocolCellNotFound)
                 }
             }
         }
         Err(e) => {
-            debug!("Failed to find protocol cell by type: {:?}", e);
+            debug_trace!("Failed to find protocol cell by type: {:?}", e);
             Err(crate::error::Error::ProtocolCellNotFound)
         }
     }

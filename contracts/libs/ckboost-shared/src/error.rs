@@ -1,3 +1,4 @@
+use ckb_deterministic::debug_trace;
 use ckb_ssri_std::SSRIError;
 use ckb_std::error::SysError;
 
@@ -176,12 +177,12 @@ impl From<ckb_deterministic::errors::Error> for Error {
             ckb_deterministic::errors::Error::MissingHeaderDep => Error::MissingHeaderDep,
             ckb_deterministic::errors::Error::BusinessRuleViolation => Error::BusinessRuleViolation,
             _ => {
-                debug!("Unknown ckb_deterministic error: {:?}", err);
+                debug_trace!("Unknown ckb_deterministic error: {:?}", err);
                 Error::Unknown
             },
         };
         
-        debug!("Converted ckb_deterministic error to: {:?}", mapped_error);
+        debug_trace!("Converted ckb_deterministic error to: {:?}", mapped_error);
         mapped_error
     }
 }

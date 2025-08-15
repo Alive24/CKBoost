@@ -1,8 +1,7 @@
 use alloc::vec;
 use blake2b_ref::Blake2bBuilder;
 use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference,
-    serialize_transaction_recipe, transaction_context::TransactionContext,
+    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference, debug_info, debug_trace, serialize_transaction_recipe, transaction_context::TransactionContext
 };
 use ckb_ssri_std::utils::high_level::{find_cell_by_out_point, find_out_point_by_type};
 use ckb_std::{
@@ -32,7 +31,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         tx: Option<Transaction>,
         campaign_data: CampaignData,
     ) -> Result<Transaction, Error> {
-        debug!("CKBoostCampaignType::update_campaign - Starting campaign update");
+        debug_trace!("CKBoostCampaignType::update_campaign - Starting campaign update");
 
         // Initialize transaction builders
         let tx_builder = match tx {
@@ -67,7 +66,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         // Get context script and parse ConnectedTypeID from args
         let current_script = load_script()?;
-        debug!("current_script: {:?}", current_script);
+        debug_info!("current_script: {:?}", current_script);
 
         let args = current_script.args();
         let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
@@ -84,7 +83,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         match connected_type_id {
             Ok(connected_type_id) => {
-                debug!("Found existing campaign cell, updating it");
+                debug_trace!("Found existing campaign cell, updating it");
 
                 // The type_id in ConnectedTypeID is the actual campaign type ID
                 let _campaign_type_id = connected_type_id.type_id();
@@ -123,7 +122,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 cell_output_vec_builder = cell_output_vec_builder.push(new_campaign_output);
             }
             Err(_) => {
-                debug!("No campaign cell found. Creating a new campaign cell.");
+                debug_trace!("No campaign cell found. Creating a new campaign cell.");
 
                 // In creation case, campaign cell doesn't exist as input
                 // But we still need a witness for the first input (used for type ID calculation)
@@ -136,14 +135,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
                         // Use existing transaction's first input and next output index
                         let first_input = tx.raw().inputs().get(0)
                             .ok_or_else(|| {
-                                debug!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
+                                debug_trace!("Transaction has no inputs. Use ccc.Transaction.completeInputsAtLeastOne(signer) to add at least one input.");
                                 Error::MissingTransactionInput
                             })?;
                         (first_input, tx.raw().outputs().len())
                     }
                     None => {
                         // No transaction provided - we cannot create a campaign cell without inputs
-                        debug!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
+                        debug_trace!("No transaction provided. Create a transaction with at least one input using ccc.Transaction.completeInputsAtLeastOne(signer).");
                         return Err(Error::MissingTransactionInput);
                     }
                 };
@@ -229,11 +228,11 @@ impl CKBoostCampaign for CKBoostCampaignType {
         // Determine where to place the witness
         let witness_index = match campaign_output_index {
             Some(output_idx) => {
-                debug!("Placing recipe witness at output index: {}", output_idx);
+                debug_trace!("Placing recipe witness at output index: {}", output_idx);
                 output_idx
             }
             None => {
-                debug!(
+                debug_trace!(
                     "No campaign output, placing recipe witness at input index: {}",
                     campaign_input_index
                 );
@@ -322,22 +321,22 @@ impl CKBoostCampaign for CKBoostCampaignType {
     fn verify_update_campaign(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("Starting verify_update_campaign");
+        debug_trace!("Starting verify_update_campaign");
 
         // Use the recipe validation rules
         let validation_rules = recipes::update_campaign::get_rules();
-        debug!("Got validation rules, starting validation");
+        debug_trace!("Got validation rules, starting validation");
         
         let validation_result = validation_rules.validate(&context);
-        debug!("Validation result: {:?}", validation_result);
+        debug_trace!("Validation result: {:?}", validation_result);
         
         match validation_result {
             Ok(()) => {
-                debug!("Campaign update transaction validation completed successfully");
+                debug_trace!("Campaign update transaction validation completed successfully");
                 Ok(())
             },
             Err(e) => {
-                debug!("Validation failed with error: {:?}", e);
+                debug_trace!("Validation failed with error: {:?}", e);
                 Err(e.into())
             }
         }
@@ -347,7 +346,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         tx: Option<Transaction>,
         quest_data: QuestData,
     ) -> Result<Transaction, Error> {
-        debug!("CKBoostCampaignType::approve_completion - Starting quest completion");
+        debug_trace!("CKBoostCampaignType::approve_completion - Starting quest completion");
 
         // Initialize transaction builders
         let tx_builder = match tx {
@@ -554,7 +553,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
                     .build())
             }
             Err(_) => {
-                debug!("Campaign cell not found");
+                debug_trace!("Campaign cell not found");
                 Err(Error::CampaignCellNotFound)
             }
         }
@@ -563,13 +562,13 @@ impl CKBoostCampaign for CKBoostCampaignType {
     fn verify_approve_completion(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
-        debug!("Starting verify_approve_completion");
+        debug_trace!("Starting verify_approve_completion");
 
         // Use the recipe validation rules
         let validation_rules = recipes::complete_quest::get_rules();
         validation_rules.validate(&context)?;
 
-        debug!("Quest completion transaction validation completed successfully");
+        debug_trace!("Quest completion transaction validation completed successfully");
         Ok(())
     }
 }
