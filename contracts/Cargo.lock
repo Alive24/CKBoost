@@ -983,6 +983,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ckboost-points-udt"
+version = "0.1.0"
+dependencies = [
+ "ckb-std",
+ "ckboost-shared",
+ "molecule 0.8.0",
+]
+
+[[package]]
 name = "ckboost-protocol-lock"
 version = "0.1.0"
 dependencies = [

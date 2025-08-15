@@ -128,6 +128,13 @@ pub enum Error {
     // Script argument validation errors
     TransactionStructureError,
     
+    // Points UDT specific errors
+    InvalidProtocolReference,
+    InvalidCampaignCell,
+    InvalidUserCell,
+    InvalidUDTAmount,
+    InvalidArgument,
+    
     // Unknown error
     Unknown,
 }

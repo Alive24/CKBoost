@@ -1,7 +1,8 @@
 use alloc::vec;
+use alloc::vec::Vec;
 use blake2b_ref::Blake2bBuilder;
 use ckb_deterministic::{
-    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference, debug_info, debug_trace, serialize_transaction_recipe, transaction_context::TransactionContext
+    cell_classifier::RuleBasedClassifier, create_recipe_with_args, create_recipe_with_reference, debug_info, debug_trace, serialize_transaction_recipe, transaction_context::TransactionContext, transaction_recipe::TransactionRecipeExt
 };
 use ckb_ssri_std::utils::high_level::{find_cell_by_out_point, find_out_point_by_type};
 use ckb_std::{
@@ -15,10 +16,10 @@ use ckb_std::{
         prelude::*,
     },
     debug,
-    high_level::load_script,
+    high_level::load_script
 };
 use ckboost_shared::{
-    types::{Byte32 as SharedByte32, CampaignData, ConnectedTypeID, QuestData},
+    types::{Byte32 as SharedByte32, CampaignData, ConnectedTypeID, QuestData, UserData},
     Error,
 };
 
@@ -165,10 +166,10 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // Create the type script with ConnectedTypeID as args
                 let new_type_script = ScriptBuilder::default()
-                    .code_hash(current_script.code_hash())
-                    .hash_type(current_script.hash_type())
+            .code_hash(current_script.code_hash())
+            .hash_type(current_script.hash_type())
                     .args(new_connected_type_id.as_bytes().pack())
-                    .build();
+            .build();
 
                 // Get first input cell to use its lock for the new campaign cell
                 let first_input_outpoint = first_input.previous_output();
@@ -180,14 +181,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
                 // Create new campaign cell
                 let new_campaign_output = CellOutputBuilder::default()
-                    .type_(
-                        ScriptOptBuilder::default()
+            .type_(
+                ScriptOptBuilder::default()
                             .set(Some(new_type_script))
-                            .build(),
-                    )
+                    .build(),
+            )
                     .lock(first_input_cell.lock())
                     .capacity(0u64.pack())
-                    .build();
+            .build();
                 cell_output_vec_builder = cell_output_vec_builder.push(new_campaign_output);
             }
         }
@@ -344,9 +345,12 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
     fn approve_completion(
         tx: Option<Transaction>,
-        quest_data: QuestData,
+        mut campaign_data: CampaignData,
+        quest_id: u32,
+        user_type_ids: Vec<SharedByte32>,
     ) -> Result<Transaction, Error> {
-        debug_trace!("CKBoostCampaignType::approve_completion - Starting quest completion");
+        debug_trace!("CKBoostCampaignType::approve_completion - Starting quest completion approval");
+        debug_trace!("Quest ID: {}, User Type IDs count: {}", quest_id, user_type_ids.len());
 
         // Initialize transaction builders
         let tx_builder = match tx {
@@ -359,7 +363,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         };
 
         // Initialize builders from existing transaction or create new
-        let mut cell_input_vec_builder = match tx {
+        let cell_input_vec_builder = match tx {
             Some(ref tx) => tx.clone().raw().inputs().as_builder(),
             None => CellInputVecBuilder::default(),
         };
@@ -379,196 +383,259 @@ impl CKBoostCampaign for CKBoostCampaignType {
             None => CellDepVecBuilder::default(),
         };
 
-        // Get current script
-        let current_script = load_script()?;
+        // Verify campaign is active (status = 4)
+        if campaign_data.status() != 4u8.into() {
+            return Err(Error::CampaignNotActive);
+        }
 
-        // Find campaign cell by ID
-        // In a real implementation, this would search through cells to find the one with matching campaign_type_id
-        // For now, we assume the campaign cell is provided in the transaction
-        let _campaign_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
+        // Find the quest and update accepted_submission_user_type_ids
+        let quests = campaign_data.quests();
+        let mut updated_quests = vec![];
+        let mut quest_found = false;
+        let mut _points_to_mint = 0u64;
 
-        // Get the campaign cell (assuming it's passed in the transaction)
-        let campaign_result = find_out_point_by_type(current_script.clone());
-
-        match campaign_result {
-            Ok(campaign_outpoint) => {
-                // Add campaign cell as input
-                let campaign_input = CellInput::new_builder()
-                    .previous_output(campaign_outpoint.clone())
-                    .build();
-                cell_input_vec_builder = cell_input_vec_builder.push(campaign_input);
-
-                // Get the current campaign cell output
-                let current_campaign_output = find_cell_by_out_point(campaign_outpoint.clone())
-                    .map_err(|_| Error::CampaignCellNotFound)?;
-
-                // Load the campaign data separately
-                let campaign_data_bytes =
-                    ckb_std::high_level::load_cell_data(0, ckb_std::ckb_constants::Source::Input)
-                        .map_err(|_| Error::CampaignCellNotFound)?;
-
-                // Parse campaign data
-                let campaign_data = CampaignData::from_slice(&campaign_data_bytes)
-                    .map_err(|_| Error::InvalidCampaignData)?;
-
-                // Verify campaign is active (status = 4)
-                if campaign_data.status() != 4u8.into() {
-                    return Err(Error::CampaignNotActive);
+        for i in 0..quests.len() {
+            let quest = quests.get(i).unwrap();
+            if quest.quest_id().as_slice() == &quest_id.to_le_bytes() {
+                quest_found = true;
+                
+                // Get points amount from quest rewards
+                let rewards = quest.rewards_on_completion();
+                if rewards.len() > 0 {
+                    let reward = rewards.get(0).unwrap();
+                    let points_amount = reward.points_amount();
+                    let points_bytes = points_amount.as_slice();
+                    if points_bytes.len() >= 8 {
+                        _points_to_mint = u64::from_le_bytes([
+                            points_bytes[0], points_bytes[1], points_bytes[2], points_bytes[3],
+                            points_bytes[4], points_bytes[5], points_bytes[6], points_bytes[7],
+                        ]);
+                    }
                 }
 
-                // Verify quest exists in campaign
-
-
-                // Update campaign statistics
-                let current_completions_data = campaign_data.total_completions();
-                let current_completions_bytes = current_completions_data.as_slice();
-                let current_completions = u32::from_le_bytes([
-                    current_completions_bytes[0],
-                    current_completions_bytes[1],
-                    current_completions_bytes[2],
-                    current_completions_bytes[3],
-                ]);
-                let new_completions = current_completions + 1;
-
-                // Create updated campaign data with incremented completion count
-                let updated_campaign_data = CampaignData::new_builder()
-                    .metadata(campaign_data.metadata())
-                    .quests(campaign_data.quests())
-                    .total_completions(
-                        ckboost_shared::generated::ckboost::Uint32::from_slice(
-                            &new_completions.to_le_bytes(),
-                        )
-                        .unwrap(),
-                    )
-                    .status(campaign_data.status())
-                    .build();
-
-                // Create output campaign cell with updated data
-                let campaign_output_index =
-                    tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
-                let updated_campaign_output = CellOutputBuilder::default()
-                    .type_(
-                        ScriptOptBuilder::default()
-                            .set(Some(current_script))
-                            .build(),
-                    )
-                    .lock(current_campaign_output.lock())
-                    .capacity(current_campaign_output.capacity())
-                    .build();
-                cell_output_vec_builder = cell_output_vec_builder.push(updated_campaign_output);
-
-                // Serialize and add updated campaign data
-                let updated_campaign_data_bytes = updated_campaign_data.as_bytes();
-                outputs_data_builder =
-                    outputs_data_builder.push(updated_campaign_data_bytes.pack());
-
-                // Create the recipe witness
-                // Store quest data in outputs_data temporarily (this is a simplification)
-                let quest_data_index = tx
-                    .as_ref()
-                    .map(|t| t.raw().outputs_data().len())
-                    .unwrap_or(0) as u32
-                    + 1;
-
-                let recipe = create_recipe_with_args(
-                    "CKBoostCampaign.approve_completion",
-                    vec![
-                        create_recipe_with_reference(Source::Output, quest_data_index),
-                        create_recipe_with_reference(Source::Output, quest_data_index + 1),
-                    ],
-                )?;
-
-                // Serialize the recipe to bytes
-                let recipe_bytes = serialize_transaction_recipe(&recipe);
-
-                // Create WitnessArgs with recipe in output_type field
-                let witness_args = WitnessArgsBuilder::default()
-                    .lock(BytesOpt::default())
-                    .input_type(BytesOpt::default())
-                    .output_type(
-                        BytesOpt::new_builder()
-                            .set(Some(recipe_bytes.pack()))
-                            .build(),
-                    )
-                    .build();
-
-                // Build witnesses vector with recipe witness at campaign output index
-                let witnesses_builder = match tx {
-                    Some(ref tx) => {
-                        let mut builder = BytesVecBuilder::default();
-                        let witnesses = tx.witnesses();
-                        let total_inputs = cell_input_vec_builder.build().len();
-
-                        // Copy existing witnesses or create empty ones up to campaign_output_index
-                        for i in 0..campaign_output_index {
-                            match witnesses.get(i) {
-                                Some(witness) => {
-                                    builder = builder.push(witness);
-                                }
-                                None => {
-                                    let empty_witness = WitnessArgsBuilder::default().build();
-                                    builder = builder.push(empty_witness.as_bytes().pack());
-                                }
-                            }
+                // Update accepted_submission_user_type_ids
+                let current_accepted = quest.accepted_submission_user_type_ids();
+                let mut accepted_ids = vec![];
+                
+                // Copy existing accepted IDs
+                for j in 0..current_accepted.len() {
+                    accepted_ids.push(current_accepted.get(j).unwrap());
+                }
+                
+                // Add new user type IDs
+                for user_type_id in &user_type_ids {
+                    // Check if already approved
+                    let mut already_approved = false;
+                    for accepted_id in &accepted_ids {
+                        if accepted_id.as_slice() == user_type_id.as_slice() {
+                            already_approved = true;
+                            break;
                         }
-
-                        // Add the recipe witness at campaign_output_index
-                        builder = builder.push(witness_args.as_bytes().pack());
-
-                        // Add remaining witnesses
-                        for i in (campaign_output_index + 1)..total_inputs {
-                            match witnesses.get(i) {
-                                Some(witness) => {
-                                    builder = builder.push(witness);
-                                }
-                                None => {
-                                    let empty_witness = WitnessArgsBuilder::default().build();
-                                    builder = builder.push(empty_witness.as_bytes().pack());
-                                }
-                            }
-                        }
-
-                        builder
                     }
-                    None => BytesVecBuilder::default().push(witness_args.as_bytes().pack()),
-                };
+                    
+                    if !already_approved {
+                        accepted_ids.push(user_type_id.clone());
+                    }
+                }
 
-                // Build the complete transaction
-                Ok(tx_builder
-                    .raw(
-                        raw_tx_builder
-                            .version(tx.clone().map(|t| t.raw().version()).unwrap_or_default())
-                            .cell_deps(cell_dep_vec_builder.build())
-                            .header_deps(
-                                tx.clone()
-                                    .map(|t| t.raw().header_deps())
-                                    .unwrap_or_else(|| Byte32Vec::default()),
-                            )
-                            .inputs(cell_input_vec_builder.build())
-                            .outputs(cell_output_vec_builder.build())
-                            .outputs_data(outputs_data_builder.build())
-                            .build(),
+                // Create updated quest
+                let updated_quest = QuestData::new_builder()
+                    .quest_id(quest.quest_id())
+                    .metadata(quest.metadata())
+                    .rewards_on_completion(quest.rewards_on_completion())
+                    .accepted_submission_user_type_ids(
+                        ckboost_shared::generated::ckboost::Byte32Vec::new_builder()
+                            .extend(accepted_ids)
+                            .build()
                     )
-                    .witnesses(witnesses_builder.build())
-                    .build())
-            }
-            Err(_) => {
-                debug_trace!("Campaign cell not found");
-                Err(Error::CampaignCellNotFound)
+                    .completion_deadline(quest.completion_deadline())
+                    .status(quest.status())
+                    .sub_tasks(quest.sub_tasks())
+                    .points(quest.points())
+                    .completion_count(quest.completion_count())
+                    .build();
+                
+                updated_quests.push(updated_quest);
+            } else {
+                updated_quests.push(quest.clone());
             }
         }
-    }
 
+        if !quest_found {
+            return Err(Error::InvalidQuestData);
+        }
+
+        // Update campaign total_completions
+        let current_completions_data = campaign_data.total_completions();
+        let current_completions_bytes = current_completions_data.as_slice();
+        let current_completions = u32::from_le_bytes([
+            current_completions_bytes[0],
+            current_completions_bytes[1],
+            current_completions_bytes[2],
+            current_completions_bytes[3],
+        ]);
+        let new_completions = current_completions + user_type_ids.len() as u32;
+
+        // Create updated campaign data
+        let updated_campaign_data = CampaignData::new_builder()
+            .endorser(campaign_data.endorser())
+            .created_at(campaign_data.created_at())
+            .starting_time(campaign_data.starting_time())
+            .ending_time(campaign_data.ending_time())
+            .rules(campaign_data.rules())
+            .metadata(campaign_data.metadata())
+            .status(campaign_data.status())
+            .quests(
+                ckboost_shared::generated::ckboost::QuestDataVec::new_builder()
+                    .extend(updated_quests)
+                    .build()
+            )
+            .participants_count(campaign_data.participants_count())
+            .total_completions(
+                ckboost_shared::generated::ckboost::Uint32::from_slice(
+                    &new_completions.to_le_bytes(),
+                )
+                .unwrap(),
+            )
+            .build();
+
+        // Create output campaign cell with updated data
+        let campaign_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
+        
+        // Create a placeholder output for the campaign (actual cell will be added by the transaction builder)
+        // In SSRI-VM context, we just need to prepare the data
+        let campaign_output = CellOutputBuilder::default()
+            .capacity(0u64.pack()) // Placeholder capacity
+            .build();
+        cell_output_vec_builder = cell_output_vec_builder.push(campaign_output);
+
+        // Serialize and add updated campaign data
+        let updated_campaign_data_bytes = updated_campaign_data.as_bytes();
+        outputs_data_builder = outputs_data_builder.push(updated_campaign_data_bytes.pack());
+
+        // Note: Points minting will be handled by the Points UDT contract
+        // The campaign contract only updates the accepted_submission_user_type_ids
+        // The actual Points cells creation happens in the transaction builder
+
+        // Create the recipe witness
+        // Encode quest_id and user_type_ids in outputs_data
+        let quest_id_index = outputs_data_builder.build().len() as u32;
+        outputs_data_builder = outputs_data_builder.push(quest_id.to_le_bytes().to_vec().pack());
+        
+        // Encode user_type_ids as a concatenated byte array
+        let mut user_ids_bytes = vec![];
+        for user_type_id in &user_type_ids {
+            user_ids_bytes.extend_from_slice(user_type_id.as_slice());
+        }
+        let user_ids_index = outputs_data_builder.build().len() as u32;
+        outputs_data_builder = outputs_data_builder.push(user_ids_bytes.pack());
+
+        let recipe = create_recipe_with_args(
+            "CKBoostCampaign.approve_completion",
+            vec![
+                create_recipe_with_reference(Source::Output, quest_id_index),
+                create_recipe_with_reference(Source::Output, user_ids_index),
+            ],
+        )?;
+
+        // Serialize the recipe to bytes
+        let recipe_bytes = serialize_transaction_recipe(&recipe);
+
+        // Create WitnessArgs with recipe in output_type field
+        let witness_args = WitnessArgsBuilder::default()
+            .lock(BytesOpt::default())
+            .input_type(BytesOpt::default())
+            .output_type(
+                BytesOpt::new_builder()
+                    .set(Some(recipe_bytes.pack()))
+                    .build(),
+            )
+            .build();
+
+        // Build witnesses vector with recipe witness at campaign output index
+        let witnesses_builder = match tx {
+            Some(ref tx) => {
+                let mut builder = BytesVecBuilder::default();
+                let witnesses = tx.witnesses();
+
+                // Copy existing witnesses up to campaign_output_index
+                for i in 0..campaign_output_index {
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
+                    }
+                }
+
+                // Add the recipe witness at campaign_output_index
+                builder = builder.push(witness_args.as_bytes().pack());
+
+                // Add remaining witnesses
+                for i in campaign_output_index + 1..witnesses.len() {
+                    match witnesses.get(i) {
+                        Some(witness) => {
+                            builder = builder.push(witness);
+                        }
+                        None => {
+                            let empty_witness = WitnessArgsBuilder::default().build();
+                            builder = builder.push(empty_witness.as_bytes().pack());
+                        }
+                    }
+                }
+
+                builder
+            }
+            None => BytesVecBuilder::default().push(witness_args.as_bytes().pack()),
+        };
+
+        // Build the complete transaction
+        Ok(tx_builder
+            .raw(
+                raw_tx_builder
+                    .version(tx.clone().map(|t| t.raw().version()).unwrap_or_default())
+                    .cell_deps(cell_dep_vec_builder.build())
+                    .header_deps(
+                        tx.clone()
+                            .map(|t| t.raw().header_deps())
+                            .unwrap_or_else(|| Byte32Vec::default()),
+                    )
+                    .inputs(cell_input_vec_builder.build())
+                    .outputs(cell_output_vec_builder.build())
+                    .outputs_data(outputs_data_builder.build())
+                    .build(),
+            )
+            .witnesses(witnesses_builder.build())
+            .build())
+    }
     fn verify_approve_completion(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
         debug_trace!("Starting verify_approve_completion");
 
-        // Use the recipe validation rules
-        let validation_rules = recipes::complete_quest::get_rules();
-        validation_rules.validate(&context)?;
+        // Get the transaction recipe
+        let recipe = context.recipe.clone();
+        debug_trace!("Recipe method path: {:?}", recipe.method_path_bytes());
 
-        debug_trace!("Quest completion transaction validation completed successfully");
+        // Verify method path
+        if recipe.method_path_bytes() != b"CKBoostCampaign.approve_completion" {
+            debug_trace!(
+                "Invalid method path: expected 'CKBoostCampaign.approve_completion', got '{:?}'",
+                recipe.method_path_bytes()
+            );
+            return Err(Error::WrongMethodPath);
+        }
+
+        // Use the predefined rules from recipes module
+        let rules = recipes::approve_completion::get_rules();
+
+        // Execute validation
+        rules.validate(context)?;
+
+        debug_trace!("verify_approve_completion completed successfully");
         Ok(())
     }
 }

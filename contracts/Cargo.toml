@@ -11,6 +11,7 @@ members = [
   "contracts/ckboost-protocol-type",
   "contracts/ckboost-campaign-lock",
   "contracts/ckboost-campaign-type",
+  "contracts/ckboost-points-udt",
   "tests",
 ]
 

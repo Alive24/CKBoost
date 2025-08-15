@@ -1,8 +1,9 @@
+use alloc::vec::Vec;
 use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
 };
 use ckboost_shared::{
-    types::{CampaignData, QuestData}, Error
+    types::{Byte32, CampaignData, QuestData}, Error
 };
 use ckb_std::ckb_types::packed::Transaction;
 
@@ -34,14 +35,18 @@ pub trait CKBoostCampaign {
     /// # Arguments
     /// 
     /// * `tx` - Optional existing transaction to build upon
-    /// * `quest_data` - The quest completion data including proof
+    /// * `campaign_data` - The current campaign data
+    /// * `quest_id` - The ID of the quest being approved
+    /// * `user_type_ids` - List of user type IDs to approve
     /// 
     /// # Returns
     /// 
     /// Returns a transaction with the quest completion processed
     fn approve_completion(
         tx: Option<Transaction>,
-        quest_data: QuestData,
+        campaign_data: CampaignData,
+        quest_id: u32,
+        user_type_ids: Vec<ckboost_shared::types::Byte32>,
     ) -> Result<Transaction, Error>;
     
     /// Verify quest completion approval transaction in Type Script

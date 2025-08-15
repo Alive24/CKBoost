@@ -848,3 +848,4 @@ We would try our best use serverless architecture by doing the following:
 ### Code Generations
 
 Molecule generates code for Molecule Schema. Don't edit the generated code, but use it as a reference. If implementing, do it in other files.
+- Please use make build to build

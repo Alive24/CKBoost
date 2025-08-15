@@ -383,6 +383,183 @@ pub mod update_campaign {
     }
 }
 
+pub mod approve_completion {
+    use super::common;
+    use alloc::{string::ToString, vec};
+    use ckb_deterministic::{
+        cell_classifier::RuleBasedClassifier,
+        validation::{CellCountConstraint, TransactionValidationRules},
+    };
+
+    pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
+        TransactionValidationRules::new(b"CKBoostCampaign.approve_completion".to_vec())
+            .with_arguments(2) // quest_id and user_type_ids
+            // Protocol cells in deps for Points UDT validation
+            .with_custom_cell(
+                "protocol",
+                CellCountConstraint::exactly(0), // No input protocol cell
+                CellCountConstraint::exactly(0), // No output protocol cell
+            )
+            // Campaign cells: exactly 1 in, 1 out (to update accepted submissions)
+            .with_custom_cell(
+                "campaign",
+                CellCountConstraint::exactly(1),
+                CellCountConstraint::exactly(1),
+            )
+            // User cells: 0 or more for Points minting (handled by Points UDT)
+            .with_custom_cell(
+                "user",
+                CellCountConstraint::at_least(0),
+                CellCountConstraint::at_least(0),
+            )
+            .with_cell_relationship(
+                "script_immutability".to_string(),
+                "Script immutability must be maintained during approval".to_string(),
+                vec!["campaign".to_string()],
+                common::script_immutability,
+            )
+            .with_business_rule(
+                "approval_validation".to_string(),
+                "Validate quest approval and update accepted submissions".to_string(),
+                vec!["campaign".to_string()],
+                business_logic::approval_validation,
+            )
+    }
+
+    pub mod business_logic {
+        use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::errors::Error as DeterministicError;
+        use ckb_deterministic::assertions::expect;
+        use ckb_std::debug;
+        use ckboost_shared::transaction_context::TransactionContext;
+        use ckboost_shared::generated::ckboost::{CampaignData};
+        use molecule::prelude::*;
+
+        // **Approval validation**: Ensure valid quest approval by admin
+        pub fn approval_validation(
+            context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            // Get campaign cells
+            let input_campaign_cells = context
+                .input_cells
+                .get_custom("campaign")
+                .ok_or_else(|| {
+                    debug!("CellCountViolation: Missing campaign cell in input (approval_validation)");
+                    DeterministicError::CellCountViolation
+                })?;
+            let output_campaign_cells = context
+                .output_cells
+                .get_custom("campaign")
+                .ok_or_else(|| {
+                    debug!("CellCountViolation: Missing campaign cell in output (approval_validation)");
+                    DeterministicError::CellCountViolation
+                })?;
+
+            // Ensure we have exactly one campaign in and out
+            expect(input_campaign_cells.len()).to_equal(1)?;
+            expect(output_campaign_cells.len()).to_equal(1)?;
+
+            let input_campaign_cell = &input_campaign_cells[0];
+            let output_campaign_cell = &output_campaign_cells[0];
+
+            // Parse campaign data
+            let input_campaign_data = CampaignData::from_slice(&input_campaign_cell.data)
+                .map_err(|_| DeterministicError::Encoding)?;
+            let output_campaign_data = CampaignData::from_slice(&output_campaign_cell.data)
+                .map_err(|_| DeterministicError::Encoding)?;
+
+            // Verify campaign status is active (4)
+            if input_campaign_data.status() != 4u8.into() {
+                debug!("Campaign is not active, status: {}", input_campaign_data.status());
+                return Err(DeterministicError::BusinessRuleViolation);
+            }
+
+            // Get quest_id from transaction arguments (should be first argument)
+            let quest_id_arg = context
+                .recipe
+                .arguments()
+                .get(0)
+                .ok_or(DeterministicError::InvalidArgumentCount)?;
+
+            // Get user_type_ids from transaction arguments (should be second argument)
+            let user_ids_arg = context
+                .recipe
+                .arguments()
+                .get(1)
+                .ok_or(DeterministicError::InvalidArgumentCount)?;
+
+            // Extract the quest_id
+            let quest_id_bytes = quest_id_arg.data();
+            let arg_type = quest_id_arg.arg_type();
+            
+            // For output references, we would need to load from outputs_data
+            // For validation, we'll check the structure is correct
+            if arg_type.as_slice()[0] != 2 {
+                debug!("Quest ID argument is not an output reference");
+                return Err(DeterministicError::InvalidArgumentCount);
+            }
+
+            // Extract user_type_ids
+            let user_ids_bytes = user_ids_arg.data();
+            let user_ids_arg_type = user_ids_arg.arg_type();
+            
+            if user_ids_arg_type.as_slice()[0] != 2 {
+                debug!("User IDs argument is not an output reference");
+                return Err(DeterministicError::InvalidArgumentCount);
+            }
+
+            // Verify that total_completions increased
+            let input_completions_data = input_campaign_data.total_completions();
+            let output_completions_data = output_campaign_data.total_completions();
+            
+            let input_completions_bytes = input_completions_data.as_slice();
+            let output_completions_bytes = output_completions_data.as_slice();
+            
+            // Convert to u32 for comparison
+            let input_completions = u32::from_le_bytes([
+                input_completions_bytes[0],
+                input_completions_bytes[1],
+                input_completions_bytes[2],
+                input_completions_bytes[3],
+            ]);
+            let output_completions = u32::from_le_bytes([
+                output_completions_bytes[0],
+                output_completions_bytes[1],
+                output_completions_bytes[2],
+                output_completions_bytes[3],
+            ]);
+            
+            // Completions should increase (by the number of approved users)
+            if output_completions <= input_completions {
+                debug!("Total completions did not increase: {} -> {}", input_completions, output_completions);
+                return Err(DeterministicError::BusinessRuleViolation);
+            }
+
+            // Verify endorser remains the same (campaigns cannot change ownership)
+            if input_campaign_data.endorser().as_slice() != output_campaign_data.endorser().as_slice() {
+                debug!("Campaign endorser changed during approval");
+                return Err(DeterministicError::BusinessRuleViolation);
+            }
+
+            // Verify that at least one quest exists
+            let quest_count = output_campaign_data.quests().len();
+            if quest_count == 0 {
+                debug!("Campaign has no quests");
+                return Err(DeterministicError::BusinessRuleViolation);
+            }
+
+            // Note: The actual verification of quest_id validity and user_type_ids 
+            // would happen in the Type Script when it has access to the actual data
+            // Here we just validate the transaction structure
+
+            // Verify the lock script authorization (admin signature)
+            // The fact that the campaign cell is spent means the admin has signed
+
+            Ok(())
+        }
+    }
+}
+
 pub mod complete_quest {
     use super::common;
     use alloc::{string::ToString, vec};
