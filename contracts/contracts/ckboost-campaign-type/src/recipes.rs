@@ -276,8 +276,13 @@ pub mod update_campaign {
         pub fn campaign_update_validation(
             context: &TransactionContext<RuleBasedClassifier>,
         ) -> Result<(), DeterministicError> {
+            debug!("[campaign_update_validation] Starting validation");
+            
             // Get campaign cells
             let input_campaign_cells = context.input_cells.get_custom("campaign");
+            debug!("[campaign_update_validation] Input campaign cells: {:?}", 
+                input_campaign_cells.as_ref().map(|cells| cells.len()));
+            
             let output_campaign_cells = context
                 .output_cells
                 .get_custom("campaign")
@@ -285,6 +290,7 @@ pub mod update_campaign {
                     debug!("CellCountViolation: Missing campaign cell in output (campaign_update_validation)");
                     DeterministicError::CellCountViolation
                 })?;
+            debug!("[campaign_update_validation] Output campaign cells: {}", output_campaign_cells.len());
 
             // Ensure we have exactly one output campaign
             expect(output_campaign_cells.len()).to_equal(1)?;
@@ -322,16 +328,28 @@ pub mod update_campaign {
                     }
                 }
                 None => {
+                    debug!("[campaign_update_validation] This is a new campaign creation");
+                    
                     // This is a new campaign creation
                     // Verify status is 0 (created)
-                    if output_campaign_data.status() != 0u8.into() {
+                    let status = output_campaign_data.status();
+                    debug!("[campaign_update_validation] Campaign status: {}", status);
+                    if status != 0u8.into() {
+                        debug!("[campaign_update_validation] ERROR: New campaign must have status 0, got {}", status);
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
 
                     // Verify participants_count and total_completions are 0
                     let zero_u32 = ckboost_shared::generated::ckboost::Uint32::from_slice(&[0u8; 4]).unwrap();
-                    if output_campaign_data.participants_count().as_slice() != zero_u32.as_slice() ||
-                       output_campaign_data.total_completions().as_slice() != zero_u32.as_slice() {
+                    let participants = output_campaign_data.participants_count();
+                    let completions = output_campaign_data.total_completions();
+                    
+                    debug!("[campaign_update_validation] Participants count: {:?}", participants.as_slice());
+                    debug!("[campaign_update_validation] Total completions: {:?}", completions.as_slice());
+                    
+                    if participants.as_slice() != zero_u32.as_slice() ||
+                       completions.as_slice() != zero_u32.as_slice() {
+                        debug!("[campaign_update_validation] ERROR: New campaign must have 0 participants and completions");
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
                 }
@@ -339,14 +357,23 @@ pub mod update_campaign {
 
             // Common validations for both create and update
             // 1. Campaign must have at least one quest
-            if output_campaign_data.quests().is_empty() {
+            let quest_count = output_campaign_data.quests().len();
+            debug!("[campaign_update_validation] Quest count: {}", quest_count);
+            if quest_count == 0 {
+                debug!("[campaign_update_validation] ERROR: Campaign must have at least one quest");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
             // 2. Title and descriptions must not be empty
-            if output_campaign_data.metadata().title().is_empty() ||
-               output_campaign_data.metadata().short_description().is_empty() ||
-               output_campaign_data.metadata().long_description().is_empty() {
+            let title_empty = output_campaign_data.metadata().title().is_empty();
+            let short_desc_empty = output_campaign_data.metadata().short_description().is_empty();
+            let long_desc_empty = output_campaign_data.metadata().long_description().is_empty();
+            
+            debug!("[campaign_update_validation] Title empty: {}, short_desc empty: {}, long_desc empty: {}", 
+                title_empty, short_desc_empty, long_desc_empty);
+                
+            if title_empty || short_desc_empty || long_desc_empty {
+                debug!("[campaign_update_validation] ERROR: Title and descriptions must not be empty");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 

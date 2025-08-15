@@ -122,6 +122,7 @@ pub enum Error {
     DataParsing,
     CellRelationshipRuleViolation,
     CustomRuleFailed,
+    BusinessRuleViolation,
     
     // Script argument validation errors
     TransactionStructureError,
@@ -156,7 +157,9 @@ impl From<SSRIError> for Error {
 
 impl From<ckb_deterministic::errors::Error> for Error {
     fn from(err: ckb_deterministic::errors::Error) -> Self {
-        match err {
+        use ckb_std::debug;
+        
+        let mapped_error = match err {
             ckb_deterministic::errors::Error::IndexOutOfBound => Error::IndexOutOfBound,
             ckb_deterministic::errors::Error::ItemMissing => Error::ItemMissing,
             ckb_deterministic::errors::Error::LengthNotEnough => Error::LengthNotEnough,
@@ -171,7 +174,14 @@ impl From<ckb_deterministic::errors::Error> for Error {
             ckb_deterministic::errors::Error::CellRelationshipRuleViolation => Error::CellRelationshipRuleViolation,
             ckb_deterministic::errors::Error::MissingCellDep => Error::MissingCellDep,
             ckb_deterministic::errors::Error::MissingHeaderDep => Error::MissingHeaderDep,
-            _ => Error::Unknown,
-        }
+            ckb_deterministic::errors::Error::BusinessRuleViolation => Error::BusinessRuleViolation,
+            _ => {
+                debug!("Unknown ckb_deterministic error: {:?}", err);
+                Error::Unknown
+            },
+        };
+        
+        debug!("Converted ckb_deterministic error to: {:?}", mapped_error);
+        mapped_error
     }
 }

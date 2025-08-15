@@ -326,10 +326,21 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         // Use the recipe validation rules
         let validation_rules = recipes::update_campaign::get_rules();
-        validation_rules.validate(&context)?;
-
-        debug!("Campaign update transaction validation completed successfully");
-        Ok(())
+        debug!("Got validation rules, starting validation");
+        
+        let validation_result = validation_rules.validate(&context);
+        debug!("Validation result: {:?}", validation_result);
+        
+        match validation_result {
+            Ok(()) => {
+                debug!("Campaign update transaction validation completed successfully");
+                Ok(())
+            },
+            Err(e) => {
+                debug!("Validation failed with error: {:?}", e);
+                Err(e.into())
+            }
+        }
     }
 
     fn approve_completion(

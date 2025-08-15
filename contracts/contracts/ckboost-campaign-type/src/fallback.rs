@@ -18,16 +18,25 @@ pub fn fallback() -> Result<(), Error> {
     
     let context = create_transaction_context()?;
     
-    match context.recipe.method_path_bytes().as_slice() {
+    let result = match context.recipe.method_path_bytes().as_slice() {
         b"CKBoostCampaign.update_campaign" => {
-            CKBoostCampaignType::verify_update_campaign(&context)
+            debug!("Executing verify_update_campaign");
+            let verify_result = CKBoostCampaignType::verify_update_campaign(&context);
+            debug!("verify_update_campaign result: {:?}", verify_result);
+            verify_result
         }
         b"CKBoostCampaign.approve_completion" => {
-            CKBoostCampaignType::verify_approve_completion(&context)
+            debug!("Executing verify_approve_completion");
+            let verify_result = CKBoostCampaignType::verify_approve_completion(&context);
+            debug!("verify_approve_completion result: {:?}", verify_result);
+            verify_result
         }
         _ => {
             debug!("No matching validation rules found for method path");
             Err(Error::SSRIMethodsNotImplemented)
         }
-    }
+    };
+    
+    debug!("Fallback validation result: {:?}", result);
+    result
 }
