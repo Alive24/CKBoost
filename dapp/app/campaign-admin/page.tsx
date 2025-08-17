@@ -9,7 +9,7 @@ import { fetchCampaignsOwnedByUser, extractTypeIdFromCampaignCell, isCampaignApp
 import { CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -552,7 +552,7 @@ export default function CampaignAdminDashboard() {
                       <p className="text-muted-foreground mb-6">
                         You haven't created any campaigns yet. Get started by creating your first campaign!
                       </p>
-                      <Link href="/campaign-admin/create-campaign">
+                      <Link href="/campaign-admin/new">
                         <Button size="lg" className="flex items-center gap-2 mx-auto">
                           <Plus className="w-5 h-5" />
                           Create Your First Campaign
@@ -817,7 +817,8 @@ export default function CampaignAdminDashboard() {
             <TabsContent value="reviews" className="space-y-6">
           <Card>
             <CardHeader>
-                  <CardTitle>Campaign Application Reviews</CardTitle>
+                  <CardTitle>Campaigns with Pending Submissions</CardTitle>
+                  <CardDescription>Review and approve quest submissions across all your campaigns</CardDescription>
             </CardHeader>
                 <CardContent>
                   {isLoading || !protocolCell || !protocolData ? (
@@ -840,7 +841,12 @@ export default function CampaignAdminDashboard() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {ownedCampaigns.map((campaign, index) => {
+                      {ownedCampaigns.filter(campaign => {
+                        // Only show campaigns that have pending reviews
+                        // In a real implementation, we'd fetch submission data here
+                        // For now, show all campaigns with a "View Submissions" button
+                        return campaign.quests && campaign.quests.length > 0
+                      }).map((campaign, index) => {
                         try {
                           // Campaign is already processed with all needed fields
                           const campaignTypeId = campaign.typeId || "0x"
@@ -864,16 +870,15 @@ export default function CampaignAdminDashboard() {
                                     </p>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <Link href={`/campaign/${campaignTypeId}`}>
-                                      <Button variant="outline" size="sm">
-                                        <Eye className="w-4 h-4 mr-1" />
-                                        View Campaign
-                                      </Button>
-                                    </Link>
-                                    <Link href={`/campaign-admin/${campaignTypeId}`}>
+                                    <Badge className="bg-yellow-100 text-yellow-800">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      {/* TODO: Get actual pending count */}
+                                      Pending Submissions
+                                    </Badge>
+                                    <Link href={`/campaign-admin/${campaignTypeId}?tab=submissions`}>
                                       <Button size="sm">
-                                        <Settings className="w-4 h-4 mr-1" />
-                                        Manage
+                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                        Review Submissions
                                       </Button>
                                     </Link>
                                   </div>

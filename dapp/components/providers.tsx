@@ -6,6 +6,7 @@ import { CampaignProvider } from '@/lib'
 import { ProtocolProvider } from '@/lib/providers/protocol-provider'
 import { UserProvider } from '@/lib/providers/user-provider'
 import { NostrProvider } from '@/lib/providers/nostr-provider'
+import { CampaignAdminProvider } from '@/lib/providers/campaign-admin-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -32,7 +33,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
             <ProtocolProvider>
               <CampaignProvider>
                 <UserProvider>
-                  {children}
+                  <CampaignAdminProvider>
+                    {children}
+                  </CampaignAdminProvider>
                 </UserProvider>
               </CampaignProvider>
             </ProtocolProvider>

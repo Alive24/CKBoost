@@ -4,12 +4,12 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Loader2, CheckCircle, XCircle, RefreshCw, ExternalLink, Cloud, AlertTriangle, Code, Eye, Copy } from "lucide-react"
+import { Loader2, CheckCircle, XCircle, RefreshCw, ExternalLink, Cloud, AlertTriangle, Code, Eye, Copy, AlertCircle } from "lucide-react"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
 import { debug } from "@/lib/utils/debug"
+import { NostrSubmissionData, isNostrSubmissionData } from "@/types/submission"
 
 interface NostrStorageModalProps {
   isOpen: boolean
@@ -230,43 +230,49 @@ export function NostrStorageModal({
                     <TabsContent value="rendered" className="mt-4">
                       <div className="border rounded-lg p-4 max-h-[400px] overflow-auto bg-white dark:bg-gray-900 space-y-4">
                         {(() => {
-                          // Parse content to extract subtasks
-                          const subtaskSections = verifiedContent.split(/<h3>/).filter(Boolean);
-                          
-                          if (subtaskSections.length > 1) {
-                            // Content has subtask headers, render them separately
-                            return subtaskSections.map((section, index) => {
-                              // Re-add the h3 tag that was removed by split
-                              const fullSection = `<h3>${section}`;
-                              // Extract the title from the h3 tag
-                              const titleMatch = section.match(/^([^<]*)</);
-                              const title = titleMatch ? titleMatch[1] : `Subtask ${index + 1}`;
-                              
-                              return (
+                          try {
+                            const parsed = JSON.parse(verifiedContent) as unknown;
+                            if (isNostrSubmissionData(parsed)) {
+                              // Render JSON format subtasks
+                              return parsed.subtasks.map((subtask, index) => (
                                 <div key={index} className="border rounded-lg p-3 bg-gray-50 dark:bg-gray-800">
                                   <div className="mb-2 pb-2 border-b">
                                     <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                      {title}
+                                      {subtask.title || `Subtask ${index + 1}`}
                                     </span>
+                                    {subtask.description && (
+                                      <span className="text-xs text-gray-500 dark:text-gray-400 block mt-1">
+                                        {subtask.description}
+                                      </span>
+                                    )}
                                   </div>
-                                  <div 
-                                    className="prose prose-sm dark:prose-invert max-w-none"
-                                    dangerouslySetInnerHTML={{ 
-                                      __html: fullSection.replace(/<h3>([^<]*)<\/h3>/, '') // Remove the h3 from content since we show it above
-                                    }}
-                                  />
+                                  {subtask.response ? (
+                                    <div 
+                                      className="prose prose-sm dark:prose-invert max-w-none"
+                                      dangerouslySetInnerHTML={{ 
+                                        __html: subtask.response
+                                      }}
+                                    />
+                                  ) : (
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 italic">
+                                      No response provided
+                                    </p>
+                                  )}
                                 </div>
-                              );
-                            });
-                          } else {
-                            // No subtasks found, render as single content
+                              ));
+                            }
+                            return null;
+                          } catch {
+                            // Invalid JSON format
                             return (
-                              <div className="prose prose-sm dark:prose-invert max-w-none">
-                                <div 
-                                  dangerouslySetInnerHTML={{ 
-                                    __html: verifiedContent 
-                                  }}
-                                />
+                              <div className="text-center py-8">
+                                <AlertCircle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                                <p className="text-sm text-gray-600 dark:text-gray-400">
+                                  Invalid submission format detected.
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                                  Please resubmit your quest response.
+                                </p>
                               </div>
                             );
                           }
@@ -301,25 +307,25 @@ export function NostrStorageModal({
                         >
                           <Copy className="w-4 h-4" />
                         </Button>
-                        <pre className="border rounded-lg p-4 max-h-96 overflow-auto bg-gray-50 dark:bg-gray-900 text-xs">
-                          <code>
-{JSON.stringify({
-  eventId: neventId,
-  timestamp: new Date().toISOString(),
-  subtasks: (() => {
-    const subtaskSections = verifiedContent.split(/<h3>/).filter(Boolean);
-    return subtaskSections.length > 1 
-      ? subtaskSections.map((section, index) => {
-          const titleMatch = section.match(/^([^<]*)</);
-          const title = titleMatch ? titleMatch[1] : `Subtask ${index + 1}`;
-          return { 
-            title, 
-            content: `<h3>${section}`.substring(0, 200) + (section.length > 200 ? '...' : '')
-          };
-        })
-      : [{ title: "Full Content", content: verifiedContent.substring(0, 200) + (verifiedContent.length > 200 ? '...' : '') }];
-  })()
-}, null, 2)}
+                        <pre className="border rounded-lg p-4 max-h-96 overflow-auto bg-gray-50 dark:bg-gray-900 text-xs whitespace-pre-wrap break-words">
+                          <code className="block">
+{(() => {
+  try {
+    const parsed = JSON.parse(verifiedContent) as unknown;
+    if (isNostrSubmissionData(parsed)) {
+      // Already JSON, display as-is with proper formatting
+      return JSON.stringify(parsed, null, 2);
+    }
+    throw new Error("Invalid JSON format");
+  } catch {
+    // Not JSON, create a display object
+    return JSON.stringify({
+      error: "Invalid JSON format",
+      message: "Please resubmit your quest response",
+      rawContent: verifiedContent.substring(0, 100) + "..."
+    }, null, 2);
+  }
+})()}
                           </code>
                         </pre>
                       </div>

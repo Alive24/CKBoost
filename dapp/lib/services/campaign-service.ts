@@ -10,7 +10,6 @@ import {
 } from "../ckb/campaign-cells";
 import { ccc } from "@ckb-ccc/core";
 import { Campaign } from "ssri-ckboost";
-import { DeploymentManager } from "../ckb/deployment-manager";
 import { deploymentManager } from "../ckb/deployment-manager";
 
 /**
@@ -27,7 +26,7 @@ export class CampaignService {
     this.protocolCell = protocolCell;
 
     // Get the protocol type code outpoint and deployment info
-    const network = DeploymentManager.getCurrentNetwork();
+    const network = deploymentManager.getCurrentNetwork();
     const deployment = deploymentManager.getCurrentDeployment(
       network,
       "ckboostCampaignType"

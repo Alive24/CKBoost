@@ -149,7 +149,7 @@ export class DeploymentManager {
   /**
    * Get the current network based on environment
    */
-  static getCurrentNetwork(): Network {
+  getCurrentNetwork(): Network {
     // You can determine this from environment variables or CKB client
     const isMainnet = process.env.NEXT_PUBLIC_CKB_NETWORK === 'mainnet'
     return isMainnet ? 'mainnet' : 'testnet'

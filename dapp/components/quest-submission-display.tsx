@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, ExternalLink, Eye, Clock, Edit, RefreshCcw } from "lucide-react"
+import { CheckCircle, ExternalLink, Eye, Clock, RefreshCcw, AlertCircle } from "lucide-react"
 import { useUser } from "@/lib/providers/user-provider"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
 import { ccc } from "@ckb-ccc/core"
 import { debug } from "@/lib/utils/debug"
+import { NostrSubmissionData, isNostrSubmissionData } from "@/types/submission"
 
 interface QuestSubmissionDisplayProps {
   quest: { quest_id?: number; metadata?: { title?: string } }
@@ -202,47 +203,46 @@ export function QuestSubmissionDisplay({
               ) : (
                 <div className="space-y-3">
                   {(() => {
-                    // Parse content to extract subtasks
-                    const subtaskSections = submissionContent.split(/<h3>/).filter(Boolean);
-                    
-                    if (subtaskSections.length > 1) {
-                      // Content has subtask headers, render them separately
-                      return subtaskSections.map((section, index) => {
-                        // Re-add the h3 tag that was removed by split
-                        const fullSection = `<h3>${section}`;
-                        // Extract the title from the h3 tag
-                        const titleMatch = section.match(/^([^<]*)</);
-                        const title = titleMatch ? titleMatch[1] : `Subtask ${index + 1}`;
-                        
-                        return (
-                          <div key={index} className="border rounded-lg overflow-hidden">
-                            <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b">
-                              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                                {title}
-                              </span>
+                    try {
+                      const parsed = JSON.parse(submissionContent) as unknown;
+                      if (isNostrSubmissionData(parsed)) {
+                        // JSON format - render structured subtasks
+                        return parsed.subtasks.map((subtask, index) => {
+                          return (
+                            <div key={index} className="border rounded-lg overflow-hidden">
+                              <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2 border-b">
+                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                  {subtask.title || `Subtask ${index + 1}`}
+                                </span>
+                              </div>
+                              <div className="p-4 bg-white dark:bg-gray-900">
+                                {subtask.response ? (
+                                  <div 
+                                    className="prose prose-sm dark:prose-invert max-w-none"
+                                    dangerouslySetInnerHTML={{ 
+                                      __html: subtask.response
+                                    }}
+                                  />
+                                ) : (
+                                  <p className="text-gray-500 dark:text-gray-400 italic">Not provided</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="p-4 bg-white dark:bg-gray-900">
-                              <div 
-                                className="prose prose-sm dark:prose-invert max-w-none"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: fullSection.replace(/<h3>[^<]*<\/h3>/, '') // Remove the h3 from content since we show it above
-                                }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      });
-                    } else {
-                      // No subtasks found or non-HTML content, render as single content
+                          );
+                        });
+                      }
+                      throw new Error("Invalid JSON format");
+                    } catch {
+                      // Invalid format - prompt to resubmit
                       return (
-                        <div className="p-4 border rounded-lg bg-white dark:bg-gray-900">
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            {submissionContent.includes('<') && submissionContent.includes('>') ? (
-                              <div dangerouslySetInnerHTML={{ __html: submissionContent }} />
-                            ) : (
-                              <p className="whitespace-pre-wrap">{submissionContent}</p>
-                            )}
-                          </div>
+                        <div className="text-center py-8 border rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
+                          <AlertCircle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            Invalid submission format detected.
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                            Please resubmit your quest response.
+                          </p>
                         </div>
                       );
                     }

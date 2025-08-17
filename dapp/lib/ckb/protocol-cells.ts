@@ -5,12 +5,12 @@ import { ccc } from "@ckb-ccc/core";
 import {
   ProtocolTransaction,
 } from "../types/protocol";
-import { deploymentManager, DeploymentManager } from "./deployment-manager";
+import { deploymentManager } from "./deployment-manager";
 
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
 // Get protocol type script from deployments.json
 const getProtocolTypeScript = () => {
-  const network = DeploymentManager.getCurrentNetwork();
+  const network = deploymentManager.getCurrentNetwork();
   const deployment = deploymentManager.getCurrentDeployment(network, 'ckboostProtocolType');
   
   if (!deployment || !deployment.typeHash) {

@@ -16,16 +16,12 @@ import { ccc } from "@ckb-ccc/core"
 import { debug } from "@/lib/utils/debug"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
 import { NostrStorageModal } from "@/components/nostr-storage-modal"
+import { isNostrSubmissionData, QuestSubtask } from "@/types/submission"
 
 interface QuestSubmissionFormProps {
   quest: {
     quest_id?: number
-    sub_tasks?: Array<{
-      title?: string
-      description?: string
-      type?: string
-      proof_required?: string
-    }>
+    sub_tasks?: QuestSubtask[]
   }
   questIndex: number
   campaignTypeId: ccc.Hex
@@ -47,7 +43,10 @@ export function QuestSubmissionForm({
   const [error, setError] = useState<string | null>(null)
   const [isFirstTime, setIsFirstTime] = useState(false)
   const [isLoadingSubmission, setIsLoadingSubmission] = useState(true)
-  const [existingSubmission, setExistingSubmission] = useState<any>(null)
+  const [existingSubmission, setExistingSubmission] = useState<{
+    submission_timestamp?: number | bigint
+    submission_content?: string
+  } | null>(null)
   const [isEditMode, setIsEditMode] = useState(false)
   const [nostrFetchError, setNostrFetchError] = useState(false)
   const [showStorageModal, setShowStorageModal] = useState(false)
@@ -86,7 +85,7 @@ export function QuestSubmissionForm({
           const submissions = await getUserSubmissions(currentUserTypeId)
           const questId = Number(quest.quest_id || questIndex + 1)
           
-          const submission = submissions.find((s: any) => 
+          const submission = submissions.find((s) => 
             s.campaign_type_id === campaignTypeId && 
             s.quest_id === questId
           )
@@ -100,15 +99,7 @@ export function QuestSubmissionForm({
                 const nostrData = await fetchSubmission(submission.submission_content)
                 if (nostrData) {
                   // Parse the content and populate the form
-                  const content = nostrData.content
-                  // Simple parsing - split by h3 tags to get subtask responses
-                  const responses: Record<number, string> = {}
-                  const parts = content.split(/<h3>.*?<\/h3>/)
-                  parts.forEach((part, index) => {
-                    if (index > 0 && index <= (quest.sub_tasks?.length || 0)) {
-                      responses[index - 1] = part.trim()
-                    }
-                  })
+                  const responses = parseSubmissionContent(nostrData.content)
                   setSubtaskResponses(responses)
                   setNostrFetchError(false)
                 } else {
@@ -133,15 +124,9 @@ export function QuestSubmissionForm({
                 setSubtaskResponses(responses)
               }
             } else {
-              // Direct content - try to parse it
+              // Direct content - parse it
               const content = submission.submission_content || ""
-              const responses: Record<number, string> = {}
-              const parts = content.split(/<h3>.*?<\/h3>/)
-              parts.forEach((part, index) => {
-                if (index > 0 && index <= (quest.sub_tasks?.length || 0)) {
-                  responses[index - 1] = part.trim()
-                }
-              })
+              const responses = parseSubmissionContent(content)
               setSubtaskResponses(responses)
             }
           }
@@ -165,6 +150,28 @@ export function QuestSubmissionForm({
       ...prev,
       [subtaskIndex]: value
     }))
+  }
+
+  // Parse submission content (JSON format only)
+  const parseSubmissionContent = (content: string): Record<number, string> => {
+    const responses: Record<number, string> = {}
+    
+    try {
+      const parsed = JSON.parse(content) as unknown
+      if (isNostrSubmissionData(parsed)) {
+        parsed.subtasks.forEach((subtask, index) => {
+          responses[index] = subtask.response || ""
+        })
+        return responses
+      }
+    } catch {
+      // Invalid format - return empty responses to prompt resubmission
+      quest.sub_tasks?.forEach((_, index) => {
+        responses[index] = ""
+      })
+    }
+    
+    return responses
   }
 
   // Test data generator with varied content for different subtasks
@@ -363,11 +370,21 @@ Lines        : 93.84% ( 183/195 )
     // Don't set isSubmitting here - it will be set in the modal flow
     // Just prepare the data and show the modal
     
-    // Format all subtask responses into a single submission (HTML to Markdown-like format)
-    const submissionContent = quest.sub_tasks?.map((subtask, index) => {
-      const response = subtaskResponses[index] || "<p>Not provided</p>"
-      return `<h3>${subtask.title || `Task ${index + 1}`}</h3>\n${response}`
-    }).join("\n\n") || "No subtasks"
+    // Format submission as JSON structure
+    const submissionData = {
+      format: "json",
+      version: "1.0",
+      timestamp: Date.now(),
+      subtasks: quest.sub_tasks?.map((subtask, index) => ({
+        title: subtask.title || `Task ${index + 1}`,
+        description: subtask.description,
+        type: subtask.type,
+        proof_required: subtask.proof_required,
+        response: subtaskResponses[index] || ""
+      })) || []
+    }
+    
+    const submissionContent = JSON.stringify(submissionData)
 
     setError(null)
 
@@ -464,7 +481,7 @@ Lines        : 93.84% ( 183/195 )
       
       // Reload the submission to get the latest data
       const submissions = await getUserSubmissions(currentUserTypeId!)
-      const submission = submissions.find((s: any) => 
+      const submission = submissions.find((s) => 
         s.campaign_type_id === finalCampaignHash && 
         s.quest_id === finalQuestId
       )

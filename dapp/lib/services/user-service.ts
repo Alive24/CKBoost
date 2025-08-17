@@ -10,7 +10,7 @@ import {
   extractTypeIdFromUserCell
 } from "../ckb/user-cells";
 import { NostrStorageService } from "./nostr-storage-service";
-import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
+import { deploymentManager } from "../ckb/deployment-manager";
 import { debug } from "../utils/debug";
 
 /**
@@ -54,7 +54,7 @@ export class UserService {
   private async initializeDeploymentInfo(): Promise<void> {
     try {
       // Get the user type contract outpoint from deployment manager
-      const network = DeploymentManager.getCurrentNetwork();
+      const network = deploymentManager.getCurrentNetwork();
       const deployment = deploymentManager.getCurrentDeployment(
         network,
         "ckboostUserType"
@@ -779,7 +779,7 @@ export class UserService {
     
     if (!this.userTypeCodeCell) {
       // Try one more time to get the deployment info
-      const network = DeploymentManager.getCurrentNetwork();
+      const network = deploymentManager.getCurrentNetwork();
       const userTypeOutPoint = deploymentManager.getContractOutPoint(
         network,
         "ckboostUserType"

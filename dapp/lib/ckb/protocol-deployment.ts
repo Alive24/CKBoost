@@ -6,7 +6,6 @@ import { Protocol } from "ssri-ckboost";
 import { ssri } from "@ckb-ccc/ssri";
 import {
   deploymentManager,
-  DeploymentManager,
   DeploymentRecord,
 } from "./deployment-manager";
 import { ProtocolDataLike } from "ssri-ckboost/types";
@@ -21,7 +20,7 @@ function getProtocolTypeCodeOutPoint(): {
 } | null {
   try {
     // Get current network
-    const network = DeploymentManager.getCurrentNetwork();
+    const network = deploymentManager.getCurrentNetwork();
 
     // Get deployment info from deployment manager
     const outPoint = deploymentManager.getContractOutPoint(
@@ -71,7 +70,7 @@ export interface DeploymentResult {
  */
 export function getProtocolConfigStatus(): "none" | "partial" | "complete" {
   // First check if protocol type contract is deployed
-  const network = DeploymentManager.getCurrentNetwork();
+  const network = deploymentManager.getCurrentNetwork();
   const protocolTypeDeployment = deploymentManager.getCurrentDeployment(
     network,
     "ckboostProtocolType"
@@ -108,7 +107,7 @@ export function getContractDeploymentStatus(): {
   allDeployed: boolean;
   missingContracts: string[];
 } {
-  const network = DeploymentManager.getCurrentNetwork();
+  const network = deploymentManager.getCurrentNetwork();
   
   const status = {
     protocolType: !!deploymentManager.getContractCodeHash(network, "ckboostProtocolType"),
@@ -145,7 +144,7 @@ export function getContractDeploymentStatus(): {
  * Get protocol deployment template with sensible defaults
  */
 export function getProtocolDeploymentTemplate(): ProtocolDataLike {
-  const network = DeploymentManager.getCurrentNetwork();
+  const network = deploymentManager.getCurrentNetwork();
   
   // Fetch all deployed contract code hashes from deployment manager
   const protocolTypeHash = deploymentManager.getContractCodeHash(network, "ckboostProtocolType");

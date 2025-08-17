@@ -19,10 +19,7 @@ import {
   fetchProtocolTransactions,
 } from "../ckb/protocol-cells";
 import { Protocol } from "ssri-ckboost";
-import {
-  deploymentManager,
-  DeploymentManager,
-} from "../ckb/deployment-manager";
+import { deploymentManager } from "../ckb/deployment-manager";
 
 /**
  * Protocol service that provides high-level protocol operations
@@ -35,7 +32,7 @@ export class ProtocolService {
     this.signer = signer;
 
     // Get the protocol type code outpoint and deployment info
-    const network = DeploymentManager.getCurrentNetwork();
+    const network = deploymentManager.getCurrentNetwork();
     const deployment = deploymentManager.getCurrentDeployment(  
       network,
       "ckboostProtocolType"

@@ -10,7 +10,7 @@ import React, {
 import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
-import { DeploymentManager, deploymentManager } from "../ckb/deployment-manager";
+import { deploymentManager } from "../ckb/deployment-manager";
 import { fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
 import { debug } from "../utils/debug";
 import { useProtocol } from "./protocol-provider";
@@ -254,7 +254,7 @@ export function useCampaign(protocolCell: ccc.Cell | null, typeHash?: ccc.Hex) {
     };
   }
 
-  const network = DeploymentManager.getCurrentNetwork();
+  const network = deploymentManager.getCurrentNetwork();
   const outPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType");
   if (!outPoint) {
     throw new Error("Campaign type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.");
