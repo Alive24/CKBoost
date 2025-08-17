@@ -986,6 +986,8 @@ dependencies = [
 name = "ckboost-points-udt"
 version = "0.1.0"
 dependencies = [
+ "ckb-ssri-std",
+ "ckb-ssri-std-proc-macro",
  "ckb-std",
  "ckboost-shared",
  "molecule 0.8.0",

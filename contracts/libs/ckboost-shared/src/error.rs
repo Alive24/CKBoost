@@ -1,6 +1,7 @@
 use ckb_deterministic::debug_trace;
 use ckb_ssri_std::SSRIError;
 use ckb_std::error::SysError;
+use core::str::Utf8Error;
 
 /// Error codes for CKBoost contracts
 #[repr(i8)]
@@ -160,6 +161,12 @@ impl From<SSRIError> for Error {
             SSRIError::SSRIMethodRequireHigherLevel => Self::SSRIMethodRequireHigherLevel,
             SSRIError::InvalidVmVersion => Self::InvalidVmVersion,
         }
+    }
+}
+
+impl From<Utf8Error> for Error {
+    fn from(_err: Utf8Error) -> Self {
+        Error::Utf8Error
     }
 }
 
