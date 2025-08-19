@@ -10,7 +10,6 @@ pub fn create_ckboost_classifier(
     data: &crate::protocol_data::ProtocolData,
 ) -> Result<RuleBasedClassifier, Error> {
     use crate::protocol_data::ProtocolDataExt;
-    use ckb_std::debug;
     debug_trace!("Creating CKBoost classifier from protocol data");
 
     // Start with a basic classifier
@@ -20,7 +19,8 @@ pub fn create_ckboost_classifier(
         .add_known_script(KnownScript::TypeId, KnownScript::TypeId.cell_class())
         .add_type_code_hash(data.protocol_type_code_hash(), CellClass::custom("protocol"))
         .add_type_code_hash(data.campaign_type_code_hash(), CellClass::custom("campaign"))
-        .add_type_code_hash(data.user_type_code_hash(), CellClass::custom("user"));
+        .add_type_code_hash(data.user_type_code_hash(), CellClass::custom("user"))
+        .add_type_code_hash(data.points_udt_type_code_hash(), CellClass::custom("points"));
 
     Ok(classifier)
 }

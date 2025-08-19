@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ interface SubmissionsTabProps {
 }
 
 export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps) {
-  const { campaignAdminService, isLoading: isServiceLoading } = useCampaignAdmin()
+  const { campaignAdminService, campaign: campaignInstance, isLoadingCampaign: isServiceLoading, error: adminError } = useCampaignAdmin(campaignTypeId)
   const [submissions, setSubmissions] = useState<Map<number, Array<UserSubmissionRecordLike & { userTypeId: string }>>>()
   const [userDetails, setUserDetails] = useState<Map<string, UserDataLike>>()
   const [stats, setStats] = useState<{
@@ -33,13 +33,7 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
   const [error, setError] = useState<string | null>(null)
   const [filterStatus, setFilterStatus] = useState<"all" | "pending" | "approved">("all")
 
-  useEffect(() => {
-    if (!isServiceLoading && campaignAdminService) {
-      loadSubmissions()
-    }
-  }, [campaignTypeId, isServiceLoading])
-
-  async function loadSubmissions() {
+  const loadSubmissions = useCallback(async () => {
     if (!campaignAdminService) {
       setError("Campaign admin service not available")
       setIsLoading(false)
@@ -60,7 +54,13 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
       setIsLoading(false)
       setIsRefreshing(false)
     }
-  }
+  }, [campaignAdminService, campaignTypeId])
+
+  useEffect(() => {
+    if (!isServiceLoading && campaignAdminService) {
+      loadSubmissions()
+    }
+  }, [campaignTypeId, isServiceLoading, campaignAdminService, loadSubmissions])
 
   async function handleRefresh() {
     setIsRefreshing(true)
@@ -97,31 +97,41 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
     return filtered
   }
 
-  async function handleBatchApprove(questId: number, userTypeIds: string[]) {
-    if (!campaignAdminService || !submissions) return
+  async function handleBatchApprove(questId: number, userTypeIds: string[]): Promise<void> {
+    if (!campaignAdminService || !submissions) {
+      throw new Error("Service not available")
+    }
 
-    const quest = campaign.quests?.find(q => Number(q.quest_id) === questId)
-    const pointsAmount = quest ? Number(quest.points) : undefined
+    // Points are handled automatically by the smart contract based on quest configuration
 
     if (userTypeIds.length === 0) {
-      alert("No submissions selected for approval")
-      return
+      throw new Error("No submissions selected for approval")
+    }
+
+    // Check if campaign instance is available
+    if (!campaignInstance) {
+      if (isServiceLoading) {
+        throw new Error("Campaign is still loading, please wait a moment and try again")
+      }
+      if (adminError) {
+        throw new Error(`Campaign error: ${adminError}`)
+      }
+      throw new Error("Campaign instance not available")
     }
 
     try {
-      const approvals = userTypeIds.map(userTypeId => ({
-        userTypeId: userTypeId as ccc.Hex,
-        questId,
-        pointsAmount
-      }))
-
-      await campaignAdminService.batchApproveSubmissions(campaignTypeId, approvals)
+      const txHash = await campaignAdminService.approveCompletion(campaignTypeId, questId, userTypeIds as ccc.Hex[])
+      
+      // Store the transaction hash if needed
+      if (txHash) {
+        debug.log("Batch approval transaction:", txHash)
+      }
       
       // Refresh submissions after batch approval
       await loadSubmissions()
     } catch (err) {
       console.error("Failed to batch approve submissions:", err)
-      alert("Failed to batch approve submissions. Please try again.")
+      throw err // Re-throw to be handled by the dialog
     }
   }
 
@@ -130,18 +140,20 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading submissions...</p>
+          <p className="text-muted-foreground">
+            {isServiceLoading ? "Loading campaign..." : "Loading submissions..."}
+          </p>
         </div>
       </div>
     )
   }
 
-  if (error) {
+  if (error || adminError) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-500 mb-4">{error}</p>
+          <p className="text-red-500 mb-4">{error || adminError}</p>
           <Button onClick={handleRefresh}>Try Again</Button>
         </div>
       </div>

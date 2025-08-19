@@ -4,6 +4,15 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Trophy, 
   CheckCircle, 
@@ -11,14 +20,17 @@ import {
   ChevronDown, 
   ChevronUp,
   Eye,
-  CheckSquare
+  CheckSquare,
+  Loader2,
+  AlertCircle,
+  ExternalLink
 } from "lucide-react"
-import { QuestLike, UserSubmissionRecordLike, UserDataLike } from "ssri-ckboost/types"
+import { UserSubmissionRecordLike, UserDataLike, QuestDataLike } from "ssri-ckboost/types"
 import { SubmissionCard } from "./submission-card"
-import { formatDateConsistent } from "@/lib/utils/debug"
+import { ccc } from "@ckb-ccc/connector-react"
 
 interface SubmissionListProps {
-  quests: QuestLike[]
+  quests: QuestDataLike[]
   submissions: Map<number, Array<UserSubmissionRecordLike & { userTypeId: string }>>
   userDetails: Map<string, UserDataLike>
   onBatchApprove: (questId: number, userTypeIds: string[]) => Promise<void>
@@ -34,6 +46,23 @@ export function SubmissionList({
 }: SubmissionListProps) {
   const [expandedQuests, setExpandedQuests] = useState<Set<number>>(new Set())
   const [selectedSubmissions, setSelectedSubmissions] = useState<Map<number, Set<string>>>(new Map())
+  const [approvalDialog, setApprovalDialog] = useState<{
+    open: boolean
+    questId: number | null
+    questTitle: string
+    userCount: number
+    totalPoints: number
+    status: 'idle' | 'confirming' | 'success' | 'error'
+    txHash?: string
+    error?: string
+  }>({
+    open: false,
+    questId: null,
+    questTitle: '',
+    userCount: 0,
+    totalPoints: 0,
+    status: 'idle'
+  })
 
   function toggleQuestExpansion(questId: number) {
     const newExpanded = new Set(expandedQuests)
@@ -81,12 +110,57 @@ export function SubmissionList({
       return
     }
     
-    if (!confirm(`Approve ${selected.size} selected submissions for this quest?`)) {
-      return
-    }
+    const quest = quests.find(q => Number(q.quest_id) === questId)
+    const questTitle = quest?.metadata?.title || `Quest ${questId}`
+    const pointsPerUser = Number(quest?.points || 0)
+    const totalPoints = pointsPerUser * selected.size
     
-    await onBatchApprove(questId, Array.from(selected))
-    clearSelection(questId)
+    // Open confirmation dialog
+    setApprovalDialog({
+      open: true,
+      questId,
+      questTitle,
+      userCount: selected.size,
+      totalPoints,
+      status: 'idle',
+      txHash: undefined,
+      error: undefined
+    })
+  }
+
+  async function confirmApproval() {
+    if (!approvalDialog.questId) return
+    
+    const selected = selectedSubmissions.get(approvalDialog.questId)
+    if (!selected) return
+    
+    setApprovalDialog(prev => ({ ...prev, status: 'confirming' }))
+    
+    try {
+      await onBatchApprove(approvalDialog.questId, Array.from(selected))
+      
+      // Success - show transaction hash (would need to be returned from onBatchApprove)
+      setApprovalDialog(prev => ({ 
+        ...prev, 
+        status: 'success',
+        // txHash would come from the actual transaction
+        txHash: '0x...' // Placeholder - actual implementation would return this
+      }))
+      
+      // Clear selection after successful approval
+      clearSelection(approvalDialog.questId)
+      
+      // Close dialog after a delay
+      setTimeout(() => {
+        setApprovalDialog(prev => ({ ...prev, open: false }))
+      }, 3000)
+    } catch (error) {
+      setApprovalDialog(prev => ({ 
+        ...prev, 
+        status: 'error',
+        error: error instanceof Error ? error.message : 'Failed to approve submissions'
+      }))
+    }
   }
 
   return (
@@ -146,7 +220,7 @@ export function SubmissionList({
                         onClick={(e) => {
                           e.stopPropagation()
                           const approvedUserIds = quest.accepted_submission_user_type_ids || []
-                          selectAllPending(questId, questSubmissions, approvedUserIds)
+                          selectAllPending(questId, questSubmissions, approvedUserIds.map(id => ccc.hexFrom(id)))
                         }}
                       >
                         <CheckSquare className="w-4 h-4 mr-1" />
@@ -159,9 +233,10 @@ export function SubmissionList({
                             e.stopPropagation()
                             handleBatchApprove(questId)
                           }}
+                          className="bg-green-600 hover:bg-green-700"
                         >
                           <CheckCircle className="w-4 h-4 mr-1" />
-                          Approve Selected ({selectedSubmissions.get(questId)?.size})
+                          Approve {selectedSubmissions.get(questId)?.size} ({Number(quest.points || 0) * (selectedSubmissions.get(questId)?.size || 0)} Points)
                         </Button>
                       ) : null}
                     </>
@@ -221,20 +296,20 @@ export function SubmissionList({
                         </h4>
                         <div className="space-y-2">
                           {quest.accepted_submission_user_type_ids.map((userTypeId) => {
-                            const submission = questSubmissions.find(s => s.userTypeId === userTypeId)
-                            const userData = userDetails.get(userTypeId)
+                            const submission = questSubmissions.find(s => s.userTypeId === ccc.hexFrom(userTypeId))
+                            const userData = userDetails.get(ccc.hexFrom(userTypeId))
                             
                             if (!submission) {
                               // Show approved user even if we don't have their submission data
                               return (
-                                <div key={userTypeId} className="flex items-center justify-between p-3 border rounded-lg bg-green-50/50 dark:bg-green-950/20">
+                                <div key={ccc.hexFrom(userTypeId)} className="flex items-center justify-between p-3 border rounded-lg bg-green-50/50 dark:bg-green-950/20">
                                   <div className="flex items-center gap-3">
                                     <Badge className="bg-green-100 text-green-800">
                                       <CheckCircle className="w-3 h-3 mr-1" />
                                       Approved
                                     </Badge>
                                     <code className="text-xs font-mono">
-                                      {userTypeId.slice(0, 10)}...
+                                      {ccc.hexFrom(userTypeId).slice(0, 10)}...
                                     </code>
                                   </div>
                                   <Badge variant="outline">
@@ -247,7 +322,7 @@ export function SubmissionList({
 
                             return (
                               <SubmissionCard
-                                key={userTypeId}
+                                key={ccc.hexFrom(userTypeId)}
                                 submission={submission}
                                 userData={userData}
                                 questId={questId}
@@ -280,6 +355,126 @@ export function SubmissionList({
           </Card>
         )
       })}
+
+      {/* Approval Confirmation Dialog */}
+      <Dialog open={approvalDialog.open} onOpenChange={(open) => {
+        if (!open && approvalDialog.status !== 'confirming') {
+          setApprovalDialog(prev => ({ ...prev, open: false }))
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {approvalDialog.status === 'success' ? 'Approval Successful!' : 'Confirm Quest Approval'}
+            </DialogTitle>
+            <DialogDescription>
+              {approvalDialog.status === 'idle' && (
+                <>
+                  You are about to approve {approvalDialog.userCount} submission{approvalDialog.userCount !== 1 ? 's' : ''} for &quot;{approvalDialog.questTitle}&quot;
+                </>
+              )}
+              {approvalDialog.status === 'confirming' && 'Processing approval transaction...'}
+              {approvalDialog.status === 'success' && 'Submissions have been approved and Points have been minted.'}
+              {approvalDialog.status === 'error' && 'Failed to approve submissions.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {approvalDialog.status === 'idle' && (
+              <Alert>
+                <Trophy className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <div>Total Points to be minted: <strong>{approvalDialog.totalPoints}</strong></div>
+                    <div className="text-xs text-muted-foreground">
+                      {approvalDialog.userCount} user{approvalDialog.userCount !== 1 ? 's' : ''} × {approvalDialog.totalPoints / approvalDialog.userCount} points each
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {approvalDialog.status === 'confirming' && (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            )}
+
+            {approvalDialog.status === 'success' && approvalDialog.txHash && (
+              <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <AlertDescription>
+                  <div className="space-y-2">
+                    <div className="font-medium text-green-800 dark:text-green-400">
+                      Successfully approved {approvalDialog.userCount} submission{approvalDialog.userCount !== 1 ? 's' : ''}
+                    </div>
+                    <div className="text-sm">
+                      {approvalDialog.totalPoints} Points have been minted
+                    </div>
+                    <div className="flex items-center gap-1 text-xs">
+                      <span className="text-muted-foreground">Transaction:</span>
+                      <code className="font-mono">{approvalDialog.txHash.slice(0, 10)}...</code>
+                      <ExternalLink className="h-3 w-3" />
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {approvalDialog.status === 'error' && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {approvalDialog.error || 'An unexpected error occurred'}
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            {approvalDialog.status === 'idle' && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setApprovalDialog(prev => ({ ...prev, open: false }))}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmApproval}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="w-4 h-4 mr-1" />
+                  Approve & Mint Points
+                </Button>
+              </>
+            )}
+            {approvalDialog.status === 'success' && (
+              <Button
+                onClick={() => setApprovalDialog(prev => ({ ...prev, open: false }))}
+              >
+                Close
+              </Button>
+            )}
+            {approvalDialog.status === 'error' && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setApprovalDialog(prev => ({ ...prev, open: false }))}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={confirmApproval}
+                  variant="destructive"
+                >
+                  Retry
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

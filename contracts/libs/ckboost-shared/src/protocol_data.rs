@@ -169,6 +169,9 @@ pub trait ProtocolDataExt {
     
     /// Get user type code hash
     fn user_type_code_hash(&self) -> [u8; 32];
+
+    /// Get points type code hash
+    fn points_udt_type_code_hash(&self) -> [u8; 32];
     
     /// Get accepted UDT type scripts
     fn accepted_udt_type_scripts(&self) -> Vec<Script>;
@@ -209,6 +212,17 @@ impl ProtocolDataExt for ProtocolData {
             .protocol_config()
             .script_code_hashes()
             .ckb_boost_user_type_code_hash();
+        let mut result = [0u8; 32];
+        result.copy_from_slice(hash.as_slice());
+        result
+    }
+    
+    /// Get points type code hash
+    fn points_udt_type_code_hash(&self) -> [u8; 32] {
+        let hash = self
+            .protocol_config()
+            .script_code_hashes()
+            .ckb_boost_points_udt_type_code_hash();
         let mut result = [0u8; 32];
         result.copy_from_slice(hash.as_slice());
         result

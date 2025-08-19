@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useMemo,
   ReactNode,
 } from "react";
 import { ccc, ssri } from "@ckb-ccc/connector-react";
@@ -23,7 +24,6 @@ interface CampaignContextType {
   error: string | null;
 
   // Campaign operations
-  getCampaignByTypeHash: (typeHash: ccc.Hex) => ccc.Cell | undefined;
   refreshCampaigns: () => Promise<void>;
 
   // User-specific data
@@ -150,9 +150,6 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [signer]);
 
   // Helper functions
-  const getCampaignByTypeHash = (typeHash: ccc.Hex): ccc.Cell | undefined => {
-    return campaigns.find((c) => c.cellOutput.type?.codeHash === typeHash);
-  };
 
   const refreshCampaigns = async (): Promise<void> => {
     try {
@@ -212,7 +209,6 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     featuredCampaigns,
     isLoading,
     error,
-    getCampaignByTypeHash,
     refreshCampaigns,
     userAddress,
     userBalance,
@@ -236,70 +232,123 @@ export function useCampaigns() {
 }
 
 // Helper hook for campaign-specific data
-export function useCampaign(protocolCell: ccc.Cell | null, typeHash?: ccc.Hex) {
-  const executorUrl =
-  process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
-  const executor = new ssri.ExecutorJsonRpc(executorUrl);
+export function useCampaign(protocolCell: ccc.Cell | null, campaignTypeId?: ccc.Hex) {
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaignService, setCampaignService] = useState<CampaignService | null>(null);
+  const [campaignCell, setCampaignCell] = useState<ccc.Cell | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const signer = ccc.useSigner();
-  const { getCampaignByTypeHash, isLoading } = useCampaigns();
-
-  // Return early if signer or protocolCell is not available
-  if (!signer || !protocolCell) {
-    return {
-      campaign: null,
-      campaignService: null,
-      campaignCell: undefined,
-      isLoading: !protocolCell, // Loading if protocol cell is not yet available
-      error: !signer ? "Wallet not connected" : null
-    };
-  }
-
-  const network = deploymentManager.getCurrentNetwork();
-  const outPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType");
-  if (!outPoint) {
-    throw new Error("Campaign type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.");
-  }
-  const deployment = deploymentManager.getCurrentDeployment(network, "ckboostCampaignType");
   
-  let campaignCell: ccc.Cell | undefined
-  let campaign: Campaign;
-  let campaignService: CampaignService;
-  let campaignTypeScript: ccc.Script;
+  const executor = useMemo(() => {
+    const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
+    return new ssri.ExecutorJsonRpc(executorUrl);
+  }, []);
 
-  // If no type hash, creating a new campaign
-  if (!typeHash) {
-    campaignTypeScript = ccc.Script.from({
-      codeHash: deployment?.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
-      hashType: "type" as const,
-      args: "0x", // Empty args - SSRI will calculate and fill the Connected Type ID
-    });
-    campaign = new Campaign(outPoint, campaignTypeScript, protocolCell,{
-      executor: executor,
-    });
-    campaignService = new CampaignService(signer, campaign, protocolCell);
-  } else {
-    campaignCell = getCampaignByTypeHash(typeHash);
-    if (!campaignCell?.outPoint) {
-      throw new Error("Campaign not found");
+  useEffect(() => {
+    // Reset states when dependencies change
+    setCampaign(null);
+    setCampaignService(null);
+    setCampaignCell(undefined);
+    setError(null);
+
+    // Return early if basic requirements not met
+    if (!signer || !protocolCell) {
+      setIsLoading(false);
+      setError(!signer ? "Wallet not connected" : null);
+      return;
     }
-    if (!campaignCell?.cellOutput.type) {
-      throw new Error("Campaign type not found");
+
+    const network = deploymentManager.getCurrentNetwork();
+    const outPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType");
+    if (!outPoint) {
+      setError("Campaign type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.");
+      setIsLoading(false);
+      return;
     }
-    campaign = new Campaign(
-      campaignCell?.outPoint,
-      campaignCell?.cellOutput.type,
-      protocolCell,
-      {
-        executor: executor,
+    const deployment = deploymentManager.getCurrentDeployment(network, "ckboostCampaignType");
+
+    // If no campaignTypeId, creating a new campaign
+    if (!campaignTypeId) {
+      try {
+        const campaignTypeScript = ccc.Script.from({
+          codeHash: deployment?.typeHash || "0x0000000000000000000000000000000000000000000000000000000000000000",
+          hashType: "type" as const,
+          args: "0x", // Empty args - SSRI will calculate and fill the Connected Type ID
+        });
+
+        const newCampaign = new Campaign(outPoint, campaignTypeScript, protocolCell, {
+          executor: executor,
+        });
+        const newCampaignService = new CampaignService(signer, newCampaign, protocolCell);
+
+        setCampaign(newCampaign);
+        setCampaignService(newCampaignService);
+        setIsLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create campaign instance");
+        setIsLoading(false);
       }
-    )
-  }
-  campaignService = new CampaignService(signer, campaign, protocolCell);
+    } else {
+      // For existing campaigns, fetch the campaign cell asynchronously using campaignTypeId
+      setIsLoading(true);
+      
+      const fetchExistingCampaign = async () => {
+        try {
+          // Fetch campaign cell by type_id (using existing utility)
+          const campaignCodeHash = deployment?.typeHash;
+          if (!campaignCodeHash) {
+            throw new Error("Campaign type code hash not found in deployment");
+          }
+
+          const fetchedCampaignCell = await fetchCampaignByTypeId(
+            campaignTypeId, // This is the type_id from ConnectedTypeID, not typeHash
+            campaignCodeHash as ccc.Hex,
+            signer,
+            protocolCell
+          );
+
+          if (!fetchedCampaignCell) {
+            throw new Error("Campaign not found with the provided campaignTypeId");
+          }
+
+          // Extract the campaign's type script (which contains ConnectedTypeID args)
+          const campaignTypeScript = fetchedCampaignCell.cellOutput.type;
+          if (!campaignTypeScript) {
+            throw new Error("Campaign cell missing type script");
+          }
+
+          // Create Campaign SSRI instance with the actual campaign's type script
+          const existingCampaign = new Campaign(
+            outPoint, 
+            campaignTypeScript, // Use fetched campaign's type script with proper ConnectedTypeID args
+            protocolCell,
+            { executor: executor }
+          );
+
+          const existingCampaignService = new CampaignService(signer, existingCampaign, protocolCell);
+
+          setCampaignCell(fetchedCampaignCell);
+          setCampaign(existingCampaign);
+          setCampaignService(existingCampaignService);
+          setIsLoading(false);
+        } catch (err) {
+          debug.error("Failed to fetch existing campaign:", err);
+          setError(err instanceof Error ? err.message : "Failed to fetch campaign");
+          setIsLoading(false);
+        }
+      };
+
+      fetchExistingCampaign();
+    }
+  }, [signer, protocolCell, campaignTypeId, executor]);
+
   return {
     campaign,
     campaignService,
     campaignCell,
     isLoading,
-    error: null
+    error
   };
 }

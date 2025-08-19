@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState, useEffect } from "react"
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2, CheckCircle, XCircle, RefreshCw, ExternalLink, Cloud, AlertTriangle, Code, Eye, Copy, AlertCircle } from "lucide-react"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
 import { debug } from "@/lib/utils/debug"
-import { NostrSubmissionData, isNostrSubmissionData } from "@/types/submission"
+import { isNostrSubmissionData } from "@/types/submission"
 
 interface NostrStorageModalProps {
   isOpen: boolean

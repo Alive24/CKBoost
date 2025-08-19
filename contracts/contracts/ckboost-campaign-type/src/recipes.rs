@@ -1,6 +1,7 @@
 extern crate alloc;
 
 pub mod helper {
+    use ckb_deterministic::debug_trace;
     use ckb_deterministic::errors::Error as DeterministicError;
     use ckb_std::ckb_constants::Source;
     use ckb_std::debug;
@@ -60,17 +61,17 @@ pub mod helper {
             }
             index += 1;
         }
-        ("CellRelationshipRuleViolation: Protocol cell not found in deps");
-        ("  Looking for protocol type hash: {:?}", protocol_type_hash);
+        debug_trace!("CellRelationshipRuleViolation: Protocol cell not found in deps");
+        debug_trace!("  Looking for protocol type hash: {:?}", protocol_type_hash);
         Err(DeterministicError::CellRelationshipRuleViolation)
     }
 }
 
 pub mod common {
+    use ckb_deterministic::debug_trace;
     use ckb_deterministic::errors::Error as DeterministicError;
     use ckb_deterministic::transaction_recipe::TransactionRecipeExt;
     use ckb_deterministic::{assertions::expect, cell_classifier::RuleBasedClassifier};
-    use ckb_std::debug;
     use ckboost_shared::transaction_context::TransactionContext;
 
     // **Script immutability**: Lock hash and type hash for campaign cells must remain unchanged
@@ -87,7 +88,7 @@ pub mod common {
                 {
                     return Ok(());
                 } else {
-                    ("Missing campaign cell in input");
+                    debug_trace!("Missing campaign cell in input");
                     return Err(DeterministicError::CellCountViolation);
                 }
             }
@@ -96,7 +97,7 @@ pub mod common {
             .output_cells
             .get_custom("campaign")
             .ok_or_else(|| {
-                ("CellCountViolation: Missing campaign cell in output (script_immutability)");
+                debug_trace!("CellCountViolation: Missing campaign cell in output (script_immutability)");
                 DeterministicError::CellCountViolation
             })?;
 
@@ -105,7 +106,7 @@ pub mod common {
             let output_cell = output_campaign_cells
                 .get(i)
                 .ok_or_else(|| {
-                    ("CellCountViolation: Output campaign cell {} not found (script_immutability)", i);
+                    debug_trace!("CellCountViolation: Output campaign cell {} not found (script_immutability)", i);
                     DeterministicError::CellCountViolation
                 })?;
 
@@ -113,9 +114,9 @@ pub mod common {
             expect(&input_cell.lock_hash)
                 .to_equal(&output_cell.lock_hash)
                 .map_err(|_| {
-                    ("CellRelationshipRuleViolation: Lock hash mismatch at index {}", i);
-                    ("  Input lock hash: {:?}", input_cell.lock_hash);
-                    ("  Output lock hash: {:?}", output_cell.lock_hash);
+                    debug_trace!("CellRelationshipRuleViolation: Lock hash mismatch at index {}", i);
+                    debug_trace!("  Input lock hash: {:?}", input_cell.lock_hash);
+                    debug_trace!("  Output lock hash: {:?}", output_cell.lock_hash);
                     DeterministicError::CellRelationshipRuleViolation
                 })?;
 
@@ -125,17 +126,17 @@ pub mod common {
                     expect(&input_hash)
                         .to_equal(&output_hash)
                         .map_err(|_| {
-                            ("CellRelationshipRuleViolation: Type hash mismatch at index {}", i);
-                            ("  Input type hash: {:?}", input_hash);
-                            ("  Output type hash: {:?}", output_hash);
+                            debug_trace!("CellRelationshipRuleViolation: Type hash mismatch at index {}", i);
+                            debug_trace!("  Input type hash: {:?}", input_hash);
+                            debug_trace!("  Output type hash: {:?}", output_hash);
                             DeterministicError::CellRelationshipRuleViolation
                         })?;
                 }
                 _ => {
                     // Either input or output campaign cell has no type hash - this is not allowed
-                    ("CellRelationshipRuleViolation: Campaign cell missing type hash at index {}", i);
-                    ("  Input has type: {}", input_cell.type_hash.is_some());
-                    ("  Output has type: {}", output_cell.type_hash.is_some());
+                    debug_trace!("CellRelationshipRuleViolation: Campaign cell missing type hash at index {}", i);
+                    debug_trace!("  Input has type: {}", input_cell.type_hash.is_some());
+                    debug_trace!("  Output has type: {}", output_cell.type_hash.is_some());
                     return Err(DeterministicError::CellRelationshipRuleViolation);
                 }
             }
@@ -314,6 +315,7 @@ pub mod update_campaign {
 
                     // Verify creator remains the same (campaigns cannot change ownership)
                     if input_campaign_data.endorser().as_slice() != output_campaign_data.endorser().as_slice() {
+                        debug_trace!("Campaign endorser changed during update");
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
 
@@ -325,6 +327,7 @@ pub mod update_campaign {
                     // 0 (created) -> 1 (funding) -> 2 (reviewing) -> 3 (approved) -> 4 (active) -> 5 (completed)
                     // Backwards transitions are not allowed
                     if output_status < input_status {
+                        debug_trace!("Campaign status decreased during update");
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
                 }
@@ -337,6 +340,7 @@ pub mod update_campaign {
                     debug_trace!(" Campaign status: {}", status);
                     if status != 0u8.into() {
                         debug_trace!(" ERROR: New campaign must have status 0, got {}", status);
+                        debug_trace!(" Campaign status: {}", status);
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
 
@@ -351,6 +355,8 @@ pub mod update_campaign {
                     if participants.as_slice() != zero_u32.as_slice() ||
                        completions.as_slice() != zero_u32.as_slice() {
                         debug_trace!(" ERROR: New campaign must have 0 participants and completions");
+                        debug_trace!(" Participants count: {:?}", participants.as_slice());
+                        debug_trace!(" Total completions: {:?}", completions.as_slice());
                         return Err(DeterministicError::BusinessRuleViolation);
                     }
                 }
@@ -362,6 +368,7 @@ pub mod update_campaign {
             debug_trace!(" Quest count: {}", quest_count);
             if quest_count == 0 {
                 debug_trace!(" ERROR: Campaign must have at least one quest");
+                debug_trace!(" Quest count: {}", quest_count);
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -375,6 +382,8 @@ pub mod update_campaign {
                 
             if title_empty || short_desc_empty || long_desc_empty {
                 debug_trace!(" ERROR: Title and descriptions must not be empty");
+                debug_trace!(" Title empty: {}, short_desc empty: {}, long_desc empty: {}", 
+                    title_empty, short_desc_empty, long_desc_empty);
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -393,7 +402,7 @@ pub mod approve_completion {
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
         TransactionValidationRules::new(b"CKBoostCampaign.approve_completion".to_vec())
-            .with_arguments(2) // quest_id and user_type_ids
+            .with_arguments(3) // campaign_data, quest_id and user_type_ids
             // Protocol cells in deps for Points UDT validation
             .with_custom_cell(
                 "protocol",
@@ -428,6 +437,7 @@ pub mod approve_completion {
 
     pub mod business_logic {
         use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::debug_trace;
         use ckb_deterministic::errors::Error as DeterministicError;
         use ckb_deterministic::assertions::expect;
         use ckb_std::debug;
@@ -468,25 +478,42 @@ pub mod approve_completion {
             let output_campaign_data = CampaignData::from_slice(&output_campaign_cell.data)
                 .map_err(|_| DeterministicError::Encoding)?;
 
-            // Verify campaign status is active (4)
-            if input_campaign_data.status() != 4u8.into() {
-                debug!("Campaign is not active, status: {}", input_campaign_data.status());
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // TODO: Not handling this for now
+            // // Verify campaign status is active (4)
+            // if input_campaign_data.status() != 4u8.into() {
+            //     debug!("Campaign is not active, status: {}", input_campaign_data.status());
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
-            // Get quest_id from transaction arguments (should be first argument)
-            let quest_id_arg = context
+            // Get campaign_data from transaction arguments (should be first argument)
+            let _campaign_data_arg = context
                 .recipe
                 .arguments()
                 .get(0)
-                .ok_or(DeterministicError::InvalidArgumentCount)?;
+                .ok_or_else(|| {
+                    debug_trace!("InvalidArgumentCount: Missing campaign_data argument (approval_validation)");
+                    DeterministicError::InvalidArgumentCount
+                })?;
 
-            // Get user_type_ids from transaction arguments (should be second argument)
-            let user_ids_arg = context
+            // Get quest_id from transaction arguments (should be second argument)
+            let quest_id_arg = context
                 .recipe
                 .arguments()
                 .get(1)
-                .ok_or(DeterministicError::InvalidArgumentCount)?;
+                .ok_or_else(|| {
+                    debug_trace!("InvalidArgumentCount: Missing quest_id argument (approval_validation)");
+                    DeterministicError::InvalidArgumentCount
+                })?;
+
+            // Get user_type_ids from transaction arguments (should be third argument)
+            let user_ids_arg = context
+                .recipe
+                .arguments()
+                .get(2)
+                .ok_or_else(|| {
+                    debug_trace!("InvalidArgumentCount: Missing user_type_ids argument (approval_validation)");
+                    DeterministicError::InvalidArgumentCount
+                })?;
 
             // Extract the quest_id
             let quest_id_bytes = quest_id_arg.data();
@@ -495,7 +522,7 @@ pub mod approve_completion {
             // For output references, we would need to load from outputs_data
             // For validation, we'll check the structure is correct
             if arg_type.as_slice()[0] != 2 {
-                debug!("Quest ID argument is not an output reference");
+                debug_trace!("Quest ID argument is not an output reference");
                 return Err(DeterministicError::InvalidArgumentCount);
             }
 
@@ -504,7 +531,7 @@ pub mod approve_completion {
             let user_ids_arg_type = user_ids_arg.arg_type();
             
             if user_ids_arg_type.as_slice()[0] != 2 {
-                debug!("User IDs argument is not an output reference");
+                debug_trace!("User IDs argument is not an output reference");
                 return Err(DeterministicError::InvalidArgumentCount);
             }
 
@@ -531,20 +558,20 @@ pub mod approve_completion {
             
             // Completions should increase (by the number of approved users)
             if output_completions <= input_completions {
-                debug!("Total completions did not increase: {} -> {}", input_completions, output_completions);
+                debug_trace!("Total completions did not increase: {} -> {}", input_completions, output_completions);
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
             // Verify endorser remains the same (campaigns cannot change ownership)
             if input_campaign_data.endorser().as_slice() != output_campaign_data.endorser().as_slice() {
-                debug!("Campaign endorser changed during approval");
+                debug_trace!("Campaign endorser changed during approval");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
             // Verify that at least one quest exists
             let quest_count = output_campaign_data.quests().len();
             if quest_count == 0 {
-                debug!("Campaign has no quests");
+                debug_trace!("Campaign has no quests");
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
@@ -605,6 +632,7 @@ pub mod complete_quest {
 
     pub mod business_logic {
         use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::debug_trace;
         use ckb_deterministic::errors::Error as DeterministicError;
         use ckb_deterministic::assertions::expect;
         use ckb_std::debug;
@@ -654,7 +682,7 @@ pub mod complete_quest {
             
             // Ensure we have at least one user cell
             if input_user_cells.is_empty() || output_user_cells.is_empty() {
-                ("No user cells found");
+                debug_trace!("No user cells found");
                 return Err(DeterministicError::CellCountViolation);
             }
 
@@ -672,7 +700,10 @@ pub mod complete_quest {
                 .recipe
                 .arguments()
                 .get(0)
-                .ok_or(DeterministicError::InvalidArgumentCount)?;
+                .ok_or_else(|| {
+                    debug_trace!("InvalidArgumentCount: Missing quest_id argument (quest_completion_validation)");
+                    DeterministicError::InvalidArgumentCount
+                })?;
 
             // Extract the data from the RecipeArgument
             let quest_id_bytes = quest_id_arg.data();
@@ -683,6 +714,7 @@ pub mod complete_quest {
                 // It's an output reference, we need to get the actual index
                 let index_bytes = quest_id_bytes.as_slice();
                 if index_bytes.len() != 4 {
+                    debug_trace!("InvalidArgumentCount: Quest ID index length is not 4 (quest_completion_validation)");
                     return Err(DeterministicError::InvalidArgumentCount);
                 }
                 let _index = u32::from_le_bytes([index_bytes[0], index_bytes[1], index_bytes[2], index_bytes[3]]);
@@ -691,13 +723,6 @@ pub mod complete_quest {
                 // In a real implementation, we would load the data from outputs_data[index]
                 // For now, let's validate with a placeholder
             }
-            
-            // For simplicity in validation, we'll use a placeholder quest ID
-            let quest_id_bytes = [0u8; 32];
-
-            // 1. Verify quest exists in campaign
-            let quest_id_byte32 = ckboost_shared::generated::ckboost::Byte32::from_slice(&quest_id_bytes)
-                .map_err(|_| DeterministicError::Encoding)?;
             
             // let quest_exists = input_campaign_data
             //     .quests()
@@ -729,16 +754,8 @@ pub mod complete_quest {
             //     return Err(DeterministicError::BusinessRuleViolation);
             // }
 
-            // 3. Validate completion proof (second argument should contain proof)
-            // For now, we just check that proof argument exists
-            // In production, this would validate against quest-specific requirements
-            let _proof = context
-                .recipe
-                .arguments()
-                .get(1)
-                .ok_or(DeterministicError::InvalidArgumentCount)?;
 
-            // 4. Update campaign quest completion count
+            // 3. Update campaign quest completion count
             // Verify that total_completions increased by 1
             let input_completions_data = input_campaign_data.total_completions();
             let output_completions_data = output_campaign_data.total_completions();
@@ -761,13 +778,15 @@ pub mod complete_quest {
             ]);
             
             if output_completions != input_completions + 1 {
+                debug_trace!("Total completions did not increase by 1: {} -> {}", input_completions, output_completions);
                 return Err(DeterministicError::BusinessRuleViolation);
             }
 
-            // Verify campaign status is active (4)
-            if input_campaign_data.status() != 4u8.into() {
-                return Err(DeterministicError::BusinessRuleViolation);
-            }
+            // TODO: Not handling this for now
+            // // Verify campaign status is active (4)
+            // if input_campaign_data.status() != 4u8.into() {
+            //     return Err(DeterministicError::BusinessRuleViolation);
+            // }
 
             // Verify quest rewards match what's defined in the campaign
             // let quest = input_campaign_data

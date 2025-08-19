@@ -363,7 +363,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         };
 
         // Initialize builders from existing transaction or create new
-        let cell_input_vec_builder = match tx {
+        let mut cell_input_vec_builder = match tx {
             Some(ref tx) => tx.clone().raw().inputs().as_builder(),
             None => CellInputVecBuilder::default(),
         };
@@ -383,10 +383,31 @@ impl CKBoostCampaign for CKBoostCampaignType {
             None => CellDepVecBuilder::default(),
         };
 
-        // Verify campaign is active (status = 4)
-        if campaign_data.status() != 4u8.into() {
-            return Err(Error::CampaignNotActive);
-        }
+        // Get context script and parse ConnectedTypeID from args
+        let current_script = load_script()?;
+        debug_info!("current_script: {:?}", current_script);
+
+        let args = current_script.args();
+        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
+            .map_err(|_| Error::InvalidConnectedTypeId)?;
+        debug_info!("connected_type_id: {:?}", connected_type_id);
+
+        // Find and add existing campaign cell as input
+        let campaign_outpoint = find_out_point_by_type(current_script.clone())?;
+        let campaign_input = CellInput::new_builder()
+            .previous_output(campaign_outpoint.clone())
+            .build();
+        cell_input_vec_builder = cell_input_vec_builder.push(campaign_input);
+
+        // Get the current campaign cell to preserve lock script
+        let current_campaign_cell = find_cell_by_out_point(campaign_outpoint)
+            .map_err(|_| Error::CampaignCellNotFound)?;
+
+        // TODO: Not handling this for now
+        // // Verify campaign is active (status = 4)
+        // if campaign_data.status() != 4u8.into() {
+        //     return Err(Error::CampaignNotActive);
+        // }
 
         // Find the quest and update accepted_submission_user_type_ids
         let quests = campaign_data.quests();
@@ -486,7 +507,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
             .metadata(campaign_data.metadata())
             .status(campaign_data.status())
             .quests(
-                ckboost_shared::generated::ckboost::QuestDataVec::new_builder()
+                campaign_data.quests().as_builder()
                     .extend(updated_quests)
                     .build()
             )
@@ -500,11 +521,16 @@ impl CKBoostCampaign for CKBoostCampaignType {
             .build();
 
         // Create output campaign cell with updated data
-        let campaign_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0);
+        let campaign_output_index = tx.as_ref().map(|t| t.raw().outputs().len()).unwrap_or(0) as u32;
         
-        // Create a placeholder output for the campaign (actual cell will be added by the transaction builder)
-        // In SSRI-VM context, we just need to prepare the data
+        // Create output campaign cell with proper type script and lock script
         let campaign_output = CellOutputBuilder::default()
+            .type_(
+                ScriptOptBuilder::default()
+                    .set(Some(current_script))
+                    .build(),
+            )
+            .lock(current_campaign_cell.lock())
             .capacity(0u64.pack()) // Placeholder capacity
             .build();
         cell_output_vec_builder = cell_output_vec_builder.push(campaign_output);
@@ -533,6 +559,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         let recipe = create_recipe_with_args(
             "CKBoostCampaign.approve_completion",
             vec![
+                create_recipe_with_reference(Source::Output, campaign_output_index),
                 create_recipe_with_reference(Source::Output, quest_id_index),
                 create_recipe_with_reference(Source::Output, user_ids_index),
             ],
@@ -559,7 +586,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 let witnesses = tx.witnesses();
 
                 // Copy existing witnesses up to campaign_output_index
-                for i in 0..campaign_output_index {
+                for i in 0..campaign_output_index as usize {
                     match witnesses.get(i) {
                         Some(witness) => {
                             builder = builder.push(witness);
@@ -575,7 +602,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 builder = builder.push(witness_args.as_bytes().pack());
 
                 // Add remaining witnesses
-                for i in campaign_output_index + 1..witnesses.len() {
+                for i in (campaign_output_index + 1) as usize..witnesses.len() {
                     match witnesses.get(i) {
                         Some(witness) => {
                             builder = builder.push(witness);
