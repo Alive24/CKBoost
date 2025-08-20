@@ -184,6 +184,12 @@ function generateTypeScript(jsonSchema: string): string {
 
   // Generate "Like" types for flexible input
   output += `\n// "Like" types for flexible input (similar to CCC pattern)\n`;
+  
+  // Add type aliases for Vec types that are used in option types
+  output += `// Type aliases for vector types used in option types\n`;
+  output += `export type CellDepVecLike = ccc.CellDepLike[];\n`;
+  output += `export type Byte32VecLike = ccc.HexLike[];\n\n`;
+  
   customTypes.forEach(typeName => {
     if (typeName !== 'Header' && typeName !== 'UncleBlock' && typeName !== 'UncleBlockVec') {
       const decl = schema.declarations.find(d => d.name === typeName);
@@ -259,6 +265,10 @@ function getLikeFieldType(type: string): string {
   if (type === 'CellInputVec') return 'ccc.CellInputLike[]';
   if (type === 'CellOutputVec') return 'ccc.CellOutputLike[]';
   if (type === 'Uint128Vec') return 'ccc.NumLike[]';
+  
+  // Option types that wrap Vec types
+  if (type === 'CellDepVecOpt') return 'ccc.CellDepLike[] | null';
+  if (type === 'Byte32VecOpt') return 'ccc.HexLike[] | null';
   
   // Special case for String
   if (type === 'String') return 'string';

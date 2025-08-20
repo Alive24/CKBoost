@@ -61,45 +61,10 @@
       "item": "Byte32"
     },
     {
-      "type": "option",
-      "name": "ScriptOpt",
-      "item": "Script"
-    },
-    {
       "type": "array",
       "name": "ProposalShortId",
       "item": "byte",
       "item_count": 10
-    },
-    {
-      "type": "dynvec",
-      "name": "UncleBlockVec",
-      "item": "UncleBlock"
-    },
-    {
-      "type": "dynvec",
-      "name": "TransactionVec",
-      "item": "Transaction"
-    },
-    {
-      "type": "fixvec",
-      "name": "ProposalShortIdVec",
-      "item": "ProposalShortId"
-    },
-    {
-      "type": "fixvec",
-      "name": "CellDepVec",
-      "item": "CellDep"
-    },
-    {
-      "type": "fixvec",
-      "name": "CellInputVec",
-      "item": "CellInput"
-    },
-    {
-      "type": "dynvec",
-      "name": "CellOutputVec",
-      "item": "CellOutput"
     },
     {
       "type": "table",
@@ -118,6 +83,11 @@
           "type": "Bytes"
         }
       ]
+    },
+    {
+      "type": "option",
+      "name": "ScriptOpt",
+      "item": "Script"
     },
     {
       "type": "struct",
@@ -178,6 +148,21 @@
           "type": "byte"
         }
       ]
+    },
+    {
+      "type": "fixvec",
+      "name": "CellDepVec",
+      "item": "CellDep"
+    },
+    {
+      "type": "fixvec",
+      "name": "CellInputVec",
+      "item": "CellInput"
+    },
+    {
+      "type": "dynvec",
+      "name": "CellOutputVec",
+      "item": "CellOutput"
     },
     {
       "type": "table",
@@ -284,6 +269,11 @@
       ]
     },
     {
+      "type": "fixvec",
+      "name": "ProposalShortIdVec",
+      "item": "ProposalShortId"
+    },
+    {
       "type": "table",
       "name": "UncleBlock",
       "fields": [
@@ -296,6 +286,16 @@
           "type": "ProposalShortIdVec"
         }
       ]
+    },
+    {
+      "type": "dynvec",
+      "name": "UncleBlockVec",
+      "item": "UncleBlock"
+    },
+    {
+      "type": "dynvec",
+      "name": "TransactionVec",
+      "item": "Transaction"
     },
     {
       "type": "table",
@@ -381,6 +381,57 @@
       "type": "option",
       "name": "Byte32Opt",
       "item": "Byte32"
+    },
+    {
+      "type": "option",
+      "name": "CellDepVecOpt",
+      "item": "CellDepVec"
+    },
+    {
+      "type": "option",
+      "name": "Byte32VecOpt",
+      "item": "Byte32Vec"
+    },
+    {
+      "type": "table",
+      "name": "RecipeArgument",
+      "fields": [
+        {
+          "name": "arg_type",
+          "type": "byte"
+        },
+        {
+          "name": "data",
+          "type": "Bytes"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "RecipeArgumentVec",
+      "item": "RecipeArgument"
+    },
+    {
+      "type": "table",
+      "name": "TransactionRecipe",
+      "fields": [
+        {
+          "name": "method_path",
+          "type": "Bytes"
+        },
+        {
+          "name": "arguments",
+          "type": "RecipeArgumentVec"
+        },
+        {
+          "name": "cell_deps",
+          "type": "CellDepVecOpt"
+        },
+        {
+          "name": "header_deps",
+          "type": "Byte32VecOpt"
+        }
+      ]
     },
     {
       "type": "dynvec",
@@ -559,6 +610,10 @@
         {
           "name": "completion_count",
           "type": "Uint32"
+        },
+        {
+          "name": "max_completions",
+          "type": "Uint32"
         }
       ]
     },
@@ -566,6 +621,41 @@
       "type": "dynvec",
       "name": "QuestDataVec",
       "item": "QuestData"
+    },
+    {
+      "type": "table",
+      "name": "EndorserInfo",
+      "fields": [
+        {
+          "name": "endorser_lock_hash",
+          "type": "Byte32"
+        },
+        {
+          "name": "endorser_name",
+          "type": "String"
+        },
+        {
+          "name": "endorser_description",
+          "type": "String"
+        },
+        {
+          "name": "website",
+          "type": "String"
+        },
+        {
+          "name": "social_links",
+          "type": "StringVec"
+        },
+        {
+          "name": "verified",
+          "type": "Uint8"
+        }
+      ]
+    },
+    {
+      "type": "dynvec",
+      "name": "EndorserInfoVec",
+      "item": "EndorserInfo"
     },
     {
       "type": "table",
@@ -720,41 +810,6 @@
       "type": "dynvec",
       "name": "TippingProposalDataVec",
       "item": "TippingProposalData"
-    },
-    {
-      "type": "table",
-      "name": "EndorserInfo",
-      "fields": [
-        {
-          "name": "endorser_lock_hash",
-          "type": "Byte32"
-        },
-        {
-          "name": "endorser_name",
-          "type": "String"
-        },
-        {
-          "name": "endorser_description",
-          "type": "String"
-        },
-        {
-          "name": "website",
-          "type": "String"
-        },
-        {
-          "name": "social_links",
-          "type": "StringVec"
-        },
-        {
-          "name": "verified",
-          "type": "Uint8"
-        }
-      ]
-    },
-    {
-      "type": "dynvec",
-      "name": "EndorserInfoVec",
-      "item": "EndorserInfo"
     },
     {
       "type": "table",

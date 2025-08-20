@@ -1,7 +1,7 @@
 // Protocol-specific types for CKBoost admin dashboard and protocol management
 // This file contains ONLY UI-specific types that are not available in ssri-ckboost
 
-import { ccc } from '@ckb-ccc/core'
+import { ccc, ScriptLike } from '@ckb-ccc/core'
 import { CampaignDataLike, EndorserInfoLike, ProtocolDataLike, ScriptCodeHashesLike, TippingConfigLike, TippingProposalDataLike } from 'ssri-ckboost/types'
 
 // Transaction status tracking for UI
@@ -65,6 +65,8 @@ export interface ProtocolChanges {
     ckbBoostCampaignLockCodeHash: FieldChange<string>
     ckbBoostUserTypeCodeHash: FieldChange<string>
     ckbBoostPointsUdtTypeCodeHash: FieldChange<string>
+    acceptedUdtTypeScripts: FieldChange<ScriptLike[]>
+    acceptedDobTypeScripts: FieldChange<ScriptLike[]>
   }
   tippingConfig: {
     approvalRequirementThresholds: FieldChange<string[]>

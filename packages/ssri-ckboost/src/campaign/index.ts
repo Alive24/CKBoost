@@ -65,9 +65,50 @@ export class Campaign extends ssri.Trait {
       await txReq.completeInputsByCapacity(signer);
     }
 
-    // Serialize campaign data
-    const campaignDataBytes = CampaignData.encode(campaignData);
-    const campaignDataHex = ccc.hexFrom(campaignDataBytes);
+    // Serialize campaign data - just let the mol library handle it
+    console.log("Encoding campaign with", campaignData.quests?.length || 0, "quests");
+    
+    // Debug: Log the campaign data structure before encoding
+    console.log("Campaign data structure before encoding:", {
+      hasEndorser: !!campaignData.endorser,
+      hasMetadata: !!campaignData.metadata,
+      questCount: campaignData.quests?.length || 0,
+      rulesCount: campaignData.rules?.length || 0,
+      categoriesCount: campaignData.metadata?.categories?.length || 0
+    });
+    
+    // Debug: Log the first quest if it exists
+    if (campaignData.quests && campaignData.quests.length > 0) {
+      const firstQuest = campaignData.quests[0];
+      console.log("First quest structure:", {
+        quest_id: firstQuest.quest_id,
+        hasMetadata: !!firstQuest.metadata,
+        points: firstQuest.points,
+        rewardsCount: firstQuest.rewards_on_completion?.length || 0,
+        subTasksCount: firstQuest.sub_tasks?.length || 0,
+        acceptedUserTypeIdsCount: firstQuest.accepted_submission_user_type_ids?.length || 0
+      });
+    }
+    
+    let campaignDataHex: string;
+    try {
+      const campaignDataBytes = CampaignData.encode(campaignData);
+      campaignDataHex = ccc.hexFrom(campaignDataBytes);
+      console.log("Campaign encoded successfully, hex length:", campaignDataHex.length);
+      console.log("First 100 bytes of hex:", campaignDataHex.slice(0, 100));
+      
+      // Try to decode it immediately to verify
+      try {
+        const decoded = CampaignData.decode(campaignDataHex);
+        console.log("Immediate decode verification successful, quest count:", decoded.quests?.length || 0);
+      } catch (decodeErr) {
+        console.error("Failed to decode immediately after encoding:", decodeErr);
+      }
+    } catch (encodeErr) {
+      console.error("Failed to encode campaign data:", encodeErr);
+      throw encodeErr;
+    }
+    
     const txHex = ccc.hexFrom(txReq.toBytes());
 
     console.log("Calling SSRI executor with:", {

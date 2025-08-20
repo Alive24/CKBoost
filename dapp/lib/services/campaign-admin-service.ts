@@ -200,6 +200,7 @@ export class CampaignAdminService {
       Array<UserSubmissionRecordLike & { userTypeId: string }>
     >;
     userDetails: Map<string, UserDataLike>;
+    campaignData: CampaignDataLike;
     stats: {
       totalSubmissions: number;
       pendingReview: number;
@@ -319,6 +320,7 @@ export class CampaignAdminService {
     return {
       submissions,
       userDetails,
+      campaignData,
       stats: {
         totalSubmissions,
         pendingReview,

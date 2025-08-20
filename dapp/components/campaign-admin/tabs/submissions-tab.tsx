@@ -13,16 +13,14 @@ import { debug } from "@/lib/utils/debug"
 import { ccc } from "@ckb-ccc/core"
 
 interface SubmissionsTabProps {
-  campaign: CampaignDataLike & { 
-    typeHash: ccc.Hex
-  }
   campaignTypeId: ccc.Hex
 }
 
-export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps) {
+export function SubmissionsTab({ campaignTypeId }: SubmissionsTabProps) {
   const { campaignAdminService, campaign: campaignInstance, isLoadingCampaign: isServiceLoading, error: adminError } = useCampaignAdmin(campaignTypeId)
   const [submissions, setSubmissions] = useState<Map<number, Array<UserSubmissionRecordLike & { userTypeId: string }>>>()
   const [userDetails, setUserDetails] = useState<Map<string, UserDataLike>>()
+  const [campaignData, setCampaignData] = useState<CampaignDataLike | null>(null)
   const [stats, setStats] = useState<{
     totalSubmissions: number,
     pendingReview: number,
@@ -45,6 +43,7 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
       const data = await campaignAdminService.fetchCampaignSubmissions(campaignTypeId)
       setSubmissions(data.submissions)
       setUserDetails(data.userDetails)
+      setCampaignData(data.campaignData)
       setStats(data.stats)
       debug.log("Loaded submissions", data.stats)
     } catch (err) {
@@ -76,7 +75,7 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
     const filtered = new Map<number, Array<UserSubmissionRecordLike & { userTypeId: string }>>()
     
     for (const [questId, questSubmissions] of submissions) {
-      const quest = campaign.quests?.find(q => Number(q.quest_id) === questId)
+      const quest = campaignData?.quests?.find(q => Number(q.quest_id) === questId)
       const approvedUserIds = quest?.accepted_submission_user_type_ids || []
       
       const filteredSubmissions = questSubmissions.filter(submission => {
@@ -235,9 +234,9 @@ export function SubmissionsTab({ campaign, campaignTypeId }: SubmissionsTabProps
       </Card>
 
       {/* Submissions by Quest */}
-      {campaign.quests && campaign.quests.length > 0 ? (
+      {campaignData?.quests && campaignData.quests.length > 0 ? (
         <SubmissionList
-          quests={campaign.quests}
+          quests={campaignData.quests}
           submissions={getFilteredSubmissions()}
           userDetails={userDetails || new Map()}
           onBatchApprove={handleBatchApprove}

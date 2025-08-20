@@ -6,7 +6,6 @@ import { mol, ccc } from "@ckb-ccc/core";
 // CKBoost molecule codec implementations
 export const BytesOptVec = mol.vector(mol.BytesOpt);
 export const ProposalShortId = mol.array(mol.Uint8, 10);
-export const ProposalShortIdVec = mol.vector(ProposalShortId);
 export const RawHeader = mol.struct({
   version: mol.Uint32,
   compact_target: mol.Uint32,
@@ -19,9 +18,23 @@ export const RawHeader = mol.struct({
   extra_hash: mol.Byte32,
   dao: mol.Byte32
 });
+export const ProposalShortIdVec = mol.vector(ProposalShortId);
 export const CellbaseWitness = mol.table({
   lock: ccc.Script,
   message: mol.Bytes
+});
+export const CellDepVecOpt = mol.option(mol.vector(ccc.CellDep));
+export const Byte32VecOpt = mol.option(mol.Byte32Vec);
+export const RecipeArgument = mol.table({
+  arg_type: mol.Uint8,
+  data: mol.Bytes
+});
+export const RecipeArgumentVec = mol.vector(RecipeArgument);
+export const TransactionRecipe = mol.table({
+  method_path: mol.Bytes,
+  arguments: RecipeArgumentVec,
+  cell_deps: CellDepVecOpt,
+  header_deps: Byte32VecOpt
 });
 export const StringVec = mol.vector(mol.String);
 export const UDTAsset = mol.table({
@@ -61,7 +74,8 @@ export const QuestData = mol.table({
   status: mol.Uint8,
   sub_tasks: QuestSubTaskDataVec,
   points: mol.Uint32,
-  completion_count: mol.Uint32
+  completion_count: mol.Uint32,
+  max_completions: mol.Uint32
 });
 export const QuestDataVec = mol.vector(QuestData);
 export const EndorserInfo = mol.table({
@@ -72,6 +86,7 @@ export const EndorserInfo = mol.table({
   social_links: mol.vector(mol.String),
   verified: mol.Uint8
 });
+export const EndorserInfoVec = mol.vector(EndorserInfo);
 export const CampaignMetadata = mol.table({
   title: mol.String,
   endorser_info: EndorserInfo,
@@ -112,7 +127,6 @@ export const TippingProposalData = mol.table({
   approval_transaction_hash: mol.Byte32Vec
 });
 export const TippingProposalDataVec = mol.vector(TippingProposalData);
-export const EndorserInfoVec = mol.vector(EndorserInfo);
 export const TippingConfig = mol.table({
   approval_requirement_thresholds: mol.Uint128Vec,
   expiration_duration: mol.Uint64
@@ -167,6 +181,10 @@ export type UncleBlock = ccc.ClientBlockUncleLike;
 export type UncleBlockVec = UncleBlock[];
 
 // "Like" types for flexible input (similar to CCC pattern)
+// Type aliases for vector types used in option types
+export type CellDepVecLike = ccc.CellDepLike[];
+export type Byte32VecLike = ccc.HexLike[];
+
 export interface RawHeaderLike {
   version: ccc.NumLike;
   compact_target: ccc.NumLike;
@@ -183,6 +201,18 @@ export interface RawHeaderLike {
 export interface CellbaseWitnessLike {
   lock: ccc.ScriptLike;
   message: ccc.BytesLike;
+}
+
+export interface RecipeArgumentLike {
+  arg_type: ccc.NumLike;
+  data: ccc.BytesLike;
+}
+
+export interface TransactionRecipeLike {
+  method_path: ccc.BytesLike;
+  arguments: RecipeArgumentLike[];
+  cell_deps: ccc.CellDepLike[] | null;
+  header_deps: ccc.HexLike[] | null;
 }
 
 export interface UDTAssetLike {
@@ -224,6 +254,16 @@ export interface QuestDataLike {
   sub_tasks: QuestSubTaskDataLike[];
   points: ccc.NumLike;
   completion_count: ccc.NumLike;
+  max_completions: ccc.NumLike;
+}
+
+export interface EndorserInfoLike {
+  endorser_lock_hash: ccc.HexLike;
+  endorser_name: string;
+  endorser_description: string;
+  website: string;
+  social_links: string[];
+  verified: ccc.NumLike;
 }
 
 export interface CampaignMetadataLike {
@@ -266,15 +306,6 @@ export interface TippingProposalDataLike {
   amount: ccc.NumLike;
   tipping_transaction_hash: ccc.HexLike | null;
   approval_transaction_hash: ccc.HexLike[];
-}
-
-export interface EndorserInfoLike {
-  endorser_lock_hash: ccc.HexLike;
-  endorser_name: string;
-  endorser_description: string;
-  website: string;
-  social_links: string[];
-  verified: ccc.NumLike;
 }
 
 export interface TippingConfigLike {

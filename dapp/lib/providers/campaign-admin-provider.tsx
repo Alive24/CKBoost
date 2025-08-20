@@ -87,7 +87,7 @@ export function useCampaignAdmin(campaignTypeId?: ccc.Hex) {
   const [error, setError] = React.useState<string | null>(null)
   
   React.useEffect(() => {
-    if (!campaignTypeId || !context.campaignAdminService) {
+    if (!campaignTypeId || !context.campaignAdminService || campaignTypeId === 'new') {
       setCampaign(null)
       return
     }

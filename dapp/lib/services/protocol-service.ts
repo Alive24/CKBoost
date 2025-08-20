@@ -20,6 +20,7 @@ import {
 } from "../ckb/protocol-cells";
 import { Protocol } from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
+import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
 
 /**
  * Protocol service that provides high-level protocol operations
@@ -82,10 +83,10 @@ export class ProtocolService {
       updatedData
     );
 
-    // Complete fees and send transaction
+    // Complete fees and send transaction with automatic retry
     await tx.completeInputsByCapacity(this.signer);
     await tx.completeFeeBy(this.signer);
-    const txHash = await this.signer.sendTransaction(tx);
+    const txHash = await sendTransactionWithFeeRetry(this.signer, tx);
 
     console.log("Protocol updated, tx:", txHash);
     return txHash;
@@ -163,6 +164,7 @@ export class ProtocolService {
               ckb_boost_campaign_type_code_hash: defaultByte32,
               ckb_boost_campaign_lock_code_hash: defaultByte32,
               ckb_boost_user_type_code_hash: defaultByte32,
+              ckb_boost_points_udt_type_code_hash: defaultByte32,
               accepted_udt_type_scripts: [],
               accepted_dob_type_scripts: [],
             },
