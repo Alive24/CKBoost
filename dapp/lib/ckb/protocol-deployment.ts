@@ -9,6 +9,7 @@ import {
   DeploymentRecord,
 } from "./deployment-manager";
 import { ProtocolDataLike } from "ssri-ckboost/types";
+import { sendTransactionWithFeeRetry } from "./transaction-wrapper";
 
 /**
  * Get the protocol type code cell outpoint from deployment information
@@ -342,19 +343,14 @@ export async function deployProtocolCell(
     // Let's add capacity inputs
     await tx.completeInputsByCapacity(signer);
 
-    // The fee rate is already in the correct unit (shannon/byte)
-    // Ensure minimum of 1000 shannon/KB (1 shannon/byte)
-    await tx.completeFeeBy(signer);
-
-    // Convert transaction to hex for debugging
-    const txHex = ccc.hexFrom(tx.toBytes());
-
-    // Always print transaction hex for debugging
-    console.log("=== Transaction Generated ===");
-    console.log("Transaction hex:");
-    console.log(txHex);
-    console.log("\nTo debug this transaction offline, run:");
-    console.log(`cd contracts/utils && cargo run -- "${txHex}"`);
+    // Print initial transaction structure for debugging
+    console.log("=== Transaction Structure (before fee) ===");
+    console.log("Transaction summary:", {
+      inputsCount: tx.inputs.length,
+      outputsCount: tx.outputs.length,
+      witnessesCount: tx.witnesses.length,
+      cellDepsCount: tx.cellDeps.length,
+    });
     console.log("=============================\n");
 
     // Check if transaction is ready for signing
@@ -435,7 +431,20 @@ export async function deployProtocolCell(
       console.log("Requesting wallet to sign transaction...");
 
       try {
-        const txHash = await signer.sendTransaction(tx);
+        // Complete the fee right before sending to ensure proper fee calculation
+        await tx.completeFeeBy(signer);
+        
+        // Convert transaction to hex for debugging (after fee completion)
+        const finalTxHex = ccc.hexFrom(tx.toBytes());
+        console.log("=== Final Transaction (with fee) ===");
+        console.log("Transaction hex:");
+        console.log(finalTxHex);
+        console.log("\nTo debug this transaction offline, run:");
+        console.log(`cd contracts/utils && cargo run -- "${finalTxHex}"`);
+        console.log("=============================\n");
+        
+        // Use our wrapper that handles fee errors automatically
+        const txHash = await sendTransactionWithFeeRetry(signer, tx);
         console.log("Transaction sent successfully! TxHash:", txHash);
 
         // Extract the protocol cell's type script from the transaction
@@ -513,7 +522,6 @@ export async function deployProtocolCell(
             sendError.message.includes("wallet"))
         ) {
           console.error("Wallet signing error. Transaction hex for debugging:");
-          console.error(txHex);
           throw new Error(
             `Wallet signing failed: ${sendError.message}\n\n` +
               "Please check:\n" +
@@ -530,9 +538,6 @@ export async function deployProtocolCell(
       console.error(
         "Transaction failed to send. Transaction hex for debugging:"
       );
-      console.error(txHex);
-      console.error("\nTo debug this transaction, run:");
-      console.error(`cd contracts/utils && cargo run -- "${txHex}"`);
       throw sendError;
     }
   } catch (error) {

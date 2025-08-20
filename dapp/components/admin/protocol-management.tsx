@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
@@ -12,26 +13,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -41,36 +25,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Plus,
-  Settings,
-  History,
   Activity,
   AlertTriangle,
   CheckCircle,
-  X,
-  Clock,
-  XCircle,
-  UserPlus,
-  Trash2,
-  Save,
   Eye,
   EyeOff,
-  FileSearch,
-  Users,
   RotateCcw,
+  Save,
 } from "lucide-react";
 import { ProtocolChanges } from "@/lib/types/protocol";
-import { formatTimestamp } from "@/lib/services/protocol-service";
 import { useProtocol } from "@/lib/providers/protocol-provider";
-import { ccc, mol } from "@ckb-ccc/connector-react";
+import { ccc } from "@ckb-ccc/connector-react";
 import {
   getProtocolConfigStatus,
   getProtocolDeploymentTemplate,
@@ -84,6 +49,16 @@ import {
   ScriptCodeHashesLike,
   TippingConfigLike,
 } from "ssri-ckboost/types";
+import { 
+  ProtocolStats, 
+  AdminManagement, 
+  TippingConfig,
+  ScriptCodeHashes,
+  EndorserManagement,
+  ProtocolDeploymentSection,
+  ProtocolSummarySection,
+  ProtocolChangesDialog
+} from "./protocol";
 // Note: Byte32, Uint128, Uint64 are now represented as ccc.Hex, bigint, bigint respectively
 
 // Form types
@@ -390,8 +365,8 @@ export function ProtocolManagement() {
               ckb_boost_points_udt_type_code_hash:
                 deploymentTemplate.protocol_config.script_code_hashes
                   .ckb_boost_points_udt_type_code_hash,
-              accepted_udt_type_scripts: [],
-              accepted_dob_type_scripts: [],
+              accepted_udt_type_scripts: deploymentTemplate.protocol_config.script_code_hashes.accepted_udt_type_scripts || [],
+              accepted_dob_type_scripts: deploymentTemplate.protocol_config.script_code_hashes.accepted_dob_type_scripts || [],
             },
             tippingConfig: {
               approval_requirement_thresholds:
@@ -457,7 +432,11 @@ export function ProtocolManagement() {
 
       // Set baseline values to prevent false change detection
       setBaselineValues({
-        scriptCodeHashes: scriptHashesValues,
+        scriptCodeHashes: {
+          ...scriptHashesValues,
+          accepted_udt_type_scripts: protocolData.protocol_config.script_code_hashes.accepted_udt_type_scripts || [],
+          accepted_dob_type_scripts: protocolData.protocol_config.script_code_hashes.accepted_dob_type_scripts || [],
+        },
         tippingConfig: tippingValues,
       });
     }
@@ -510,6 +489,47 @@ export function ProtocolManagement() {
 
   // Calculate changes with proper dependency management
   useEffect(() => {
+    // Helper function to compare Script arrays - defined inside useEffect to avoid dependency issues
+    const compareScriptArrays = (arr1: ccc.ScriptLike[], arr2: ccc.ScriptLike[], fieldName?: string): boolean => {
+      // Handle null/undefined arrays
+      if (!arr1 && !arr2) return true;
+      if (!arr1 || !arr2) return false;
+      
+      // Handle empty arrays
+      if (arr1.length === 0 && arr2.length === 0) return true;
+      
+      if (arr1.length !== arr2.length) {
+        console.log(`Script array length mismatch for ${fieldName}:`, arr1.length, 'vs', arr2.length);
+        return false;
+      }
+      
+      return arr1.every((script1, index) => {
+        const script2 = arr2[index];
+        
+        // Handle the codeHash comparison - treat empty string as a special case
+        const codeHash1 = script1.codeHash === "" ? "" : ccc.hexFrom(script1.codeHash || "");
+        const codeHash2 = script2.codeHash === "" ? "" : ccc.hexFrom(script2.codeHash || "");
+        const codeHashMatch = codeHash1 === codeHash2;
+        
+        const hashTypeMatch = script1.hashType === script2.hashType;
+        
+        // Handle args comparison
+        const args1 = ccc.hexFrom(script1.args || "0x");
+        const args2 = ccc.hexFrom(script2.args || "0x");
+        const argsMatch = args1 === args2;
+        
+        if (!codeHashMatch || !hashTypeMatch || !argsMatch) {
+          console.log(`Script mismatch at index ${index} for ${fieldName}:`, {
+            codeHash: [codeHash1, codeHash2],
+            hashType: [script1.hashType, script2.hashType],
+            args: [args1, args2]
+          });
+        }
+        
+        return codeHashMatch && hashTypeMatch && argsMatch;
+      });
+    };
+    
     if (
       !protocolData ||
       !baselineValues.scriptCodeHashes ||
@@ -517,14 +537,25 @@ export function ProtocolManagement() {
     )
       return;
 
+    // Debug logging
+    console.log('Comparing script values:', {
+      current_udt: scriptCodeHashesValues.accepted_udt_type_scripts,
+      baseline_udt: baselineValues.scriptCodeHashes.accepted_udt_type_scripts,
+      current_dob: scriptCodeHashesValues.accepted_dob_type_scripts,
+      baseline_dob: baselineValues.scriptCodeHashes.accepted_dob_type_scripts,
+    });
+
     // Check if current values match baseline values (no changes)
     const scriptHashesEqual =
-      JSON.stringify(scriptCodeHashesValues, (_, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      ) ===
-      JSON.stringify(baselineValues.scriptCodeHashes, (_, value) =>
-        typeof value === "bigint" ? value.toString() : value
-      );
+      scriptCodeHashesValues.ckb_boost_protocol_type_code_hash === baselineValues.scriptCodeHashes.ckb_boost_protocol_type_code_hash &&
+      scriptCodeHashesValues.ckb_boost_protocol_lock_code_hash === baselineValues.scriptCodeHashes.ckb_boost_protocol_lock_code_hash &&
+      scriptCodeHashesValues.ckb_boost_campaign_type_code_hash === baselineValues.scriptCodeHashes.ckb_boost_campaign_type_code_hash &&
+      scriptCodeHashesValues.ckb_boost_campaign_lock_code_hash === baselineValues.scriptCodeHashes.ckb_boost_campaign_lock_code_hash &&
+      scriptCodeHashesValues.ckb_boost_user_type_code_hash === baselineValues.scriptCodeHashes.ckb_boost_user_type_code_hash &&
+      scriptCodeHashesValues.ckb_boost_points_udt_type_code_hash === baselineValues.scriptCodeHashes.ckb_boost_points_udt_type_code_hash &&
+      compareScriptArrays(scriptCodeHashesValues.accepted_udt_type_scripts, baselineValues.scriptCodeHashes.accepted_udt_type_scripts, 'accepted_udt_type_scripts') &&
+      compareScriptArrays(scriptCodeHashesValues.accepted_dob_type_scripts, baselineValues.scriptCodeHashes.accepted_dob_type_scripts, 'accepted_dob_type_scripts');
+    
     const tippingEqual =
       JSON.stringify(tippingConfigValues, (_, value) =>
         typeof value === "bigint" ? value.toString() : value
@@ -610,8 +641,10 @@ export function ProtocolManagement() {
     };
   }, [
     protocolData,
-    // Use JSON.stringify to create stable dependencies
-    JSON.stringify(finalAdminLockHashes),
+    // Use JSON.stringify with a replacer to handle BigInt values
+    JSON.stringify(finalAdminLockHashes, (_, value) =>
+      typeof value === "bigint" ? value.toString() : value
+    ),
     JSON.stringify(scriptCodeHashesValues, (_, value) =>
       typeof value === "bigint" ? value.toString() : value
     ),
@@ -662,7 +695,7 @@ export function ProtocolManagement() {
       // Check if admin already exists or is pending
       const isDuplicate =
         protocolData?.protocol_config.admin_lock_hash_vec.some(
-          (hash: any) => ccc.hexFrom(hash as ccc.BytesLike) === lockHash
+          (hash: ccc.BytesLike) => ccc.hexFrom(hash) === lockHash
         ) || pendingAdminChanges.toAdd.includes(lockHash as ccc.Hex);
 
       if (isDuplicate) {
@@ -1533,67 +1566,10 @@ export function ProtocolManagement() {
 
       {/* Metrics Overview */}
       {metrics && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Total Campaigns
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalCampaigns}</div>
-              <p className="text-xs text-muted-foreground">
-                {metrics.activeCampaigns} active
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Tipping Proposals
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {metrics.totalTippingProposals}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {metrics.pendingTippingProposals} pending
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Endorsers</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{metrics.totalEndorsers}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Last Updated
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xs">
-                {formatTimestamp(new Date(metrics.lastUpdated).getTime())}
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-sm">Active</span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <ProtocolStats 
+          metrics={metrics} 
+          protocolData={protocolData}
+        />
       )}
 
       {/* Protocol Configuration */}
@@ -1603,1426 +1579,79 @@ export function ProtocolManagement() {
         <div className="space-y-6">
           {/* Admin Management - Add Admin and Current Admins */}
           {shouldShowSection(pendingChanges.admins) && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Admin</CardTitle>
-                <CardDescription>
-                  Add new administrators to the protocol
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...adminForm}>
-                  <form
-                    onSubmit={adminForm.handleSubmit(onAddAdmin)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={adminForm.control}
-                      name="inputMode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Input Method</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select input method" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="address">
-                                CKB Address
-                              </SelectItem>
-                              <SelectItem value="script">Lock Hash</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            Choose whether to input a CKB address or lock hash
-                            directly
-                          </FormDescription>
-                        </FormItem>
-                      )}
-                    />
-                    {adminForm.watch("inputMode") === "address" && (
-                      <FormField
-                        control={adminForm.control}
-                        name="adminAddress"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Admin Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="ckt1..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              The CKB address of the admin
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    {adminForm.watch("inputMode") === "script" && (
-                      <FormField
-                        control={adminForm.control}
-                        name="adminLockHash"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Admin Lock Hash</FormLabel>
-                            <FormControl>
-                              <Input placeholder="0x..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              The lock hash of the admin (32 bytes)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
-                    <Button type="submit" className="w-full">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Add Admin
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
-            <Card className={pendingChanges.admins ? "border-orange-500" : ""}>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  Current Admins
-                  {pendingChanges.admins && (
-                    <Badge variant="destructive" className="ml-2 text-xs">
-                      {pendingAdminChanges.toAdd.length +
-                        pendingAdminChanges.toRemove.length}{" "}
-                      pending changes
-                    </Badge>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  Active administrators ({finalAdminLockHashes.length})
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {/* Show pending additions */}
-                  {pendingAdminChanges.toAdd.map((lockHash, index) => (
-                    <div
-                      key={`pending-admin-${index}`}
-                      className="p-3 border border-green-500 rounded bg-green-50 dark:bg-green-950"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="font-mono text-xs break-all flex-1 min-w-0">
-                          {lockHash}
-                        </div>
-                        <Badge
-                          variant="secondary"
-                          className="text-xs bg-green-600 text-white shrink-0"
-                        >
-                          Pending Add
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Show existing admins */}
-                  {protocolData &&
-                    protocolData.protocol_config.admin_lock_hash_vec.map(
-                      (admin: any, index: number) => {
-                        const isMarkedForRemoval =
-                          pendingAdminChanges.toRemove.includes(
-                            `0x${index.toString(16)}` as `0x${string}`
-                          );
-                        const adminHash =
-                          typeof admin === "string"
-                            ? (admin as ccc.Hex)
-                            : ccc.hexFrom(admin);
-                        return (
-                          <div
-                            key={index}
-                            className={`p-3 border rounded ${
-                              isMarkedForRemoval
-                                ? "border-red-500 bg-red-50 dark:bg-red-950 opacity-75"
-                                : ""
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div
-                                className={`font-mono text-xs break-all flex-1 min-w-0 ${
-                                  isMarkedForRemoval ? "line-through" : ""
-                                }`}
-                              >
-                                {adminHash}
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                {isMarkedForRemoval ? (
-                                  <Badge
-                                    variant="destructive"
-                                    className="text-xs"
-                                  >
-                                    Pending Remove
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="default" className="text-xs">
-                                    Active
-                                  </Badge>
-                                )}
-                                {protocolData.protocol_config
-                                  .admin_lock_hash_vec.length > 1 && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => onRemoveAdmin(index)}
-                                    className="text-red-600 hover:text-red-700"
-                                    disabled={isMarkedForRemoval}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-
-                  {(!protocolData ||
-                    protocolData.protocol_config.admin_lock_hash_vec.length ===
-                      0) &&
-                    pendingAdminChanges.toAdd.length === 0 && (
-                      <div className="text-center text-muted-foreground py-4">
-                        No admins configured
-                      </div>
-                    )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            <AdminManagement
+              adminForm={adminForm}
+              protocolData={protocolData}
+              pendingChanges={{ admins: pendingChanges.admins }}
+              pendingAdminChanges={pendingAdminChanges}
+              finalAdminLockHashes={finalAdminLockHashes}
+              onAddAdmin={onAddAdmin}
+              onRemoveAdmin={onRemoveAdmin}
+            />
           )}
 
           {/* Tipping Configuration */}
           {shouldShowSection(pendingChanges.tippingConfig) && (
-          <Card
-            className={pendingChanges.tippingConfig ? "border-orange-500" : ""}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                Tipping Configuration
-                <ChangeIndicator hasChanged={pendingChanges.tippingConfig} />
-              </CardTitle>
-              <CardDescription>Tipping proposal settings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...tippingConfigForm}>
-                <div className="space-y-4">
-                  <FormField
-                    control={tippingConfigForm.control}
-                    name="approval_requirement_thresholds"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Approval Thresholds (CKB)</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="1000&#10;5000&#10;10000"
-                            value={field.value
-                              .map((v) => {
-                                // Convert from shannon (bigint) to CKB
-                                const ckbValue = Number(v) / 100000000;
-                                return ckbValue.toString();
-                              })
-                              .join("\n")}
-                            onChange={(e) => {
-                              const lines = e.target.value.split("\n").filter(Boolean);
-                              const shannonValues = lines.map((line) => {
-                                // Convert from CKB to shannon
-                                const ckbValue = parseFloat(line) || 0;
-                                const shannonValue = BigInt(Math.floor(ckbValue * 100000000));
-                                return shannonValue.toString();
-                              });
-                              field.onChange(shannonValues);
-                            }}
-                            rows={3}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Enter approval thresholds in CKB (one per line). For example: 1000, 5000, 10000.
-                          These define the minimum CKB amounts for different approval tiers.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={tippingConfigForm.control}
-                    name="expiration_duration"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Expiration Duration (seconds)</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="number"
-                            {...field}
-                            value={field.value ? field.value.toString() : ""}
-                            onChange={(e) =>
-                              field.onChange(BigInt(e.target.value || 0))
-                            }
-                            placeholder="2592000"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          How long proposals remain valid in seconds. Default is 2592000 (30 days).
-                          Common values: 86400 (1 day), 604800 (7 days), 2592000 (30 days)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </Form>
-            </CardContent>
-          </Card>
+            <TippingConfig
+              form={tippingConfigForm}
+              pendingChanges={pendingChanges.tippingConfig}
+              ChangeIndicator={ChangeIndicator}
+            />
           )}
 
           {/* Script Code Hashes Configuration */}
           {shouldShowSection(pendingChanges.scriptCodeHashes) && (
-          <Card
-            className={
-              pendingChanges.scriptCodeHashes ? "border-orange-500" : ""
-            }
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                Script Code Hashes Configuration
-                <ChangeIndicator hasChanged={pendingChanges.scriptCodeHashes} />
-              </CardTitle>
-              <CardDescription>
-                Configure individual script code hashes for the protocol
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...scriptCodeHashesForm}>
-                <div className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_protocol_type_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Protocol Type Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.protocolType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_protocol_lock_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Protocol Lock Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.protocolLock ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_campaign_type_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Type Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.campaignType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_campaign_lock_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Campaign Lock Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.campaignLock ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_user_type_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>User Type Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.userType ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="ckb_boost_points_udt_type_code_hash"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Points UDT Type Code Hash</FormLabel>
-                          <FormControl>
-                            <Input 
-                              placeholder="0x..." 
-                              {...field}
-                              value={field.value as string}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Byte32 {contractDeploymentStatus.pointsUdt ? "(✓ Deployed)" : "(⚠ Not deployed - using placeholder)"}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-4 mt-6">
-                  <div className="border-t pt-4">
-                    <h4 className="text-sm font-medium mb-4">Accepted Token Types</h4>
-                    
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="accepted_udt_type_scripts"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Accepted UDT Type Code Hashes</FormLabel>
-                          <FormDescription>
-                            List of accepted User Defined Token (UDT) type script code hashes. Leave empty to not accept any UDTs.
-                          </FormDescription>
-                          <div className="space-y-2">
-                            {(Array.isArray(field.value) ? field.value : []).map((hash, index) => (
-                              <div key={index} className="flex gap-2">
-                                <Input
-                                  placeholder="0x..."
-                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash.codeHash)}
-                                  onChange={(e) => {
-                                    const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
-                                    newHashes[index] = { codeHash: e.target.value, hashType: 'type', args: '0x' };
-                                    field.onChange(newHashes);
-                                  }}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => {
-                                    const newHashes = (Array.isArray(field.value) ? field.value : []).filter((_, i) => i !== index);
-                                    field.onChange(newHashes);
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                field.onChange([...(Array.isArray(field.value) ? field.value : []), ""]);
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add UDT Code Hash
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={scriptCodeHashesForm.control}
-                      name="accepted_dob_type_scripts"
-                      render={({ field }) => (
-                        <FormItem className="mt-4">
-                          <FormLabel>Accepted DOB Type Code Hashes</FormLabel>
-                          <FormDescription>
-                            List of accepted Digital Object (DOB) type script code hashes. Leave empty to not accept any DOBs.
-                          </FormDescription>
-                          <div className="space-y-2">
-                            {(Array.isArray(field.value) ? field.value : []).map((hash, index) => (
-                              <div key={index} className="flex gap-2">
-                                <Input
-                                  placeholder="0x..."
-                                  value={typeof hash === 'string' ? hash : ccc.hexFrom(hash.codeHash)}
-                                  onChange={(e) => {
-                                    const newHashes = [...(Array.isArray(field.value) ? field.value : [])];
-                                    newHashes[index] = { codeHash: e.target.value, hashType: 'type', args: '0x' };
-                                    field.onChange(newHashes);
-                                  }}
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => {
-                                    const newHashes = (Array.isArray(field.value) ? field.value : []).filter((_, i) => i !== index);
-                                    field.onChange(newHashes);
-                                  }}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                field.onChange([...(Array.isArray(field.value) ? field.value : []), ""]);
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" />
-                              Add DOB Code Hash
-                            </Button>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              </Form>
-            </CardContent>
-          </Card>
+            <ScriptCodeHashes
+              form={scriptCodeHashesForm}
+              pendingChanges={pendingChanges.scriptCodeHashes}
+              ChangeIndicator={ChangeIndicator}
+            />
           )}
 
           {/* Endorsers Management */}
           {shouldShowSection(pendingChanges.endorsers) && (
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Add Endorser</CardTitle>
-                <CardDescription>
-                  Add new endorsers to the protocol whitelist
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...endorserForm}>
-                  <form
-                    onSubmit={endorserForm.handleSubmit(onAddEndorser)}
-                    className="space-y-4"
-                  >
-                    <FormField
-                      control={endorserForm.control}
-                      name="inputMode"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Input Method</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select input method" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="address">
-                                CKB Address
-                              </SelectItem>
-                              <SelectItem value="script">
-                                Lock Script
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            Choose whether to provide a CKB address or directly
-                            input a lock script
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {endorserForm.watch("inputMode") === "address" ? (
-                      <FormField
-                        control={endorserForm.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Endorser Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="ckb1..." {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              CKB address of the endorser
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ) : (
-                      <div className="space-y-2">
-                        <FormLabel>Endorser Lock Script</FormLabel>
-                        <div className="grid grid-cols-1 gap-2">
-                          <FormField
-                            control={endorserForm.control}
-                            name="script.codeHash"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Input
-                                    placeholder="Code Hash (0x...)"
-                                    {...field}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <FormField
-                              control={endorserForm.control}
-                              name="script.hashType"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Select
-                                      onValueChange={field.onChange}
-                                      defaultValue={field.value}
-                                    >
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Hash Type" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="type">
-                                          type
-                                        </SelectItem>
-                                        <SelectItem value="data">
-                                          data
-                                        </SelectItem>
-                                        <SelectItem value="data1">
-                                          data1
-                                        </SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={endorserForm.control}
-                              name="script.args"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Args (0x...)"
-                                      {...field}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Lock Hash Preview */}
-                    <div className="p-3 bg-muted rounded-md">
-                      <div className="text-sm font-medium mb-1">
-                        Lock Hash Preview
-                      </div>
-                      <div className="text-xs font-mono text-muted-foreground break-all">
-                        {getPreviewLockHash()}
-                      </div>
-                    </div>
-                    <FormField
-                      control={endorserForm.control}
-                      name="endorser_name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Endorser Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={endorserForm.control}
-                      name="endorser_description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Description of the endorser..."
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={endorserForm.control}
-                      name="website"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Website (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://example.com"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={endorserForm.control}
-                      name="social_links"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Social Links (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Comma-separated URLs"
-                              value={field.value?.join(', ') || ''}
-                              onChange={(e) => {
-                                const links = e.target.value
-                                  .split(',')
-                                  .map(s => s.trim())
-                                  .filter(s => s.length > 0);
-                                field.onChange(links);
-                              }}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Enter multiple URLs separated by commas
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={endorserForm.control}
-                      name="verified"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Verification Status</FormLabel>
-                          <Select
-                            onValueChange={(value) => field.onChange(parseInt(value))}
-                            value={field.value?.toString()}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select verification status" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="0">Unverified</SelectItem>
-                              <SelectItem value="1">Verified</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" className="w-full">
-                      <UserPlus className="h-4 w-4 mr-2" />
-                      Add Endorser
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  Current Endorsers
-                  {pendingChanges.endorsers && (
-                    <Badge variant="destructive" className="ml-2 text-xs">
-                      {pendingEndorserChanges.toAdd.length +
-                        pendingEndorserChanges.toRemove.length}{" "}
-                      pending changes
-                    </Badge>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  Active endorsers (
-                  {protocolData?.endorsers_whitelist.length || 0})
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {/* Show pending additions */}
-                  {pendingEndorserChanges.toAdd.map((endorser, index) => (
-                    <div
-                      key={`pending-${index}`}
-                      className="p-3 border border-green-500 rounded bg-green-50 dark:bg-green-950"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium">
-                            {endorser.endorser_name}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant="secondary"
-                              className="text-xs bg-green-600 text-white"
-                            >
-                              Pending Add
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {endorser.endorser_description}
-                        </div>
-                        {endorser.website && (
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-medium">Website:</span>{" "}
-                            <a href={endorser.website} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                              {endorser.website}
-                            </a>
-                          </div>
-                        )}
-                        {endorser.social_links && endorser.social_links.length > 0 && (
-                          <div className="text-xs text-muted-foreground">
-                            <span className="font-medium">Social Links:</span>{" "}
-                            {endorser.social_links.map((link, i) => (
-                              <span key={i}>
-                                {i > 0 && ", "}
-                                <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                                  {new URL(link).hostname}
-                                </a>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Status:</span>{" "}
-                          <span className={endorser.verified ? "text-green-600" : "text-gray-500"}>
-                            {endorser.verified ? "Verified" : "Unverified"}
-                          </span>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-medium">Lock Hash:</span>{" "}
-                          <span className="font-mono">
-                            {typeof endorser.endorser_lock_hash === 'string' 
-                              ? endorser.endorser_lock_hash 
-                              : ccc.hexFrom(endorser.endorser_lock_hash)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Show existing endorsers */}
-                  {protocolData &&
-                    protocolData.endorsers_whitelist.map(
-                      (endorser: EndorserInfoLike, index: number) => {
-                        const isMarkedForRemoval =
-                          pendingEndorserChanges.toRemove.includes(
-                            BigInt(index)
-                          );
-
-                        const endorserName = endorser.endorser_name
-                        const endorserDescription = endorser.endorser_description;
-                        const website = endorser.website;
-
-                        return (
-                          <div
-                            key={index}
-                            className={`p-3 border rounded ${
-                              isMarkedForRemoval
-                                ? "border-red-500 bg-red-50 dark:bg-red-950 opacity-75"
-                                : ""
-                            }`}
-                          >
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div
-                                  className={`font-medium ${
-                                    isMarkedForRemoval ? "line-through" : ""
-                                  }`}
-                                >
-                                  {endorserName || `Endorser ${index + 1}`}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  {isMarkedForRemoval ? (
-                                    <Badge
-                                      variant="destructive"
-                                      className="text-xs"
-                                    >
-                                      Pending Remove
-                                    </Badge>
-                                  ) : (
-                                    <Badge
-                                      variant="default"
-                                      className="text-xs"
-                                    >
-                                      Active
-                                    </Badge>
-                                  )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => onRemoveEndorser(index)}
-                                    className="text-red-600 hover:text-red-700"
-                                    disabled={isMarkedForRemoval}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                              <div
-                                className={`text-sm text-muted-foreground ${
-                                  isMarkedForRemoval ? "line-through" : ""
-                                }`}
-                              >
-                                {endorserDescription}
-                              </div>
-                              {website && (
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Website:</span>{" "}
-                                  <a
-                                    href={
-                                      website.startsWith("http")
-                                        ? website
-                                        : `https://${website}`
-                                    }
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
-                                  >
-                                    {website}
-                                  </a>
-                                </div>
-                              )}
-                              <div className="text-xs text-muted-foreground">
-                                <span className="font-medium">Lock Hash:</span>{" "}
-                                <span className="font-mono">
-                                  {typeof endorser.endorser_lock_hash ===
-                                  "string"
-                                    ? (endorser.endorser_lock_hash as ccc.Hex)
-                                    : ccc.hexFrom(endorser.endorser_lock_hash)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-
-                  {(!protocolData ||
-                    protocolData.endorsers_whitelist.length === 0) &&
-                    pendingEndorserChanges.toAdd.length === 0 && (
-                      <div className="text-center text-muted-foreground py-4">
-                        No endorsers configured
-                      </div>
-                    )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            <EndorserManagement
+              endorserForm={endorserForm}
+              protocolData={protocolData}
+              pendingChanges={pendingChanges.endorsers}
+              pendingEndorserChanges={pendingEndorserChanges}
+              onAddEndorser={onAddEndorser}
+              onRemoveEndorser={onRemoveEndorser}
+              getPreviewLockHash={getPreviewLockHash}
+            />
           )}
 
           {/* Protocol Summary or Deployment Button */}
           {configStatus === "partial" ||
           (error &&
             (error.includes("corrupted") || error.includes("incompatible"))) ? (
-            <Card className="border-yellow-500">
-              <CardHeader>
-                <CardTitle className="flex items-center text-yellow-700 dark:text-yellow-300">
-                  <AlertTriangle className="h-5 w-5 mr-2" />
-                  {error && error.includes("corrupted")
-                    ? "Redeploy Protocol Cell"
-                    : "Ready to Deploy Protocol Cell"}
-                </CardTitle>
-                <CardDescription className="text-yellow-600 dark:text-yellow-400">
-                  {error && error.includes("corrupted")
-                    ? "The existing protocol cell data is corrupted. Review your configuration and redeploy."
-                    : "Review your configuration above and deploy the protocol cell when ready."}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex justify-center gap-4">
-                <Button
-                  onClick={handleDeployProtocol}
-                  disabled={isDeploying || !isWalletConnected}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-8 py-3"
-                  size="lg"
-                >
-                  {isDeploying ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                      {error && error.includes("corrupted")
-                        ? "Redeploying Protocol Cell..."
-                        : "Deploying Protocol Cell..."}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-5 w-5 mr-2" />
-                      {error && error.includes("corrupted")
-                        ? "Redeploy Protocol Cell"
-                        : "Deploy Protocol Cell"}
-                    </>
-                  )}
-                </Button>
-                <Button
-                  onClick={resetAllChanges}
-                  disabled={isDeploying}
-                  variant="destructive"
-                  size="lg"
-                  className="px-8 py-3"
-                >
-                  <RotateCcw className="h-5 w-5 mr-2" />
-                  Reset Changes
-                </Button>
-              </CardContent>
-            </Card>
+            <ProtocolDeploymentSection
+              configStatus={configStatus}
+              error={error}
+              isDeploying={isDeploying}
+              isWalletConnected={isWalletConnected}
+              onDeployProtocol={handleDeployProtocol}
+              onResetChanges={resetAllChanges}
+            />
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Protocol Summary</CardTitle>
-                <CardDescription>
-                  Overview of current protocol configuration
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {/* High-level Protocol Summary */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div>
-                      <div className="font-medium">Last Updated</div>
-                      <div className="text-muted-foreground">
-                        {protocolData
-                          ? (() => {
-                              const timestamp = Number(
-                                protocolData.last_updated
-                              );
-                              // If timestamp looks like it's already in seconds, use it directly
-                              // If it's too small (like default fallback), show "Not set"
-                              if (timestamp < 1000000000) return "Not set";
-                              // If timestamp is in milliseconds, convert to seconds
-                              const finalTimestamp =
-                                timestamp > 1000000000000
-                                  ? timestamp
-                                  : timestamp * 1000;
-                              return formatTimestamp(finalTimestamp);
-                            })()
-                          : "N/A"}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium">Admin Addresses</div>
-                      <div className="text-muted-foreground">
-                        {protocolData?.protocol_config.admin_lock_hash_vec
-                          .length || 0}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium">Active Endorsers</div>
-                      <div className="text-muted-foreground">
-                        {protocolData?.endorsers_whitelist.length || 0}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="font-medium">Protocol Status</div>
-                      <div className="text-muted-foreground">Active</div>
-                    </div>
-                  </div>
-
-                  {/* Protocol Cell Information */}
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-3">Protocol Cell Info</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Transaction Hash
-                        </div>
-                        <div className="font-mono text-xs break-all mt-1">
-                          {protocolCell?.outPoint.txHash || "N/A"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Output Index
-                        </div>
-                        <div className="mt-1">
-                          {protocolCell?.outPoint.index ?? "N/A"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Type Script Hash
-                        </div>
-                        <div className="font-mono text-xs break-all mt-1">
-                          {protocolCell?.cellOutput.type?.codeHash || "N/A"}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Type Script Args
-                        </div>
-                        <div className="font-mono text-xs break-all mt-1">
-                          {protocolCell?.cellOutput.type?.args || "N/A"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Activity Summary */}
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-3">Activity Summary</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Approved Campaigns
-                        </div>
-                        <div className="mt-1">
-                          {protocolData?.campaigns_approved.length || 0}{" "}
-                          campaigns
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Tipping Proposals
-                        </div>
-                        <div className="mt-1">
-                          {protocolData?.tipping_proposals.length || 0}{" "}
-                          proposals
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-medium text-xs text-muted-foreground uppercase tracking-wide">
-                          Cell Capacity
-                        </div>
-                        <div className="mt-1">
-                          {protocolCell
-                            ? `${(
-                                Number(protocolCell.cellOutput.capacity) / 100000000
-                              ).toFixed(2)} CKB`
-                            : "N/A"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ProtocolSummarySection
+              protocolData={protocolData}
+              protocolCell={protocolCell}
+            />
           )}
         </div>
       )}
 
       {/* Confirmation Dialog */}
-      <Dialog
+      <ProtocolChangesDialog
         open={showConfirmationDialog}
         onOpenChange={setShowConfirmationDialog}
-      >
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Confirm Protocol Changes</DialogTitle>
-            <DialogDescription>
-              Review the changes you're about to make. All modifications will be
-              applied in a single transaction.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 max-h-96 overflow-y-auto">
-            {protocolChanges && (
-              <>
-                {/* Admin Changes */}
-                {pendingChanges.admins &&
-                  (pendingAdminChanges.toAdd.length > 0 ||
-                    pendingAdminChanges.toRemove.length > 0) && (
-                    <div className="border rounded p-4">
-                      <h4 className="font-medium mb-3 flex items-center">
-                        <Users className="h-4 w-4 mr-2" />
-                        Admin Changes
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        {pendingAdminChanges.toAdd.length > 0 && (
-                          <div>
-                            <span className="font-medium">Admins to Add:</span>
-                            <div className="mt-1 space-y-1 text-green-600">
-                              {pendingAdminChanges.toAdd.map(
-                                (lockHash, index) => (
-                                  <div
-                                    key={index}
-                                    className="font-mono text-xs"
-                                  >
-                                    + {lockHash}
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {pendingAdminChanges.toRemove.length > 0 && (
-                          <div className="mt-2">
-                            <span className="font-medium">
-                              Admins to Remove:
-                            </span>
-                            <div className="mt-1 space-y-1 text-red-600">
-                              {pendingAdminChanges.toRemove.map((index) => {
-                                const numIndex = parseInt(index.slice(2), 16); // Convert hex string back to number
-                                const adminHash =
-                                  protocolData?.protocol_config
-                                    .admin_lock_hash_vec[numIndex];
-                                const displayHash = adminHash
-                                  ? (typeof adminHash === 'string' 
-                                      ? adminHash 
-                                      : ccc.hexFrom(adminHash))
-                                  : `Admin at index ${numIndex}`;
-                                return (
-                                  <div
-                                    key={index}
-                                    className="font-mono text-xs"
-                                  >
-                                    - {displayHash}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                {/* Script Code Hashes Changes */}
-                {pendingChanges.scriptCodeHashes && protocolChanges && (
-                  <div className="border rounded p-4">
-                    <h4 className="font-medium mb-3 flex items-center">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Script Code Hashes Changes
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      {Object.entries(protocolChanges.scriptCodeHashes).map(
-                        ([key, change]) =>
-                          change.hasChanged && (
-                            <div key={key}>
-                              <span className="font-medium">
-                                {key
-                                  .replace(/([A-Z])/g, " $1")
-                                  .replace(/^./, (str) => str.toUpperCase())}
-                                :
-                              </span>
-                              <div className="mt-1 space-y-1">
-                                <div className="text-red-600 font-mono text-xs">
-                                  - {change.oldValue}
-                                </div>
-                                <div className="text-green-600 font-mono text-xs">
-                                  + {change.newValue}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Tipping Configuration Changes */}
-                {pendingChanges.tippingConfig && protocolChanges && (
-                  <div className="border rounded p-4">
-                    <h4 className="font-medium mb-3 flex items-center">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Tipping Configuration Changes
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      {protocolChanges.tippingConfig
-                        .approvalRequirementThresholds.hasChanged && (
-                        <div>
-                          <span className="font-medium">
-                            Approval Thresholds:
-                          </span>
-                          <div className="mt-1 space-y-1">
-                            <div className="text-red-600">
-                              - Previous:{" "}
-                              {protocolChanges.tippingConfig.approvalRequirementThresholds.oldValue.join(
-                                ", "
-                              )}
-                            </div>
-                            <div className="text-green-600">
-                              + New:{" "}
-                              {protocolChanges.tippingConfig.approvalRequirementThresholds.newValue.join(
-                                ", "
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      {protocolChanges.tippingConfig.expirationDuration
-                        .hasChanged && (
-                        <div>
-                          <span className="font-medium">
-                            Expiration Duration:
-                          </span>
-                          <div className="mt-1 space-y-1">
-                            <div className="text-red-600">
-                              - Previous:{" "}
-                              {
-                                protocolChanges.tippingConfig.expirationDuration
-                                  .oldValue
-                              }{" "}
-                              seconds
-                            </div>
-                            <div className="text-green-600">
-                              + New:{" "}
-                              {
-                                protocolChanges.tippingConfig.expirationDuration
-                                  .newValue
-                              }{" "}
-                              seconds
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {/* Endorser Changes */}
-                {pendingChanges.endorsers &&
-                  (pendingEndorserChanges.toAdd.length > 0 ||
-                    pendingEndorserChanges.toRemove.length > 0) && (
-                    <div className="border rounded p-4">
-                      <h4 className="font-medium mb-3 flex items-center">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Endorser Changes
-                      </h4>
-                      <div className="space-y-2 text-sm">
-                        {pendingEndorserChanges.toAdd.length > 0 && (
-                          <div>
-                            <span className="font-medium">
-                              Endorsers to Add:
-                            </span>
-                            <div className="mt-1 space-y-1 text-green-600">
-                              {pendingEndorserChanges.toAdd.map(
-                                (endorser, index) => (
-                                  <div key={index}>
-                                    + {endorser.endorser_name} (
-                                    {(typeof endorser.endorser_lock_hash === 'string' 
-                                      ? endorser.endorser_lock_hash 
-                                      : ccc.hexFrom(endorser.endorser_lock_hash)).slice(0, 10)}...)
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        {pendingEndorserChanges.toRemove.length > 0 && (
-                          <div className="mt-2">
-                            <span className="font-medium">
-                              Endorsers to Remove:
-                            </span>
-                            <div className="mt-1 space-y-1 text-red-600">
-                              {pendingEndorserChanges.toRemove.map((index) => (
-                                <div key={index}>
-                                  - Endorser at index {index}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-              </>
-            )}
-
-            {!pendingChanges.admins &&
-              !pendingChanges.scriptCodeHashes &&
-              !pendingChanges.tippingConfig &&
-              !pendingChanges.endorsers && (
-                <div className="text-center text-muted-foreground py-8">
-                  No changes detected
-                </div>
-              )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowConfirmationDialog(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={confirmUpdate}
-              disabled={
-                !pendingChanges.admins &&
-                !pendingChanges.scriptCodeHashes &&
-                !pendingChanges.tippingConfig &&
-                !pendingChanges.endorsers
-              }
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Confirm & Update Protocol
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        protocolChanges={protocolChanges}
+        pendingChanges={pendingChanges}
+        pendingAdminChanges={pendingAdminChanges}
+        pendingEndorserChanges={pendingEndorserChanges}
+        onConfirm={confirmUpdate}
+      />
     </div>
   );
 }

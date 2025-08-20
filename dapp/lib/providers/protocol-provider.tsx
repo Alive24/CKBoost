@@ -338,6 +338,9 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
         ckb_boost_campaign_type_code_hash: string;
         ckb_boost_campaign_lock_code_hash: string;
         ckb_boost_user_type_code_hash: string;
+        ckb_boost_points_udt_type_code_hash: string;
+        accepted_udt_type_scripts: ccc.ScriptLike[];
+        accepted_dob_type_scripts: ccc.ScriptLike[];
       };
       tippingConfig: {
         approval_requirement_thresholds: string[];
@@ -345,8 +348,32 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       };
     };
 
+    // Helper function to compare Script arrays
+    const compareScriptArrays = (arr1: ccc.ScriptLike[], arr2: ccc.ScriptLike[]): boolean => {
+      if (arr1.length !== arr2.length) return false;
+      
+      return arr1.every((script1, index) => {
+        const script2 = arr2[index];
+        return (
+          ccc.hexFrom(script1.codeHash || "") === ccc.hexFrom(script2.codeHash || "") &&
+          script1.hashType === script2.hashType &&
+          ccc.hexFrom(script1.args || "0x") === ccc.hexFrom(script2.args || "0x")
+        );
+      });
+    };
+
     // Helper function to create field change
     const createFieldChange = <T,>(fieldPath: string, oldValue: T, newValue: T): FieldChange<T> => {
+      // Special handling for Script arrays
+      if (fieldPath.includes('TypeScripts') && Array.isArray(oldValue) && Array.isArray(newValue)) {
+        return {
+          fieldPath,
+          oldValue,
+          newValue,
+          hasChanged: !compareScriptArrays(oldValue as unknown as ccc.ScriptLike[], newValue as unknown as ccc.ScriptLike[])
+        };
+      }
+      
       // Custom stringify that handles BigInt
       const stringify = (value: unknown): string => {
         return JSON.stringify(value, (_, v) => 
@@ -404,6 +431,21 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
           'scriptCodeHashes.ckbBoostUserTypeCodeHash',
           scriptCodeHashes.ckb_boost_user_type_code_hash,
           data.scriptCodeHashes.ckb_boost_user_type_code_hash
+        ),
+        ckbBoostPointsUdtTypeCodeHash: createFieldChange(
+          'scriptCodeHashes.ckbBoostPointsUdtTypeCodeHash',
+          scriptCodeHashes.ckb_boost_points_udt_type_code_hash,
+          data.scriptCodeHashes.ckb_boost_points_udt_type_code_hash
+        ),
+        acceptedUdtTypeScripts: createFieldChange(
+          'scriptCodeHashes.acceptedUdtTypeScripts',
+          scriptCodeHashes.accepted_udt_type_scripts || [],
+          data.scriptCodeHashes.accepted_udt_type_scripts || []
+        ),
+        acceptedDobTypeScripts: createFieldChange(
+          'scriptCodeHashes.acceptedDobTypeScripts',
+          scriptCodeHashes.accepted_dob_type_scripts || [],
+          data.scriptCodeHashes.accepted_dob_type_scripts || []
         )
       },
       tippingConfig: {
