@@ -966,6 +966,7 @@ name = "ckboost-campaign-lock"
 version = "0.1.0"
 dependencies = [
  "ckb-std",
+ "ckb_deterministic",
  "ckboost-shared",
 ]
 

@@ -806,3 +806,62 @@ pub mod complete_quest {
         }
     }
 }
+
+pub mod fund_campaign {
+    use ckb_deterministic::{
+        cell_classifier::RuleBasedClassifier,
+        validation::{CellCountConstraint, TransactionValidationRules},
+    };
+    
+    pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
+        TransactionValidationRules::new(b"CKBoostCampaign.fund_campaign".to_vec())
+            .with_arguments(1) // campaign_type_id reference
+            // No specific cell constraints for funding - it's permissionless
+            // UDT cells are created as outputs with campaign-lock
+    }
+    
+    pub mod business_logic {
+        use ckb_deterministic::cell_classifier::RuleBasedClassifier;
+        use ckb_deterministic::debug_trace;
+        use ckb_deterministic::errors::Error as DeterministicError;
+        use ckboost_shared::transaction_context::TransactionContext;
+        
+        /// Validate campaign funding transaction
+        pub fn funding_validation(
+            context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            debug_trace!("Starting funding validation");
+            
+            // Get funded UDT cells from outputs
+            let output_cells = &context.output_cells;
+            
+            // Check that UDT cells are created with campaign-lock
+            // This is a simplified validation - in production would:
+            // 1. Verify campaign-lock script is correct
+            // 2. Check UDT amounts match declared funding
+            // 3. Validate campaign exists and can be funded
+            // 4. Ensure no unauthorized changes to campaign data
+            
+            // For now, just check that we have outputs
+            // Check any of the cell categories for outputs
+            let has_outputs = !output_cells.simple_ckb_cells.is_empty() ||
+                              !output_cells.known_cells.is_empty() ||
+                              !output_cells.custom_cells.is_empty() ||
+                              !output_cells.unidentified_cells.is_empty();
+            
+            if !has_outputs {
+                debug_trace!("No output cells found in funding transaction");
+                return Err(DeterministicError::CellCountViolation);
+            }
+            
+            // TODO: Implement full validation logic:
+            // - Verify campaign-lock is applied to UDT cells
+            // - Check that funding amounts are correct
+            // - Validate UDT type scripts are valid
+            // - Ensure campaign status allows funding
+            
+            debug_trace!("Funding validation completed successfully");
+            Ok(())
+        }
+    }
+}

@@ -177,6 +177,7 @@ table QuestData {
     sub_tasks: QuestSubTaskDataVec,
     points: Uint32,               // Quest points/rewards
     completion_count: Uint32,     // Total number of completions
+    max_completions: Uint32,      // Maximum allowed completions before depletion (0 = unlimited)
 }
 
 vector QuestDataVec <QuestData>;

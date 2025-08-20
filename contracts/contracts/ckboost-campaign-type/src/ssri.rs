@@ -3,7 +3,7 @@ use ckb_deterministic::{
     cell_classifier::RuleBasedClassifier, transaction_context::TransactionContext,
 };
 use ckboost_shared::{
-    types::{Byte32, CampaignData, QuestData}, Error
+    types::{Byte32, CampaignData, UDTAsset}, Error
 };
 use ckb_std::ckb_types::packed::Transaction;
 
@@ -54,4 +54,24 @@ pub trait CKBoostCampaign {
     fn verify_approve_completion(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error>;
+    
+    /// Fund a campaign with UDT assets
+    /// Anyone can fund a campaign - funds are locked with campaign-lock
+    /// Note: We won't need to verify funding in the contract.
+    /// 
+    /// # Arguments
+    /// 
+    /// * `tx` - Optional existing transaction to build upon
+    /// * `campaign_type_id` - The type ID of the campaign to fund
+    /// * `udt_assets` - List of UDT assets to fund the campaign with
+    /// 
+    /// # Returns
+    /// 
+    /// Returns a transaction with UDT cells locked by campaign-lock
+    fn fund_campaign(
+        tx: Option<Transaction>,
+        campaign_type_id: Byte32,
+        udt_assets: Vec<UDTAsset>,
+    ) -> Result<Transaction, Error>;
+    
 }

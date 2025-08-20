@@ -15,11 +15,10 @@ use ckb_std::{
         },
         prelude::*,
     },
-    debug,
     high_level::load_script
 };
 use ckboost_shared::{
-    types::{Byte32 as SharedByte32, CampaignData, ConnectedTypeID, QuestData, UserData},
+    types::{Byte32 as SharedByte32, CampaignData, ConnectedTypeID, QuestData},
     Error,
 };
 
@@ -345,7 +344,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
     fn approve_completion(
         tx: Option<Transaction>,
-        mut campaign_data: CampaignData,
+        campaign_data: CampaignData,
         quest_id: u32,
         user_type_ids: Vec<SharedByte32>,
     ) -> Result<Transaction, Error> {
@@ -543,6 +542,42 @@ impl CKBoostCampaign for CKBoostCampaignType {
         // The campaign contract only updates the accepted_submission_user_type_ids
         // The actual Points cells creation happens in the transaction builder
 
+        // Handle UDT distribution from funded campaign assets
+        // Check if quest has UDT rewards to distribute
+        let quest_index = (0..quests.len())
+            .find(|&i| quests.get(i).unwrap().quest_id().as_slice() == &quest_id.to_le_bytes())
+            .unwrap();
+        let quest = quests.get(quest_index).unwrap();
+        
+        let rewards = quest.rewards_on_completion();
+        if rewards.len() > 0 {
+            let reward = rewards.get(0).unwrap();
+            let udt_assets = reward.udt_assets();
+            
+            // For each UDT asset type in the rewards
+            for i in 0..udt_assets.len() {
+                let udt_asset = udt_assets.get(i).unwrap();
+                let udt_script = udt_asset.udt_script();
+                let amount_per_user = udt_asset.amount();
+                
+                // TODO: In production, this would:
+                // 1. Find campaign-locked UDT cells with matching UDT type
+                // 2. Check sufficient balance exists
+                // 3. Add those cells as inputs
+                // 4. Create outputs for each approved user
+                // 5. Return change to campaign if any
+                
+                // For now, we'll add placeholder logic
+                // The actual implementation would need to:
+                // - Query campaign-locked UDT cells
+                // - Validate sufficient funding exists
+                // - Build proper input/output cells
+                
+                debug_trace!("UDT distribution placeholder - would distribute {:?} of UDT {:?}", 
+                    amount_per_user.as_slice(), udt_script);
+            }
+        }
+
         // Create the recipe witness
         // Encode quest_id and user_type_ids in outputs_data
         let quest_id_index = outputs_data_builder.build().len() as u32;
@@ -664,5 +699,161 @@ impl CKBoostCampaign for CKBoostCampaignType {
 
         debug_trace!("verify_approve_completion completed successfully");
         Ok(())
+    }
+    
+    fn fund_campaign(
+        tx: Option<Transaction>,
+        campaign_type_id: SharedByte32,
+        udt_assets: Vec<ckboost_shared::types::UDTAsset>,
+    ) -> Result<Transaction, Error> {
+        debug_trace!("CKBoostCampaignType::fund_campaign - Starting campaign funding");
+        debug_trace!("Campaign type ID: {:?}", campaign_type_id.as_slice());
+        debug_trace!("Number of UDT assets to fund: {}", udt_assets.len());
+
+        // Initialize transaction builders
+        let tx_builder = match tx {
+            Some(ref tx) => tx.clone().as_builder(),
+            None => TransactionBuilder::default(),
+        };
+        let raw_tx_builder = match tx {
+            Some(ref tx) => tx.clone().raw().as_builder(),
+            None => ckb_std::ckb_types::packed::RawTransactionBuilder::default(),
+        };
+
+        // Initialize builders from existing transaction or create new
+        let cell_input_vec_builder = match tx {
+            Some(ref tx) => tx.clone().raw().inputs().as_builder(),
+            None => CellInputVecBuilder::default(),
+        };
+
+        let mut cell_output_vec_builder = match tx {
+            Some(ref tx) => tx.clone().raw().outputs().as_builder(),
+            None => CellOutputVecBuilder::default(),
+        };
+
+        let mut outputs_data_builder = match tx {
+            Some(ref tx) => tx.clone().raw().outputs_data().as_builder(),
+            None => BytesVecBuilder::default(),
+        };
+
+        let cell_dep_vec_builder = match tx {
+            Some(ref tx) => tx.clone().raw().cell_deps().as_builder(),
+            None => CellDepVecBuilder::default(),
+        };
+
+        // Get campaign lock code hash from protocol (placeholder - should be from protocol cell)
+        // For now, we'll use a placeholder approach
+        // In production, this would be fetched from the protocol cell
+        
+        // Create campaign lock script using campaign type ID
+        let campaign_lock_args = campaign_type_id.as_bytes();
+        
+        // TODO: Get actual campaign lock code hash from protocol cell
+        // For now, use a placeholder
+        let campaign_lock_script = ckb_std::ckb_types::packed::ScriptBuilder::default()
+            .code_hash([0u8; 32].pack()) // Placeholder - should be from protocol
+            .hash_type(1u8.into()) // type
+            .args(campaign_lock_args.pack())
+            .build();
+
+        // Process each UDT asset to fund
+        for udt_asset in udt_assets.iter() {
+            // Extract UDT script and amount from the asset
+            let udt_script = udt_asset.udt_script();
+            let amount = udt_asset.amount();
+            
+            debug_trace!("Funding UDT with script: {:?}", udt_script);
+            debug_trace!("Amount: {:?}", amount.as_slice());
+
+            // Create UDT cell locked with campaign-lock
+            // Convert ckboost_shared Script to ckb_std Script
+            // Extract the bytes from the shared types and convert them
+            let code_hash_bytes: [u8; 32] = udt_script.code_hash().as_slice().try_into()
+                .map_err(|_| Error::InvalidArgument)?;
+            let hash_type_byte = udt_script.hash_type().as_slice()[0];
+            let args = udt_script.args();
+            let args_bytes = args.as_slice();
+            
+            let udt_type_script = ckb_std::ckb_types::packed::ScriptBuilder::default()
+                .code_hash(code_hash_bytes.pack())
+                .hash_type(hash_type_byte.into())
+                .args(args_bytes.pack())
+                .build();
+            
+            let udt_output = CellOutputBuilder::default()
+                .type_(
+                    ScriptOptBuilder::default()
+                        .set(Some(udt_type_script))
+                        .build(),
+                )
+                .lock(campaign_lock_script.clone())
+                .capacity(0u64.pack()) // Placeholder capacity
+                .build();
+            
+            cell_output_vec_builder = cell_output_vec_builder.push(udt_output);
+            
+            // Add UDT amount as output data
+            outputs_data_builder = outputs_data_builder.push(amount.as_bytes().pack());
+        }
+
+        // Create the recipe witness for funding
+        let recipe = create_recipe_with_args(
+            "CKBoostCampaign.fund_campaign",
+            vec![
+                // Reference to campaign type ID
+                create_recipe_with_reference(Source::Output, 0),
+            ],
+        )?;
+
+        // Serialize the recipe to bytes
+        let recipe_bytes = serialize_transaction_recipe(&recipe);
+
+        // Create WitnessArgs with recipe
+        let witness_args = WitnessArgsBuilder::default()
+            .lock(BytesOpt::default())
+            .input_type(BytesOpt::default())
+            .output_type(
+                BytesOpt::new_builder()
+                    .set(Some(recipe_bytes.pack()))
+                    .build(),
+            )
+            .build();
+
+        // Build witnesses
+        let witnesses_builder = match tx {
+            Some(ref tx) => {
+                let mut builder = BytesVecBuilder::default();
+                
+                // Add recipe witness
+                builder = builder.push(witness_args.as_bytes().pack());
+                
+                // Copy existing witnesses
+                for witness in tx.witnesses().into_iter() {
+                    builder = builder.push(witness);
+                }
+                
+                builder
+            }
+            None => BytesVecBuilder::default().push(witness_args.as_bytes().pack()),
+        };
+
+        // Build the complete transaction
+        Ok(tx_builder
+            .raw(
+                raw_tx_builder
+                    .version(tx.clone().map(|t| t.raw().version()).unwrap_or_default())
+                    .cell_deps(cell_dep_vec_builder.build())
+                    .header_deps(
+                        tx.clone()
+                            .map(|t| t.raw().header_deps())
+                            .unwrap_or_else(|| Byte32Vec::default()),
+                    )
+                    .inputs(cell_input_vec_builder.build())
+                    .outputs(cell_output_vec_builder.build())
+                    .outputs_data(outputs_data_builder.build())
+                    .build(),
+            )
+            .witnesses(witnesses_builder.build())
+            .build())
     }
 }

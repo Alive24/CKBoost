@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
-
+ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic", default-features = false }
 ckboost-shared = { path = "../../libs/ckboost-shared" }
 
 
