@@ -14,6 +14,15 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.60.0(react@19.1.0))
+      '@nostrify/nostrify':
+        specifier: npm:@jsr/nostrify__nostrify@^0.46.4
+        version: '@jsr/nostrify__nostrify@0.46.4(typescript@5.8.3)'
+      '@nostrify/react':
+        specifier: npm:@jsr/nostrify__react@^0.2.8
+        version: '@jsr/nostrify__react@0.2.8(typescript@5.8.3)'
+      '@nostrify/types':
+        specifier: npm:@jsr/nostrify__types@^0.36.0
+        version: '@jsr/nostrify__types@0.36.0'
       '@radix-ui/react-accordion':
         specifier: 1.2.2
         version: 1.2.2(@types/react-dom@19.1.6(@types/react@19.1.8))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -95,6 +104,12 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: 1.1.3
         version: 1.1.3(@types/react-dom@19.1.6(@types/react@19.1.8))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@tanstack/react-query':
+        specifier: ^5.85.0
+        version: 5.85.5(react@19.1.0)
+      '@tinymce/tinymce-react':
+        specifier: ^6.3.0
+        version: 6.3.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tinymce@8.0.2)
       '@types/node':
         specifier: ^20
         version: 20.19.7
@@ -116,6 +131,9 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.1.0)
+      fs-extra:
+        specifier: ^11.3.1
+        version: 11.3.1
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -128,6 +146,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      nostr-tools:
+        specifier: ^2.16.2
+        version: 2.16.2(typescript@5.8.3)
       react:
         specifier: ^19
         version: 19.1.0
@@ -149,12 +170,18 @@ importers:
       sonner:
         specifier: ^1.5.0
         version: 1.7.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      ssri-ckboost:
+        specifier: file:../packages/ssri-ckboost
+        version: file:../packages/ssri-ckboost(typescript@5.8.3)(zod@3.25.74)
       tailwind-merge:
         specifier: ^2.0.0
         version: 2.6.0
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
+      tinymce:
+        specifier: ^8.0.1
+        version: 8.0.2
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.1.6(@types/react@19.1.8))(@types/react@19.1.8)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -398,6 +425,9 @@ packages:
   '@ckb-ccc/connector@1.0.18':
     resolution: {integrity: sha512-zo923w2aFUSjepAIKituvsFxRB75NYVNzwLTIqCD1gcE5Pt5Cmg0U+p/4o5OweqKjL2lLLnsL+NDm4YhTwA/dA==}
 
+  '@ckb-ccc/core@1.3.1':
+    resolution: {integrity: sha512-av9d+bGsCauwr5CAckyKwmGofGeDMC7PAJPVz0weeHNYgkqIf0pbYyMMDya8NAFmwNgESptBN3skkVPo8HfdCg==}
+
   '@ckb-ccc/core@1.9.0':
     resolution: {integrity: sha512-znKLUJ9rTThtkyUKykZXfNM+Pj1GqCrlhYwl3LZ2EZSPQnQLTD6OquWoEaXLQppgGQ3+GYGjl6ZZDJhu796mHA==}
 
@@ -421,6 +451,9 @@ packages:
 
   '@ckb-ccc/spore@1.5.2':
     resolution: {integrity: sha512-QgZTPUbNaBj6y2wtZtSyE2nE7wM90SmEhNzFyq70V30c4DervbzzuxlEnnXnYn6Aan+ADq3pW3FgQ1wjd/w3NA==}
+
+  '@ckb-ccc/ssri@0.1.1':
+    resolution: {integrity: sha512-yslvnZzscOqcExBBgaansZaKfn5sVd+QCNzWl103Re8ZKNpH+2KdQEZVMV/g4q7pFPS7Ylc33izRp/dVa4lumA==}
 
   '@ckb-ccc/ssri@0.2.8':
     resolution: {integrity: sha512-FtbLzdT74ztDmmkzhXO5/2sCvCdpBWmW/XTRg3sK26kGB1k1WHoWHfC3UML7xd9sWWxGAlyjlnLbR8XqZaAlew==}
@@ -719,6 +752,21 @@ packages:
   '@jridgewell/trace-mapping@0.3.29':
     resolution: {integrity: sha512-uw6guiW/gcAGPDhLmd77/6lW8QLeiV5RUTsAX46Db6oLhGaVj4lhnPwb184s1bkc8kdVg/+h988dro8GRDpmYQ==}
 
+  '@jsr/nostrify__nostrify@0.46.4':
+    resolution: {integrity: sha512-bYuYkw9+jnHIDEJD6i+w0p8xV1oBLr1RF5rS3qF2yTz1b8i50dXKMO2cLObjalAAO3RYbnib3l85t1ZgWLCzAA==, tarball: https://npm.jsr.io/~/11/@jsr/nostrify__nostrify/0.46.4.tgz}
+
+  '@jsr/nostrify__react@0.2.8':
+    resolution: {integrity: sha512-9sCsMm1uwuGWU+NhgFf6LS/4JzeRXnGOz+ocA5X3/ncvxZhidPOEAU39QyygRLFo/JYG8OC5wlyH8w0Uejq+VQ==, tarball: https://npm.jsr.io/~/11/@jsr/nostrify__react/0.2.8.tgz}
+
+  '@jsr/nostrify__types@0.36.0':
+    resolution: {integrity: sha512-kDjFf1nJMhZafULtH2GW+TWjs85J0aDxYYLpwBDQugDVsFqG2kLbxnoE2NtMJCIMNk1vUaipUHeil//4fY/d2w==, tarball: https://npm.jsr.io/~/11/@jsr/nostrify__types/0.36.0.tgz}
+
+  '@jsr/scure__base@1.2.6':
+    resolution: {integrity: sha512-oZvJweJ4VMgVHJdsp8wwcG7t1U8aZLe0h8f4oNSFfavGqOKhpmi0b9mZ8vXLtGzBGiqVjK8Mon1NVMzTJincLQ==, tarball: https://npm.jsr.io/~/11/@jsr/scure__base/1.2.6.tgz}
+
+  '@jsr/std__encoding@0.224.3':
+    resolution: {integrity: sha512-zAuX2QV1zwJ5RSmrnDGVerAtN3pBXpYYNlGzhERW9AiQ1UJd2/xruyB3i5NdTWy2OK2pjETswOj+0+prYTPlxQ==, tarball: https://npm.jsr.io/~/11/@jsr/std__encoding/0.224.3.tgz}
+
   '@lit-labs/ssr-dom-shim@1.3.0':
     resolution: {integrity: sha512-nQIWonJ6eFAvUUrSlwyHDm/aE8PBDu5kRpL0vHMg6K8fK3Diq1xdPjTnsJSwxABhaZ+5eBi1btQB5ShUTKo4nQ==}
 
@@ -796,12 +844,19 @@ packages:
   '@noble/ciphers@0.5.3':
     resolution: {integrity: sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==}
 
+  '@noble/curves@1.1.0':
+    resolution: {integrity: sha512-091oBExgENk/kGj3AZmtBDMpxQPDtxQABR2B9lb1JbVTs6ytdzZNwvhxQ4MWasRNEzlbEH8jCWFCwhF/Obj5AA==}
+
   '@noble/curves@1.2.0':
     resolution: {integrity: sha512-oYclrNgRaM9SsBUBVbb8M6DTV7ZHRTKugureoYEncY5c65HOmRzvSiTE3y5CYaPYJA/GVkrhXEoF0M3Ya9PMnw==}
 
   '@noble/curves@1.9.2':
     resolution: {integrity: sha512-HxngEd2XUcg9xi20JkwlLCtYwfoFw4JGkuZpT+WlsPD4gB/cxkvTD8fSsoAnphGZhFdZYKeQIPCuFlWPm1uE0g==}
     engines: {node: ^14.21.3 || >=16}
+
+  '@noble/hashes@1.3.1':
+    resolution: {integrity: sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA==}
+    engines: {node: '>= 16'}
 
   '@noble/hashes@1.3.2':
     resolution: {integrity: sha512-MVC8EAQp7MvEcm30KWENFjgR+Mkmf+D189XJTkFIlwohU5hcBbn1ZkKq7KVTi2Hme3PMGF390DaL52beVrIihQ==}
@@ -1870,6 +1925,15 @@ packages:
   '@rushstack/eslint-patch@1.12.0':
     resolution: {integrity: sha512-5EwMtOqvJMMa3HbmxLlF74e+3/HhwBTMcvt3nqVJgGCozO6hzIPOBlwm8mGVNR9SN2IJpxSnlxczyDjcn7qIyw==}
 
+  '@scure/base@1.1.1':
+    resolution: {integrity: sha512-ZxOhsSyxYwLJj3pLZCefNitxsj093tb2vq90mp2txoYeBqbcjDjqFhyM8eUjq/uFm6zJ+mUuqxlS2FkuSY1MTA==}
+
+  '@scure/bip32@1.3.1':
+    resolution: {integrity: sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==}
+
+  '@scure/bip39@1.2.1':
+    resolution: {integrity: sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==}
+
   '@sinclair/typebox@0.27.8':
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
 
@@ -1884,6 +1948,14 @@ packages:
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@tanstack/query-core@5.85.5':
+    resolution: {integrity: sha512-KO0WTob4JEApv69iYp1eGvfMSUkgw//IpMnq+//cORBzXf0smyRwPLrUvEe5qtAEGjwZTXrjxg+oJNP/C00t6w==}
+
+  '@tanstack/react-query@5.85.5':
+    resolution: {integrity: sha512-/X4EFNcnPiSs8wM2v+b6DqS5mmGeuJQvxBglmDxl6ZQb5V26ouD2SJYAcC3VjbNwqhY2zjxVD15rDA5nGbMn3A==}
+    peerDependencies:
+      react: ^18 || ^19
 
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
@@ -1906,6 +1978,16 @@ packages:
       '@types/react':
         optional: true
       '@types/react-dom':
+        optional: true
+
+  '@tinymce/tinymce-react@6.3.0':
+    resolution: {integrity: sha512-E++xnn0XzDzpKr40jno2Kj7umfAE6XfINZULEBBeNjTMvbACWzA6CjiR6V8eTDc9yVmdVhIPqVzV4PqD5TZ/4g==}
+    peerDependencies:
+      react: ^19.0.0 || ^18.0.0 || ^17.0.1 || ^16.7.0
+      react-dom: ^19.0.0 || ^18.0.0 || ^17.0.1 || ^16.7.0
+      tinymce: ^8.0.0 || ^7.0.0 || ^6.0.0 || ^5.5.1
+    peerDependenciesMeta:
+      tinymce:
         optional: true
 
   '@tootallnate/once@2.0.0':
@@ -3081,6 +3163,10 @@ packages:
   fraction.js@4.3.7:
     resolution: {integrity: sha512-ZsDfxO51wGAXREY55a7la9LScWpwv9RxIrYABrlvOFBlH/ShPnrtsXeuUIfXKKOVicNxQ+o8JTbJvjS4M89yew==}
 
+  fs-extra@11.3.1:
+    resolution: {integrity: sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==}
+    engines: {node: '>=14.14'}
+
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
@@ -3642,6 +3728,9 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
+  jsonfile@6.2.0:
+    resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
+
   jsx-ast-utils@3.3.5:
     resolution: {integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==}
     engines: {node: '>=4.0'}
@@ -3849,6 +3938,17 @@ packages:
   normalize-range@0.1.2:
     resolution: {integrity: sha512-bdok/XvKII3nUpklnV6P2hxtMNrCboOjAcyBuQnWEhO665FwrSNRxU+AqpsyvO6LgGYPspN+lu5CLtw4jPRKNA==}
     engines: {node: '>=0.10.0'}
+
+  nostr-tools@2.16.2:
+    resolution: {integrity: sha512-ZxH9EbSt5ypURZj2TGNJxZd0Omb5ag5KZSu8IyJMCdLyg2KKz+2GA0sP/cSawCQEkyviIN4eRT4G2gB/t9lMRw==}
+    peerDependencies:
+      typescript: '>=5.0.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  nostr-wasm@0.1.0:
+    resolution: {integrity: sha512-78BTryCLcLYv96ONU8Ws3Q1JzjlAt+43pWQhIl86xZmWeegYCNLPml7yQ+gG3vR6V5h4XGj+TxO+SS5dsThQIA==}
 
   npm-run-path@4.0.1:
     resolution: {integrity: sha512-S48WzZW777zhNIrn7gxOlISNAqi9ZC/uQFnRdbeIHhZhCA6UqpkOT8T1G7BvfdgP4Er8gF4sUbaS0i7QvIfCWw==}
@@ -4155,6 +4255,10 @@ packages:
       react: '>=16.6.0'
       react-dom: '>=16.6.0'
 
+  react@18.3.1:
+    resolution: {integrity: sha512-wS+hAgJShR0KhEvPJArfuPVN1+Hz1t0Y6n5jLrGQbkb4urgPE/0Rve+1kMB1v/oWgHgm4WIcV+i7F2pTVj+2iQ==}
+    engines: {node: '>=0.10.0'}
+
   react@19.1.0:
     resolution: {integrity: sha512-FS+XFBNvn3GTAWq26joslQgWNoFu08F4kl0J4CgdNKADkdSGXQyTCnKteIAJy96Br6YbpEU1LSzV5dYtjMkMDg==}
     engines: {node: '>=0.10.0'}
@@ -4362,6 +4466,9 @@ packages:
   sprintf-js@1.0.3:
     resolution: {integrity: sha512-D9cPgkvLlV3t3IzL0D0YLvGA9Ahk4PcvVwUbN0dSGr1aP0Nrt4AEnTUbuGvquEC0mA64Gqt1fzirlRs5ibXx8g==}
 
+  ssri-ckboost@file:../packages/ssri-ckboost:
+    resolution: {directory: ../packages/ssri-ckboost, type: directory}
+
   stable-hash@0.0.5:
     resolution: {integrity: sha512-+L3ccpzibovGXFK+Ap/f8LOS0ahMrHTf3xu7mMLSpEGU0EO9ucaysSylKo9eRDFNhWve/y275iPmIZ4z39a9iA==}
 
@@ -4510,6 +4617,9 @@ packages:
     resolution: {integrity: sha512-tX5e7OM1HnYr2+a2C/4V0htOcSQcoSTH9KgJnVvNm5zm/cyEWKJ7j7YutsH9CxMdtOkkLFy2AHrMci9IM8IPZQ==}
     engines: {node: '>=12.0.0'}
 
+  tinymce@8.0.2:
+    resolution: {integrity: sha512-Gkvn5mRcZCAK1EKP7hnk3VBzwqPbqpZU2AN0T08BMtvmY9Sg0C0ZqmMghJCQ3vgo+LWA38pDOPiaM8EW7BZEow==}
+
   tmpl@1.0.5:
     resolution: {integrity: sha512-3f0uOEAQwIqGuWW2MVzYg8fV/QNnc/IpuJNG837rLuczAaLVHslWHZQj4IGiEl5Hs3kkbhwL9Ab7Hrsmuj+Smw==}
 
@@ -4611,6 +4721,10 @@ packages:
     resolution: {integrity: sha512-CJ1QgKmNg3CwvAv/kOFmtnEN05f0D/cn9QntgNOQlQF9dgvVTHj3t+8JPdjqawCHk7V/KA+fbUqzZ9XWhcqPUg==}
     engines: {node: '>= 4.0.0'}
 
+  universalify@2.0.1:
+    resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
+    engines: {node: '>= 10.0.0'}
+
   unrs-resolver@1.11.1:
     resolution: {integrity: sha512-bSjt9pjaEBnNiGgc9rUiHGKv5l4/TGzDmYw3RhnkJGtLhbnnA/5qJj7x3dNDCRx/PJxu774LlH8lCOlB4hEfKg==}
 
@@ -4686,6 +4800,9 @@ packages:
   webidl-conversions@7.0.0:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
+
+  websocket-ts@2.2.1:
+    resolution: {integrity: sha512-YKPDfxlK5qOheLZ2bTIiktZO1bpfGdNCPJmTEaPW7G9UXI1GKjDdeacOrsULUS000OPNxDVOyAuKLuIWPqWM0Q==}
 
   whatwg-encoding@2.0.0:
     resolution: {integrity: sha512-p41ogyeMUrw3jWclHWTQg1k05DSVXPLcVxRTYsXUk+ZooOCZLcoYgPZ/HL/D/N+uQPOtcp1me1WhBEaX02mhWg==}
@@ -5049,6 +5166,28 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/core@1.3.1(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.9.2
+      '@noble/hashes': 1.8.0
+      abort-controller: 3.0.0
+      bech32: 2.0.0
+      bitcoinjs-message: 2.2.0
+      bs58check: 4.0.0
+      buffer: 6.0.3
+      cross-fetch: 4.1.0
+      ethers: 6.15.0
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/core@1.9.0(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
@@ -5146,6 +5285,16 @@ snapshots:
     transitivePeerDependencies:
       - bufferutil
       - debug
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/ssri@0.1.1(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.3.1(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
       - encoding
       - typescript
       - utf-8-validate
@@ -5577,6 +5726,32 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.4
 
+  '@jsr/nostrify__nostrify@0.46.4(typescript@5.8.3)':
+    dependencies:
+      '@jsr/nostrify__types': 0.36.0
+      '@jsr/scure__base': 1.2.6
+      '@jsr/std__encoding': 0.224.3
+      lru-cache: 10.4.3
+      nostr-tools: 2.16.2(typescript@5.8.3)
+      websocket-ts: 2.2.1
+      zod: 3.25.74
+    transitivePeerDependencies:
+      - typescript
+
+  '@jsr/nostrify__react@0.2.8(typescript@5.8.3)':
+    dependencies:
+      '@jsr/nostrify__nostrify': 0.46.4(typescript@5.8.3)
+      nostr-tools: 2.16.2(typescript@5.8.3)
+      react: 18.3.1
+    transitivePeerDependencies:
+      - typescript
+
+  '@jsr/nostrify__types@0.36.0': {}
+
+  '@jsr/scure__base@1.2.6': {}
+
+  '@jsr/std__encoding@0.224.3': {}
+
   '@lit-labs/ssr-dom-shim@1.3.0': {}
 
   '@lit/react@1.0.7(@types/react@19.1.8)':
@@ -5636,6 +5811,10 @@ snapshots:
 
   '@noble/ciphers@0.5.3': {}
 
+  '@noble/curves@1.1.0':
+    dependencies:
+      '@noble/hashes': 1.3.1
+
   '@noble/curves@1.2.0':
     dependencies:
       '@noble/hashes': 1.3.2
@@ -5643,6 +5822,8 @@ snapshots:
   '@noble/curves@1.9.2':
     dependencies:
       '@noble/hashes': 1.8.0
+
+  '@noble/hashes@1.3.1': {}
 
   '@noble/hashes@1.3.2': {}
 
@@ -6719,6 +6900,19 @@ snapshots:
 
   '@rushstack/eslint-patch@1.12.0': {}
 
+  '@scure/base@1.1.1': {}
+
+  '@scure/bip32@1.3.1':
+    dependencies:
+      '@noble/curves': 1.1.0
+      '@noble/hashes': 1.3.2
+      '@scure/base': 1.1.1
+
+  '@scure/bip39@1.2.1':
+    dependencies:
+      '@noble/hashes': 1.3.2
+      '@scure/base': 1.1.1
+
   '@sinclair/typebox@0.27.8': {}
 
   '@sinonjs/commons@3.0.1':
@@ -6734,6 +6928,13 @@ snapshots:
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
+
+  '@tanstack/query-core@5.85.5': {}
+
+  '@tanstack/react-query@5.85.5(react@19.1.0)':
+    dependencies:
+      '@tanstack/query-core': 5.85.5
+      react: 19.1.0
 
   '@testing-library/dom@10.4.0':
     dependencies:
@@ -6765,6 +6966,14 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.1.8
       '@types/react-dom': 19.1.6(@types/react@19.1.8)
+
+  '@tinymce/tinymce-react@6.3.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tinymce@8.0.2)':
+    dependencies:
+      prop-types: 15.8.1
+      react: 19.1.0
+      react-dom: 19.1.0(react@19.1.0)
+    optionalDependencies:
+      tinymce: 8.0.2
 
   '@tootallnate/once@2.0.0': {}
 
@@ -8182,6 +8391,12 @@ snapshots:
 
   fraction.js@4.3.7: {}
 
+  fs-extra@11.3.1:
+    dependencies:
+      graceful-fs: 4.2.11
+      jsonfile: 6.2.0
+      universalify: 2.0.1
+
   fs.realpath@1.0.0: {}
 
   fsevents@2.3.3:
@@ -8966,6 +9181,12 @@ snapshots:
 
   json5@2.2.3: {}
 
+  jsonfile@6.2.0:
+    dependencies:
+      universalify: 2.0.1
+    optionalDependencies:
+      graceful-fs: 4.2.11
+
   jsx-ast-utils@3.3.5:
     dependencies:
       array-includes: 3.1.9
@@ -9148,6 +9369,20 @@ snapshots:
   normalize-path@3.0.0: {}
 
   normalize-range@0.1.2: {}
+
+  nostr-tools@2.16.2(typescript@5.8.3):
+    dependencies:
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.2.0
+      '@noble/hashes': 1.3.1
+      '@scure/base': 1.1.1
+      '@scure/bip32': 1.3.1
+      '@scure/bip39': 1.2.1
+      nostr-wasm: 0.1.0
+    optionalDependencies:
+      typescript: 5.8.3
+
+  nostr-wasm@0.1.0: {}
 
   npm-run-path@4.0.1:
     dependencies:
@@ -9450,6 +9685,10 @@ snapshots:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
 
+  react@18.3.1:
+    dependencies:
+      loose-envify: 1.4.0
+
   react@19.1.0: {}
 
   read-cache@1.0.0:
@@ -9716,6 +9955,17 @@ snapshots:
 
   sprintf-js@1.0.3: {}
 
+  ssri-ckboost@file:../packages/ssri-ckboost(typescript@5.8.3)(zod@3.25.74):
+    dependencies:
+      '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/ssri': 0.1.1(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   stable-hash@0.0.5: {}
 
   stack-utils@2.0.6:
@@ -9905,6 +10155,8 @@ snapshots:
       fdir: 6.4.6(picomatch@4.0.2)
       picomatch: 4.0.2
 
+  tinymce@8.0.2: {}
+
   tmpl@1.0.5: {}
 
   to-buffer@1.2.1:
@@ -10010,6 +10262,8 @@ snapshots:
   undici-types@6.21.0: {}
 
   universalify@0.2.0: {}
+
+  universalify@2.0.1: {}
 
   unrs-resolver@1.11.1:
     dependencies:
@@ -10118,6 +10372,8 @@ snapshots:
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@7.0.0: {}
+
+  websocket-ts@2.2.1: {}
 
   whatwg-encoding@2.0.0:
     dependencies:

@@ -5,9 +5,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
-import { Plus, Trash2, Sparkles } from "lucide-react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Plus, Trash2, Sparkles, Lock } from "lucide-react"
 import { ccc } from "@ckb-ccc/core"
 import type { QuestDataLike, QuestSubTaskDataLike } from "ssri-ckboost/types"
+import { UDTSelector } from "./udt-selector"
+import { UDTToken, udtRegistry } from "@/lib/services/udt-registry"
+import { useProtocol } from "@/lib/providers/protocol-provider"
 
 interface QuestDialogProps {
   open: boolean
@@ -17,6 +21,8 @@ interface QuestDialogProps {
   onSave: () => void
   editMode: boolean
   localQuestsLength: number
+  lockUDTOnSave?: boolean
+  setLockUDTOnSave?: (lock: boolean) => void
 }
 
 export function QuestDialog({
@@ -26,9 +32,14 @@ export function QuestDialog({
   onQuestFormChange,
   onSave,
   editMode,
-  localQuestsLength
+  localQuestsLength,
+  lockUDTOnSave = false,
+  setLockUDTOnSave
 }: QuestDialogProps) {
   const isCreateMode = !editMode
+  const { signer } = useProtocol()
+  const [udtRewards, setUdtRewards] = useState<Array<{ token?: UDTToken; amount: string }>>([])
+  const [isEditingRewards, setIsEditingRewards] = useState(false)
 
   const handleAddSubtask = () => {
     onQuestFormChange({
@@ -76,47 +87,107 @@ export function QuestDialog({
     onQuestFormChange({ ...questForm, sub_tasks: newSubtasks })
   }
 
+  // Initialize UDT rewards from questForm when dialog opens
+  useEffect(() => {
+    // Don't re-initialize if we're actively editing rewards
+    if (isEditingRewards) return
+    
+    if (open && questForm.rewards_on_completion[0]?.udt_assets) {
+      const rewards = questForm.rewards_on_completion[0].udt_assets.map(asset => {
+        const token = udtRegistry.getTokenByScriptHash(
+          ccc.Script.from(asset.udt_script).hash()
+        )
+        return {
+          token,
+          amount: token ? udtRegistry.formatAmount(asset.amount, token) : asset.amount.toString()
+        }
+      })
+      setUdtRewards(rewards)
+    } else if (open && !isEditingRewards) {
+      setUdtRewards([])
+    }
+  }, [open, questForm.rewards_on_completion, isEditingRewards])
+  
+  // Reset editing flag when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setIsEditingRewards(false)
+    }
+  }, [open])
+
   const handleAddUDTReward = () => {
-    const newRewards = [...questForm.rewards_on_completion]
-    if (newRewards.length === 0) {
-      newRewards.push({
-        points_amount: 0,
-        ckb_amount: 0,
-        nft_assets: [],
-        udt_assets: []
+    console.log("Adding UDT reward, current count:", udtRewards.length)
+    setIsEditingRewards(true)
+    const newRewards = [...udtRewards, { amount: "" }]
+    setUdtRewards(newRewards)
+    
+    // Update questForm to ensure rewards_on_completion exists
+    if (questForm.rewards_on_completion.length === 0) {
+      onQuestFormChange({
+        ...questForm,
+        rewards_on_completion: [{
+          points_amount: 0,
+          ckb_amount: 0,
+          nft_assets: [],
+          udt_assets: []
+        }]
       })
     }
-    newRewards[0] = {
-      ...newRewards[0],
-      udt_assets: [
-        ...(newRewards[0].udt_assets || []),
-        {
-          udt_script: {
-            codeHash: "0x" as ccc.Hex,
-            hashType: "type" as ccc.HashType,
-            args: "0x" as ccc.Hex
-          },
-          amount: BigInt(0)
-        }
-      ]
-    }
-    onQuestFormChange({
-      ...questForm,
-      rewards_on_completion: newRewards
-    })
   }
 
   const handleRemoveUDTReward = (index: number) => {
-    const newRewards = [...questForm.rewards_on_completion]
-    if (newRewards[0]) {
-      newRewards[0] = {
-        ...newRewards[0],
-        udt_assets: newRewards[0].udt_assets?.filter((_, i) => i !== index) || []
+    setIsEditingRewards(true)
+    const newRewards = udtRewards.filter((_, i) => i !== index)
+    setUdtRewards(newRewards)
+    
+    // Update questForm immediately when removing UDT rewards
+    const udtAssets = newRewards
+      .filter(r => r.token && r.amount)
+      .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
+    
+    const updatedRewards = [...questForm.rewards_on_completion]
+    if (updatedRewards[0]) {
+      updatedRewards[0] = {
+        ...updatedRewards[0],
+        udt_assets: udtAssets
       }
     }
+    
     onQuestFormChange({
       ...questForm,
-      rewards_on_completion: newRewards
+      rewards_on_completion: updatedRewards
+    })
+  }
+
+  const handleUDTRewardChange = (index: number, value: { token?: UDTToken; amount: string }) => {
+    setIsEditingRewards(true)
+    const newRewards = [...udtRewards]
+    newRewards[index] = value
+    setUdtRewards(newRewards)
+    
+    // Update questForm immediately when user changes UDT rewards
+    const udtAssets = newRewards
+      .filter(r => r.token && r.amount)
+      .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
+    
+    const updatedRewards = [...questForm.rewards_on_completion]
+    if (updatedRewards.length === 0 && udtAssets.length > 0) {
+      updatedRewards.push({
+        points_amount: 0,
+        ckb_amount: 0,
+        nft_assets: [],
+        udt_assets: udtAssets
+      })
+    } else if (updatedRewards[0]) {
+      updatedRewards[0] = {
+        ...updatedRewards[0],
+        udt_assets: udtAssets
+      }
+    }
+    
+    onQuestFormChange({
+      ...questForm,
+      rewards_on_completion: updatedRewards
     })
   }
 
@@ -314,9 +385,10 @@ export function QuestDialog({
               </Button>
             </div>
             
-            {questForm.rewards_on_completion.some(r => r.udt_assets && r.udt_assets.length > 0) && (
+            {console.log("Current udtRewards:", udtRewards)}
+            {udtRewards.length > 0 && (
               <div className="space-y-3">
-                {questForm.rewards_on_completion[0]?.udt_assets?.map((reward, index) => (
+                {udtRewards.map((reward, index) => (
                   <Card key={index} className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
@@ -331,135 +403,54 @@ export function QuestDialog({
                         </Button>
                       </div>
                       
-                      <div>
-                        <Label className="text-xs">UDT Code Hash</Label>
-                        <Input
-                          placeholder="0x..."
-                          value={typeof reward.udt_script.codeHash === 'string' ? reward.udt_script.codeHash : ccc.hexFrom(reward.udt_script.codeHash)}
-                          onChange={(e) => {
-                            const newRewards = [...questForm.rewards_on_completion]
-                            if (newRewards[0] && newRewards[0].udt_assets) {
-                              const newUdtAssets = [...newRewards[0].udt_assets]
-                              newUdtAssets[index] = {
-                                ...reward,
-                                udt_script: {
-                                  ...reward.udt_script,
-                                  codeHash: e.target.value as ccc.Hex
-                                }
-                              }
-                              newRewards[0] = {
-                                ...newRewards[0],
-                                udt_assets: newUdtAssets
-                              }
-                            }
-                            onQuestFormChange({ ...questForm, rewards_on_completion: newRewards })
-                          }}
-                          className="font-mono text-xs"
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">Hash Type</Label>
-                          <select
-                            className="w-full p-2 border rounded-md text-sm"
-                            value={typeof reward.udt_script.hashType === 'string' ? reward.udt_script.hashType : 'type'}
-                            onChange={(e) => {
-                              const newRewards = [...questForm.rewards_on_completion]
-                              if (newRewards[0] && newRewards[0].udt_assets) {
-                                const newUdtAssets = [...newRewards[0].udt_assets]
-                                newUdtAssets[index] = {
-                                  ...reward,
-                                  udt_script: {
-                                    ...reward.udt_script,
-                                    hashType: e.target.value as ccc.HashType
-                                  }
-                                }
-                                newRewards[0] = {
-                                  ...newRewards[0],
-                                  udt_assets: newUdtAssets
-                                }
-                              }
-                              onQuestFormChange({ ...questForm, rewards_on_completion: newRewards })
-                            }}
-                          >
-                            <option value="type">Type</option>
-                            <option value="data">Data</option>
-                            <option value="data1">Data1</option>
-                            <option value="data2">Data2</option>
-                          </select>
-                        </div>
-                        
-                        <div>
-                          <Label className="text-xs">Args (optional)</Label>
-                          <Input
-                            placeholder="0x"
-                            value={typeof reward.udt_script.args === 'string' ? reward.udt_script.args : ccc.hexFrom(reward.udt_script.args)}
-                            onChange={(e) => {
-                              const newRewards = [...questForm.rewards_on_completion]
-                              if (newRewards[0] && newRewards[0].udt_assets) {
-                                const newUdtAssets = [...newRewards[0].udt_assets]
-                                newUdtAssets[index] = {
-                                  ...reward,
-                                  udt_script: {
-                                    ...reward.udt_script,
-                                    args: e.target.value as ccc.Hex
-                                  }
-                                }
-                                newRewards[0] = {
-                                  ...newRewards[0],
-                                  udt_assets: newUdtAssets
-                                }
-                              }
-                              onQuestFormChange({ ...questForm, rewards_on_completion: newRewards })
-                            }}
-                            className="font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <Label className="text-xs">Amount per Completion</Label>
-                        <Input
-                          type="number"
-                          placeholder="0"
-                          value={reward.amount.toString()}
-                          onChange={(e) => {
-                            const newRewards = [...questForm.rewards_on_completion]
-                            if (newRewards[0] && newRewards[0].udt_assets) {
-                              const newUdtAssets = [...newRewards[0].udt_assets]
-                              newUdtAssets[index] = {
-                                ...reward,
-                                amount: BigInt(e.target.value || 0)
-                              }
-                              newRewards[0] = {
-                                ...newRewards[0],
-                                udt_assets: newUdtAssets
-                              }
-                            }
-                            onQuestFormChange({ ...questForm, rewards_on_completion: newRewards })
-                          }}
-                        />
-                      </div>
+                      <UDTSelector
+                        value={reward}
+                        onChange={(value) => handleUDTRewardChange(index, value)}
+                        signer={signer}
+                        showBalance={true}
+                        label="Token and Amount"
+                        placeholder="Enter amount per completion"
+                      />
                     </div>
                   </Card>
                 ))}
               </div>
             )}
             
-            {questForm.rewards_on_completion.some(r => r.udt_assets && r.udt_assets.length > 0) && (
-              <div>
-                <Label htmlFor="maxCompletions">Max Completions (0 = unlimited)</Label>
-                <Input
-                  id="maxCompletions"
-                  type="number"
-                  value={Number(questForm.max_completions) || 0}
-                  onChange={(e) => onQuestFormChange({ ...questForm, max_completions: parseInt(e.target.value) || 0 })}
-                  placeholder="0 for unlimited, or set a maximum number"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Limits the number of users who can claim UDT rewards. Useful for limited reward pools.
-                </p>
+            {udtRewards.length > 0 && (
+              <div className="space-y-3">
+                <div>
+                  <Label htmlFor="maxCompletions">Max Completions (0 = unlimited)</Label>
+                  <Input
+                    id="maxCompletions"
+                    type="number"
+                    value={Number(questForm.max_completions) || 0}
+                    onChange={(e) => onQuestFormChange({ ...questForm, max_completions: parseInt(e.target.value) || 0 })}
+                    placeholder="0 for unlimited, or set a maximum number"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Limits the number of users who can claim UDT rewards. Useful for limited reward pools.
+                  </p>
+                </div>
+                
+                {setLockUDTOnSave && (
+                  <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                    <Checkbox
+                      id="lockUDT"
+                      checked={lockUDTOnSave}
+                      onCheckedChange={(checked) => setLockUDTOnSave(!!checked)}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="lockUDT" className="flex items-center gap-2 cursor-pointer">
+                        <Lock className="w-4 h-4" />
+                        Lock UDT to campaign on save
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Automatically lock the required UDT tokens to this campaign when saving.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

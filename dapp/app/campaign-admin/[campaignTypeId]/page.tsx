@@ -31,10 +31,13 @@ import { Campaign } from "ssri-ckboost"
 import { ssri } from "@ckb-ccc/connector-react"
 import { deploymentManager } from "@/lib/ckb/deployment-manager"
 import { SubmissionsTab } from "@/components/campaign-admin/tabs/submissions-tab"
+import { FundingTab } from "@/components/campaign-admin/tabs/funding-tab"
 
 // Import new components
 import { QuestDialog, QuestList } from "@/components/campaign-admin/quest"
 import { CampaignForm, CampaignStats } from "@/components/campaign-admin/campaign"
+import { InitialFunding } from "@/components/campaign-admin/funding/initial-funding"
+import { udtRegistry } from "@/lib/services/udt-registry"
 
 // Type for simplified campaign form data
 interface CampaignFormData {
@@ -74,6 +77,7 @@ export default function CampaignAdminPage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isApproving, setIsApproving] = useState(false)
   const [localQuests, setLocalQuests] = useState<QuestDataLike[]>([])
+  const [initialFunding, setInitialFunding] = useState<Map<string, bigint>>(new Map())
   
   // Campaign form data
   const [campaignData, setCampaignData] = useState<CampaignFormData>({
@@ -152,7 +156,7 @@ export default function CampaignAdminPage() {
         setIsLoading(true)
         debug.log("Loading campaign with typeId:", campaignTypeId)
         
-        const campaignCodeHash = protocolData?.protocol_config.script_code_hashes.ckb_boost_campaign_type_code_hash
+        const campaignCodeHash = protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash
         if (!campaignCodeHash) {
           debug.error("Campaign code hash not found in protocol data")
           return
@@ -380,10 +384,46 @@ export default function CampaignAdminPage() {
       
       if (isCreateMode) {
         // For creating new campaigns, we need to use updateCampaign with no campaignTypeId
-        const txHash = await adminService.updateCampaign(updatedCampaign)
-        debug.log("Campaign created with txHash:", txHash)
-        alert("Campaign created successfully! Transaction: " + txHash)
-        // TODO: Extract the new campaign's type_id from the transaction to redirect
+        debug.log("Creating campaign with initial funding:", {
+          campaign: campaignData.title,
+          fundingTokens: initialFunding.size,
+          totalFunding: Array.from(initialFunding.entries()).map(([scriptHash, amount]) => ({
+            scriptHash: scriptHash.slice(0, 10) + "...",
+            amount: amount.toString()
+          }))
+        })
+        
+        // Convert initialFunding Map to array format for updateCampaign
+        const udtFunding = initialFunding.size > 0 
+          ? Array.from(initialFunding.entries()).map(([scriptHash, amount]) => ({
+              scriptHash,
+              amount
+            }))
+          : undefined
+        
+        // Create the campaign with initial funding in the same transaction
+        const txHash = await adminService.updateCampaign(
+          updatedCampaign,
+          undefined, // no campaignTypeId for new campaigns
+          undefined, // no existing transaction
+          udtFunding // pass the UDT funding array
+        )
+        debug.log("Campaign created with funding in single transaction, txHash:", txHash)
+        
+        // Show success message with funding info if applicable
+        if (initialFunding.size > 0) {
+          const fundingInfo = Array.from(initialFunding.entries())
+            .map(([scriptHash, amount]) => {
+              const token = udtRegistry.getTokenByScriptHash(scriptHash)
+              return token ? `${udtRegistry.formatAmount(amount, token.symbol)} ${token.symbol}` : `${amount.toString()} tokens`
+            })
+            .join(", ")
+          
+          alert(`Campaign created successfully with initial funding!\n\nTransaction: ${txHash}\n\nFunded with: ${fundingInfo}`)
+        } else {
+          alert("Campaign created successfully! Transaction: " + txHash)
+        }
+        
         router.push("/campaign-admin")
       } else {
         // For updating existing campaigns, don't pass campaignTypeId
@@ -722,9 +762,15 @@ export default function CampaignAdminPage() {
             <TabsTrigger value="quests">
               Quests {localQuests.length > 0 && `(${localQuests.length})`}
             </TabsTrigger>
+            {isCreateMode && (
+              <TabsTrigger value="funding">
+                Initial Funding {initialFunding.size > 0 && `(${initialFunding.size})`}
+              </TabsTrigger>
+            )}
             {!isCreateMode && (
               <>
                 <TabsTrigger value="submissions">Submissions</TabsTrigger>
+                <TabsTrigger value="funding">Funding</TabsTrigger>
                 <TabsTrigger value="analytics">Analytics</TabsTrigger>
               </>
             )}
@@ -770,10 +816,37 @@ export default function CampaignAdminPage() {
             </div>
           </TabsContent>
 
+          {/* Initial Funding Tab (Create Mode) */}
+          {isCreateMode && (
+            <TabsContent value="funding">
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-2xl font-semibold">Initial Campaign Funding</h2>
+                  <p className="text-muted-foreground mt-1">
+                    Lock UDT tokens to your campaign for quest rewards
+                  </p>
+                </div>
+                
+                <InitialFunding
+                  quests={localQuests}
+                  signer={signer}
+                  onFundingChange={setInitialFunding}
+                />
+              </div>
+            </TabsContent>
+          )}
+
           {/* Submissions Tab */}
           {!isCreateMode && (
             <TabsContent value="submissions">
               <SubmissionsTab campaignTypeId={campaignTypeId as ccc.Hex} />
+            </TabsContent>
+          )}
+
+          {/* Funding Tab */}
+          {!isCreateMode && (
+            <TabsContent value="funding">
+              <FundingTab campaignTypeId={campaignTypeId as ccc.Hex} />
             </TabsContent>
           )}
 

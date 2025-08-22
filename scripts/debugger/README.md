@@ -8,49 +8,70 @@ A TypeScript-based debugger for CKB transactions using CCC (CKB Common Connector
 npm install
 ```
 
-## Workflow
+## Quick Start
 
-1. **Copy raw transaction hex** to `tx_hex.txt`
-2. **Run the debugger**:
-   ```bash
-   npm run debug
-   ```
+### Debug from raw_tx_input.json
 
-The script automatically:
-- Cleans intermediate files before each run
-- Parses the hex to `raw_tx.json` with proper snake_case formatting
-- Generates `mock_tx.json` using ckb-cli
-- Runs ckb-debugger with your specified options
-
-## Usage Examples
-
-### Debug all scripts (default)
 ```bash
-npm run debug
+npm run raw output.0.type
 ```
 
-### Debug specific script
+### Debug from transaction hex
+
 ```bash
-npm run debug --script output.0.type
+npm run hex "0x..." -- --script input.0.lock
 ```
 
-### Use custom binary
+## Usage
+
+### Method 1: Using raw transaction JSON file (recommended)
+
+The debugger reads from `raw_tx_input.json` by default:
+
 ```bash
-npm run debug --script output.0.type --bin ../../contracts/build/release/ckboost-campaign-type
+# Debug specific script
+npm run raw output.0.type
+npm run raw input.0.lock
+
+# With custom binary
+npm run raw output.0.type -- --bin ../../contracts/build/release/ckboost-campaign-type
+
+# With custom cycle limit
+npm run raw input.0.lock -- --cycles 100000000
 ```
 
-### Debug with custom cycle limit
+### Method 2: Using transaction hex
+
 ```bash
-npm run debug --script input.0.lock --cycles 100000000
+# Basic usage
+npm run hex "0x..." -- --script output.0.type
+
+# With custom binary
+npm run hex "0x..." -- --script output.0.type --bin /path/to/binary
 ```
 
-### Debug with raw transaction
+### Method 3: Generic debug command
+
+For more flexibility, use the base debug command:
+
 ```bash
-pnpm run debug --raw-tx --script input.1.type
+# Debug from custom file
+npm run debug -- --raw-tx custom_tx.json --script output.0.type
+
+# Debug with all options
+npm run debug -- --raw-tx --script output.0.type --bin /path/to/binary --cycles 100000000
 ```
+
+## Script Location Formats
+
+- `input.0.lock` - Debug the lock script of input at index 0
+- `output.0.type` - Debug the type script of output at index 1
+- `input.2.lock` - Debug the lock script of input at index 2
 
 ## Command Options
 
+- `--raw-tx [file]` - Use raw transaction JSON file (default: raw_tx_input.json)
+- `--tx-hex <hex>` - Transaction hex string to debug
 - `--script <location>` - Script to debug (e.g., 'output.0.type', 'input.0.lock')
 - `--bin <path>` - Replace script with custom binary
 - `--cycles <limit>` - Maximum cycles (default: 70000000)
@@ -58,10 +79,10 @@ pnpm run debug --raw-tx --script input.1.type
 
 ## Files
 
-- `tx_hex.txt` - Input: Raw transaction hex (you paste here)
-- `raw_tx.json` - Generated: Parsed transaction in snake_case format
-- `mock_tx.json` - Generated: Mock transaction for debugging
-- `debug-tx.ts` - The debugger script
+- `debug-tx.ts` - Main debugger implementation
+- `raw_tx_input.json` - Default raw transaction input file for testing
+- `mock_tx.json` - Generated mock transaction for debugging
+- `output.json` - Debug output (generated when running the debugger)
 
 ## Prerequisites
 
@@ -71,25 +92,49 @@ pnpm run debug --raw-tx --script input.1.type
 
 ## Debugging Tips
 
-After running the debugger, you can:
+After running the debugger:
 
 1. **View transaction details**:
+
    ```bash
    jq '.tx' mock_tx.json
    jq '.tx.outputs' mock_tx.json
    ```
 
 2. **Debug different scripts**:
+
    ```bash
-   npm run debug -- --script input.0.lock
-   npm run debug -- --script output.0.type
-   npm run debug -- --script output.1.type
+   npm run raw input.0.lock
+   npm run raw output.0.type
+   npm run raw output.1.type
    ```
 
 3. **Check specific cell data**:
+
    ```bash
    jq '.tx.outputs_data' mock_tx.json
    ```
+
+## Examples
+
+### Example 1: Debug campaign type script
+
+```bash
+# Add your transaction to raw_tx_input.json
+npm run raw output.0.type
+```
+
+### Example 2: Debug with custom binary
+
+```bash
+npm run raw output.0.type -- --bin ../../contracts/build/release/ckboost-campaign-type
+```
+
+### Example 3: Debug from hex with high cycle limit
+
+```bash
+npm run hex "0x..." -- --script input.0.lock --cycles 100000000
+```
 
 ## Environment Variables
 

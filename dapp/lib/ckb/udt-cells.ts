@@ -1,4 +1,4 @@
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { debug } from "../utils/debug";
 
 /**

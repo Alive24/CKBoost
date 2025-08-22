@@ -1,8 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Trophy, Edit, Trash2 } from "lucide-react"
+import { Trophy, Edit, Trash2, Coins } from "lucide-react"
 import type { QuestDataLike, QuestSubTaskDataLike } from "ssri-ckboost/types"
+import { udtRegistry } from "@/lib/services/udt-registry"
+import { ccc } from "@ckb-ccc/core"
 
 interface QuestCardProps {
   quest: QuestDataLike
@@ -83,16 +85,40 @@ export function QuestCard({ quest, index, onEdit, onDelete, showActions = true }
         )}
         {quest.rewards_on_completion.some(r => r.udt_assets && r.udt_assets.length > 0) && (
           <div className="mt-4 pt-4 border-t">
-            <p className="text-sm font-medium mb-1">UDT Rewards:</p>
+            <p className="text-sm font-medium mb-2 flex items-center gap-1">
+              <Coins className="w-4 h-4" />
+              UDT Rewards:
+            </p>
             <div className="space-y-1">
-              {quest.rewards_on_completion[0]?.udt_assets?.map((udt, idx) => (
-                <div key={idx} className="text-xs text-muted-foreground">
-                  • {udt.amount.toString()} tokens
-                </div>
-              ))}
+              {quest.rewards_on_completion[0]?.udt_assets?.map((udt, idx) => {
+                const script = ccc.Script.from(udt.udt_script)
+                const scriptHash = script.hash()
+                const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                
+                if (token) {
+                  const formattedAmount = udtRegistry.formatAmount(udt.amount, token)
+                  return (
+                    <div key={idx} className="flex items-center gap-2 text-sm">
+                      <Badge variant="secondary" className="font-mono">
+                        {formattedAmount} {token.symbol}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        ({token.name})
+                      </span>
+                    </div>
+                  )
+                } else {
+                  // Fallback for unknown tokens
+                  return (
+                    <div key={idx} className="text-xs text-muted-foreground">
+                      • {udt.amount.toString()} tokens (Unknown UDT)
+                    </div>
+                  )
+                }
+              })}
             </div>
             {quest.max_completions && Number(quest.max_completions) > 0 && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-2">
                 Max completions: {Number(quest.max_completions)}
               </p>
             )}

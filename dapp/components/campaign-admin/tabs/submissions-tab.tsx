@@ -46,6 +46,10 @@ export function SubmissionsTab({ campaignTypeId }: SubmissionsTabProps) {
       setCampaignData(data.campaignData)
       setStats(data.stats)
       debug.log("Loaded submissions", data.stats)
+      debug.log("Campaign quests:", data.campaignData?.quests?.map(q => ({ 
+        id: q.quest_id, 
+        title: q.metadata?.title 
+      })))
     } catch (err) {
       console.error("Failed to load submissions:", err)
       setError("Failed to load submissions. Please try again.")

@@ -1,4 +1,4 @@
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import {
   CampaignDataLike,
   CampaignData,
@@ -14,10 +14,7 @@ import { fetchCampaignByTypeId as fetchCampaignCell, fetchCampaignCells } from "
 import { debug } from "@/lib/utils/debug";
 import { Campaign } from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
-import { ssri } from "@ckb-ccc/connector-react";
 
-// Define Quest type based on CampaignDataLike structure
-type QuestLike = NonNullable<CampaignDataLike["quests"]>[number];
 
 /**
  * Comprehensive service for campaign admin operations
@@ -28,7 +25,6 @@ export class CampaignAdminService {
   private userTypeCodeHash: ccc.Hex;
   private campaignTypeCodeHash: ccc.Hex;
   private protocolCell: ccc.Cell | null;
-  private campaignOutPoint: ccc.OutPointLike;
   private campaign: Campaign | null;
 
   constructor(
@@ -45,7 +41,7 @@ export class CampaignAdminService {
     // protocolTypeHash is available if needed in the future
     this.campaignTypeCodeHash = campaignTypeCodeHash;
     this.protocolCell = protocolCell;
-    this.campaignOutPoint = campaignOutPoint;
+    // campaignOutPoint is kept for backward compatibility but not stored
     this.campaign = campaign || null;
   }
 
@@ -81,15 +77,18 @@ export class CampaignAdminService {
   // ============ Campaign Management ============
 
   /**
-   * Update an existing campaign
-   * @param campaignTypeId - Campaign type ID to update
-   * @param updates - Updated campaign data
+   * Update an existing campaign (or create a new one if no campaignTypeId)
+   * @param campaignData - Campaign data to create/update
+   * @param campaignTypeId - Campaign type ID to update (omit for new campaigns)
+   * @param tx - Optional existing transaction
+   * @param udtFunding - Optional UDT assets to fund the campaign with
    * @returns Transaction hash
    */
   async updateCampaign(
     campaignData: CampaignDataLike,
     campaignTypeId?: ccc.Hex,
-    tx?: ccc.Transaction
+    _tx?: ccc.Transaction, // Kept for backward compatibility but not used
+    udtFunding?: Array<{ scriptHash: string; amount: bigint }>
   ): Promise<ccc.Hex> {
     if (!this.signer) {
       throw new Error("Signer is required to update a campaign");
@@ -128,6 +127,75 @@ export class CampaignAdminService {
         throw new Error("Failed to get transaction from SSRI updateCampaign");
       }
 
+      // Add UDT funding if provided
+      if (udtFunding && udtFunding.length > 0) {
+        console.log("Adding UDT funding to campaign transaction");
+        
+        // Import FundingService dynamically to avoid circular dependencies
+        const { FundingService } = await import("@/lib/services/funding-service");
+        const { deploymentManager } = await import("@/lib/ckb/deployment-manager");
+        const { udtRegistry } = await import("@/lib/services/udt-registry");
+        
+        // Get code hashes
+        const network = deploymentManager.getCurrentNetwork();
+        const campaignTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType");
+        const campaignLockCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignLock") || "0x" + "00".repeat(32);
+        
+        if (!campaignTypeCodeHash) {
+          throw new Error("Campaign type contract not deployed");
+        }
+        
+        // Create funding service
+        const fundingService = new FundingService(
+          this.signer,
+          campaignTypeCodeHash,
+          campaignLockCodeHash as ccc.Hex,
+          this.protocolCell!
+        );
+        
+        // Convert funding to UDTAssetLike format
+        const udtAssets = udtFunding.map(funding => {
+          // Find token by script hash
+          const token = Array.from(udtRegistry.getAllTokens()).find(t => {
+            const script = ccc.Script.from({
+              codeHash: t.script.codeHash,
+              hashType: t.script.hashType,
+              args: t.script.args
+            });
+            return script.hash() === funding.scriptHash;
+          });
+          
+          if (!token) {
+            throw new Error(`Token not found for script hash: ${funding.scriptHash}`);
+          }
+          
+          return {
+            udt_script: {
+              codeHash: token.script.codeHash,
+              hashType: token.script.hashType,
+              args: token.script.args
+            },
+            amount: funding.amount
+          };
+        });
+        
+        // Get the campaign owner's lock from the transaction outputs
+        // The first output should be the campaign cell
+        const campaignOutput = updateTx.outputs[0];
+        if (!campaignOutput) {
+          throw new Error("Campaign output not found in transaction");
+        }
+        
+        // Add UDT funding to the transaction
+        updateTx = await fundingService.addUDTFundingToTransaction(
+          updateTx,
+          campaignOutput.lock,
+          udtAssets
+        );
+        
+        console.log("UDT funding added to transaction");
+      }
+
       // Complete fees and send transaction
       await updateTx.completeInputsByCapacity(this.signer);
       await updateTx.completeFeeBy(this.signer);
@@ -138,21 +206,21 @@ export class CampaignAdminService {
       console.log("=== TRANSACTION BYTES TO RPC ===");
       console.log("Transaction Structure:", {
         version: updateTx.version,
-        cellDeps: updateTx.cellDeps.map((dep) => ({
+        cellDeps: updateTx.cellDeps.map((dep: ccc.CellDep) => ({
           outPoint: {
             txHash: dep.outPoint.txHash,
             index: dep.outPoint.index,
           },
           depType: dep.depType,
         })),
-        inputs: updateTx.inputs.map((input) => ({
+        inputs: updateTx.inputs.map((input: ccc.CellInput) => ({
           previousOutput: {
             txHash: input.previousOutput.txHash,
             index: input.previousOutput.index,
           },
           since: input.since,
         })),
-        outputs: updateTx.outputs.map((output) => ({
+        outputs: updateTx.outputs.map((output: ccc.CellOutput) => ({
           capacity: output.capacity.toString(),
           lock: {
             codeHash: output.lock.codeHash,
@@ -167,10 +235,10 @@ export class CampaignAdminService {
               }
             : null,
         })),
-        outputsData: updateTx.outputsData.map((data) =>
+        outputsData: updateTx.outputsData.map((data: ccc.HexLike) =>
           typeof data === "string" ? data : ccc.hexFrom(data)
         ),
-        witnesses: updateTx.witnesses.map((witness) =>
+        witnesses: updateTx.witnesses.map((witness: ccc.HexLike) =>
           typeof witness === "string" ? witness : ccc.hexFrom(witness)
         ),
       });
@@ -422,14 +490,14 @@ export class CampaignAdminService {
   }
 
   /**
-   * Stage 2 Placeholder: Fund campaign with UDTs for distribution
+   * Stage 2 Placeholder: Fund campaign with UDT tokens for distribution
    * This will be implemented when UDT distribution is added
    *
    * @param campaignTypeId - Campaign type ID
    * @param udtAssets - Array of UDT assets to fund
    * @returns Transaction hash (placeholder)
    */
-  async fundCampaignWithUDTs(
+  async fundCampaignWithUDTokens(
     campaignTypeId: ccc.Hex,
     udtAssets: Array<{
       scriptHash: ccc.Hex;
@@ -450,47 +518,7 @@ export class CampaignAdminService {
     // 3. Enable UDT distribution for quests
   }
 
-  /**
-   * Create a Campaign SSRI instance for a specific campaign
-   */
-  private createCampaignInstance(campaignCell: ccc.Cell): Campaign {
-    if (!this.protocolCell) {
-      throw new Error("Protocol cell is required");
-    }
 
-    // Extract ConnectedTypeID from campaign cell's type script args
-    const campaignTypeScript = campaignCell.cellOutput.type;
-    if (!campaignTypeScript) {
-      throw new Error("Campaign cell missing type script");
-    }
-
-    // Create Campaign SSRI instance with the specific campaign's script
-    const campaignOutPoint = this.getCampaignOutPoint();
-    const executor = this.getExecutor();
-
-    return new Campaign(
-      campaignOutPoint,
-      campaignTypeScript, // Use the actual campaign's type script with ConnectedTypeID args
-      this.protocolCell,
-      { executor }
-    );
-  }
-
-  /**
-   * Get campaign contract outpoint from deployment
-   */
-  private getCampaignOutPoint(): ccc.OutPointLike {
-    return this.campaignOutPoint;
-  }
-
-  /**
-   * Get SSRI executor instance
-   */
-  private getExecutor() {
-    const executorUrl =
-      process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
-    return new ssri.ExecutorJsonRpc(executorUrl);
-  }
 
   /**
    * Approve quest completions with Points minting (Stage 1)
@@ -567,7 +595,7 @@ export class CampaignAdminService {
 
       // Stage 2 Placeholder: Future UDT distribution logic
       // TODO: Add UDT distribution when Stage 2 is implemented
-      // - Check if campaign has funded UDTs
+      // - Check if campaign has funded UDT tokens
       // - Calculate UDT rewards per user
       // - Add UDT transfer outputs to transaction
 

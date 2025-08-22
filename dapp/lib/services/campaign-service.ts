@@ -7,7 +7,7 @@ import {
 import {
   fetchCampaignCells,
 } from "../ckb/campaign-cells";
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { Campaign } from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
 

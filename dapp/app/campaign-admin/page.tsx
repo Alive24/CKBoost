@@ -226,6 +226,27 @@ export default function CampaignAdminDashboard() {
     fetchCampaigns()
   }, [signer, protocolCell, protocolData])
 
+  // Check for pending funding from recently created campaigns
+  useEffect(() => {
+    const checkPendingFunding = () => {
+      const pendingFundingStr = sessionStorage.getItem('pendingCampaignFunding')
+      if (pendingFundingStr) {
+        const pendingFunding = JSON.parse(pendingFundingStr)
+        debug.log("Found pending funding for campaign:", pendingFunding)
+        
+        // Show notification about pending funding
+        alert(`Campaign "${pendingFunding.campaignTitle}" was created successfully!\n\nThe campaign has ${pendingFunding.funding.length} UDT token(s) ready to be funded.\n\nPlease navigate to the campaign's funding tab to complete the funding process once the transaction is confirmed.`)
+        
+        // Clear the pending funding after showing the notification
+        sessionStorage.removeItem('pendingCampaignFunding')
+      }
+    }
+    
+    // Check after a short delay to ensure page is fully loaded
+    const timer = setTimeout(checkPendingFunding, 500)
+    return () => clearTimeout(timer)
+  }, [])
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active":

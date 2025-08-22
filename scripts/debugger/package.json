@@ -5,8 +5,9 @@
   "description": "CKB transaction debugger scripts using CCC",
   "scripts": {
     "debug": "tsx debug-tx.ts",
-    "debug:help": "tsx debug-tx.ts --help",
-    "debug:script": "tsx debug-tx.ts --script"
+    "help": "tsx debug-tx.ts --help",
+    "raw": "tsx debug-tx.ts --raw-tx --script",
+    "hex": "tsx debug-tx.ts --tx-hex"
   },
   "dependencies": {
     "@ckb-ccc/ccc": "^1.1.10",

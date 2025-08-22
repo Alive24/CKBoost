@@ -179,7 +179,7 @@ export function SubmissionList({
         const isExpanded = expandedQuests.has(questId)
 
         return (
-          <Card key={questId}>
+          <Card key={`quest-${questIndex}-${questId}`}>
             <CardHeader 
               className="cursor-pointer"
               onClick={() => toggleQuestExpansion(questId)}
