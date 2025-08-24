@@ -180,16 +180,26 @@ export class CampaignAdminService {
         });
         
         // Get the campaign owner's lock from the transaction outputs
-        // The first output should be the campaign cell
-        const campaignOutput = updateTx.outputs[0];
+        const campaignOutput = updateTx.outputs.find(output => output.type?.codeHash.slice(0, 32) === this.campaignTypeCodeHash.slice(0, 32));
         if (!campaignOutput) {
           throw new Error("Campaign output not found in transaction");
         }
+
+        const campaignTypeHash = campaignOutput.type?.hash();
+        if (!campaignTypeHash) {
+          throw new Error("Campaign type hash not found");
+        }
+
+        const campaignLock = ccc.Script.from({
+          codeHash: campaignLockCodeHash,
+          hashType: campaignOutput.lock.hashType,
+          args: ccc.bytesFrom(campaignTypeHash)
+        });
         
         // Add UDT funding to the transaction
         updateTx = await fundingService.addUDTFundingToTransaction(
           updateTx,
-          campaignOutput.lock,
+          campaignLock,
           udtAssets
         );
         

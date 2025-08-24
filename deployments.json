@@ -17,12 +17,12 @@
         "typeHash": "0x8bed7ce362f1817292c0173ce9854ec359f3bca621882618d28392643f58c6c6"
       },
       "ckboostCampaignType": {
-        "transactionHash": "0x05dd3cd124eb668aa51d91ddc11dda91b5acb5f3989ccd9f0e26b81fe650eeac",
+        "transactionHash": "0x2be8aad082c14e3b6dfe4dd8760125c7faf5074d6658d914e105a8a4a8578a6e",
         "index": 0,
-        "deployedAt": "2025-08-20T18:24:07.572Z",
+        "deployedAt": "2025-08-23T11:02:49.028Z",
         "contractName": "ckboost-campaign-type",
-        "tag": "v20250821-0223",
-        "dataHash": "0x56e1aa082b150f4c6809474e1d1725b74e65bccea3a14ec263adf5d914472994",
+        "tag": "v20250823-1902",
+        "dataHash": "0x827a088ca048d98f1dd5fdfd6761fa4622cf4ae402cb61dd0b6d55d1306163aa",
         "typeScript": {
           "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
           "hashType": "type",
@@ -60,6 +60,21 @@
         },
         "isTypeId": true,
         "typeHash": "0x0600f220b6bd9f4bdbe684196c817b4494741f7a4eff5c6e61033fa3c542431f"
+      },
+      "ckboostCampaignLock": {
+        "transactionHash": "0x941614cb18390f4b25ab083b5698ead13279c6bd2092347921f5a40b41d1944a",
+        "index": 0,
+        "deployedAt": "2025-08-23T11:15:06.691Z",
+        "contractName": "ckboost-campaign-lock",
+        "tag": "v20250823-1914",
+        "dataHash": "0x0f2ec82c3ed0f3259ff1fbb514a7c68cae8354af75d6966d6dda416a4f8f4e0b",
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xb6ebd45547ff3f579dd15bcad1d492f744b02341e622a806c35c3f40129279c4"
+        },
+        "isTypeId": true,
+        "typeHash": "0x82fe0732aba0da25121d0f76539d9781cfe82b3986965c7193e4f4ce0cd21e29"
       }
     },
     "mainnet": {
@@ -2706,6 +2721,48 @@
         },
         "isTypeId": true,
         "typeHash": "0x0600f220b6bd9f4bdbe684196c817b4494741f7a4eff5c6e61033fa3c542431f"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x2be8aad082c14e3b6dfe4dd8760125c7faf5074d6658d914e105a8a4a8578a6e",
+        "index": 0,
+        "deployedAt": "2025-08-23T11:02:49.028Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x827a088ca048d98f1dd5fdfd6761fa4622cf4ae402cb61dd0b6d55d1306163aa",
+        "contractSize": 506416,
+        "tag": "v20250823-1902",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x05dd3cd124eb668aa51d91ddc11dda91b5acb5f3989ccd9f0e26b81fe650eeac",
+          "index": 0,
+          "deployedAt": "2025-08-20T18:24:07.572Z",
+          "tag": "v20250821-0223"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-lock",
+        "transactionHash": "0x941614cb18390f4b25ab083b5698ead13279c6bd2092347921f5a40b41d1944a",
+        "index": 0,
+        "deployedAt": "2025-08-23T11:15:06.691Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x0f2ec82c3ed0f3259ff1fbb514a7c68cae8354af75d6966d6dda416a4f8f4e0b",
+        "contractSize": 72424,
+        "tag": "v20250823-1914",
+        "isUpgrade": false,
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xb6ebd45547ff3f579dd15bcad1d492f744b02341e622a806c35c3f40129279c4"
+        },
+        "isTypeId": true,
+        "typeHash": "0x82fe0732aba0da25121d0f76539d9781cfe82b3986965c7193e4f4ce0cd21e29"
       }
     ],
     "mainnet": []
