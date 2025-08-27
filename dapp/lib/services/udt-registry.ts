@@ -126,23 +126,6 @@ export class UDTRegistryService {
     return `${integerPart}.${trimmedFractional}`;
   }
 
-  /**
-   * Parse formatted amount to raw value
-   */
-  parseAmount(formattedAmount: string, token: UDTToken): bigint {
-    const parts = formattedAmount.split('.');
-    const integerPart = BigInt(parts[0] || 0);
-    
-    if (parts.length === 1) {
-      return integerPart * BigInt(10 ** token.decimals);
-    }
-    
-    // Handle fractional part
-    const fractionalStr = parts[1].padEnd(token.decimals, '0').slice(0, token.decimals);
-    const fractionalPart = BigInt(fractionalStr);
-    
-    return integerPart * BigInt(10 ** token.decimals) + fractionalPart;
-  }
 
   /**
    * Get UDT balance for a wallet
@@ -201,7 +184,7 @@ export class UDTRegistryService {
   ): Promise<{ valid: boolean; balance: bigint; required: bigint }> {
     const balance = await this.getBalance(token, signer);
     const required = typeof requiredAmount === 'string' 
-      ? this.parseAmount(requiredAmount, token)
+      ? ccc.udtBalanceFrom(requiredAmount)
       : BigInt(requiredAmount);
     
     return {
@@ -219,7 +202,7 @@ export class UDTRegistryService {
     amount: bigint;
   } {
     const rawAmount = typeof amount === 'string'
-      ? this.parseAmount(amount, token)
+      ? BigInt(Number(amount) * 10 ** token.decimals)
       : BigInt(amount);
     
     return {

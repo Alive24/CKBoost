@@ -52,7 +52,10 @@ export class CampaignAdminService {
    */
   private async fetchCampaignByTypeId(campaignTypeId: ccc.Hex) {
     if (!this.protocolCell) {
-      throw new Error("Protocol cell is required to fetch campaign");
+      throw new Error(
+        `Protocol cell is required to fetch campaign. Campaign type ID: ${campaignTypeId}. ` +
+        "Please ensure the protocol cell is loaded before attempting campaign operations."
+      );
     }
     return await fetchCampaignCell(
       campaignTypeId,
@@ -91,16 +94,24 @@ export class CampaignAdminService {
     udtFunding?: Array<{ scriptHash: string; amount: bigint }>
   ): Promise<ccc.Hex> {
     if (!this.signer) {
-      throw new Error("Signer is required to update a campaign");
+      throw new Error(
+        "Signer is required to update a campaign. " +
+        "Please connect your wallet before attempting to update the campaign."
+      );
     }
 
     if (!this.campaign) {
-      throw new Error("Campaign not initialized. Please try again.");
+      throw new Error(
+        "Campaign SSRI instance not initialized. " +
+        "This typically happens when the campaign failed to load from the blockchain. " +
+        "Please refresh the page and ensure you have the correct campaign type ID."
+      );
     }
 
     if (!this.protocolCell) {
       throw new Error(
-        "Protocol cell not found. Campaign Cell must be tied to a protocol cell."
+        "Protocol cell not found. Campaign cells must be tied to a protocol cell. " +
+        "Please ensure the protocol is deployed and the protocol cell is loaded before creating or updating campaigns."
       );
     }
 
@@ -124,7 +135,11 @@ export class CampaignAdminService {
       }
 
       if (!updateTx) {
-        throw new Error("Failed to get transaction from SSRI updateCampaign");
+        throw new Error(
+          "Failed to generate transaction from SSRI updateCampaign method. " +
+          "This may be due to invalid campaign data or SSRI server issues. " +
+          "Please check the campaign data format and try again."
+        );
       }
 
       // Add UDT funding if provided
@@ -142,7 +157,10 @@ export class CampaignAdminService {
         const campaignLockCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignLock") || "0x" + "00".repeat(32);
         
         if (!campaignTypeCodeHash) {
-          throw new Error("Campaign type contract not deployed");
+          throw new Error(
+            `Campaign type contract not deployed on ${network} network. ` +
+            "Please deploy the contracts first using the deployment manager."
+          );
         }
         
         // Create funding service
@@ -182,12 +200,19 @@ export class CampaignAdminService {
         // Get the campaign owner's lock from the transaction outputs
         const campaignOutput = updateTx.outputs.find(output => output.type?.codeHash.slice(0, 32) === this.campaignTypeCodeHash.slice(0, 32));
         if (!campaignOutput) {
-          throw new Error("Campaign output not found in transaction");
+          throw new Error(
+            "Campaign output not found in transaction. " +
+            "The transaction structure may be invalid. " +
+            `Expected campaign type code hash: ${this.campaignTypeCodeHash.slice(0, 10)}...`
+          );
         }
 
         const campaignTypeHash = campaignOutput.type?.hash();
         if (!campaignTypeHash) {
-          throw new Error("Campaign type hash not found");
+          throw new Error(
+            "Campaign type hash not found in the campaign output. " +
+            "The campaign cell may not have a proper type script attached."
+          );
         }
 
         const campaignLock = ccc.Script.from({
@@ -293,13 +318,19 @@ export class CampaignAdminService {
     // Fetch the campaign to get quest details
     const campaignCell = await this.fetchCampaignByTypeId(campaignTypeId);
     if (!campaignCell) {
-      throw new Error("Campaign not found");
+      throw new Error(
+        `Campaign not found with type ID: ${campaignTypeId}. ` +
+        "The campaign may have been deleted or the type ID may be incorrect."
+      );
     }
 
     // Parse campaign data
     const campaignData = this.parseCampaignData(campaignCell);
     if (!campaignData) {
-      throw new Error("Failed to parse campaign data");
+      throw new Error(
+        `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
+        "The cell data may be corrupted or in an unexpected format."
+      );
     }
 
     // Fetch all user cells
@@ -479,7 +510,10 @@ export class CampaignAdminService {
       });
 
       if (!campaignCell) {
-        throw new Error("Campaign not found");
+        throw new Error(
+        `Campaign not found with type ID: ${campaignTypeId}. ` +
+        "The campaign may have been deleted or the type ID may be incorrect."
+      );
       }
 
       // Parse campaign data
@@ -488,7 +522,10 @@ export class CampaignAdminService {
       // Find the quest
       const quest = campaignData.quests.find((q) => q.quest_id === questId);
       if (!quest) {
-        throw new Error("Quest not found");
+        throw new Error(
+          `Quest with ID ${questId} not found in campaign ${campaignTypeId}. ` +
+          `Available quest IDs: ${campaignData.quests.map((q) => q.quest_id).join(", ")}`
+        );
       }
 
       // Return approved user type IDs
@@ -549,7 +586,11 @@ export class CampaignAdminService {
     }
 
     if (!this.campaign) {
-      throw new Error("Campaign not initialized. Please try again.");
+      throw new Error(
+        "Campaign SSRI instance not initialized. " +
+        "This typically happens when the campaign failed to load from the blockchain. " +
+        "Please refresh the page and ensure you have the correct campaign type ID."
+      );
     }
 
     if (userTypeIds.length === 0) {
@@ -565,12 +606,18 @@ export class CampaignAdminService {
     // Fetch the campaign to get current data
     const campaignCell = await this.fetchCampaignByTypeId(campaignTypeId);
     if (!campaignCell) {
-      throw new Error("Campaign not found");
+      throw new Error(
+        `Campaign not found with type ID: ${campaignTypeId}. ` +
+        "The campaign may have been deleted or the type ID may be incorrect."
+      );
     }
 
     const campaignData = this.parseCampaignData(campaignCell);
     if (!campaignData) {
-      throw new Error("Failed to parse campaign data");
+      throw new Error(
+        `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
+        "The cell data may be corrupted or in an unexpected format."
+      );
     }
 
     try {
@@ -645,12 +692,18 @@ export class CampaignAdminService {
   }> {
     const campaignCell = await this.fetchCampaignByTypeId(campaignTypeId);
     if (!campaignCell) {
-      throw new Error("Campaign not found");
+      throw new Error(
+        `Campaign not found with type ID: ${campaignTypeId}. ` +
+        "The campaign may have been deleted or the type ID may be incorrect."
+      );
     }
 
     const campaignData = this.parseCampaignData(campaignCell);
     if (!campaignData) {
-      throw new Error("Failed to parse campaign data");
+      throw new Error(
+        `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
+        "The cell data may be corrupted or in an unexpected format."
+      );
     }
 
     const { stats } = await this.fetchCampaignSubmissions(campaignTypeId);

@@ -1,5 +1,5 @@
 // CKBoost-specific cell classifier creation using ckb_deterministic library
-use crate::{error::Error, protocol_data};
+use crate::{error::Error};
 use alloc::{format, string::String, vec::Vec};
 pub use ckb_deterministic::cell_classifier::{
     CellClass, CellCollector, CellInfo, ClassificationRule, ClassifiedCells, RuleBasedClassifier,

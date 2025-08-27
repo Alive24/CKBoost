@@ -26,7 +26,7 @@ import { CampaignData } from "ssri-ckboost/types"
 import { fetchCampaignByTypeId } from "@/lib/ckb/campaign-cells"
 import { debug } from "@/lib/utils/debug"
 import { CampaignAdminService } from "@/lib/services/campaign-admin-service"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { Campaign } from "ssri-ckboost"
 import { ssri } from "@ckb-ccc/connector-react"
 import { deploymentManager } from "@/lib/ckb/deployment-manager"
@@ -95,7 +95,7 @@ export default function CampaignAdminPage() {
   // Quest form management
   const [isAddingQuest, setIsAddingQuest] = useState(false)
   const [editingQuestIndex, setEditingQuestIndex] = useState<number | null>(null)
-  const [questForm, setQuestForm] = useState<QuestDataLike>({
+  const [questForm, setQuestForm] = useState<QuestDataLike & { initial_quota: number }>({
     quest_id: 1,
     metadata: {
       title: "",
@@ -112,7 +112,7 @@ export default function CampaignAdminPage() {
     status: 0,
     sub_tasks: [],
     completion_count: 0,
-    max_completions: 0
+    initial_quota: 10
   })
 
   // Helper functions
@@ -261,7 +261,6 @@ export default function CampaignAdminPage() {
             status: quest.status,
             sub_tasks: quest.sub_tasks || [],
             completion_count: quest.completion_count,
-            max_completions: quest.max_completions
           }))
         : [] // Explicitly return empty array
 
@@ -415,7 +414,7 @@ export default function CampaignAdminPage() {
           const fundingInfo = Array.from(initialFunding.entries())
             .map(([scriptHash, amount]) => {
               const token = udtRegistry.getTokenByScriptHash(scriptHash)
-              return token ? `${udtRegistry.formatAmount(amount, token.symbol)} ${token.symbol}` : `${amount.toString()} tokens`
+              return token ? `${udtRegistry.formatAmount(Number(amount), token)}` : `${amount.toString()} tokens`
             })
             .join(", ")
           
@@ -552,7 +551,7 @@ export default function CampaignAdminPage() {
       status: 0,
       sub_tasks: [],
       completion_count: 0,
-      max_completions: 0
+      initial_quota: 10
     })
     setIsAddingQuest(false)
   }
@@ -561,7 +560,10 @@ export default function CampaignAdminPage() {
     const quest = localQuests[questIndex]
     if (!quest) return
     
-    setQuestForm(quest)
+    setQuestForm({
+      ...quest,
+      initial_quota: 10
+    })
     setEditingQuestIndex(questIndex)
     setIsAddingQuest(true)
   }
@@ -595,7 +597,7 @@ export default function CampaignAdminPage() {
       status: 0,
       sub_tasks: [],
       completion_count: 0,
-      max_completions: 0
+      initial_quota: 10
     })
   }
 
@@ -831,6 +833,7 @@ export default function CampaignAdminPage() {
                   quests={localQuests}
                   signer={signer}
                   onFundingChange={setInitialFunding}
+                  initialQuota={localQuests.map((q: QuestDataLike & { initial_quota?: number }) => q.initial_quota || 10)}
                 />
               </div>
             </TabsContent>
@@ -897,7 +900,7 @@ export default function CampaignAdminPage() {
               status: 0,
               sub_tasks: [],
               completion_count: 0,
-              max_completions: 0
+              initial_quota: 10
             })
           }
         }}

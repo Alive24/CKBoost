@@ -4,7 +4,6 @@ pub mod helper {
     use ckb_deterministic::debug_trace;
     use ckb_deterministic::errors::Error as DeterministicError;
     use ckb_std::ckb_constants::Source;
-    use ckb_std::debug;
     use ckb_std::high_level::{load_cell_data, load_cell_type_hash};
     use ckboost_shared::types::protocol::ProtocolDataReader;
     use molecule::prelude::Reader;

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Trophy, Edit, Trash2, Coins } from "lucide-react"
 import type { QuestDataLike, QuestSubTaskDataLike } from "ssri-ckboost/types"
 import { udtRegistry } from "@/lib/services/udt-registry"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 
 interface QuestCardProps {
   quest: QuestDataLike
@@ -96,7 +96,7 @@ export function QuestCard({ quest, index, onEdit, onDelete, showActions = true }
                 const token = udtRegistry.getTokenByScriptHash(scriptHash)
                 
                 if (token) {
-                  const formattedAmount = udtRegistry.formatAmount(udt.amount, token)
+                  const formattedAmount = udtRegistry.formatAmount(Number(udt.amount), token)
                   return (
                     <div key={idx} className="flex items-center gap-2 text-sm">
                       <Badge variant="secondary" className="font-mono">
@@ -117,11 +117,6 @@ export function QuestCard({ quest, index, onEdit, onDelete, showActions = true }
                 }
               })}
             </div>
-            {quest.max_completions && Number(quest.max_completions) > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Max completions: {Number(quest.max_completions)}
-              </p>
-            )}
           </div>
         )}
       </CardContent>

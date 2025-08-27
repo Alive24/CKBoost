@@ -12,7 +12,6 @@ use ckboost_shared::types::ConnectedTypeID;
 use ckboost_shared::Error;
 use ckb_ssri_std::utils::should_fallback;
 use ckb_ssri_std_proc_macro::ssri_methods;
-use ckb_std::debug;
 use ckb_std::syscalls::{pipe, write};
 use molecule::prelude::Entity;
 

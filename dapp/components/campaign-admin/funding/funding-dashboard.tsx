@@ -12,7 +12,7 @@ import {
   Users,
   Trophy
 } from "lucide-react";
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import type { QuestDataLike, CampaignDataLike } from "ssri-ckboost/types";
 import { udtRegistry } from "@/lib/services/udt-registry";
 import { cn } from "@/lib/utils";
@@ -29,12 +29,14 @@ interface FundingStatus {
 
 interface FundingDashboardProps {
   campaign: CampaignDataLike;
+  initialQuotas: ccc.Num[];
   lockedUDTs: Map<string, bigint>; // UDT script hash -> amount
   className?: string;
 }
 
 export function FundingDashboard({
   campaign,
+  initialQuotas,
   lockedUDTs,
   className
 }: FundingDashboardProps) {
@@ -44,25 +46,20 @@ export function FundingDashboard({
     const tokenQuests = new Map<string, QuestDataLike[]>();
     
     // Aggregate UDT requirements across all quests
-    campaign.quests?.forEach(quest => {
+    campaign.quests?.forEach((quest, index) => {
       quest.rewards_on_completion?.forEach(reward => {
         reward.udt_assets?.forEach(asset => {
           const script = ccc.Script.from(asset.udt_script);
           const scriptHash = script.hash();
           
-          const currentRequired = tokenRequirements.get(scriptHash) || 0n;
-          const maxCompletions = quest.max_completions ? Number(quest.max_completions) : 0;
+          const initialQuota = initialQuotas[index] ? initialQuotas[index] : 0n;
           
-          if (maxCompletions > 0) {
             // Limited completions - calculate exact requirement
             tokenRequirements.set(
               scriptHash,
-              currentRequired + (asset.amount * BigInt(maxCompletions))
+              BigInt((Number(asset.amount) * Number(initialQuota)))
             );
-          } else {
-            // Unlimited completions - just track that it's needed
-            tokenRequirements.set(scriptHash, currentRequired);
-          }
+
           
           // Track which quests use this token
           const quests = tokenQuests.get(scriptHash) || [];
@@ -95,7 +92,7 @@ export function FundingDashboard({
           const tokenReward = rewards.find(r => 
             ccc.Script.from(r.udt_script).hash() === scriptHash
           );
-          return sum + (tokenReward?.amount || 0n);
+          return sum + (BigInt(Number(tokenReward?.amount)) || 0n);
         }, 0n) / BigInt(Math.max(quests.length, 1));
         
         if (avgRewardPerCompletion > 0n) {
@@ -135,12 +132,10 @@ export function FundingDashboard({
     if (!hasUDTRewards) return true; // No UDT rewards = considered funded
     
     return quest.rewards_on_completion?.every(reward =>
-      reward.udt_assets?.every(asset => {
+      reward.udt_assets?.every((asset, index) => {
         const scriptHash = ccc.Script.from(asset.udt_script).hash();
         const locked = lockedUDTs.get(scriptHash) || 0n;
-        const required = quest.max_completions 
-          ? asset.amount * BigInt(quest.max_completions)
-          : asset.amount * 100n; // Assume 100 completions for unlimited
+        const required = BigInt(Number(asset.amount) * Number(initialQuotas[index]));
         return locked >= required;
       })
     );

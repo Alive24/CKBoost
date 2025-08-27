@@ -1,17 +1,15 @@
 // cspell:ignore celldeps udts
 pub use crate::generated::ckboost::{ProtocolData, ScriptCodeHashes, Byte32, Byte32Vec, ScriptVec, Script};
 use crate::Error;
-use ckb_deterministic::{debug_trace, known_scripts::{self, get_script_info}};
+use ckb_deterministic::debug_trace;
 use ckb_std::{
-    debug, 
-    high_level::{load_cell_data, load_cell_type, load_cell_type_hash, load_script, decode_hex},
+    high_level::{load_cell_data, load_cell_type, load_cell_type_hash, load_script},
     ckb_constants::Source,
     ckb_types::prelude::*,
 };
 use ckb_ssri_std::utils::high_level::{find_cell_data_by_out_point, find_out_point_by_type};
 use molecule::prelude::*;
 use alloc::vec::Vec;
-use alloc::ffi::CString;
 
 /// Extension trait for ProtocolData with helper methods for cell classification
 pub trait ProtocolDataExt {

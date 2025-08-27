@@ -185,8 +185,6 @@ pub mod submit_quest {
             // TODO: Implement submission validation
             // 1. Verify campaign exists and is active
             // 2. Verify quest exists in campaign
-            // 3. Check user hasn't already submitted for this quest
-            // 4. Validate submission content format
             Ok(())
         }
     }

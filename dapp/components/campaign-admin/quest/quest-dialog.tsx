@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Plus, Trash2, Sparkles, Lock } from "lucide-react"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import type { QuestDataLike, QuestSubTaskDataLike } from "ssri-ckboost/types"
 import { UDTSelector } from "./udt-selector"
 import { UDTToken, udtRegistry } from "@/lib/services/udt-registry"
@@ -16,8 +16,8 @@ import { useProtocol } from "@/lib/providers/protocol-provider"
 interface QuestDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  questForm: QuestDataLike
-  onQuestFormChange: (quest: QuestDataLike) => void
+  questForm: QuestDataLike & { initial_quota: number }
+  onQuestFormChange: (quest: QuestDataLike & { initial_quota: number }) => void
   onSave: () => void
   editMode: boolean
   localQuestsLength: number
@@ -53,7 +53,8 @@ export function QuestDialog({
           type: "technical",
           proof_required: ""
         }
-      ]
+      ],
+      initial_quota: 10
     })
   }
 
@@ -70,14 +71,16 @@ export function QuestDialog({
           type: "technical",
           proof_required: "Screenshot or link to completed work"
         }
-      ]
+      ],
+      initial_quota: 10
     })
   }
 
   const handleRemoveSubtask = (index: number) => {
     onQuestFormChange({
       ...questForm,
-      sub_tasks: questForm.sub_tasks.filter((_, i) => i !== index)
+      sub_tasks: questForm.sub_tasks.filter((_, i) => i !== index),
+      initial_quota: 10
     })
   }
 
@@ -99,7 +102,7 @@ export function QuestDialog({
         )
         return {
           token,
-          amount: token ? udtRegistry.formatAmount(asset.amount, token) : asset.amount.toString()
+          amount: token ? udtRegistry.formatAmount(Number(asset.amount), token) : asset.amount.toString()
         }
       })
       setUdtRewards(rewards)
@@ -130,7 +133,7 @@ export function QuestDialog({
           ckb_amount: 0,
           nft_assets: [],
           udt_assets: []
-        }]
+        }],
       })
     }
   }
@@ -155,7 +158,8 @@ export function QuestDialog({
     
     onQuestFormChange({
       ...questForm,
-      rewards_on_completion: updatedRewards
+      rewards_on_completion: updatedRewards,
+      initial_quota: 10
     })
   }
 
@@ -187,7 +191,8 @@ export function QuestDialog({
     
     onQuestFormChange({
       ...questForm,
-      rewards_on_completion: updatedRewards
+      rewards_on_completion: updatedRewards,
+      initial_quota: 10
     })
   }
 
@@ -225,7 +230,7 @@ export function QuestDialog({
         }
       ],
       completion_count: 0,
-      max_completions: 0
+      initial_quota: 10
     })
   }
 
@@ -262,7 +267,7 @@ export function QuestDialog({
                 metadata: { 
                   ...questForm.metadata, 
                   title: e.target.value 
-                } 
+                },
               })}
               placeholder="Enter quest title"
             />
@@ -279,7 +284,7 @@ export function QuestDialog({
                 metadata: { 
                   ...questForm.metadata, 
                   short_description: e.target.value 
-                } 
+                },
               })}
               placeholder="Brief description for quest cards"
             />
@@ -296,7 +301,7 @@ export function QuestDialog({
                 metadata: { 
                   ...questForm.metadata, 
                   long_description: e.target.value 
-                } 
+                },
               })}
               placeholder="Detailed instructions and requirements"
             />
@@ -323,7 +328,7 @@ export function QuestDialog({
                   metadata: { 
                     ...questForm.metadata, 
                     difficulty: parseInt(e.target.value) 
-                  } 
+                  },
                 })}
               >
                 <option value={1}>Easy</option>
@@ -342,7 +347,7 @@ export function QuestDialog({
                   metadata: { 
                     ...questForm.metadata, 
                     time_estimate: parseInt(e.target.value) || 30 
-                  } 
+                  },
                 })}
               />
             </div>
@@ -359,7 +364,7 @@ export function QuestDialog({
                 metadata: { 
                   ...questForm.metadata, 
                   requirements: e.target.value 
-                } 
+                },
               })}
               placeholder="What participants need to complete this quest"
             />
@@ -385,7 +390,6 @@ export function QuestDialog({
               </Button>
             </div>
             
-            {console.log("Current udtRewards:", udtRewards)}
             {udtRewards.length > 0 && (
               <div className="space-y-3">
                 {udtRewards.map((reward, index) => (
@@ -420,16 +424,23 @@ export function QuestDialog({
             {udtRewards.length > 0 && (
               <div className="space-y-3">
                 <div>
-                  <Label htmlFor="maxCompletions">Max Completions (0 = unlimited)</Label>
+                  <Label htmlFor="initialQuota">Initial Quota</Label>
                   <Input
-                    id="maxCompletions"
+                    id="initialQuota"
                     type="number"
-                    value={Number(questForm.max_completions) || 0}
-                    onChange={(e) => onQuestFormChange({ ...questForm, max_completions: parseInt(e.target.value) || 0 })}
-                    placeholder="0 for unlimited, or set a maximum number"
+                    min="1"
+                    step="1"
+                    value={Number(questForm.initial_quota) || 10}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 10
+                      // Only allow positive integers, default to 10
+                      const sanitizedValue = Math.max(1, Math.floor(value))
+                      onQuestFormChange({ ...questForm, initial_quota: sanitizedValue })
+                    }}
+                    placeholder="Enter initial quota (minimum 1, default 10)"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Limits the number of users who can claim UDT rewards. Useful for limited reward pools.
+                    The initial quota of reward completions (minimum 1, default 10). Can be further funded.
                   </p>
                 </div>
                 

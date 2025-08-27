@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { UDTToken, udtRegistry } from "@/lib/services/udt-registry";
 import { useUDTBalance } from "@/hooks/use-udt-balance";
 import { Label } from "@/components/ui/label";
@@ -81,21 +81,23 @@ export function UDTSelector({
     }
 
     try {
-      const parsedAmount = udtRegistry.parseAmount(amountStr, token);
+      const amountNumber = Number(amountStr);
+      const amountNumberFixed = Number(amountNumber.toFixed(token.decimals));
+      const rawAmount = BigInt(amountNumberFixed * 10 ** token.decimals);
       
-      if (parsedAmount <= 0n) {
+      if (rawAmount <= 0n) {
         setAmountError("Amount must be greater than 0");
         return;
       }
 
-      if (showBalance && signer && balance.raw < parsedAmount) {
+      if (showBalance && signer && balance.raw < rawAmount) {
         setAmountError(`Insufficient balance. Available: ${balance.formatted} ${token.symbol}`);
         return;
       }
 
       setAmountError(null);
     } catch (error) {
-      setAmountError("Invalid amount format");
+      setAmountError(`Invalid amount format: ${error}`);
     }
   };
 
@@ -205,11 +207,6 @@ export function UDTSelector({
       {selectedToken && (
         <div className="text-xs text-muted-foreground space-y-1">
           <div>Decimals: {selectedToken.decimals}</div>
-          {amount && !amountError && (
-            <div>
-              Raw amount: {udtRegistry.parseAmount(amount, selectedToken).toString()}
-            </div>
-          )}
         </div>
       )}
     </div>

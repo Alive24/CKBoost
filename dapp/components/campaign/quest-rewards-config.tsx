@@ -1,6 +1,6 @@
 /* eslint-disable react/no-unescaped-entities */
 import React from "react";
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,16 +14,16 @@ import { UDTAssetLike, AssetListLike } from "ssri-ckboost/types";
 interface QuestRewardsConfigProps {
   rewards: AssetListLike;
   onChange: (rewards: AssetListLike) => void;
-  maxCompletions?: number;
-  onMaxCompletionsChange?: (max: number) => void;
+  initialQuota?: number;
+  onInitialQuotaChange?: (initialQuota: number) => void;
   acceptedUDTScripts?: ccc.ScriptLike[];
 }
 
 export function QuestRewardsConfig({
   rewards,
   onChange,
-  maxCompletions = 0,
-  onMaxCompletionsChange,
+  initialQuota = 0,
+  onInitialQuotaChange,
   acceptedUDTScripts = []
 }: QuestRewardsConfigProps) {
   const handlePointsChange = (points: string) => {
@@ -73,8 +73,8 @@ export function QuestRewardsConfig({
   };
 
   const calculateTotalRequired = (udtAsset: UDTAssetLike): bigint => {
-    if (maxCompletions === 0) return BigInt(0);
-    return ccc.numFrom(udtAsset.amount) * BigInt(maxCompletions);
+    if (initialQuota === 0) return BigInt(0);
+    return ccc.numFrom(udtAsset.amount) * BigInt(initialQuota);
   };
 
   return (
@@ -86,19 +86,19 @@ export function QuestRewardsConfig({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Max Completions */}
-        {onMaxCompletionsChange && (
+        {/* Initial Quota */}
+        {onInitialQuotaChange && (
           <div className="space-y-2">
-            <Label htmlFor="maxCompletions" className="flex items-center gap-2">
+            <Label htmlFor="initialQuota" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
-              Maximum Completions
+              Initial Quota
             </Label>
             <Input
-              id="maxCompletions"
+              id="initialQuota"
               type="number"
               min="0"
-              value={maxCompletions}
-              onChange={(e) => onMaxCompletionsChange(parseInt(e.target.value) || 0)}
+              value={initialQuota}
+              onChange={(e) => onInitialQuotaChange(parseInt(e.target.value) || 0)}
               placeholder="0 (unlimited)"
             />
             <p className="text-xs text-muted-foreground">
@@ -206,7 +206,7 @@ export function QuestRewardsConfig({
                             />
                           </div>
 
-                          {maxCompletions > 0 && (
+                          {initialQuota > 0 && (
                             <div className="bg-muted p-2 rounded text-xs">
                               <p className="font-medium">Total Required:</p>
                               <p className="font-mono">{calculateTotalRequired(udtAsset).toString()} units</p>
@@ -232,7 +232,7 @@ export function QuestRewardsConfig({
                   Add UDT Reward
                 </Button>
 
-                {rewards.udt_assets && rewards.udt_assets.length > 0 && maxCompletions > 0 && (
+                {rewards.udt_assets && rewards.udt_assets.length > 0 && initialQuota > 0 && (
                   <Alert>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>

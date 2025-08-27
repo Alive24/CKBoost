@@ -700,10 +700,32 @@ The quest submission system enables users to submit quest completions to their o
 - **Type Script Args**: Always validate and parse args as ConnectedTypeID for campaign/user cells, standard type_id for protocol cell
 
 ### SSRI Method Patterns
-- **Transaction Building**: All SSRI methods accept `Option<Transaction>` to enable composition
-- **Return Transactions**: Methods return complete `Transaction` objects, not just builders
-- **Validation Methods**: Each action method has corresponding `verify_` method for Type Script validation
-- **Recipe Pattern**: Use transaction recipes for witness data and validation rules
+
+#### SSRI Architecture Understanding
+SSRI (Smart contract State Rent Interface) separates transaction building from validation:
+
+1. **SSRI Methods (Off-chain in SSRI-VM)**:
+   - Methods like `create_campaign`, `submit_quest`, `update_user`
+   - Run in SSRI-VM to help dApp build valid transactions
+   - Accept `Option<Transaction>` to enable composition
+   - Return complete `Transaction` objects with proper inputs/outputs
+   - Do NOT perform validation - only construct transactions
+   - Located in `src/modules.rs` files implementing the SSRI trait
+
+2. **Verify Methods (On-chain in Contract)**:
+   - Methods like `verify_create_campaign`, `verify_submit_quest`, `verify_update_user`
+   - Run on-chain in the actual contract (Type Script)
+   - Validate the transaction according to business rules defined in recipes
+   - Use Recipe Pattern for validation rules (`src/recipes.rs`)
+   - Called from `src/fallback.rs` when matching method paths
+   - Return success/error based on validation
+
+#### Key Points:
+- **Transaction Building**: SSRI methods build transactions off-chain in SSRI-VM
+- **Validation**: Verify methods validate transactions on-chain in contracts
+- **Separation of Concerns**: Building (off-chain) vs Validation (on-chain)
+- **Recipe Pattern**: Validation rules defined in recipes are used by verify methods
+- **No Double Validation**: SSRI methods don't validate because validation happens on-chain
 
 
 ### dApp Service Layer Architecture

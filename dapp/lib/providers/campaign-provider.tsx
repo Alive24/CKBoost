@@ -12,8 +12,9 @@ import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { CampaignService } from "../services/campaign-service";
 import { Campaign } from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
-import { fetchCampaignByTypeId, extractTypeIdFromCampaignCell } from "../ckb/campaign-cells";
+import { fetchCampaignByTypeId } from "../ckb/campaign-cells";
 import { debug } from "../utils/debug";
+import { formatSSRIError } from "../utils/ssri-error-handler";
 import { useProtocol } from "./protocol-provider";
 
 // Types for campaign provider
@@ -113,9 +114,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
           setCampaigns(allCampaigns);
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Failed to load campaigns"
-        );
+        const errorMessage = formatSSRIError({
+          operation: "loading campaigns",
+          context: { protocolAvailable: !!protocolData },
+          originalError: err
+        });
+        setError(errorMessage);
+        debug.error("Failed to load campaigns:", err);
       } finally {
         setIsLoading(false);
       }

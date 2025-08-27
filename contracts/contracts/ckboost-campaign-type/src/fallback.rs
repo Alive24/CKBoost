@@ -7,7 +7,6 @@ use ckboost_shared::{
     error::Error,
     transaction_context::create_transaction_context,
 };
-use ckb_std::debug;
 
 use crate::{modules::CKBoostCampaignType, ssri::CKBoostCampaign};
 

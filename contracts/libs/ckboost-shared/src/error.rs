@@ -172,8 +172,6 @@ impl From<Utf8Error> for Error {
 
 impl From<ckb_deterministic::errors::Error> for Error {
     fn from(err: ckb_deterministic::errors::Error) -> Self {
-        use ckb_std::debug;
-        
         let mapped_error = match err {
             ckb_deterministic::errors::Error::IndexOutOfBound => Error::IndexOutOfBound,
             ckb_deterministic::errors::Error::ItemMissing => Error::ItemMissing,

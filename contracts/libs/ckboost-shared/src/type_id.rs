@@ -4,7 +4,6 @@ use blake2b_ref::Blake2bBuilder;
 use ckb_deterministic::debug_trace;
 use ckb_std::{
     ckb_constants::Source,
-    debug,
     error::SysError,
     high_level::{load_cell_type_hash, load_input, load_script, load_script_hash},
     syscalls::load_cell,

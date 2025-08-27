@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 
 interface InitialFundingProps {
   quests: QuestDataLike[]
+  initialQuota: ccc.NumLike[]
   signer: ccc.Signer | undefined
   onFundingChange?: (funding: Map<string, bigint>) => void
 }
@@ -24,7 +25,7 @@ interface FundingItem {
   scriptHash?: string
 }
 
-export function InitialFunding({ quests, signer, onFundingChange }: InitialFundingProps) {
+export function InitialFunding({ quests, initialQuota, signer, onFundingChange }: InitialFundingProps) {
   const [fundingItems, setFundingItems] = useState<FundingItem[]>([])
   const [showCalculator, setShowCalculator] = useState(false)
 
@@ -41,16 +42,18 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
           
           if (token) {
             const existing = fundingMap.get(scriptHash)
-            const maxCompletions = quest.max_completions ? Number(quest.max_completions) : 100 // Default to 100 for unlimited
-            const requiredAmount = asset.amount * BigInt(maxCompletions)
+            // Use the quest's initial_quota if available, otherwise use value from initialQuota array, default to 10
+            const quotaValue = initialQuota[questIndex] ?? (quest as QuestDataLike & { initial_quota?: number }).initial_quota ?? 10
+            const quota = Math.max(1, Math.floor(Number(quotaValue) || 10)) // Ensure positive integer, default to 10
+            const requiredAmount = Number(asset.amount) * quota
             
             if (existing) {
-              existing.required += requiredAmount
+              existing.required += BigInt(requiredAmount)
               existing.quests.push(questIndex + 1)
             } else {
               fundingMap.set(scriptHash, {
                 token,
-                required: requiredAmount,
+                required: BigInt(requiredAmount),
                 quests: [questIndex + 1]
               })
             }
@@ -60,7 +63,7 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
     })
     
     return fundingMap
-  }, [quests])
+  }, [initialQuota, quests])
 
   // Calculate total funding provided
   const providedFunding = useMemo(() => {
@@ -68,7 +71,9 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
     
     fundingItems.forEach(item => {
       if (item.token && item.amount && item.scriptHash) {
-        const amount = udtRegistry.parseAmount(item.amount, item.token)
+        const amountNumber = Number(item.amount);
+        const amountNumberFixed = Number(amountNumber.toFixed(item.token.decimals));
+        const amount = BigInt(amountNumberFixed * 10 ** item.token.decimals);
         const existing = fundingMap.get(item.scriptHash) || BigInt(0)
         fundingMap.set(item.scriptHash, existing + amount)
       }
@@ -103,12 +108,12 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
       const required = requiredFunding.get(scriptHash)
       if (required) {
         try {
-          const inputAmount = udtRegistry.parseAmount(value.amount, value.token)
+          const inputAmount = ccc.udtBalanceFrom(value.amount)
           
           // Calculate total provided for this token from other items
           const otherProvided = fundingItems.reduce((sum, item, i) => {
             if (i !== index && item.scriptHash === scriptHash && item.amount) {
-              return sum + udtRegistry.parseAmount(item.amount, value.token)
+              return sum + ccc.udtBalanceFrom(item.amount)
             }
             return sum
           }, BigInt(0))
@@ -122,7 +127,7 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
             // Set to max allowed amount
             value.amount = udtRegistry.formatAmount(maxAllowed, value.token)
           }
-        } catch (e) {
+        } catch {
           // Invalid amount format, let it be handled by the selector
         }
       }
@@ -224,7 +229,7 @@ export function InitialFunding({ quests, signer, onFundingChange }: InitialFundi
             </Button>
           </CardTitle>
           <CardDescription>
-            Based on quest rewards and max completions
+            Based on quest rewards and initial quota
           </CardDescription>
         </CardHeader>
         {showCalculator && (

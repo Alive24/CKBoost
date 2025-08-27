@@ -43,7 +43,7 @@ export const UDTAsset = mol.table({
 });
 export const UDTAssetVec = mol.vector(UDTAsset);
 export const AssetList = mol.table({
-  points_amount: mol.Uint64,
+  points_amount: mol.Uint128,
   ckb_amount: mol.Uint64,
   nft_assets: mol.vector(ccc.Script),
   udt_assets: UDTAssetVec
@@ -73,9 +73,8 @@ export const QuestData = mol.table({
   completion_deadline: mol.Uint64,
   status: mol.Uint8,
   sub_tasks: QuestSubTaskDataVec,
-  points: mol.Uint32,
-  completion_count: mol.Uint32,
-  max_completions: mol.Uint32
+  points: mol.Uint128,
+  completion_count: mol.Uint32
 });
 export const QuestDataVec = mol.vector(QuestData);
 export const EndorserInfo = mol.table({
@@ -166,7 +165,7 @@ export const UserSubmissionRecord = mol.table({
 export const UserSubmissionRecordVec = mol.vector(UserSubmissionRecord);
 export const UserData = mol.table({
   verification_data: UserVerificationData,
-  total_points_earned: mol.Uint32,
+  total_points_earned: mol.Uint128,
   last_activity_timestamp: mol.Uint64,
   submission_records: UserSubmissionRecordVec
 });
@@ -254,7 +253,6 @@ export interface QuestDataLike {
   sub_tasks: QuestSubTaskDataLike[];
   points: ccc.NumLike;
   completion_count: ccc.NumLike;
-  max_completions: ccc.NumLike;
 }
 
 export interface EndorserInfoLike {
