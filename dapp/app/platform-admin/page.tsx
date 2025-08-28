@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { fetchCampaignsConnectedToProtocol, extractTypeIdFromCampaignCell } from "@/lib/ckb/campaign-cells"
 import { CampaignData } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"

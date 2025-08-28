@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, ExternalLink, Eye, Clock, RefreshCcw, AlertCircle } from "lucide-react"
 import { useUser } from "@/lib/providers/user-provider"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { debug } from "@/lib/utils/debug"
 import { NostrSubmissionData, isNostrSubmissionData } from "@/types/submission"
 

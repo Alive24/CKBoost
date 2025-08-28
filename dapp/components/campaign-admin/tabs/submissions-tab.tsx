@@ -10,7 +10,7 @@ import { CampaignDataLike, UserSubmissionRecordLike, UserDataLike } from "ssri-c
 import { SubmissionList } from "../submissions/submission-list"
 import { SubmissionStatsCards } from "../submissions/submission-stats-cards"
 import { debug } from "@/lib/utils/debug"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 
 interface SubmissionsTabProps {
   campaignTypeId: ccc.Hex

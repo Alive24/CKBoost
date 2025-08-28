@@ -1,8 +1,7 @@
 // Protocol Service - High-level protocol operations
 // This service provides high-level protocol operations by delegating to the cell layer
 
-import { ccc } from "@ckb-ccc/core";
-import { ssri } from "@ckb-ccc/ssri";
+import { ccc, ssri } from "@ckb-ccc/connector-react";
 import {
   type ProtocolDataLike,
   CampaignDataLike,

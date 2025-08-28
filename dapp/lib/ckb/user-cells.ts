@@ -1,4 +1,4 @@
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { ckboost } from "ssri-ckboost";
 
 /**
@@ -292,8 +292,9 @@ export function parseUserData(cell: ccc.Cell): ReturnType<typeof ckboost.types.U
   try {
     const rawData = cell.outputData;
     return ckboost.types.UserData.decode(rawData);
-  } catch (error) {
-    console.error("Failed to parse user data:", error);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn("Failed to parse user data (skipping cell):", message);
     return null;
   }
 }

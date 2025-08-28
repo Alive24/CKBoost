@@ -1,9 +1,8 @@
 // Protocol Cell Deployment - Deploy new protocol cell to CKB blockchain
 // This file handles deploying a new protocol cell when none exists
 
-import { ccc } from "@ckb-ccc/core";
+import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { Protocol } from "ssri-ckboost";
-import { ssri } from "@ckb-ccc/ssri";
 import {
   deploymentManager,
   DeploymentRecord,

@@ -8,7 +8,6 @@ const DEFAULT_RELAYS = [
   'wss://relay.damus.io',     // Most reliable
   'wss://nos.lol',             // Good uptime  
   'wss://relay.nostr.band',    // Comprehensive
-  'wss://nostr.oxtr.dev',      // Alternative
   'wss://relay.primal.net',    // Primal relay
 ];
 

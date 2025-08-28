@@ -7,7 +7,6 @@ const DEFAULT_NOSTR_RELAYS = [
   "wss://relay.nostr.band",
   "wss://purplerelay.com", 
   "wss://relay.nostr.net",
-  "wss://nostr.oxtr.dev",
   "wss://relay.damus.io",
 ];
 

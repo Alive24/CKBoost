@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import { ckboost } from "ssri-ckboost";
 import { UserService } from "../services/user-service";
 import { useProtocol } from "./protocol-provider";

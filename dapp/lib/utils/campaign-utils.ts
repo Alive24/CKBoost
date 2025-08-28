@@ -1,7 +1,7 @@
 // Campaign utility functions
 // These work with UI representations of campaigns
 
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import type { CampaignDataLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
 import { CampaignData, ConnectedTypeID } from "ssri-ckboost/types"
 import { 

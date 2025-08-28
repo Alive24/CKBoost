@@ -1,8 +1,8 @@
 // CKB Blockchain Integration - Campaign Cell Operations
 // This file contains functions to interact with CKB blockchain for campaign data
 
-import { ccc } from "@ckb-ccc/core"
-import { cccA } from "@ckb-ccc/core/advanced";
+import { ccc } from "@ckb-ccc/connector-react"
+import { cccA } from "@ckb-ccc/connector-react/advanced";
 import type { UserSubmissionRecordLike, ConnectedTypeIDLike } from "ssri-ckboost/types"
 import { ConnectedTypeID } from "ssri-ckboost/types"
 import { debug } from "@/lib/utils/debug"

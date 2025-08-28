@@ -3,7 +3,7 @@
  * Provides automatic retry with correct fees when minimum fee errors occur
  */
 
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 
 /**
  * Parse the required fee from a PoolRejectedTransactionByMinFeeRate error message

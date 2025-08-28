@@ -23,7 +23,7 @@ import {
   Play
 } from "lucide-react"
 import Link from "next/link"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"

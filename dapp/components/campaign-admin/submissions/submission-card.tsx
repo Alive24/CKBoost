@@ -18,7 +18,6 @@ import {
 import { UserSubmissionRecordLike, UserDataLike } from "ssri-ckboost/types"
 import { SubmissionReviewModal } from "./submission-review-modal"
 import { formatDateConsistent } from "@/lib/utils/debug"
-import { ccc } from "@ckb-ccc/core"
 
 interface SubmissionCardProps {
   submission: UserSubmissionRecordLike & { userTypeId: string }

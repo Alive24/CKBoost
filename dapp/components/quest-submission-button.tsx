@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { CheckCircle, Play, Send, Upload, AlertCircle, Loader2, UserPlus } from "lucide-react"
 import { useUser } from "@/lib/providers/user-provider"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { ckboost } from "ssri-ckboost"
 import { debug } from "@/lib/utils/debug"
 

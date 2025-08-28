@@ -2,7 +2,7 @@
 // This file provides utility functions to work with ssri-ckboost types
 // Use the Like types from ssri-ckboost/types directly in your components
 
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import type { 
   CampaignDataLike, 
   QuestDataLike, 

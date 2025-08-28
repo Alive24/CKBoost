@@ -33,7 +33,6 @@ export class CampaignAdminService {
     _protocolTypeHash: ccc.Hex, // Keep in constructor for potential future use
     campaignTypeCodeHash: ccc.Hex,
     protocolCell: ccc.Cell | null,
-    campaignOutPoint: ccc.OutPointLike,
     campaign?: Campaign | null
   ) {
     this.signer = signer;
@@ -43,6 +42,50 @@ export class CampaignAdminService {
     this.protocolCell = protocolCell;
     // campaignOutPoint is kept for backward compatibility but not stored
     this.campaign = campaign || null;
+  }
+
+  // ============ Public Getters ============
+  
+  /**
+   * Get the current signer
+   */
+  public getSigner(): ccc.Signer {
+    return this.signer;
+  }
+
+  /**
+   * Get the protocol cell
+   */
+  public getProtocolCell(): ccc.Cell | null {
+    return this.protocolCell;
+  }
+
+  /**
+   * Get the campaign type code hash
+   */
+  public getCampaignTypeCodeHash(): ccc.Hex {
+    return this.campaignTypeCodeHash;
+  }
+
+  /**
+   * Get the user type code hash
+   */
+  public getUserTypeCodeHash(): ccc.Hex {
+    return this.userTypeCodeHash;
+  }
+
+  /**
+   * Set the campaign instance
+   */
+  public setCampaign(campaign: Campaign | null): void {
+    this.campaign = campaign;
+  }
+
+  /**
+   * Get the campaign instance
+   */
+  public getCampaign(): Campaign | null {
+    return this.campaign;
   }
 
   // ============ Helper Methods ============

@@ -196,6 +196,41 @@ deploy_contract() {
     
     echo -e "\n${YELLOW}Deploying ${CONTRACT_NAME}...${NC}"
     
+    # Check if the specific binary exists
+    if [ ! -f "$CONTRACT_PATH" ]; then
+        echo -e "${RED}Error: Binary not found at ${CONTRACT_PATH}${NC}"
+        echo -e "${YELLOW}Would you like to build the contracts now? (y/n)${NC}"
+        read -r response
+        
+        case "$response" in
+            [yY][eE][sS]|[yY])
+                echo -e "${GREEN}Building contracts...${NC}"
+                cd contracts
+                make build
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}Error: Build failed!${NC}"
+                    echo "Please resolve the build errors and try again."
+                    exit 1
+                fi
+                cd ..
+                
+                # Check again after building
+                if [ ! -f "$CONTRACT_PATH" ]; then
+                    echo -e "${RED}Error: Binary still not found after build at ${CONTRACT_PATH}${NC}"
+                    echo "Please check the build configuration."
+                    exit 1
+                fi
+                echo -e "${GREEN}✓ Contract binary built successfully${NC}"
+                ;;
+            *)
+                echo -e "${RED}Error: Cannot deploy without binary.${NC}"
+                echo "Please build the contracts first by running:"
+                echo "  cd contracts && make build"
+                exit 1
+                ;;
+        esac
+    fi
+    
     # Build command with correct syntax
     local CMD="ccc-deploy deploy generic_contract ${CONTRACT_PATH} --network=${NETWORK}"
     
@@ -240,16 +275,69 @@ deploy_contract() {
     fi
 }
 
+# Function to check if contract binaries exist
+check_contract_binaries() {
+    local BINARIES_MISSING=false
+    local MISSING_BINARIES=""
+    
+    for contract in "protocol-type" "protocol-lock" "campaign-type" "campaign-lock" "user-type" "points-udt"; do
+        local binary_path="contracts/build/release/ckboost-${contract}"
+        if [ ! -f "$binary_path" ]; then
+            BINARIES_MISSING=true
+            MISSING_BINARIES="${MISSING_BINARIES}  - ckboost-${contract}\n"
+        fi
+    done
+    
+    if [ "$BINARIES_MISSING" = true ]; then
+        echo -e "${YELLOW}Warning: Contract binaries not found!${NC}"
+        echo -e "Missing binaries:"
+        echo -e "${MISSING_BINARIES}"
+        echo -e "${YELLOW}Would you like to build the contracts now? (y/n)${NC}"
+        read -r response
+        
+        case "$response" in
+            [yY][eE][sS]|[yY])
+                echo -e "${GREEN}Building contracts...${NC}"
+                cd contracts
+                make build
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}Error: Build failed!${NC}"
+                    echo "Please resolve the build errors and try again."
+                    exit 1
+                fi
+                cd ..
+                echo -e "${GREEN}✓ Contracts built successfully${NC}"
+                ;;
+            *)
+                echo -e "${RED}Error: Cannot proceed without contract binaries.${NC}"
+                echo "Please build the contracts first by running:"
+                echo "  cd contracts && make build"
+                exit 1
+                ;;
+        esac
+    else
+        echo -e "${GREEN}✓ All contract binaries found${NC}"
+    fi
+}
+
 # Deploy contracts
 cd contracts
 
-# Build contracts if not already built
+# Check if build directory exists but might be empty or incomplete
 if [ ! -d "build/release" ]; then
-    echo -e "${YELLOW}Building contracts...${NC}"
+    echo -e "${YELLOW}Build directory not found. Creating and building contracts...${NC}"
     make build
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error: Build failed!${NC}"
+        echo "Please resolve the build errors and try again."
+        exit 1
+    fi
 fi
 
 cd ..
+
+# Check if all required binaries exist
+check_contract_binaries
 
 # Define contract configurations using functions instead of associative arrays
 # This approach is compatible with older bash versions

@@ -1,7 +1,7 @@
 // User Service - Abstracts user data operations and quest submissions
 // This service provides high-level user operations by delegating to the cell layer
 
-import { ccc } from "@ckb-ccc/core";
+import { ccc, ssri } from "@ckb-ccc/connector-react";
 import { ckboost } from "ssri-ckboost";
 import { 
   fetchUserByTypeId,
@@ -498,7 +498,6 @@ export class UserService {
 
     // Create executor for SSRI operations
     const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
-    const { ssri } = await import("@ckb-ccc/ssri");
     const executor = new ssri.ExecutorJsonRpc(executorUrl);
     
     // Create User instance with correct script args and executor
@@ -615,7 +614,6 @@ export class UserService {
     
     // Create executor for SSRI operations
     const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
-    const { ssri } = await import("@ckb-ccc/ssri");
     const executor = new ssri.ExecutorJsonRpc(executorUrl);
     
     // Create User instance with empty args (signals creation) and executor

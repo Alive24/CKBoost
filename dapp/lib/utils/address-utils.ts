@@ -1,4 +1,4 @@
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 
 /**
  * Convert a CKB address to a lock hash

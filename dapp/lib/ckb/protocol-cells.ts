@@ -1,7 +1,7 @@
 // CKB Protocol Cells - Blockchain data integration
 // This file handles fetching protocol data from CKB blockchain
 
-import { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/connector-react";
 import {
   ProtocolTransaction,
 } from "../types/protocol";

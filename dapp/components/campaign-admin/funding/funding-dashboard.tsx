@@ -29,7 +29,7 @@ interface FundingStatus {
 
 interface FundingDashboardProps {
   campaign: CampaignDataLike;
-  initialQuotas: ccc.Num[];
+  initialQuotas: ccc.NumLike[];
   lockedUDTs: Map<string, bigint>; // UDT script hash -> amount
   className?: string;
 }
