@@ -16,7 +16,15 @@ members = [
 ]
 
 [profile.release]
-overflow-checks = true
-strip = false
-codegen-units = 1
-debug = true
+opt-level = "s"          # Optimize for size (use "s" instead of "z" to avoid LLVM bug)
+lto = true              # Enable Link Time Optimization (this helps a lot with size)
+codegen-units = 1       # Single codegen unit for better optimization
+strip = false           # Keep symbols for debugging
+panic = "abort"         # Smaller panic handler
+overflow-checks = true  # Keep overflow checks for safety during debugging
+debug = true            # Keep debug info for debugging
+
+# Apply size optimizations to all dependencies
+[profile.release.package."*"]
+opt-level = "s"         # Optimize dependencies for size
+codegen-units = 1       # Better optimization for dependencies too

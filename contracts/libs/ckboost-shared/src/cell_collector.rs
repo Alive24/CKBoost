@@ -1,10 +1,10 @@
 // CKBoost-specific cell classifier creation using ckb_deterministic library
-use crate::{error::Error};
+use crate::error::Error;
 use alloc::{format, string::String, vec::Vec};
 pub use ckb_deterministic::cell_classifier::{
     CellClass, CellCollector, CellInfo, ClassificationRule, ClassifiedCells, RuleBasedClassifier,
 };
-use ckb_deterministic::{debug_trace, known_scripts::KnownScript};
+use ckb_deterministic::{cell_classifier::ScriptType, debug_trace};
 use ckb_std::ckb_types::{packed::{Byte32, Bytes, Script}, prelude::*};
 use molecule::prelude::{Entity, Builder};
 
@@ -17,11 +17,16 @@ pub fn create_ckboost_classifier(
 
     let accepted_udt_type_script = data.accepted_udt_type_scripts();
 
+    // Get known script info
+    let xudt_info = crate::known_script::get_known_script("xudt");
+    let spore_info = crate::known_script::get_known_script("spore");
+    let type_id_info = crate::known_script::get_known_script("type_id");
+
     // Start with a basic classifier
     let mut classifier = RuleBasedClassifier::new("CKBoostClassifier")
-        .add_known_script(KnownScript::XUdt, KnownScript::XUdt.cell_class())
-        .add_known_script(KnownScript::Spore, KnownScript::Spore.cell_class())
-        .add_known_script(KnownScript::TypeId, KnownScript::TypeId.cell_class())
+        .add_known_script(String::from("xudt"), xudt_info.code_hash, xudt_info.hash_type, ScriptType::Type, CellClass::custom("xudt"))
+        .add_known_script(String::from("spore"), spore_info.code_hash, spore_info.hash_type, ScriptType::Type, CellClass::custom("spore"))
+        .add_known_script(String::from("type_id"), type_id_info.code_hash, type_id_info.hash_type, ScriptType::Type, CellClass::custom("type_id"))
         .add_type_code_hash(data.protocol_type_code_hash(), CellClass::custom("protocol"))
         .add_type_code_hash(data.campaign_type_code_hash(), CellClass::custom("campaign"))
         .add_type_code_hash(data.user_type_code_hash(), CellClass::custom("user"))

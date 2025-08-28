@@ -15,9 +15,23 @@ use crate::{modules::CKBoostCampaignType, ssri::CKBoostCampaign};
 pub fn fallback() -> Result<(), Error> {
     debug_trace!("CKBoost Campaign Type: Starting fallback validation");
     
-    let context = create_transaction_context()?;
+    debug_trace!("Creating transaction context");
+    let context = match create_transaction_context() {
+        Ok(ctx) => {
+            debug_trace!("Transaction context created successfully");
+            ctx
+        },
+        Err(e) => {
+            debug_trace!("ERROR: Failed to create transaction context: {:?}", e);
+            return Err(e);
+        }
+    };
     
-    let result = match context.recipe.method_path_bytes().as_slice() {
+    debug_trace!("Getting recipe method path");
+    let method_path = context.recipe.method_path_bytes();
+    debug_trace!("Method path: {:?}", core::str::from_utf8(&method_path).unwrap_or("<invalid UTF-8>"));
+    
+    let result = match method_path.as_slice() {
         b"CKBoostCampaign.update_campaign" => {
             debug_trace!("Executing verify_update_campaign");
             let verify_result = CKBoostCampaignType::verify_update_campaign(&context);
@@ -31,7 +45,7 @@ pub fn fallback() -> Result<(), Error> {
             verify_result
         }
         _ => {
-            debug_trace!("No matching validation rules found for method path");
+            debug_trace!("No matching validation rules found for method path: {:?}", core::str::from_utf8(&method_path).unwrap_or("<invalid UTF-8>"));
             Err(Error::SSRIMethodsNotImplemented)
         }
     };

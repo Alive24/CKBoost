@@ -32,11 +32,29 @@ impl CKBoostCampaign for CKBoostCampaignType {
         campaign_data: CampaignData,
     ) -> Result<Transaction, Error> {
         debug_trace!("CKBoostCampaignType::update_campaign - Starting campaign update");
+        debug_info!("Input transaction present: {}", tx.is_some());
+        
+        // Log transaction details if present
+        if let Some(ref transaction) = tx {
+            debug_info!("Transaction inputs count: {}", transaction.raw().inputs().len());
+            debug_info!("Transaction outputs count: {}", transaction.raw().outputs().len());
+            debug_info!("Transaction witnesses count: {}", transaction.witnesses().len());
+        }
+        
+        debug_info!("Campaign data size: {} bytes", campaign_data.as_bytes().len());
+        debug_info!("Campaign quests count: {}", campaign_data.quests().len());
 
         // Initialize transaction builders
+        debug_trace!("Initializing transaction builders");
         let tx_builder = match tx {
-            Some(ref tx) => tx.clone().as_builder(),
-            None => TransactionBuilder::default(),
+            Some(ref tx) => {
+                debug_info!("Using existing transaction as base");
+                tx.clone().as_builder()
+            },
+            None => {
+                debug_info!("Creating new transaction builder");
+                TransactionBuilder::default()
+            },
         };
         let raw_tx_builder = match tx {
             Some(ref tx) => tx.clone().raw().as_builder(),
@@ -65,12 +83,30 @@ impl CKBoostCampaign for CKBoostCampaignType {
         };
 
         // Get context script and parse ConnectedTypeID from args
-        let current_script = load_script()?;
-        debug_info!("current_script: {:?}", current_script);
+        debug_trace!("Loading current script");
+        debug_info!("About to call load_script()");
+        let current_script = match load_script() {
+            Ok(script) => {
+                debug_trace!("Script loaded successfully");
+                debug_info!("Script code_hash: {}", &script.code_hash());
+                debug_info!("Script args: {}", script.args());
+                script
+            },
+            Err(e) => {
+                debug_info!("ERROR loading script: error code = {:?}", e);
+                debug_info!("This typically means the SSRI VM context is not properly set");
+                return Err(e.into());
+            }
+        };
 
         let args = current_script.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
-            .map_err(|_| Error::InvalidConnectedTypeId);
+        let args_data = args.raw_data();
+        debug_info!("Parsing ConnectedTypeID from {} bytes", args_data.len());
+        let connected_type_id = ConnectedTypeID::from_slice(&args_data)
+            .map_err(|e| {
+                debug_info!("ERROR parsing ConnectedTypeID: {:?}", e);
+                Error::InvalidConnectedTypeId
+            });
 
         // Track the index where the campaign cell will be in the inputs
         let campaign_input_index: usize;
@@ -90,7 +126,12 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 let _connected_key = connected_type_id.connected_key();
 
                 // Try to find existing campaign cell with this type ID
-                let campaign_outpoint = find_out_point_by_type(current_script.clone())?;
+                debug_trace!("Finding campaign cell by type");
+                let campaign_outpoint = find_out_point_by_type(current_script.clone()).map_err(|e| {
+                    debug_info!("ERROR finding campaign cell: {:?}", e);
+                    e
+                })?;
+                debug_info!("Found campaign at index: {}", campaign_outpoint.index());
 
                 // The campaign cell will be added at the current end of inputs
                 campaign_input_index = tx.as_ref().map(|t| t.raw().inputs().len()).unwrap_or(0);
@@ -102,8 +143,13 @@ impl CKBoostCampaign for CKBoostCampaignType {
                 cell_input_vec_builder = cell_input_vec_builder.push(campaign_input);
 
                 // Get the current campaign cell to preserve lock script
+                debug_trace!("Loading campaign cell data");
                 let current_campaign_cell = find_cell_by_out_point(campaign_outpoint)
-                    .map_err(|_| Error::CampaignCellNotFound)?;
+                    .map_err(|e| {
+                        debug_info!("ERROR loading campaign cell: {:?}", e);
+                        Error::CampaignCellNotFound
+                    })?;
+                debug_info!("Campaign cell loaded, capacity: {}", current_campaign_cell.capacity().unpack());
 
                 // Track that we're adding a campaign output at the current output count
                 campaign_output_index =
@@ -193,8 +239,14 @@ impl CKBoostCampaign for CKBoostCampaignType {
         }
 
         // Serialize and add updated campaign data
+        debug_trace!("Serializing campaign data");
         let campaign_data_bytes = campaign_data.as_bytes();
+        debug_info!("Serialized size: {} bytes", campaign_data_bytes.len());
+        if campaign_data_bytes.len() > 100000 {
+            debug_info!("WARNING: Large campaign data size!");
+        }
         outputs_data_builder = outputs_data_builder.push(campaign_data_bytes.pack());
+        debug_trace!("Campaign data added to outputs");
 
         // Create the recipe witness using ckb_deterministic's helper function
         let output_data_index = tx
@@ -299,23 +351,50 @@ impl CKBoostCampaign for CKBoostCampaignType {
         };
 
         // Build the complete transaction
-        Ok(tx_builder
+        debug_trace!("Building final transaction");
+        
+        let cell_deps = cell_dep_vec_builder.build();
+        let inputs = cell_input_vec_builder.build();
+        let outputs = cell_output_vec_builder.build();
+        let outputs_data = outputs_data_builder.build();
+        let witnesses = witnesses_builder.build();
+        
+        debug_info!("Final transaction structure:");
+        debug_info!("  inputs: {}", inputs.len());
+        debug_info!("  outputs: {}", outputs.len());
+        debug_info!("  outputs_data: {}", outputs_data.len());
+        debug_info!("  cell_deps: {}", cell_deps.len());
+        debug_info!("  witnesses: {}", witnesses.len());
+        
+        let total_data_size: usize = (0..outputs_data.len())
+            .map(|i| outputs_data.get(i).unwrap().len())
+            .sum();
+        debug_info!("Total outputs_data size: {} bytes", total_data_size);
+        if total_data_size > 500000 {
+            debug_info!("WARNING: Very large total data size!");
+        }
+        
+        let result = tx_builder
             .raw(
                 raw_tx_builder
                     .version(tx.clone().map(|t| t.raw().version()).unwrap_or_default())
-                    .cell_deps(cell_dep_vec_builder.build())
+                    .cell_deps(cell_deps)
                     .header_deps(
                         tx.clone()
                             .map(|t| t.raw().header_deps())
                             .unwrap_or_else(|| Byte32Vec::default()),
                     )
-                    .inputs(cell_input_vec_builder.build())
-                    .outputs(cell_output_vec_builder.build())
-                    .outputs_data(outputs_data_builder.build())
+                    .inputs(inputs)
+                    .outputs(outputs)
+                    .outputs_data(outputs_data)
                     .build(),
             )
-            .witnesses(witnesses_builder.build())
-            .build())
+            .witnesses(witnesses)
+            .build();
+            
+        debug_info!("Transaction built successfully");
+        debug_trace!("update_campaign completed");
+        Ok(result)
     }
 
     fn verify_update_campaign(

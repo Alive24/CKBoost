@@ -36,8 +36,13 @@ pub trait ProtocolDataExt {
                 
                 // Parse the args as ConnectedTypeID to get the connected_key
                 use crate::generated::ckboost::ConnectedTypeID;
-                match ConnectedTypeID::from_slice(&args.raw_data()) {
+                let args_data = args.raw_data();
+                debug_trace!("Attempting to parse ConnectedTypeID from {} bytes", args_data.len());
+                debug_trace!("First 16 bytes of args: {:02x?}", &args_data[..core::cmp::min(16, args_data.len())]);
+                
+                match ConnectedTypeID::from_slice(&args_data) {
                     Ok(connected_type_id) => {
+                        debug_trace!("Successfully parsed ConnectedTypeID");
                         let connected_hash = connected_type_id.connected_key();
                         debug_trace!("Looking for protocol cell with type hash: {:?}", connected_hash);
                         
@@ -89,13 +94,14 @@ pub trait ProtocolDataExt {
                     }
                     Err(e) => {
                         debug_trace!("Failed to parse args as ConnectedTypeID: {:?}", e);
+                        debug_trace!("This might be a protocol cell or invalid ConnectedTypeID format");
                         
                         // Fallback: Check outputs for protocol creation scenario
                         debug_trace!("Checking outputs for protocol creation scenario");
                         
                         // Check outputs for cells with the same code hash as current script
                         let current_code_hash: [u8; 32] = current_script.code_hash().unpack();
-                        debug_trace!("Current script code hash: {:?}", current_code_hash);
+                        debug_trace!("Current script code hash: {:02x?}", &current_code_hash[..8]);
                         
                         // Check outputs for cells with the same code hash and try to parse as ProtocolData
                         // This handles both creation and update scenarios since only protocol manager can unlock protocol cells
@@ -104,6 +110,7 @@ pub trait ProtocolDataExt {
                         // Using manual index control to avoid QueryIter issues
                         let mut index = 0;
                         loop {
+                            debug_trace!("Checking output at index {}", index);
                             match load_cell_type(index, Source::Output) {
                                 Ok(type_script_opt) => match type_script_opt {
                                     Some(type_script) => {

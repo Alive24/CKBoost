@@ -77,11 +77,39 @@ impl CKBoostUser for CKBoostUserType {
         };
 
         // Get context script and try to parse ConnectedTypeID from args
-        let current_script = load_script()?;
-        debug_trace!("current_script: {:?}", current_script);
+        debug_trace!("About to call load_script()");
+        let current_script = match load_script() {
+            Ok(script) => {
+                debug_trace!("load_script() succeeded");
+                script
+            },
+            Err(e) => {
+                debug_trace!("ERROR: load_script() failed with error: {:?}", e);
+                return Err(e.into());
+            }
+        };
+        debug_trace!("current_script loaded successfully");
 
+        debug_trace!("Getting script args");
         let args = current_script.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data());
+        debug_trace!("Args obtained, length: {} bytes", args.len());
+        
+        debug_trace!("Getting raw args data");
+        let args_data = args.raw_data();
+        debug_trace!("Raw args data obtained, length: {} bytes", args_data.len());
+        
+        debug_trace!("Parsing ConnectedTypeID from args data");
+        let connected_type_id = match ConnectedTypeID::from_slice(&args_data) {
+            Ok(id) => {
+                debug_trace!("ConnectedTypeID parsed successfully");
+                Ok(id)
+            },
+            Err(e) => {
+                debug_trace!("ERROR: Failed to parse ConnectedTypeID: {:?}", e);
+                Err(e)
+            }
+        };
+        debug_trace!("ConnectedTypeID parsing completed");
         
         // Track input index for witness placement
         let user_input_index;

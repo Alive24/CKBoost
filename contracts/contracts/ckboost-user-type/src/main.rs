@@ -71,7 +71,7 @@ fn program_entry_wrap() -> Result<(), Error> {
             // Parse user_data from molecule serialized bytes (argv[2])
             let user_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
             let user_data = ckboost_shared::types::UserData::from_slice(&user_data_bytes)
-                .map_err(|_| Error::InvalidCampaignData)?;
+                .map_err(|_| Error::InvalidUserData)?;
             
             // Call the submit_quest method and return the transaction
             let result_tx = crate::modules::CKBoostUserType::submit_quest(tx, user_data)?;

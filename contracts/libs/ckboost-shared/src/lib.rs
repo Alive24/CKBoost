@@ -11,6 +11,7 @@ pub mod ssri;
 pub mod cell_collector;
 pub mod protocol_data;
 pub mod transaction_context;
+pub mod known_script;
 
 // Re-export error types at crate root
 pub use error::*;

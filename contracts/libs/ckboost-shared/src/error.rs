@@ -91,6 +91,9 @@ pub enum Error {
     ProtocolCellNotFound,
     ProtocolDataInvalid,
     ProtocolDataNotLoaded,
+
+    // User Validation errors
+    InvalidUserData,
     
     // Operation errors
     CampaignNotFound,

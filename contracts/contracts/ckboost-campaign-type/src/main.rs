@@ -35,17 +35,45 @@ fn program_entry_wrap() -> Result<(), Error> {
     let argv = ckb_std::env::argv();
 
     if should_fallback()? {
+        debug_trace!("Should fallback!");
         // # Validation Rules
         // 
         // 1. **Type ID mechanism**: Ensures the campaign cell uses the correct type ID
-        let args = load_script()?.args();
-        debug_info!("args: {:?}", args);
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data()).map_err(|_| Error::InvalidConnectedTypeId)?;
-        debug_info!("connected_type_id: {:?}", connected_type_id);
+        debug_trace!("Loading script for validation");
+        let script = load_script()?;
+        debug_trace!("Script loaded successfully");
+        
+        let args = script.args();
+        let args_raw = args.raw_data();
+        debug_info!("Script args length: {} bytes", args_raw.len());
+        debug_info!("Script args hex: {:02x?}", &args_raw[..core::cmp::min(64, args_raw.len())]);
+        
+        // ConnectedTypeID should be exactly 64 bytes (32 bytes type_id + 32 bytes connected_key)
+        if args_raw.len() != 76 {
+            debug_info!("ERROR: Invalid args length for ConnectedTypeID. Expected 76, got {}", args_raw.len());
+            return Err(Error::InvalidConnectedTypeId);
+        }
+        
+        debug_trace!("Parsing ConnectedTypeID from args");
+        let connected_type_id = match ConnectedTypeID::from_slice(&args_raw) {
+            Ok(id) => {
+                debug_trace!("Successfully parsed ConnectedTypeID");
+                id
+            },
+            Err(e) => {
+                debug_info!("ERROR: Failed to parse ConnectedTypeID: {:?}", e);
+                return Err(Error::InvalidConnectedTypeId);
+            }
+        };
+        
+        debug_info!("Validating type_id");
         match validate_type_id(connected_type_id.type_id().into()) {
-            Ok(_) => fallback()?,
+            Ok(_) => {
+                debug_trace!("Type ID validation passed, calling fallback");
+                fallback()?
+            },
             Err(err) => {
-                debug_trace!("Contract execution failed with error: {:?}", err);
+                debug_trace!("Type ID validation failed with error: {:?}", err);
                 return Err(err);
             }
         }
