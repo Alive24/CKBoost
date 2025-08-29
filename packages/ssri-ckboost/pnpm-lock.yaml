@@ -14,6 +14,9 @@ importers:
       '@ckb-ccc/ssri':
         specifier: ^0.1.1
         version: 0.1.1(typescript@5.8.3)
+      '@ckb-ccc/udt':
+        specifier: ^0.1.17
+        version: 0.1.17(typescript@5.8.3)
     devDependencies:
       '@ckb-ccc/eip6963':
         specifier: ^1.0.18
@@ -220,6 +223,9 @@ packages:
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
 
+  '@ckb-ccc/core@1.11.4':
+    resolution: {integrity: sha512-pcfvqsRqWpyxOldNZ8gOhil+8Xz7oYhXUBLiR29HkgU42H74PuU++AJpDooc0GWQuIbRgsqn69TYk3mit4m0SA==}
+
   '@ckb-ccc/core@1.3.1':
     resolution: {integrity: sha512-av9d+bGsCauwr5CAckyKwmGofGeDMC7PAJPVz0weeHNYgkqIf0pbYyMMDya8NAFmwNgESptBN3skkVPo8HfdCg==}
 
@@ -231,6 +237,12 @@ packages:
 
   '@ckb-ccc/ssri@0.1.1':
     resolution: {integrity: sha512-yslvnZzscOqcExBBgaansZaKfn5sVd+QCNzWl103Re8ZKNpH+2KdQEZVMV/g4q7pFPS7Ylc33izRp/dVa4lumA==}
+
+  '@ckb-ccc/ssri@0.2.15':
+    resolution: {integrity: sha512-r9P/WAzps5drN6t+hl9Ma0xfX1jvNxhQEl28xe5AcOaFcBt/6QyKn7Dgv/nMfLpjg5kB5/oz970XQv8Xjtpt7Q==}
+
+  '@ckb-ccc/udt@0.1.17':
+    resolution: {integrity: sha512-zwRsvpFeDbzm2o5oJnyTYliF3vy2KjVY+5ks2x+fOF0n6rjd9XelEcfUj/dRBFA+E3G0QWGVasR6f1xHfTAh1Q==}
 
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
@@ -408,6 +420,10 @@ packages:
 
   '@noble/curves@1.9.4':
     resolution: {integrity: sha512-2bKONnuM53lINoDrSmK8qP8W271ms7pygDhZt4SiLOoLwBtoHqeCFi6RG42V8zd3mLHuJFhU/Bmaqo4nX0/kBw==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/curves@1.9.7':
+    resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
     engines: {node: ^14.21.3 || >=16}
 
   '@noble/hashes@1.3.2':
@@ -2134,6 +2150,26 @@ snapshots:
 
   '@bcoe/v8-coverage@0.2.3': {}
 
+  '@ckb-ccc/core@1.11.4(typescript@5.8.3)':
+    dependencies:
+      '@joyid/ckb': 1.1.2(typescript@5.8.3)
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      bech32: 2.0.0
+      bitcoinjs-message: 2.2.0
+      bs58check: 4.0.0
+      buffer: 6.0.3
+      ethers: 6.15.0
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/core@1.3.1(typescript@5.8.3)':
     dependencies:
       '@joyid/ckb': 1.1.2(typescript@5.8.3)
@@ -2191,6 +2227,27 @@ snapshots:
   '@ckb-ccc/ssri@0.1.1(typescript@5.8.3)':
     dependencies:
       '@ckb-ccc/core': 1.3.1(typescript@5.8.3)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/ssri@0.2.15(typescript@5.8.3)':
+    dependencies:
+      '@ckb-ccc/core': 1.11.4(typescript@5.8.3)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/udt@0.1.17(typescript@5.8.3)':
+    dependencies:
+      '@ckb-ccc/core': 1.11.4(typescript@5.8.3)
+      '@ckb-ccc/ssri': 0.2.15(typescript@5.8.3)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -2495,6 +2552,10 @@ snapshots:
       '@noble/hashes': 1.3.2
 
   '@noble/curves@1.9.4':
+    dependencies:
+      '@noble/hashes': 1.8.0
+
+  '@noble/curves@1.9.7':
     dependencies:
       '@noble/hashes': 1.8.0
 

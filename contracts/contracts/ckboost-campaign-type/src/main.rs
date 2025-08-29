@@ -6,7 +6,7 @@ extern crate alloc;
 
 use alloc::borrow::Cow;
 use ckb_deterministic::{debug_info, debug_trace};
-use ckb_std::high_level::load_script;
+use ckb_std::{ckb_types::packed::Byte32Vec, high_level::load_script};
 use ckboost_shared::type_id::validate_type_id;
 use ckboost_shared::types::ConnectedTypeID;
 use ckboost_shared::Error;
@@ -132,18 +132,14 @@ fn program_entry_wrap() -> Result<(), Error> {
             }
             let quest_id = u32::from_le_bytes([quest_id_bytes[0], quest_id_bytes[1], quest_id_bytes[2], quest_id_bytes[3]]);
             
-            // Parse user_type_ids from argv[4] (concatenated Byte32 values)
+            // Parse user_type_ids from argv[4]
             let user_type_ids_bytes = ckb_std::high_level::decode_hex(argv[4].as_ref())?;
-            if user_type_ids_bytes.len() % 32 != 0 {
-                return Err(Error::SSRIMethodsArgsInvalid);
-            }
             
-            let mut user_type_ids = alloc::vec::Vec::new();
-            for chunk in user_type_ids_bytes.chunks(32) {
-                let user_type_id = ckboost_shared::types::Byte32::from_slice(chunk)
-                    .map_err(|_| Error::MoleculeVerificationError)?;
-                user_type_ids.push(user_type_id);
-            }
+            let user_type_ids = Byte32Vec::from_slice(&user_type_ids_bytes)
+                .map_err(|e| {
+                    debug_trace!("Failed to parse user_type_ids from molecule serialized bytes: {:?}", e);
+                    Error::InvalidArgument
+                })?;
             
             // Call the approve_completion method and return the transaction
             let result_tx = crate::modules::CKBoostCampaignType::approve_completion(tx, campaign_data, quest_id, user_type_ids)?;

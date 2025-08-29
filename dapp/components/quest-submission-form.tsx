@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
 import { useState, useEffect } from "react"
@@ -12,7 +13,7 @@ import { MarkdownEditor } from "@/components/markdown-editor"
 import { useUser } from "@/lib/providers/user-provider"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { useNostrStorage } from "@/hooks/use-nostr-storage"
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 import { debug } from "@/lib/utils/debug"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
 import { NostrStorageModal } from "@/components/nostr-storage-modal"
@@ -699,7 +700,7 @@ Lines        : 93.84% ( 183/195 )
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => navigator.clipboard.writeText(existingSubmission.submission_content)}
+                    onClick={() => navigator.clipboard.writeText(existingSubmission.submission_content || '')}
                   >
                     Copy
                   </Button>

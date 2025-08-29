@@ -10,14 +10,10 @@ crate-type = ["rlib"]
 [build-dependencies]
 moleculec = "0.9.0"
 
-[features]
-library = []
-native-simulator = ["library", "ckb-std/native-simulator"]
-
 [dependencies]
-ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
+ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
 molecule = { version = "0.8.0", default-features = false, features = ["bytes_vec"] }
 ckb-ssri-std = { version = "0.0.1" }
 ckb-ssri-std-proc-macro = { version = "0.0.1" }
-blake2b-ref = "0.3.1"
+blake2b-ref = { version = "0.3.1", default-features = false}
 ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic" }

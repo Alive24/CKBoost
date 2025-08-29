@@ -237,6 +237,12 @@ We welcome contributions from the community! Here's how you can help:
 - [Technical Specifications](docs/ckboost-platform.prd.txt)
 - [Transaction Recipes](docs/recipes/)
 
+## Utilities
+
+### Size Analysis
+
+cargo bloat --release --target riscv64imac-unknown-none-elf --crates --package ckboost-campaign-type
+
 ## 🌐 Deployment
 
 ### Netlify Frontend

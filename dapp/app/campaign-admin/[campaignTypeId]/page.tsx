@@ -377,7 +377,6 @@ export default function CampaignAdminPage() {
         protocolTypeHash as ccc.Hex,
         campaignCodeHash as ccc.Hex,
         protocolCell,
-        campaignOutPoint,
         campaignInstance
       )
       
@@ -849,7 +848,10 @@ export default function CampaignAdminPage() {
           {/* Funding Tab */}
           {!isCreateMode && (
             <TabsContent value="funding">
-              <FundingTab campaignTypeId={campaignTypeId as ccc.Hex} />
+              <FundingTab 
+              campaignTypeId={campaignTypeId as ccc.Hex } 
+              initialQuotas={localQuests.map((q: QuestDataLike & { initial_quota?: number }) => q.initial_quota || 10)}
+              />
             </TabsContent>
           )}
 

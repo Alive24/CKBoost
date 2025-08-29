@@ -5,7 +5,7 @@ use ckb_deterministic::{
 use ckboost_shared::{
     types::{Byte32, CampaignData, UDTAsset}, Error
 };
-use ckb_std::ckb_types::packed::Transaction;
+use ckb_std::ckb_types::packed::{Byte32Vec, Transaction};
 
 /// CKBoost Campaign SSRI trait for campaign management operations
 pub trait CKBoostCampaign {
@@ -46,7 +46,7 @@ pub trait CKBoostCampaign {
         tx: Option<Transaction>,
         campaign_data: CampaignData,
         quest_id: u32,
-        user_type_ids: Vec<ckboost_shared::types::Byte32>,
+        user_type_ids: Byte32Vec,
     ) -> Result<Transaction, Error>;
     
     /// Verify quest completion approval transaction in Type Script
@@ -54,24 +54,4 @@ pub trait CKBoostCampaign {
     fn verify_approve_completion(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error>;
-    
-    /// Fund a campaign with UDT assets
-    /// Anyone can fund a campaign - funds are locked with campaign-lock
-    /// Note: We won't need to verify funding in the contract.
-    /// 
-    /// # Arguments
-    /// 
-    /// * `tx` - Optional existing transaction to build upon
-    /// * `campaign_type_id` - The type ID of the campaign to fund
-    /// * `udt_assets` - List of UDT assets to fund the campaign with
-    /// 
-    /// # Returns
-    /// 
-    /// Returns a transaction with UDT cells locked by campaign-lock
-    fn fund_campaign(
-        tx: Option<Transaction>,
-        campaign_type_id: Byte32,
-        udt_assets: Vec<UDTAsset>,
-    ) -> Result<Transaction, Error>;
-    
 }

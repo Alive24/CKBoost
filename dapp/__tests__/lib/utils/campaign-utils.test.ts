@@ -5,10 +5,10 @@ import {
   formatDate,
 } from '@/lib/utils/campaign-utils'
 import { type MockCampaignData } from '@/lib/ckb/campaign-cells'
-import { ccc } from "@ckb-ccc/core"
+import { ccc } from "@ckb-ccc/connector-react"
 
 // Helper to create a test campaign that matches the MockCampaignData structure
-function createTestCampaign(overrides?: Partial<any>): MockCampaignData {
+function createTestCampaign(overrides?: Partial<MockCampaignData>): MockCampaignData {
   const defaults = {
     id: ccc.hexFrom(ccc.bytesFrom('1', "utf8")),
     title: ccc.hexFrom(ccc.bytesFrom('Test Campaign', "utf8")),
@@ -17,10 +17,10 @@ function createTestCampaign(overrides?: Partial<any>): MockCampaignData {
     creator: {
       codeHash: "0x" + "00".repeat(32) as ccc.Hex,
       hashType: "type" as const,
-      args: "0x" + "00".repeat(20) as ccc.Hex
+      args: "0x" + "00".repeat(20)
     },
     endorser_info: {
-      endorser_lock_hash: "0x" + "00".repeat(32) as ccc.Hex,
+      endorser_lock_hash: "0x" + "00".repeat(32),
       endorser_name: ccc.hexFrom(ccc.bytesFrom('Test Endorser', "utf8")),
       endorser_description: ccc.hexFrom(ccc.bytesFrom('Test Endorser Description', "utf8")),
       website: ccc.hexFrom(ccc.bytesFrom('', "utf8")),
@@ -335,6 +335,7 @@ describe('campaign-utils', () => {
   describe('edge cases and error handling', () => {
     it('should handle null and undefined inputs gracefully', () => {
       expect(() => getDaysUntilEnd(null as any)).not.toThrow()
+      
       expect(() => getDaysUntilEnd(undefined as any)).not.toThrow()
       expect(() => formatDate(null as any)).not.toThrow()
       expect(() => formatDate(undefined as any)).not.toThrow()

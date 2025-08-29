@@ -1,9 +1,9 @@
 import { ccc } from "@ckb-ccc/core";
 import { ssri } from "@ckb-ccc/ssri";
-import { 
-  CampaignData, 
-  ConnectedTypeID, 
-  type CampaignDataLike
+import {
+  CampaignData,
+  ConnectedTypeID,
+  type CampaignDataLike,
 } from "../generated";
 
 /**
@@ -66,17 +66,21 @@ export class Campaign extends ssri.Trait {
     }
 
     // Serialize campaign data - just let the mol library handle it
-    console.log("Encoding campaign with", campaignData.quests?.length || 0, "quests");
-    
+    console.log(
+      "Encoding campaign with",
+      campaignData.quests?.length || 0,
+      "quests"
+    );
+
     // Debug: Log the campaign data structure before encoding
     console.log("Campaign data structure before encoding:", {
       hasEndorser: !!campaignData.endorser,
       hasMetadata: !!campaignData.metadata,
       questCount: campaignData.quests?.length || 0,
       rulesCount: campaignData.rules?.length || 0,
-      categoriesCount: campaignData.metadata?.categories?.length || 0
+      categoriesCount: campaignData.metadata?.categories?.length || 0,
     });
-    
+
     // Debug: Log the first quest if it exists
     if (campaignData.quests && campaignData.quests.length > 0) {
       const firstQuest = campaignData.quests[0];
@@ -86,29 +90,39 @@ export class Campaign extends ssri.Trait {
         points: firstQuest.points,
         rewardsCount: firstQuest.rewards_on_completion?.length || 0,
         subTasksCount: firstQuest.sub_tasks?.length || 0,
-        acceptedUserTypeIdsCount: firstQuest.accepted_submission_user_type_ids?.length || 0
+        acceptedUserTypeIdsCount:
+          firstQuest.accepted_submission_user_type_ids?.length || 0,
       });
     }
-    
+
     let campaignDataHex: string;
     try {
       const campaignDataBytes = CampaignData.encode(campaignData);
       campaignDataHex = ccc.hexFrom(campaignDataBytes);
-      console.log("Campaign encoded successfully, hex length:", campaignDataHex.length);
+      console.log(
+        "Campaign encoded successfully, hex length:",
+        campaignDataHex.length
+      );
       console.log("First 100 bytes of hex:", campaignDataHex.slice(0, 100));
-      
+
       // Try to decode it immediately to verify
       try {
         const decoded = CampaignData.decode(campaignDataHex);
-        console.log("Immediate decode verification successful, quest count:", decoded.quests?.length || 0);
+        console.log(
+          "Immediate decode verification successful, quest count:",
+          decoded.quests?.length || 0
+        );
       } catch (decodeErr) {
-        console.error("Failed to decode immediately after encoding:", decodeErr);
+        console.error(
+          "Failed to decode immediately after encoding:",
+          decodeErr
+        );
       }
     } catch (encodeErr) {
       console.error("Failed to encode campaign data:", encodeErr);
       throw encodeErr;
     }
-    
+
     const txHex = ccc.hexFrom(txReq.toBytes());
 
     console.log("Calling SSRI executor with:", {
@@ -145,32 +159,34 @@ export class Campaign extends ssri.Trait {
         const campaignCellOutputIndex = resTx.res.outputs.findIndex(
           (output) => output.type?.codeHash === this.script.codeHash
         );
-        
+
         if (campaignCellOutputIndex === -1) {
           throw new Error("Campaign cell output not found in transaction");
         }
 
         // Get the protocol cell type hash
-        const connectedProtocolCellTypeHash = this.connectedProtocolCell.cellOutput.type?.hash();
+        const connectedProtocolCellTypeHash =
+          this.connectedProtocolCell.cellOutput.type?.hash();
         if (!connectedProtocolCellTypeHash) {
           throw new Error("ConnectedProtocolCellTypeHash is not found");
         }
         // Create ConnectedTypeID with the protocol cell type hash
-        let campaignCellTypeArgs = resTx.res.outputs[campaignCellOutputIndex].type?.args;
+        let campaignCellTypeArgs =
+          resTx.res.outputs[campaignCellOutputIndex].type?.args;
         if (!campaignCellTypeArgs) {
-          throw new Error("campaignCellTypeArgs is empty.")
+          throw new Error("campaignCellTypeArgs is empty.");
         }
-        
+
         // Handle different type args formats
         let connectedTypeId;
         const argsBytes = ccc.bytesFrom(campaignCellTypeArgs);
-        
+
         if (argsBytes.length === 0 || campaignCellTypeArgs === "0x") {
           // Empty args - create new ConnectedTypeID with a generated type_id
           // Generate a unique type_id based on the transaction hash and output index
           const txHash = resTx.res.hash();
           const typeIdBytes = ccc.bytesFrom(txHash).slice(0, 32);
-          
+
           connectedTypeId = {
             type_id: ccc.hexFrom(typeIdBytes),
             connected_key: connectedProtocolCellTypeHash,
@@ -187,16 +203,19 @@ export class Campaign extends ssri.Trait {
           connectedTypeId = ConnectedTypeID.decode(campaignCellTypeArgs);
           connectedTypeId.connected_key = connectedProtocolCellTypeHash;
         } else {
-          throw new Error(`Invalid campaign type args length: ${argsBytes.length}. Expected 0, 32, or 76 bytes.`);
+          throw new Error(
+            `Invalid campaign type args length: ${argsBytes.length}. Expected 0, 32, or 76 bytes.`
+          );
         }
 
         // Encode ConnectedTypeID and set it as the campaign type script args
         const connectedTypeIdBytes = ConnectedTypeID.encode(connectedTypeId);
         const connectedTypeIdHex = ccc.hexFrom(connectedTypeIdBytes);
-        
+
         // Update the campaign cell's type script args with the ConnectedTypeID
         if (resTx.res.outputs[campaignCellOutputIndex].type) {
-          resTx.res.outputs[campaignCellOutputIndex].type.args = connectedTypeIdHex;
+          resTx.res.outputs[campaignCellOutputIndex].type.args =
+            connectedTypeIdHex;
         }
 
         // Add the protocol cell as a dependency
@@ -213,6 +232,105 @@ export class Campaign extends ssri.Trait {
       console.error("Error details:", JSON.stringify(error, null, 2));
       throw error;
     }
+  }
+
+  /**
+   * Find campaign-funded UDT cells for reward distribution by searching by lock script
+   * 
+   * @param signer - The signer for querying cells
+   * @param campaignTypeScript - The campaign's type script
+   * @param udtScript - The UDT script to find
+   * @returns Array of UDT cells locked by campaign
+   */
+  private async findCampaignUdtCells(
+    signer: ccc.Signer,
+    campaignTypeScript: ccc.Script,
+    udtScript: ccc.ScriptLike
+  ): Promise<ccc.Cell[]> {
+    console.log(`🔍 Searching for campaign UDT cells by lock script:`, {
+      campaignTypeScript: campaignTypeScript.codeHash.slice(0, 10) + "...",
+      udtScript: ccc.Script.from(udtScript).codeHash.slice(0, 10) + "...",
+    });
+
+    // Parse protocol data to get campaign lock code hash
+    const { ProtocolData } = await import("../generated");
+    const protocolData = ProtocolData.decode(this.connectedProtocolCell.outputData);
+    const campaignLockCodeHash = ccc.hexFrom(
+      protocolData.protocol_config.script_code_hashes.ckb_boost_campaign_lock_code_hash
+    );
+    const campaignTypeHash = campaignTypeScript.hash();
+
+    console.log(`🔑 Campaign lock details:`, {
+      campaignLockCodeHash: campaignLockCodeHash.slice(0, 10) + "...",
+      campaignTypeHash: campaignTypeHash.slice(0, 10) + "...",
+    });
+
+    // Search by campaign lock script directly - much more efficient!
+    const campaignLockScript = {
+      codeHash: campaignLockCodeHash,
+      hashType: "type" as const,
+      args: campaignTypeHash,
+    };
+
+    const campaignLockedCells = signer.client.findCells({
+      script: campaignLockScript,
+      scriptType: "lock",
+      scriptSearchMode: "exact",
+    });
+
+    const campaignUdtCells: ccc.Cell[] = [];
+    const targetUdtScript = ccc.Script.from(udtScript);
+    
+    for await (const cell of campaignLockedCells) {
+      // Filter only cells that have the specific UDT type script
+      if (
+        cell.cellOutput.type &&
+        cell.cellOutput.type.codeHash === targetUdtScript.codeHash &&
+        cell.cellOutput.type.args === targetUdtScript.args
+      ) {
+        campaignUdtCells.push(cell);
+        console.log(`✅ Found campaign UDT cell:`, {
+          outPoint: cell.outPoint,
+          capacity: cell.cellOutput.capacity.toString(),
+          udtCodeHash: cell.cellOutput.type.codeHash.slice(0, 10) + "...",
+          udtArgs: cell.cellOutput.type.args.slice(0, 10) + "...",
+        });
+      }
+    }
+
+    console.log(`📊 Campaign UDT search results:`, {
+      totalCampaignCells: "checked all campaign-locked cells",
+      matchingUdtCells: campaignUdtCells.length,
+      targetUdtCodeHash: targetUdtScript.codeHash.slice(0, 10) + "...",
+    });
+
+    if (campaignUdtCells.length === 0) {
+      console.warn(`❌ No campaign UDT cells found for UDT ${targetUdtScript.codeHash.slice(0, 10)}...`);
+    }
+
+    return campaignUdtCells;
+  }
+
+  /**
+   * Calculate total available UDT balance from campaign cells
+   * 
+   * @param campaignUdtCells - Array of campaign UDT cells
+   * @returns Total balance as bigint
+   */
+  private calculateTotalUdtBalance(campaignUdtCells: ccc.Cell[]): bigint {
+    let totalBalance = 0n;
+    
+    for (const cell of campaignUdtCells) {
+      // UDT amount is stored in the first 16 bytes of output data (Uint128)
+      const outputData = cell.outputData;
+      if (outputData.length >= 16) {
+        const amountBytes = outputData.slice(0, 16);
+        const amount = ccc.numFromBytes(amountBytes);
+        totalBalance += amount;
+      }
+    }
+    
+    return totalBalance;
   }
 
   /**
@@ -249,10 +367,9 @@ export class Campaign extends ssri.Trait {
     const campaignDataBytes = CampaignData.encode(campaignData);
     const campaignDataHex = ccc.hexFrom(campaignDataBytes);
     const questIdHex = ccc.hexFrom(ccc.numToBytes(questId, 4)); // u32
-    
-    // Convert user type IDs to hex strings (they should already be 32 bytes each)
-    // Each user type ID should be exactly 32 bytes
-    const userTypeIdsList: string[] = [];
+
+    // Convert user type IDs to Byte32Vec
+    const userTypeIdsList: ccc.HexLike[] = [];
     for (const id of userTypeIds) {
       const bytes = ccc.bytesFrom(id);
       // Ensure exactly 32 bytes
@@ -265,7 +382,10 @@ export class Campaign extends ssri.Trait {
         userTypeIdsList.push(ccc.hexFrom(bytes));
       }
     }
-    const userTypeIdsHex = userTypeIdsList.join('');
+
+    // Create Byte32Vec with proper molecule encoding
+    const byte32Vec = ccc.mol.Byte32Vec.encode(userTypeIdsList);
+    const userTypeIdsHex = ccc.hexFrom(byte32Vec);
 
     const txHex = ccc.hexFrom(txReq.toBytes());
 
@@ -290,7 +410,7 @@ export class Campaign extends ssri.Trait {
       // Parse the returned transaction
       if (res) {
         resTx = res.map((res) => ccc.Transaction.fromBytes(res));
-        
+
         // Add the campaign code cell as a dependency
         resTx.res.addCellDeps({
           outPoint: this.code,
@@ -305,16 +425,24 @@ export class Campaign extends ssri.Trait {
 
         // Parse protocol data to get Points UDT code hash
         const { ProtocolData } = await import("../generated");
-        const protocolData = ProtocolData.decode(this.connectedProtocolCell.outputData);
-        const pointsUdtCodeHash = ccc.hexFrom(protocolData.protocol_config.script_code_hashes.ckb_boost_points_udt_type_code_hash);
-        const protocolTypeHash = this.connectedProtocolCell.cellOutput.type?.hash();
+        const protocolData = ProtocolData.decode(
+          this.connectedProtocolCell.outputData
+        );
+        const pointsUdtCodeHash = ccc.hexFrom(
+          protocolData.protocol_config.script_code_hashes
+            .ckb_boost_points_udt_type_code_hash
+        );
+        const protocolTypeHash =
+          this.connectedProtocolCell.cellOutput.type?.hash();
 
         if (!protocolTypeHash) {
           throw new Error("Protocol cell missing type script");
         }
 
         // Get the quest to find points amount
-        const quest = campaignData.quests?.find(q => Number(q.quest_id) === questId);
+        const quest = campaignData.quests?.find(
+          (q) => Number(q.quest_id) === questId
+        );
         if (!quest) {
           throw new Error(`Quest ${questId} not found in campaign data`);
         }
@@ -328,14 +456,19 @@ export class Campaign extends ssri.Trait {
           pointsUdtCodeHash,
           protocolTypeHash,
           pointsAmount,
-          userCount: userTypeIds.length
+          userCount: userTypeIds.length,
         });
 
         // Get user type code hash from protocol data to find user cells
-        const userTypeCodeHash = ccc.hexFrom(protocolData.protocol_config.script_code_hashes.ckb_boost_user_type_code_hash);
+        const userTypeCodeHash = ccc.hexFrom(
+          protocolData.protocol_config.script_code_hashes
+            .ckb_boost_user_type_code_hash
+        );
 
         // First, let's see what user cells exist
-        console.log(`\n🔍 Searching for ALL user cells with type code hash: ${userTypeCodeHash}`);
+        console.log(
+          `\n🔍 Searching for ALL user cells with type code hash: ${userTypeCodeHash}`
+        );
         const allUserCells = signer.client.findCells({
           script: {
             codeHash: userTypeCodeHash,
@@ -345,7 +478,7 @@ export class Campaign extends ssri.Trait {
           scriptType: "type",
           scriptSearchMode: "prefix",
         });
-        
+
         let debugCellCount = 0;
         for await (const cell of allUserCells) {
           debugCellCount++;
@@ -362,28 +495,31 @@ export class Campaign extends ssri.Trait {
         // Create Points UDT cells for each approved user
         for (const userTypeId of userTypeIds) {
           const userTypeIdHex = ccc.hexFrom(userTypeId);
-          
+
           console.log(`\n🎯 Processing user ${userTypeIdHex.slice(0, 10)}...`);
-          console.log(`Looking for user cell with type code hash: ${userTypeCodeHash}`);
+          console.log(
+            `Looking for user cell with type code hash: ${userTypeCodeHash}`
+          );
           console.log(`User type ID to match: ${userTypeIdHex}`);
 
           const userConnectedTypeId = {
             type_id: userTypeIdHex,
             connected_key: protocolTypeHash,
-          }
+          };
           console.log("userConnectedTypeId", userConnectedTypeId);
-          
+
           // Encode the ConnectedTypeID for the search
-          const encodedConnectedTypeId = ConnectedTypeID.encode(userConnectedTypeId);
+          const encodedConnectedTypeId =
+            ConnectedTypeID.encode(userConnectedTypeId);
           const encodedConnectedTypeIdHex = ccc.hexFrom(encodedConnectedTypeId);
-          
+
           console.log(`📝 Encoded ConnectedTypeID for search:`, {
             encoded: encodedConnectedTypeIdHex,
             length: encodedConnectedTypeIdHex.length,
             typeId: userTypeIdHex,
-            connectedKey: protocolTypeHash
+            connectedKey: protocolTypeHash,
           });
-          
+
           // Find the user cell by their type_id
           // The user cell's type script args should match this exact ConnectedTypeID
           const userCells = signer.client.findCells({
@@ -400,26 +536,32 @@ export class Campaign extends ssri.Trait {
           console.log(`📊 User cell iterator result:`, {
             done: userCellResult?.done,
             hasValue: !!userCellResult?.value,
-            valueType: userCellResult?.value ? typeof userCellResult.value : 'undefined',
-            cellOutPoint: userCellResult?.value?.outPoint ? userCellResult.value.outPoint : 'no outPoint'
+            valueType: userCellResult?.value
+              ? typeof userCellResult.value
+              : "undefined",
+            cellOutPoint: userCellResult?.value?.outPoint
+              ? userCellResult.value.outPoint
+              : "no outPoint",
           });
-          
+
           // The iterator returns {done: boolean, value: Cell}
           if (!userCellResult || userCellResult.done || !userCellResult.value) {
-            console.warn(`❌ User cell not found for type ID: ${userTypeIdHex}, skipping Points minting`);
+            console.warn(
+              `❌ User cell not found for type ID: ${userTypeIdHex}, skipping Points minting`
+            );
             console.warn(`Search criteria used:`, {
               codeHash: userTypeCodeHash,
-              hashType: "type", 
+              hashType: "type",
               args: encodedConnectedTypeIdHex,
-              argsLength: encodedConnectedTypeIdHex.length
+              argsLength: encodedConnectedTypeIdHex.length,
             });
             console.warn(`Expected ConnectedTypeID structure:`, {
               typeId: userTypeIdHex,
-              connectedKey: protocolTypeHash
+              connectedKey: protocolTypeHash,
             });
             continue;
           }
-          
+
           const userCell = userCellResult.value;
 
           console.log(`Found user cell:`, {
@@ -434,7 +576,7 @@ export class Campaign extends ssri.Trait {
           const userLock = userCell.cellOutput.lock;
 
           const pointsCell = {
-            capacity: ccc.fixedPointFrom("142"), // Minimum UDT cell capacity
+            capacity: 0, // Will be set by CCC.
             lock: userLock,
             type: {
               codeHash: pointsUdtCodeHash,
@@ -443,59 +585,229 @@ export class Campaign extends ssri.Trait {
             },
           };
 
+          // Add User Cell to CellDeps
+          resTx.res.addCellDeps({
+            outPoint: userCell.outPoint,
+            depType: "code",
+          });
+
+          console.log("Added CellDep with outpoint:", userCell.outPoint);
+
           console.log(`Creating Points UDT cell:`, {
             capacity: pointsCell.capacity.toString(),
             lockCodeHash: userLock.codeHash,
             lockArgs: userLock.args,
             typeCodeHash: pointsUdtCodeHash,
             typeArgs: protocolTypeHash,
-            pointsAmount: pointsAmount
+            pointsAmount: pointsAmount,
           });
-          
+
           try {
             // Log transaction state before adding Points cell
             console.log(`📝 Transaction state before adding Points cell:`, {
               outputCount: resTx.res.outputs.length,
-              outputsDataCount: resTx.res.outputsData.length
+              outputsDataCount: resTx.res.outputsData.length,
             });
-            
+
             resTx.res.addOutput(pointsCell, ccc.numToBytes(pointsAmount, 16));
-            console.log(`✅ Successfully added Points UDT cell for user ${userTypeIdHex.slice(0, 10)}... with ${pointsAmount} points`);
-            
+            console.log(
+              `✅ Successfully added Points UDT cell for user ${userTypeIdHex.slice(0, 10)}... with ${pointsAmount} points`
+            );
+
             // Log current transaction state after adding
             console.log(`📈 Transaction after adding Points cell:`, {
               outputCount: resTx.res.outputs.length,
               outputsDataCount: resTx.res.outputsData.length,
-              lastOutputIndex: resTx.res.outputs.length - 1
+              lastOutputIndex: resTx.res.outputs.length - 1,
             });
-            
+
             const lastOutput = resTx.res.outputs[resTx.res.outputs.length - 1];
-            console.log(`🎯 Output ${resTx.res.outputs.length - 1} (Points UDT):`, {
-              capacity: lastOutput.capacity.toString(),
-              lockCodeHash: lastOutput.lock.codeHash.slice(0, 10) + "...",
-              lockArgs: lastOutput.lock.args.slice(0, 10) + "...",
-              typeCodeHash: lastOutput.type?.codeHash?.slice(0, 10) + "..." || "None",
-              typeArgs: lastOutput.type?.args?.slice(0, 10) + "..." || "None",
-            });
-            
+            console.log(
+              `🎯 Output ${resTx.res.outputs.length - 1} (Points UDT):`,
+              {
+                capacity: lastOutput.capacity.toString(),
+                lockCodeHash: lastOutput.lock.codeHash.slice(0, 10) + "...",
+                lockArgs: lastOutput.lock.args.slice(0, 10) + "...",
+                typeCodeHash:
+                  lastOutput.type?.codeHash?.slice(0, 10) + "..." || "None",
+                typeArgs: lastOutput.type?.args?.slice(0, 10) + "..." || "None",
+              }
+            );
+
             // Verify the output data was added correctly
-            const lastOutputData = resTx.res.outputsData[resTx.res.outputsData.length - 1];
+            const lastOutputData =
+              resTx.res.outputsData[resTx.res.outputsData.length - 1];
             console.log(`💾 Output data for Points UDT:`, {
               dataLength: lastOutputData.length,
-              dataHex: ccc.hexFrom(lastOutputData).slice(0, 40) + "..."
+              dataHex: ccc.hexFrom(lastOutputData).slice(0, 40) + "...",
             });
           } catch (error) {
-            console.error(`❌ Failed to add Points UDT cell for user ${userTypeIdHex}:`, error);
+            console.error(
+              `❌ Failed to add Points UDT cell for user ${userTypeIdHex}:`,
+              error
+            );
             throw error;
           }
         }
+
+        // Handle UDT reward distribution
+        console.log(`\n💰 Processing UDT rewards distribution...`);
         
+        // Get UDT rewards from quest
+        const udtRewards = quest?.rewards_on_completion?.[0]?.udt_assets || [];
+        console.log(`Found ${udtRewards.length} UDT reward types for quest ${questId}`);
+
+        for (const udtAsset of udtRewards) {
+          const udtScript = udtAsset.udt_script;
+          const amountPerUser = Number(udtAsset.amount) || 0;
+          
+          if (amountPerUser > 0) {
+            console.log(`\n🎯 Processing UDT reward:`, {
+              udtCodeHash: ccc.hexFrom(udtScript.codeHash).slice(0, 10) + "...",
+              amountPerUser,
+              userCount: userTypeIds.length,
+              totalRequired: amountPerUser * userTypeIds.length,
+            });
+
+            // Find campaign-funded UDT cells
+            const campaignUdtCells = await this.findCampaignUdtCells(
+              signer, 
+              this.script, 
+              udtScript
+            );
+
+            if (campaignUdtCells.length === 0) {
+              console.warn(`⚠️ No campaign UDT cells found for reward distribution, skipping UDT ${ccc.hexFrom(udtScript.codeHash).slice(0, 10)}...`);
+              continue;
+            }
+
+            // Calculate total available balance
+            const totalAvailable = this.calculateTotalUdtBalance(campaignUdtCells);
+            const totalRequired = BigInt(amountPerUser * userTypeIds.length);
+            
+            console.log(`💰 UDT balance check:`, {
+              totalAvailable: totalAvailable.toString(),
+              totalRequired: totalRequired.toString(),
+              sufficient: totalAvailable >= totalRequired,
+            });
+
+            if (totalAvailable < totalRequired) {
+              console.error(`❌ Insufficient UDT balance for rewards. Required: ${totalRequired}, Available: ${totalAvailable}`);
+              throw new Error(`Insufficient UDT balance for ${ccc.hexFrom(udtScript.codeHash)} rewards`);
+            }
+
+            // Add campaign UDT cells as inputs
+            let remainingToDistribute = totalRequired;
+            const inputCells: ccc.Cell[] = [];
+            
+            for (const campaignUdtCell of campaignUdtCells) {
+              if (remainingToDistribute <= 0) break;
+              
+              const cellBalance = this.calculateTotalUdtBalance([campaignUdtCell]);
+              if (cellBalance > 0) {
+                // Add as input
+                resTx.res.addInput({
+                  previousOutput: campaignUdtCell.outPoint,
+                  since: "0x0",
+                });
+                
+                inputCells.push(campaignUdtCell);
+                remainingToDistribute -= cellBalance;
+                
+                console.log(`📥 Added UDT input cell:`, {
+                  outPoint: campaignUdtCell.outPoint,
+                  balance: cellBalance.toString(),
+                  remainingToDistribute: remainingToDistribute.toString(),
+                });
+              }
+            }
+
+            // Create UDT reward outputs for each approved user
+            let rewardIndex = 0;
+            for (const userTypeId of userTypeIds) {
+              const userTypeIdHex = ccc.hexFrom(userTypeId);
+              
+              console.log(`\n🎁 Creating UDT reward for user ${userTypeIdHex.slice(0, 10)}... (${rewardIndex + 1}/${userTypeIds.length})`);
+
+              // Find user cell to get lock script (similar to Points logic)
+              const userConnectedTypeId = {
+                type_id: userTypeIdHex,
+                connected_key: protocolTypeHash,
+              };
+
+              const encodedConnectedTypeId = ConnectedTypeID.encode(userConnectedTypeId);
+              const encodedConnectedTypeIdHex = ccc.hexFrom(encodedConnectedTypeId);
+
+              const userCells = signer.client.findCells({
+                script: {
+                  codeHash: userTypeCodeHash,
+                  hashType: "type",
+                  args: encodedConnectedTypeIdHex,
+                },
+                scriptType: "type",
+                scriptSearchMode: "exact",
+              });
+
+              const userCellResult = await userCells.next();
+              if (!userCellResult || userCellResult.done || !userCellResult.value) {
+                console.warn(`❌ User cell not found for UDT reward: ${userTypeIdHex}, skipping`);
+                continue;
+              }
+
+              const userCell = userCellResult.value;
+              const userLock = userCell.cellOutput.lock;
+
+              // Create UDT reward cell for user
+              const udtRewardCell = {
+                capacity: 0, // Will be set by the SDK
+                lock: userLock,
+                type: ccc.Script.from(udtScript),
+              };
+
+              // Add user cell as dependency
+              resTx.res.addCellDeps({
+                outPoint: userCell.outPoint,
+                depType: "code",
+              });
+
+              // Add UDT reward output
+              resTx.res.addOutput(udtRewardCell, ccc.numToBytes(amountPerUser, 16));
+              
+              console.log(`✅ Created UDT reward cell:`, {
+                userTypeId: userTypeIdHex.slice(0, 10) + "...",
+                udtCodeHash: ccc.hexFrom(udtScript.codeHash).slice(0, 10) + "...",
+                amount: amountPerUser,
+                lockCodeHash: userLock.codeHash.slice(0, 10) + "...",
+              });
+
+              rewardIndex++;
+            }
+            const changeAmount = totalAvailable - totalRequired;
+
+            if (changeAmount > 0) {
+              // Use first campaign udt cell's lock for change
+              const changeLock = inputCells[0].cellOutput.lock;
+              const changeCell = {
+                capacity: 0, // Will be set by CCC
+                lock: changeLock,
+                type: ccc.Script.from(udtScript),
+              };
+
+              resTx.res.addOutput(changeCell, ccc.numToBytes(changeAmount, 16));
+            }
+
+            console.log(`✅ Completed UDT reward distribution for ${ccc.hexFrom(udtScript.codeHash).slice(0, 10)}...`);
+          } else {
+            console.log(`⏭️ Skipping UDT reward with zero amount: ${ccc.hexFrom(udtScript.codeHash).slice(0, 10)}...`);
+          }
+        }
+
         // Final transaction logging
         console.log(`🔍 Final transaction before return:`);
         console.log(`  Inputs: ${resTx.res.inputs.length}`);
         console.log(`  Outputs: ${resTx.res.outputs.length}`);
         console.log(`  OutputsData: ${resTx.res.outputsData.length}`);
-        
+
         resTx.res.outputs.forEach((output, index) => {
           console.log(`  Output ${index}:`, {
             capacity: output.capacity.toString(),
@@ -504,10 +816,13 @@ export class Campaign extends ssri.Trait {
             typeCodeHash: output.type?.codeHash?.slice(0, 10) + "..." || "None",
             typeArgs: output.type?.args?.slice(0, 10) + "..." || "None",
             hasOutputData: index < resTx.res.outputsData.length,
-            outputDataLength: index < resTx.res.outputsData.length ? resTx.res.outputsData[index].length : 0
+            outputDataLength:
+              index < resTx.res.outputsData.length
+                ? resTx.res.outputsData[index].length
+                : 0,
           });
         });
-        
+
         return resTx;
       } else {
         throw new Error("Failed to approve quest completions");

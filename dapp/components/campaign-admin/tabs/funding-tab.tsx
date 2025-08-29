@@ -21,6 +21,7 @@ import { deploymentManager } from "@/lib/ckb/deployment-manager"
 
 interface FundingTabProps {
   campaignTypeId: ccc.Hex
+  initialQuotas: ccc.NumLike[]
 }
 
 interface LockedUDT {
@@ -29,7 +30,7 @@ interface LockedUDT {
   scriptHash: string
 }
 
-export function FundingTab({ campaignTypeId }: FundingTabProps) {
+export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
   const { campaignAdminService, campaign: campaignInstance, isLoadingCampaign: isServiceLoading, error: adminError } = useCampaignAdmin(campaignTypeId)
   const signer = ccc.useSigner()
   
@@ -100,8 +101,8 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
       })
       
       // Try to load actual locked UDT amounts from campaign cells
-      let actualLockedUDTs = new Map<string, bigint>()
-      let actualLockedList: LockedUDT[] = []
+      const actualLockedUDTs = new Map<string, bigint>()
+      const actualLockedList: LockedUDT[] = []
       
       try {
         // Get code hashes
@@ -111,6 +112,9 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
         
         if (campaignTypeCodeHash && campaignLockCodeHash && campaignInstance?.connectedProtocolCell) {
           // Create funding service to check funding status
+          if (!signer) {
+            throw new Error("Signer is required for checking locked UDTs.")
+          }
           const fundingService = new FundingService(
             signer,
             campaignTypeCodeHash,
@@ -145,27 +149,6 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
         }
       } catch (error) {
         debug.log("Could not load actual locked UDTs, using mock data:", error)
-      }
-      
-      // If no actual locked UDTs found, use mock data for demo
-      if (actualLockedList.length === 0) {
-        tokens.forEach(token => {
-          const script = ccc.Script.from({
-            codeHash: token.script.codeHash,
-            hashType: token.script.hashType,
-            args: token.script.args
-          })
-          const scriptHash = script.hash()
-          
-          // Mock: Assume 1000 tokens locked for testing
-          const amount = udtRegistry.parseAmount("1000", token)
-          actualLockedUDTs.set(scriptHash, amount)
-          actualLockedList.push({
-            token,
-            amount,
-            scriptHash
-          })
-        })
       }
       
       setLockedUDTs(actualLockedUDTs)
@@ -232,6 +215,9 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
         lockCodeHash as ccc.Hex,
         protocolCell
       )
+
+      const amountNumber = Number(fundingToken.amount);
+      const rawAmount = BigInt(Number(amountNumber.toFixed(fundingToken.token.decimals)) * 10 ** fundingToken.token.decimals);
       
       // Prepare UDT asset for funding
       const udtAsset: UDTAssetLike = {
@@ -240,7 +226,7 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
           hashType: fundingToken.token.script.hashType,
           args: fundingToken.token.script.args
         },
-        amount: udtRegistry.parseAmount(fundingToken.amount, fundingToken.token)
+        amount: rawAmount
       }
       
       // Fund the campaign
@@ -356,6 +342,7 @@ export function FundingTab({ campaignTypeId }: FundingTabProps) {
       {/* Funding Dashboard */}
       <FundingDashboard
         campaign={campaignData}
+        initialQuotas={initialQuotas}
         lockedUDTs={lockedUDTs}
       />
 

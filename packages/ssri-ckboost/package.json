@@ -28,7 +28,8 @@
   },
   "dependencies": {
     "@ckb-ccc/core": "^1.3.1",
-    "@ckb-ccc/ssri": "^0.1.1"
+    "@ckb-ccc/ssri": "^0.1.1",
+    "@ckb-ccc/udt": "^0.1.17"
   },
   "devDependencies": {
     "@ckb-ccc/eip6963": "^1.0.18",

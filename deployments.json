@@ -17,12 +17,12 @@
         "typeHash": "0x8bed7ce362f1817292c0173ce9854ec359f3bca621882618d28392643f58c6c6"
       },
       "ckboostCampaignType": {
-        "transactionHash": "0xbd89c03931e652901014647c3dbfccbf1d092857022b2e41cc32e18f3807e357",
+        "transactionHash": "0x77e4e56b1905b0db6af27df9efe337e2b23781f559cb4fd2bbcc8b52f152cf45",
         "index": 0,
-        "deployedAt": "2025-08-28T18:55:47.834Z",
+        "deployedAt": "2025-08-29T19:16:49.305Z",
         "contractName": "ckboost-campaign-type",
-        "tag": "v20250829-0255",
-        "dataHash": "0xf5bb56453fe22b99a1f151542c0692a42d565725f56e07148fc696214d388259",
+        "tag": "v20250830-0316",
+        "dataHash": "0x9df391f7dac71ee12ae886d84ee6771d21a46f697b23b07c363763e1da33726c",
         "typeScript": {
           "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
           "hashType": "type",
@@ -62,12 +62,12 @@
         "typeHash": "0x0600f220b6bd9f4bdbe684196c817b4494741f7a4eff5c6e61033fa3c542431f"
       },
       "ckboostCampaignLock": {
-        "transactionHash": "0x941614cb18390f4b25ab083b5698ead13279c6bd2092347921f5a40b41d1944a",
+        "transactionHash": "0x5a6275e81a30c648e6974d4c16704b5d6c300efd15d0c91d9b7f69b3a39a245d",
         "index": 0,
-        "deployedAt": "2025-08-23T11:15:06.691Z",
+        "deployedAt": "2025-08-29T21:05:07.839Z",
         "contractName": "ckboost-campaign-lock",
-        "tag": "v20250823-1914",
-        "dataHash": "0x0f2ec82c3ed0f3259ff1fbb514a7c68cae8354af75d6966d6dda416a4f8f4e0b",
+        "tag": "v20250830-0504",
+        "dataHash": "0x7e968e38927ccf85043d948c9747200ea14db49413124ca713bb572fb4f692e9",
         "typeScript": {
           "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
           "hashType": "type",
@@ -3051,6 +3051,318 @@
         },
         "isTypeId": true,
         "typeHash": "0xc09a4479184a36f50e482241225e18767b05ebba68fc49d6ec318b5c9c4eefd1"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xdbb53d1e38bfad110c210b56aab340298a261fcfaa9197c8bc274f7dfae1d5cc",
+        "index": 0,
+        "deployedAt": "2025-08-28T21:47:40.584Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x7c77983496eed412089c2cc127c38d10d87be95ac33fbb78d2df63bae41f53a7",
+        "contractSize": 489640,
+        "tag": "v20250829-0547",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xbd89c03931e652901014647c3dbfccbf1d092857022b2e41cc32e18f3807e357",
+          "index": 0,
+          "deployedAt": "2025-08-28T18:55:47.834Z",
+          "tag": "v20250829-0255"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x4dc04ee54b66c7533570a3fe24f97f53e09652a8c7570354be9a38765b77c62c",
+        "index": 0,
+        "deployedAt": "2025-08-29T01:15:30.800Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0xb1fd118018aaf213fb28522dd091cddf6ed5113bdbf5c5ef373235980cd3800f",
+        "contractSize": 488360,
+        "tag": "v20250829-0914",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xdbb53d1e38bfad110c210b56aab340298a261fcfaa9197c8bc274f7dfae1d5cc",
+          "index": 0,
+          "deployedAt": "2025-08-28T21:47:40.584Z",
+          "tag": "v20250829-0547"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xa458fe89f7356b81cd564cd3af2c4b1cc3205481be181752b97b9476ba8d5596",
+        "index": 0,
+        "deployedAt": "2025-08-29T01:37:03.019Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x581a4143f470d68d8b84e711fe83bde04c2b9d27ef4fa516d5de3b5444543cd5",
+        "contractSize": 487152,
+        "tag": "v20250829-0936",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x4dc04ee54b66c7533570a3fe24f97f53e09652a8c7570354be9a38765b77c62c",
+          "index": 0,
+          "deployedAt": "2025-08-29T01:15:30.800Z",
+          "tag": "v20250829-0914"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xba4f075c4d0fc34ab36ec0c9b0d2f39d0f00c72b0a13d03074e7ee4af2b8eba6",
+        "index": 0,
+        "deployedAt": "2025-08-29T01:49:36.323Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0xa7f2e555a3b9ab1d0e102a16f955a161958ff73bf763a3414fcf69f8f063cfe1",
+        "contractSize": 500600,
+        "tag": "v20250829-0948",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xa458fe89f7356b81cd564cd3af2c4b1cc3205481be181752b97b9476ba8d5596",
+          "index": 0,
+          "deployedAt": "2025-08-29T01:37:03.019Z",
+          "tag": "v20250829-0936"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xff599054341c26a4fbe5cd9e67538dfcadb00f110c749ef8ee62b415fd3a916f",
+        "index": 0,
+        "deployedAt": "2025-08-29T02:08:41.864Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x42b63e8f243f0ca8020036cb692f70d0d2ca3aa6ee104714b861a7cb659fd957",
+        "contractSize": 502608,
+        "tag": "v20250829-1008",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xba4f075c4d0fc34ab36ec0c9b0d2f39d0f00c72b0a13d03074e7ee4af2b8eba6",
+          "index": 0,
+          "deployedAt": "2025-08-29T01:49:36.323Z",
+          "tag": "v20250829-0948"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x34b09fbb43d69cd6b692f03f433405b4a1506de6bbd50b825f471a598e99c021",
+        "index": 0,
+        "deployedAt": "2025-08-29T02:19:28.089Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x2f1b2d068b7a5e5f9ee0f9bc8cc8ced97765de534e493ab8f1e5e874b26bcd93",
+        "contractSize": 503984,
+        "tag": "v20250829-1018",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xff599054341c26a4fbe5cd9e67538dfcadb00f110c749ef8ee62b415fd3a916f",
+          "index": 0,
+          "deployedAt": "2025-08-29T02:08:41.864Z",
+          "tag": "v20250829-1008"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xc7119be769befbb563bb4d30be903e17803514fe70ac22e6c5f9da80f94b099e",
+        "index": 0,
+        "deployedAt": "2025-08-29T02:31:45.580Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x34c5f61c1df05165f6666d6b9865641eab6e49496269052c8854c53bbc7a035f",
+        "contractSize": 504024,
+        "tag": "v20250829-1031",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x34b09fbb43d69cd6b692f03f433405b4a1506de6bbd50b825f471a598e99c021",
+          "index": 0,
+          "deployedAt": "2025-08-29T02:19:28.089Z",
+          "tag": "v20250829-1018"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0xf330359c06c7a659c79a1b6ba6e26bc101cb65e8123ff5f475b3e99d5e33bb52",
+        "index": 0,
+        "deployedAt": "2025-08-29T16:17:07.987Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x1a9537dfe0bb527c48ba749b2f116da46ecff7be89f9f22523ddba5b129ca37a",
+        "contractSize": 503064,
+        "tag": "v20250830-0016",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xc7119be769befbb563bb4d30be903e17803514fe70ac22e6c5f9da80f94b099e",
+          "index": 0,
+          "deployedAt": "2025-08-29T02:31:45.580Z",
+          "tag": "v20250829-1031"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x70ff8662ccaca22ebac74a8f76d988f55329bd4622eb28d9196963b1bf18897c",
+        "index": 0,
+        "deployedAt": "2025-08-29T16:25:26.540Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x2dee8fe8c5c1df8896a325b9ec53ad28362536e0065c9b9853e171091a6fe190",
+        "contractSize": 505080,
+        "tag": "v20250830-0024",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xf330359c06c7a659c79a1b6ba6e26bc101cb65e8123ff5f475b3e99d5e33bb52",
+          "index": 0,
+          "deployedAt": "2025-08-29T16:17:07.987Z",
+          "tag": "v20250830-0016"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x226874c72fd9323de925b2a2695475ed6681c75881bd7b25a27a3fab2dab46fb",
+        "index": 0,
+        "deployedAt": "2025-08-29T17:40:56.555Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0xaa7a178ddd3e22a72208a1b6dd9615b5546fbe30cd4d3d323a95b3ab7876c3dc",
+        "contractSize": 509784,
+        "tag": "v20250830-0140",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x70ff8662ccaca22ebac74a8f76d988f55329bd4622eb28d9196963b1bf18897c",
+          "index": 0,
+          "deployedAt": "2025-08-29T16:25:26.540Z",
+          "tag": "v20250830-0024"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-type",
+        "transactionHash": "0x77e4e56b1905b0db6af27df9efe337e2b23781f559cb4fd2bbcc8b52f152cf45",
+        "index": 0,
+        "deployedAt": "2025-08-29T19:16:49.305Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x9df391f7dac71ee12ae886d84ee6771d21a46f697b23b07c363763e1da33726c",
+        "contractSize": 505672,
+        "tag": "v20250830-0316",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x226874c72fd9323de925b2a2695475ed6681c75881bd7b25a27a3fab2dab46fb",
+          "index": 0,
+          "deployedAt": "2025-08-29T17:40:56.555Z",
+          "tag": "v20250830-0140"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0x023d25029ef31164891caf1457dcaab63e06c5dee044b121d40138d1689fb9fc"
+        },
+        "isTypeId": true,
+        "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
+      },
+      {
+        "contractName": "ckboost-campaign-lock",
+        "transactionHash": "0x3fe0e2f80d254d6fd5ecbecc8e1db053b14a930980acfc6a02988aa63b7295b1",
+        "index": 0,
+        "deployedAt": "2025-08-29T20:59:14.643Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x38b6d6ba520f23a1780a62a0fc107d2c1e905a23933ce06eff7f1657147798de",
+        "contractSize": 63248,
+        "tag": "v20250830-0459",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x941614cb18390f4b25ab083b5698ead13279c6bd2092347921f5a40b41d1944a",
+          "index": 0,
+          "deployedAt": "2025-08-23T11:15:06.691Z",
+          "tag": "v20250823-1914"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xb6ebd45547ff3f579dd15bcad1d492f744b02341e622a806c35c3f40129279c4"
+        },
+        "isTypeId": true,
+        "typeHash": "0x82fe0732aba0da25121d0f76539d9781cfe82b3986965c7193e4f4ce0cd21e29"
+      },
+      {
+        "contractName": "ckboost-campaign-lock",
+        "transactionHash": "0x5a6275e81a30c648e6974d4c16704b5d6c300efd15d0c91d9b7f69b3a39a245d",
+        "index": 0,
+        "deployedAt": "2025-08-29T21:05:07.839Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0x7e968e38927ccf85043d948c9747200ea14db49413124ca713bb572fb4f692e9",
+        "contractSize": 62272,
+        "tag": "v20250830-0504",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0x3fe0e2f80d254d6fd5ecbecc8e1db053b14a930980acfc6a02988aa63b7295b1",
+          "index": 0,
+          "deployedAt": "2025-08-29T20:59:14.643Z",
+          "tag": "v20250830-0459"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xb6ebd45547ff3f579dd15bcad1d492f744b02341e622a806c35c3f40129279c4"
+        },
+        "isTypeId": true,
+        "typeHash": "0x82fe0732aba0da25121d0f76539d9781cfe82b3986965c7193e4f4ce0cd21e29"
       }
     ],
     "mainnet": []

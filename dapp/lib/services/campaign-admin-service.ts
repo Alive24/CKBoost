@@ -1,4 +1,4 @@
-import { ccc } from "@ckb-ccc/connector-react";
+import { ccc, udt } from "@ckb-ccc/connector-react";
 import {
   CampaignDataLike,
   CampaignData,
@@ -10,11 +10,14 @@ import {
   parseUserData,
   extractTypeIdFromUserCell,
 } from "@/lib/ckb/user-cells";
-import { fetchCampaignByTypeId as fetchCampaignCell, fetchCampaignCells } from "@/lib/ckb/campaign-cells";
+import {
+  fetchCampaignByTypeId as fetchCampaignCell,
+  fetchCampaignCells,
+} from "@/lib/ckb/campaign-cells";
 import { debug } from "@/lib/utils/debug";
 import { Campaign } from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
-
+import { udtRegistry } from "@/lib/services/udt-registry";
 
 /**
  * Comprehensive service for campaign admin operations
@@ -45,7 +48,7 @@ export class CampaignAdminService {
   }
 
   // ============ Public Getters ============
-  
+
   /**
    * Get the current signer
    */
@@ -97,7 +100,7 @@ export class CampaignAdminService {
     if (!this.protocolCell) {
       throw new Error(
         `Protocol cell is required to fetch campaign. Campaign type ID: ${campaignTypeId}. ` +
-        "Please ensure the protocol cell is loaded before attempting campaign operations."
+          "Please ensure the protocol cell is loaded before attempting campaign operations."
       );
     }
     return await fetchCampaignCell(
@@ -139,22 +142,22 @@ export class CampaignAdminService {
     if (!this.signer) {
       throw new Error(
         "Signer is required to update a campaign. " +
-        "Please connect your wallet before attempting to update the campaign."
+          "Please connect your wallet before attempting to update the campaign."
       );
     }
 
     if (!this.campaign) {
       throw new Error(
         "Campaign SSRI instance not initialized. " +
-        "This typically happens when the campaign failed to load from the blockchain. " +
-        "Please refresh the page and ensure you have the correct campaign type ID."
+          "This typically happens when the campaign failed to load from the blockchain. " +
+          "Please refresh the page and ensure you have the correct campaign type ID."
       );
     }
 
     if (!this.protocolCell) {
       throw new Error(
         "Protocol cell not found. Campaign cells must be tied to a protocol cell. " +
-        "Please ensure the protocol is deployed and the protocol cell is loaded before creating or updating campaigns."
+          "Please ensure the protocol is deployed and the protocol cell is loaded before creating or updating campaigns."
       );
     }
 
@@ -180,32 +183,43 @@ export class CampaignAdminService {
       if (!updateTx) {
         throw new Error(
           "Failed to generate transaction from SSRI updateCampaign method. " +
-          "This may be due to invalid campaign data or SSRI server issues. " +
-          "Please check the campaign data format and try again."
+            "This may be due to invalid campaign data or SSRI server issues. " +
+            "Please check the campaign data format and try again."
         );
       }
 
       // Add UDT funding if provided
       if (udtFunding && udtFunding.length > 0) {
         console.log("Adding UDT funding to campaign transaction");
-        
+
         // Import FundingService dynamically to avoid circular dependencies
-        const { FundingService } = await import("@/lib/services/funding-service");
-        const { deploymentManager } = await import("@/lib/ckb/deployment-manager");
+        const { FundingService } = await import(
+          "@/lib/services/funding-service"
+        );
+        const { deploymentManager } = await import(
+          "@/lib/ckb/deployment-manager"
+        );
         const { udtRegistry } = await import("@/lib/services/udt-registry");
-        
+
         // Get code hashes
         const network = deploymentManager.getCurrentNetwork();
-        const campaignTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType");
-        const campaignLockCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignLock") || "0x" + "00".repeat(32);
-        
+        const campaignTypeCodeHash = deploymentManager.getContractCodeHash(
+          network,
+          "ckboostCampaignType"
+        );
+        const campaignLockCodeHash =
+          deploymentManager.getContractCodeHash(
+            network,
+            "ckboostCampaignLock"
+          ) || "0x" + "00".repeat(32);
+
         if (!campaignTypeCodeHash) {
           throw new Error(
             `Campaign type contract not deployed on ${network} network. ` +
-            "Please deploy the contracts first using the deployment manager."
+              "Please deploy the contracts first using the deployment manager."
           );
         }
-        
+
         // Create funding service
         const fundingService = new FundingService(
           this.signer,
@@ -213,40 +227,49 @@ export class CampaignAdminService {
           campaignLockCodeHash as ccc.Hex,
           this.protocolCell!
         );
-        
+
         // Convert funding to UDTAssetLike format
-        const udtAssets = udtFunding.map(funding => {
+        const udtAssets = udtFunding.map((funding) => {
           // Find token by script hash
-          const token = Array.from(udtRegistry.getAllTokens()).find(t => {
+          const token = Array.from(udtRegistry.getAllTokens()).find((t) => {
             const script = ccc.Script.from({
               codeHash: t.script.codeHash,
               hashType: t.script.hashType,
-              args: t.script.args
+              args: t.script.args,
             });
             return script.hash() === funding.scriptHash;
           });
-          
+
           if (!token) {
-            throw new Error(`Token not found for script hash: ${funding.scriptHash}`);
+            throw new Error(
+              `Token not found for script hash: ${funding.scriptHash}`
+            );
           }
-          
+
           return {
             udt_script: {
               codeHash: token.script.codeHash,
               hashType: token.script.hashType,
-              args: token.script.args
+              args: token.script.args,
             },
-            amount: funding.amount
+            amount: funding.amount,
           };
         });
-        
+
         // Get the campaign owner's lock from the transaction outputs
-        const campaignOutput = updateTx.outputs.find(output => output.type?.codeHash.slice(0, 32) === this.campaignTypeCodeHash.slice(0, 32));
+        const campaignOutput = updateTx.outputs.find(
+          (output) =>
+            output.type?.codeHash.slice(0, 32) ===
+            this.campaignTypeCodeHash.slice(0, 32)
+        );
         if (!campaignOutput) {
           throw new Error(
             "Campaign output not found in transaction. " +
-            "The transaction structure may be invalid. " +
-            `Expected campaign type code hash: ${this.campaignTypeCodeHash.slice(0, 10)}...`
+              "The transaction structure may be invalid. " +
+              `Expected campaign type code hash: ${this.campaignTypeCodeHash.slice(
+                0,
+                10
+              )}...`
           );
         }
 
@@ -254,23 +277,23 @@ export class CampaignAdminService {
         if (!campaignTypeHash) {
           throw new Error(
             "Campaign type hash not found in the campaign output. " +
-            "The campaign cell may not have a proper type script attached."
+              "The campaign cell may not have a proper type script attached."
           );
         }
 
         const campaignLock = ccc.Script.from({
           codeHash: campaignLockCodeHash,
           hashType: campaignOutput.lock.hashType,
-          args: ccc.bytesFrom(campaignTypeHash)
+          args: ccc.bytesFrom(campaignTypeHash),
         });
-        
+
         // Add UDT funding to the transaction
         updateTx = await fundingService.addUDTFundingToTransaction(
           updateTx,
           campaignLock,
           udtAssets
         );
-        
+
         console.log("UDT funding added to transaction");
       }
 
@@ -363,7 +386,7 @@ export class CampaignAdminService {
     if (!campaignCell) {
       throw new Error(
         `Campaign not found with type ID: ${campaignTypeId}. ` +
-        "The campaign may have been deleted or the type ID may be incorrect."
+          "The campaign may have been deleted or the type ID may be incorrect."
       );
     }
 
@@ -372,7 +395,7 @@ export class CampaignAdminService {
     if (!campaignData) {
       throw new Error(
         `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
-        "The cell data may be corrupted or in an unexpected format."
+          "The cell data may be corrupted or in an unexpected format."
       );
     }
 
@@ -554,9 +577,9 @@ export class CampaignAdminService {
 
       if (!campaignCell) {
         throw new Error(
-        `Campaign not found with type ID: ${campaignTypeId}. ` +
-        "The campaign may have been deleted or the type ID may be incorrect."
-      );
+          `Campaign not found with type ID: ${campaignTypeId}. ` +
+            "The campaign may have been deleted or the type ID may be incorrect."
+        );
       }
 
       // Parse campaign data
@@ -567,7 +590,9 @@ export class CampaignAdminService {
       if (!quest) {
         throw new Error(
           `Quest with ID ${questId} not found in campaign ${campaignTypeId}. ` +
-          `Available quest IDs: ${campaignData.quests.map((q) => q.quest_id).join(", ")}`
+            `Available quest IDs: ${campaignData.quests
+              .map((q) => q.quest_id)
+              .join(", ")}`
         );
       }
 
@@ -608,11 +633,8 @@ export class CampaignAdminService {
     // 3. Enable UDT distribution for quests
   }
 
-
-
   /**
    * Approve quest completions with Points minting (Stage 1)
-   * Stage 2 placeholder: Will support UDT distribution in the future
    *
    * @param campaignTypeId - Campaign type ID
    * @param questId - Quest ID to approve
@@ -631,8 +653,8 @@ export class CampaignAdminService {
     if (!this.campaign) {
       throw new Error(
         "Campaign SSRI instance not initialized. " +
-        "This typically happens when the campaign failed to load from the blockchain. " +
-        "Please refresh the page and ensure you have the correct campaign type ID."
+          "This typically happens when the campaign failed to load from the blockchain. " +
+          "Please refresh the page and ensure you have the correct campaign type ID."
       );
     }
 
@@ -651,7 +673,7 @@ export class CampaignAdminService {
     if (!campaignCell) {
       throw new Error(
         `Campaign not found with type ID: ${campaignTypeId}. ` +
-        "The campaign may have been deleted or the type ID may be incorrect."
+          "The campaign may have been deleted or the type ID may be incorrect."
       );
     }
 
@@ -659,7 +681,7 @@ export class CampaignAdminService {
     if (!campaignData) {
       throw new Error(
         `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
-        "The cell data may be corrupted or in an unexpected format."
+          "The cell data may be corrupted or in an unexpected format."
       );
     }
 
@@ -693,11 +715,54 @@ export class CampaignAdminService {
         depType: "code",
       });
 
-      // Stage 2 Placeholder: Future UDT distribution logic
-      // TODO: Add UDT distribution when Stage 2 is implemented
-      // - Check if campaign has funded UDT tokens
-      // - Calculate UDT rewards per user
-      // - Add UDT transfer outputs to transaction
+      const campaignLockOutPoint = deploymentManager.getContractOutPoint(
+        deploymentManager.getCurrentNetwork(),
+        "ckboostCampaignLock"
+      );
+
+      if (!campaignLockOutPoint) {
+        throw new Error("Campaign Lock contract not found in deployments.json");
+      }
+
+      tx.addCellDeps({
+        outPoint: {
+          txHash: campaignLockOutPoint.txHash,
+          index: campaignLockOutPoint.index,
+        },
+        depType: "code",
+      });
+
+      // Add CellDeps for UDT
+      const quest = campaignData.quests.find((q) => q.quest_id === questId);
+      if (!quest) {
+        throw new Error("Quest not found");
+      }
+      for (const reward of quest.rewards_on_completion) {
+        for (const udtAsset of reward.udt_assets) {
+          const udtAssetScript = ccc.Script.from(udtAsset.udt_script);
+          const udtToken = udtRegistry.getTokenByScriptHash(
+            ccc.hexFrom(udtAssetScript.hash())
+          );
+          if (!udtToken) {
+            throw new Error(
+              `UDT token not found for script hash: ${udtAsset.udt_script.codeHash}`
+            );
+          }
+          const udtContractCell =
+            await this.signer.client.findSingletonCellByType(
+              udtToken?.contractScript
+            );
+          if (!udtContractCell) {
+            throw new Error(
+              `UDT contract cell not found for script hash: ${udtAsset.udt_script.codeHash}`
+            );
+          }
+          tx.addCellDeps({
+            outPoint: udtContractCell.outPoint,
+            depType: "code",
+          });
+        }
+      }
 
       // Complete fees and send transaction
       await tx.completeInputsByCapacity(this.signer);
@@ -737,7 +802,7 @@ export class CampaignAdminService {
     if (!campaignCell) {
       throw new Error(
         `Campaign not found with type ID: ${campaignTypeId}. ` +
-        "The campaign may have been deleted or the type ID may be incorrect."
+          "The campaign may have been deleted or the type ID may be incorrect."
       );
     }
 
@@ -745,7 +810,7 @@ export class CampaignAdminService {
     if (!campaignData) {
       throw new Error(
         `Failed to parse campaign data from cell. Campaign type ID: ${campaignTypeId}. ` +
-        "The cell data may be corrupted or in an unexpected format."
+          "The cell data may be corrupted or in an unexpected format."
       );
     }
 

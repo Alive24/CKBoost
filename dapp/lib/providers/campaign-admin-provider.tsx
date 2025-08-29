@@ -1,8 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useMemo } from "react"
-import { ccc } from "@ckb-ccc/connector-react"
-import { ssri } from "@ckb-ccc/ssri"
+import { ccc, ssri } from "@ckb-ccc/connector-react"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { CampaignAdminService } from "@/lib/services/campaign-admin-service"
 import { deploymentManager } from "@/lib/ckb/deployment-manager"
@@ -37,9 +36,8 @@ export function CampaignAdminProvider({ children }: { children: React.ReactNode 
     const network = deploymentManager.getCurrentNetwork()
     const userTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostUserType")
     const campaignTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType")
-    const campaignOutPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType")
     
-    if (!userTypeCodeHash || !campaignTypeCodeHash || !campaignOutPoint) {
+    if (!userTypeCodeHash || !campaignTypeCodeHash ) {
       console.warn("Required contracts not deployed")
       return { campaignAdminService: null, campaignInstance: null }
     }
@@ -59,7 +57,6 @@ export function CampaignAdminProvider({ children }: { children: React.ReactNode 
       protocolTypeHash,
       campaignTypeCodeHash,
       protocolCell,
-      campaignOutPoint,
       null // No generic campaign instance
     )
     
@@ -75,7 +72,7 @@ export function CampaignAdminProvider({ children }: { children: React.ReactNode 
   )
 }
 
-export function useCampaignAdmin(campaignTypeId?: ccc.Hex) {
+export function useCampaignAdmin(campaignTypeId?: ccc.Hex | string) {
   const context = useContext(CampaignAdminContext)
   if (!context) {
     throw new Error("useCampaignAdmin must be used within CampaignAdminProvider")
@@ -97,23 +94,16 @@ export function useCampaignAdmin(campaignTypeId?: ccc.Hex) {
       setError(null)
       
       try {
-        // Get the service's internal properties we need
+        // Get the service's properties through proper getters
         const service = context.campaignAdminService
         
-        // Access the private properties through a proper interface
-        interface ServiceInternals {
-          signer: ccc.Signer
-          protocolCell: ccc.Cell | null
-          campaignTypeCodeHash: ccc.Hex
-          campaignOutPoint: ccc.OutPointLike
-          campaign: Campaign | null
+        if (!service) {
+          throw new Error("Campaign admin service not available")
         }
         
-        const serviceInternals = service as unknown as ServiceInternals
-        const signer = serviceInternals.signer
-        const protocolCell = serviceInternals.protocolCell
-        const campaignTypeCodeHash = serviceInternals.campaignTypeCodeHash
-        const campaignOutPoint = serviceInternals.campaignOutPoint
+        const signer = service.getSigner()
+        const protocolCell = service.getProtocolCell()
+        const campaignTypeCodeHash = service.getCampaignTypeCodeHash()
         
         if (!signer || !protocolCell) {
           throw new Error("Required dependencies not available")
@@ -122,7 +112,7 @@ export function useCampaignAdmin(campaignTypeId?: ccc.Hex) {
         // Fetch the campaign cell
         const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
         const campaignCell = await fetchCampaignByTypeId(
-          campaignTypeId,
+          campaignTypeId as ccc.Hex,
           campaignTypeCodeHash,
           signer,
           protocolCell
@@ -142,16 +132,21 @@ export function useCampaignAdmin(campaignTypeId?: ccc.Hex) {
         const executor = new ssri.ExecutorJsonRpc(
           process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090"
         )
-        
+        const network = deploymentManager.getCurrentNetwork();
+        const campaignContractOutPoint = deploymentManager.getContractOutPoint(network, "ckboostCampaignType");
+        if (!campaignContractOutPoint) {
+          setError("Campaign type contract code cell not found. Make sure the protocol contract is deployed and deployment information is available.");
+          return;
+        }
         const campaignInstance = new Campaign(
-          campaignOutPoint,
+          campaignContractOutPoint,
           campaignTypeScript,
           protocolCell,
           { executor }
         )
         
         // Update the service with the campaign instance
-        serviceInternals.campaign = campaignInstance
+        service.setCampaign(campaignInstance)
         
         setCampaign(campaignInstance)
       } catch (err) {

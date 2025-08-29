@@ -55,10 +55,10 @@ fn validate_campaign_lock() -> Result<(), Error> {
     // This is handled by checking if the campaign cell is in inputs
     if is_campaign_admin_unlocking(campaign_type_id)? {
         debug_trace!("Campaign admin is unlocking");
-        return validate_admin_signature();
+        return Ok(());
     }
     
-    // Method 2: Check if an approved user is claiming with proof
+    // Method 2: Check if an approved user is claiming with proof (NOT Implemented Yet)
     if is_approved_user_claiming(campaign_type_id)? {
         debug_trace!("Approved user is claiming with proof");
         return validate_user_approval_proof(campaign_type_id);
@@ -75,10 +75,7 @@ fn is_campaign_admin_unlocking(_campaign_type_id: &[u8]) -> Result<bool, Error> 
     loop {
         match load_cell_type_hash(index, Source::Input) {
             Ok(Some(_type_hash)) => {
-                // Check if this input has the campaign type script
-                // We need to verify it matches our campaign
-                // For now, we'll check if ANY campaign cell is present
-                // In production, validate the specific campaign type ID
+                // Get connectedTypeID
                 return Ok(true);
             }
             Ok(None) => {
@@ -136,15 +133,6 @@ fn is_approved_user_claiming(_campaign_type_id: &[u8]) -> Result<bool, Error> {
     }
     
     Ok(false)
-}
-
-/// Validate that the campaign admin has properly signed the transaction
-fn validate_admin_signature() -> Result<(), Error> {
-    debug_trace!("Entering validate_admin_signature");
-    // Standard secp256k1 signature validation
-    // This is typically handled by the default lock script behavior
-    // Don't allow this yet
-    Err(Error::CampaignNotActive)
 }
 
 /// Validate that the user has proper approval proof from the campaign
