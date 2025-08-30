@@ -122,7 +122,8 @@ export default function CampaignAdminDashboard() {
         // Fetch campaigns owned by the current user
         debug.log('Fetching campaigns owned by user...')
         const userCampaigns = await fetchCampaignsOwnedByUser(
-          signer,
+          signer.client,
+          (await signer.getRecommendedAddressObj()).script,
           campaignCodeHash as ccc.Hex
         )
         

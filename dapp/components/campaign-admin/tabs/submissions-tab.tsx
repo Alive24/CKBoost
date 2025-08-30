@@ -219,24 +219,6 @@ export function SubmissionsTab({ campaignTypeId }: SubmissionsTabProps) {
         </CardContent>
       </Card>
 
-      {/* Stage 2 Notice */}
-      <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600" />
-            <div className="flex-1">
-              <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                Points Minting Active
-              </p>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                Approved submissions will mint Points tokens. UDT distribution will be available in Stage 2.
-              </p>
-            </div>
-            <Badge variant="outline" className="text-xs">Stage 1</Badge>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Submissions by Quest */}
       {campaignData?.quests && campaignData.quests.length > 0 ? (
         <SubmissionList

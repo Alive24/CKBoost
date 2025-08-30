@@ -12,7 +12,6 @@ import {
 } from "@/lib/ckb/user-cells";
 import {
   fetchCampaignByTypeId as fetchCampaignCell,
-  fetchCampaignCells,
 } from "@/lib/ckb/campaign-cells";
 import { debug } from "@/lib/utils/debug";
 import { Campaign } from "ssri-ckboost";
@@ -106,7 +105,7 @@ export class CampaignAdminService {
     return await fetchCampaignCell(
       campaignTypeId,
       this.campaignTypeCodeHash,
-      this.signer,
+      this.signer.client,
       this.protocolCell
     );
   }
@@ -563,17 +562,13 @@ export class CampaignAdminService {
     questId: number
   ): Promise<ccc.Hex[]> {
     try {
-      // Fetch campaign cell
-      const campaigns = await fetchCampaignCells(this.signer);
-      const campaignCell = campaigns.find((cell) => {
-        // Extract type_id from ConnectedTypeID args
-        const typeScript = cell.cellOutput.type;
-        if (typeScript && typeScript.args.length >= 32) {
-          const typeId = typeScript.args.slice(0, 32);
-          return typeId === campaignTypeId;
-        }
-        return false;
-      });
+      // Fetch campaign cell by type ID
+      const campaignCell = await fetchCampaignCell(
+        campaignTypeId,
+        this.campaignTypeCodeHash,
+        this.signer.client,
+        this.protocolCell!
+      );
 
       if (!campaignCell) {
         throw new Error(
@@ -605,8 +600,7 @@ export class CampaignAdminService {
   }
 
   /**
-   * Stage 2 Placeholder: Fund campaign with UDT tokens for distribution
-   * This will be implemented when UDT distribution is added
+   * Fund campaign with UDT tokens for distribution
    *
    * @param campaignTypeId - Campaign type ID
    * @param udtAssets - Array of UDT assets to fund
@@ -619,7 +613,7 @@ export class CampaignAdminService {
       amount: bigint;
     }>
   ): Promise<string> {
-    // Stage 2 placeholder
+    // TODO: Implement with simple transfer to campaign-lock
     console.log("UDT funding will be available in Stage 2:", {
       campaignTypeId,
       udtAssets,

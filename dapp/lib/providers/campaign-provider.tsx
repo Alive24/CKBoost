@@ -54,6 +54,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
 
   // CCC hooks
   const signer = ccc.useSigner();
+  const { client } = ccc.useCcc();
 
   // Wallet connection state
   const isWalletConnected = !!signer;
@@ -65,8 +66,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         setIsLoading(true);
         setError(null);
 
-        if (!signer) {
-          debug.warn("No signer available, skipping campaign load");
+        if (!client) {
+          debug.warn("No client available, skipping campaign load");
           setIsLoading(false);
           return;
         }
@@ -89,7 +90,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
               const campaignCell = await fetchCampaignByTypeId(
                 identifier as ccc.Hex,
                 campaignCodeHash as ccc.Hex,
-                signer,
+                client,
                 protocolCell
               );
               
@@ -109,9 +110,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
           setCampaigns(approvedCampaignCells);
         } else {
           debug.warn("Protocol data not available yet");
-          // Fallback to mock data or empty
-          const allCampaigns = await CampaignService.getAllCampaigns(signer);
-          setCampaigns(allCampaigns);
+          // Fallback to fetching all campaigns connected to protocol
+          if (protocolCell) {
+            const allCampaigns = await CampaignService.fetchAllCampaigns(client, protocolCell);
+            setCampaigns(allCampaigns);
+          } else {
+            setCampaigns([]);
+          }
         }
       } catch (err) {
         const errorMessage = formatSSRIError({
@@ -127,7 +132,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     };
 
     initializeCampaigns();
-  }, [signer, protocolCell, protocolData]);
+  }, [client, protocolCell, protocolData]);
 
   // Update user info when wallet connects
   useEffect(() => {
@@ -161,8 +166,8 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       setError(null);
 
-      if (!signer) {
-        debug.warn("No signer available, skipping campaign refresh");
+      if (!client) {
+        debug.warn("No client available, skipping campaign refresh");
         setIsLoading(false);
         return;
       }
@@ -179,7 +184,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
             const campaignCell = await fetchCampaignByTypeId(
               identifier as ccc.Hex,
               campaignCodeHash as ccc.Hex,
-              signer,
+              client,
               protocolCell
             );
             
@@ -193,9 +198,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         
         setCampaigns(approvedCampaignCells);
       } else {
-        // Fallback to campaign service
-        const allCampaigns = await CampaignService.getAllCampaigns(signer);
-        setCampaigns(allCampaigns);
+        // Fallback to fetching all campaigns connected to protocol
+        if (protocolCell) {
+          const allCampaigns = await CampaignService.fetchAllCampaigns(client, protocolCell);
+          setCampaigns(allCampaigns);
+        } else {
+          setCampaigns([]);
+        }
       }
     } catch (err) {
       setError(
@@ -245,6 +254,7 @@ export function useCampaign(protocolCell: ccc.Cell | null, campaignTypeId?: ccc.
   const [error, setError] = useState<string | null>(null);
 
   const signer = ccc.useSigner();
+  const { client } = ccc.useCcc();
   
   const executor = useMemo(() => {
     const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
@@ -259,9 +269,11 @@ export function useCampaign(protocolCell: ccc.Cell | null, campaignTypeId?: ccc.
     setError(null);
 
     // Return early if basic requirements not met
-    if (!signer || !protocolCell) {
+    // We need client for read operations, but signer is optional (only needed for writes)
+    const effectiveClient = signer?.client || client;
+    if (!effectiveClient || !protocolCell) {
       setIsLoading(false);
-      setError(!signer ? "Wallet not connected" : null);
+      setError(!effectiveClient ? "Client not initialized" : null);
       return;
     }
 
@@ -310,7 +322,7 @@ export function useCampaign(protocolCell: ccc.Cell | null, campaignTypeId?: ccc.
           const fetchedCampaignCell = await fetchCampaignByTypeId(
             campaignTypeId, // This is the type_id from ConnectedTypeID, not typeHash
             campaignCodeHash as ccc.Hex,
-            signer,
+            effectiveClient,
             protocolCell
           );
 
@@ -347,7 +359,7 @@ export function useCampaign(protocolCell: ccc.Cell | null, campaignTypeId?: ccc.
 
       fetchExistingCampaign();
     }
-  }, [signer, protocolCell, campaignTypeId, executor]);
+  }, [signer, client, protocolCell, campaignTypeId, executor]);
 
   return {
     campaign,

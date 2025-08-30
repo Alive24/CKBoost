@@ -25,11 +25,18 @@ import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
  * Protocol service that provides high-level protocol operations
  */
 export class ProtocolService {
-  private signer: ccc.Signer;
-  private protocol: Protocol;
+  private client: ccc.Client;
+  private signer?: ccc.Signer;
+  private protocol?: Protocol;
 
-  constructor(signer: ccc.Signer) {
-    this.signer = signer;
+  constructor(clientOrSigner: ccc.Client | ccc.Signer) {
+    // Check if it's a signer (has getRecommendedAddress method)
+    if ('getRecommendedAddress' in clientOrSigner) {
+      this.signer = clientOrSigner as ccc.Signer;
+      this.client = this.signer.client;
+    } else {
+      this.client = clientOrSigner as ccc.Client;
+    }
 
     // Get the protocol type code outpoint and deployment info
     const network = deploymentManager.getCurrentNetwork();
@@ -60,9 +67,12 @@ export class ProtocolService {
       process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
     const executor = new ssri.ExecutorJsonRpc(executorUrl);
 
-    this.protocol = new Protocol(outPoint, protocolTypeScript, {
-      executor: executor,
-    });
+    // Only create Protocol instance if we have a signer (needed for write operations)
+    if (this.signer) {
+      this.protocol = new Protocol(outPoint, protocolTypeScript, {
+        executor: executor,
+      });
+    }
   }
 
   async updateProtocol(updatedData: ProtocolDataLike): Promise<ccc.Hex> {
@@ -101,7 +111,7 @@ export class ProtocolService {
   }
 
   async getProtocolCell(): Promise<ccc.Cell> {
-    const protocolCell = await fetchProtocolCell(this.signer);
+    const protocolCell = await fetchProtocolCell(this.client);
     if (!protocolCell) {
       throw new Error("Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface.");
     }
@@ -117,7 +127,7 @@ export class ProtocolService {
     limit: number = 50
   ): Promise<ProtocolTransaction[]> {
     try {
-      return await fetchProtocolTransactions(this.signer, limit);
+      return await fetchProtocolTransactions(this.client, limit);
     } catch (error) {
       console.warn("Failed to fetch protocol transactions:", error);
       throw error;
@@ -242,7 +252,7 @@ export class ProtocolService {
   async fetchProtocolDataByOutPoint(
     outPoint: { txHash: ccc.Hex; index: ccc.Num }
   ): Promise<ProtocolDataLike> {
-    const cell = await fetchProtocolCellByOutPoint(this.signer, outPoint);
+    const cell = await fetchProtocolCellByOutPoint(this.client, outPoint);
     if (!cell) {
       throw new Error(
         "Protocol cell not found at specified outpoint. Please ensure the outpoint is correct or deploy a new protocol cell using the Protocol Management interface."
@@ -258,7 +268,7 @@ export class ProtocolService {
    */
   async getProtocolMetrics(): Promise<ProtocolMetrics> {
     try {
-      const protocolCell = await fetchProtocolCell(this.signer);
+      const protocolCell = await fetchProtocolCell(this.client);
       if (!protocolCell) {
         throw new Error(
           "Protocol cell not found on blockchain. Please deploy a new protocol cell using the Protocol Management interface."

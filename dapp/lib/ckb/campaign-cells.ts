@@ -10,61 +10,30 @@ import { debug } from "@/lib/utils/debug"
 // Development flag - set to true to use blockchain, false to use mock data
 const USE_BLOCKCHAIN = true // Set to true when blockchain is available
 
-/**
- * Fetch all campaign cells from CKB blockchain or return mock data
- * @param signer - CCC signer instance (optional when using mock data)
- * @returns Array of campaigns from blockchain or mock data
- */
-export async function fetchCampaignCells(signer?: ccc.Signer): Promise<ccc.Cell[]> {
-  if (!signer) {
-    throw new Error("Signer required when USE_BLOCKCHAIN is true")
-  }
 
-  try {
-    // TODO: Implement actual CKB cell fetching
-    // const client = signer.client
-    
-    // Search for campaign cells by type script
-    // const campaignCells = await client.findCells({
-    //   script: CAMPAIGN_TYPE_SCRIPT,
-    //   scriptType: "type"
-    // })
-
-    // Parse campaign data from cells
-    // const campaigns = campaignCells.map(cell => parseCampaignCell(cell))
-    
-    // For now, return empty array - replace with actual implementation
-    return []
-  } catch (error) {
-    console.error("Failed to fetch campaign cells:", error)
-    throw new Error("Failed to fetch campaigns from blockchain")
-  }
-}
 
 /**
  * Fetch a specific campaign by type ID (O(1) lookup)
  * @param typeId - Campaign type ID from ConnectedTypeID args
  * @param campaignCodeHash - Campaign type code hash from protocol
- * @param signer - CCC signer instance
+ * @param client - CCC client instance
  * @param protocolCell - Protocol cell from context
  * @returns Campaign data or undefined if not found
  */
 export async function fetchCampaignByTypeId(
   typeId: ccc.Hex,
   campaignCodeHash: ccc.Hex,
-  signer: ccc.Signer,
+  client: ccc.Client,
   protocolCell: ccc.Cell
 ): Promise<ccc.Cell | undefined> {
-  if (!signer) {
-    throw new Error("Signer required for fetchCampaignByTypeId")
+  if (!client) {
+    throw new Error("Client required for fetchCampaignByTypeId")
   }
 
   try {
     debug.group('fetchCampaignByTypeId')
     debug.log('Searching for campaign with type ID:', typeId)
     debug.log('Campaign code hash:', campaignCodeHash)
-    
-    const client = signer.client
     
     // Use the protocol cell passed as parameter
     if (!protocolCell || !protocolCell.cellOutput.type) {
@@ -121,79 +90,33 @@ export async function fetchCampaignByTypeId(
 
 
 
-/**
- * Fetch user progress for all campaigns or return empty map for mock data
- * @param userAddress - User's CKB address
- * @param signer - CCC signer instance (optional when using mock data)
- * @returns Map of campaign type hash to user progress
- */
-export async function fetchUserSubmissionRecords(_userAddress: string, signer?: ccc.Signer): Promise<Map<string, UserSubmissionRecordLike>> {
-  if (!USE_BLOCKCHAIN) {
-    // Return empty map for mock data - user progress is not mocked
-    console.log("User progress not available in mock mode")
-    return new Map()
-  }
-
-  if (!signer) {
-    return new Map()
-  }
-
-  try {
-    // TODO: Implement user progress cell fetching
-    // const client = signer.client
-    
-    // Search for user progress cells by lock script
-    // const userLockScript = addressToScript(userAddress)
-    // const progressCells = await client.findCells({
-    //   script: userLockScript,
-    //   scriptType: "lock",
-    //   filter: {
-    //     script: USER_PROGRESS_TYPE_SCRIPT
-    //   }
-    // })
-
-    // Parse progress data from cells
-    // const progressMap = new Map<string, UserProgress>()
-    // progressCells.forEach(cell => {
-    //   const progress = parseUserProgressCell(cell)
-    //   progressMap.set(progress.campaignTypeId, progress)
-    // })
-    
-    // return progressMap
-    
-    return new Map()
-    
-  } catch (error) {
-    console.error("Failed to fetch user progress:", error)
-    return new Map()
-  }
-}
 
 /**
  * Fetch all campaign cells owned by the current user
- * @param signer - CCC signer instance with user's lock script
+ * @param client - CCC client instance
+ * @param userLockScript - User's lock script
  * @param campaignCodeHash - Campaign type code hash from protocol data
  * @returns Array of campaign cells owned by the user
  */
 export async function fetchCampaignsOwnedByUser(
-  signer: ccc.Signer,
+  client: ccc.Client,
+  userLockScript: ccc.Script,
   campaignCodeHash: ccc.Hex
 ): Promise<ccc.Cell[]> {
   debug.group('fetchCampaignsOwnedByUser')
   debug.log('Input parameters:', {
     campaignCodeHash,
-    signerPresent: !!signer
+    clientPresent: !!client,
+    userLockScript
   })
 
-  if (!signer) {
-    debug.error("Signer is required to fetch campaigns")
+  if (!client) {
+    debug.error("Client is required to fetch campaigns")
     debug.groupEnd()
-    throw new Error("Signer is required to fetch campaigns")
+    throw new Error("Client is required to fetch campaigns")
   }
 
   try {
-    const client = signer.client
-    const { script: userLockScript } = await signer.getRecommendedAddressObj()
     
     debug.log('User lock script:', {
       codeHash: userLockScript.codeHash,
@@ -306,7 +229,7 @@ export function isCampaignApproved(
 }
 
 export async function fetchCampaignsConnectedToProtocol(
-  signer: ccc.Signer,
+  client: ccc.Client,
   campaignCodeHash: ccc.Hex,
   protocolTypeHash: ccc.Hex
 ): Promise<ccc.Cell[]> {
@@ -314,17 +237,16 @@ export async function fetchCampaignsConnectedToProtocol(
   debug.log('Input parameters:', {
     campaignCodeHash,
     protocolTypeHash,
-    signerPresent: !!signer
+    clientPresent: !!client
   })
 
-  if (!signer) {
-    debug.error("Signer is required to fetch campaigns")
+  if (!client) {
+    debug.error("Client is required to fetch campaigns")
     debug.groupEnd()
-    throw new Error("Signer is required to fetch campaigns")
+    throw new Error("Client is required to fetch campaigns")
   }
 
   try {
-    const client = signer.client
     debug.log('CKB Client initialized:', !!client)
     
     // Search for all campaign cells by code hash

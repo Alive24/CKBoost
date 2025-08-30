@@ -82,6 +82,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
 
   // CCC hooks
   const signer = ccc.useSigner();
+  const { client } = ccc.useCcc();
 
   // Wallet connection state
   const isWalletConnected = !!signer;
@@ -89,10 +90,10 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   // Initialize protocol data
   useEffect(() => {
     const initializeProtocol = async () => {
-      // If no signer, set loading to false and return
-      if (!signer) {
+      // Use client for read operations, signer for write operations
+      if (!client) {
         setIsLoading(false);
-        setError("Please connect your wallet to view protocol data");
+        setError("Client not initialized");
         setProtocolData(null);
         setMetrics(null);
         setTransactions([]);
@@ -100,7 +101,9 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const protocolService = new ProtocolService(signer);
+        // Create protocol service with client for read operations
+        // Pass signer if available for write operations
+        const protocolService = new ProtocolService(signer || client);
         setProtocolService(protocolService);
 
         setIsLoading(true);
@@ -142,7 +145,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     };
 
     initializeProtocol();
-  }, [signer]);
+  }, [signer, client]);
 
   // Update user info when wallet connects
   useEffect(() => {
@@ -203,6 +206,9 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   const updateProtocol = async (form: ProtocolDataLike): Promise<ccc.Hex> => {
     if (!protocolService) {
       throw new Error("Protocol service not initialized");
+    }
+    if (!signer) {
+      throw new Error("Wallet connection required to update protocol");
     }
     return protocolService.updateProtocol(form);
   };

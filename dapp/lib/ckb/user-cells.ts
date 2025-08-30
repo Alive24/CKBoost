@@ -144,16 +144,6 @@ export async function fetchAllUserCells(
 }
 
 /**
- * Fetch all user cells (legacy function name for compatibility)
- */
-export async function fetchUserCells(
-  userTypeCodeHash: ccc.Hex,
-  signer: ccc.Signer
-): Promise<ccc.Cell[]> {
-  return fetchAllUserCells(userTypeCodeHash, signer);
-}
-
-/**
  * Fetch user cell by type_id (O(1) lookup)
  */
 export async function fetchUserByTypeId(

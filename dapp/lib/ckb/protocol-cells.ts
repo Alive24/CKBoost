@@ -30,17 +30,15 @@ const getProtocolTypeScript = () => {
 
 /**
  * Fetch protocol cell by specific outpoint
- * @param signer - CCC signer instance
+ * @param client - CCC client instance
  * @param outPoint - Specific outpoint to fetch
  * @returns Protocol cell or null if not found
  */
 export async function fetchProtocolCellByOutPoint(
-  signer: ccc.Signer,
+  client: ccc.Client,
   outPoint: { txHash: ccc.Hex; index: ccc.Num }
 ): Promise<ccc.Cell | null> {
   try {
-    const client = signer.client;
-    
     // Fetch the specific cell by outpoint
     const cell = await client.getCellLive(outPoint);
     
@@ -57,24 +55,18 @@ export async function fetchProtocolCellByOutPoint(
 
 /**
  * Fetch protocol cell from CKB blockchain
- * @param signer - CCC signer instance
+ * @param client - CCC client instance
  * @returns Protocol cell or null if not found
  */
 export async function fetchProtocolCell(
-  signer?: ccc.Signer
+  client: ccc.Client
 ): Promise<ccc.Cell | null> {
 
   try {
-    // Check if signer is properly initialized
-    if (!signer) {
-      throw new Error("Signer is not initialized. Please connect your wallet first.");
+    // Check if client is properly initialized
+    if (!client) {
+      throw new Error("Client is not initialized.");
     }
-    
-    if (!signer.client) {
-      throw new Error("Signer client is not initialized. Please ensure your wallet is properly connected.");
-    }
-
-    const client = signer.client;
     
     // Get protocol type script
     let protocolTypeScript;
@@ -146,19 +138,19 @@ export async function fetchProtocolCell(
 
 /**
  * Get protocol transaction history
- * @param signer - CCC signer instance
+ * @param client - CCC client instance
  * @param limit - Maximum number of transactions to fetch
  * @returns Array of protocol transactions
  */
 export async function fetchProtocolTransactions(
-  signer?: ccc.Signer,
+  client: ccc.Client,
   limit: number = 50
 ): Promise<ProtocolTransaction[]> {
 
   try {
     // TODO: Implement real transaction history fetching
     // This would involve querying the CKB indexer for transactions that modified the protocol cell
-    console.log(signer, limit)
+    console.log(client, limit)
     console.warn("Protocol transaction history fetching not yet implemented");
     return [];
   } catch (error) {
