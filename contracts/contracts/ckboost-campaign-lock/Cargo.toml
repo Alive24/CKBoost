@@ -4,8 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ckb-std = { version = "0.16.4", features = ["allocator", "ckb-types", "dummy-atomic"] }
-ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic", default-features = false }
+ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
+ckb_deterministic = { path = "../../../../ckb_deterministic/ckb_deterministic" }
+ckb-ssri-std = { version = "0.0.1" }
+ckb-ssri-std-proc-macro = { version = "0.0.1" }
+molecule = { version = "0.8.0", default-features = false }
+blake2b-ref = { version = "0.3.1", default-features = false}
+
 ckboost-shared = { path = "../../libs/ckboost-shared" }
 
 
