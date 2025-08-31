@@ -23,11 +23,13 @@ import {
   CheckSquare,
   Loader2,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Coins
 } from "lucide-react"
-import { UserSubmissionRecordLike, UserDataLike, QuestDataLike } from "ssri-ckboost/types"
+import { UserSubmissionRecordLike, UserDataLike, QuestDataLike, AssetListLike, UDTAssetLike } from "ssri-ckboost/types"
 import { SubmissionCard } from "./submission-card"
 import { ccc } from "@ckb-ccc/connector-react"
+import { udtRegistry } from "@/lib/services/udt-registry"
 
 interface SubmissionListProps {
   quests: QuestDataLike[]
@@ -194,6 +196,31 @@ export function SubmissionList({
                       <Trophy className="w-3 h-3 mr-1" />
                       {Number(quest.points || 0)} points
                     </Badge>
+                    {/* Display UDT reward badges */}
+                    {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                      quest.rewards_on_completion[0]?.udt_assets?.map((udt: UDTAssetLike, idx: number) => {
+                        const script = ccc.Script.from(udt.udt_script)
+                        const scriptHash = script.hash()
+                        const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                        
+                        if (token) {
+                          const formattedAmount = udtRegistry.formatAmount(Number(udt.amount), token)
+                          return (
+                            <Badge key={`udt-${idx}`} className="bg-yellow-100 text-yellow-800">
+                              <Coins className="w-3 h-3 mr-1" />
+                              {formattedAmount} {token.symbol}
+                            </Badge>
+                          )
+                        } else {
+                          return (
+                            <Badge key={`udt-${idx}`} className="bg-yellow-100 text-yellow-800">
+                              <Coins className="w-3 h-3 mr-1" />
+                              UDT
+                            </Badge>
+                          )
+                        }
+                      })
+                    }
                     {approvedCount > 0 && (
                       <Badge className="bg-green-100 text-green-800">
                         <CheckCircle className="w-3 h-3 mr-1" />

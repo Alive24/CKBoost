@@ -24,6 +24,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { getDaysUntilEnd, type CampaignDisplay } from "@/lib";
+import { udtRegistry } from "@/lib/services/udt-registry";
 
 interface CampaignCardProps {
   campaign: CampaignDisplay;
@@ -282,21 +283,27 @@ export function CampaignCard({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Trophy className="w-4 h-4 text-yellow-600" />
-              <span>Total Rewards</span>
+              <span>Total Rewards per User</span>
             </div>
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1">
                 <Trophy className="w-3 h-3 text-yellow-600" />
-                <span>{campaign.totalRewards.points.toString()} pts</span>
+                <span>{campaign.totalRewards.points.toString()} Points</span>
               </div>
-              {campaign.totalRewards.tokens.map((token, index) => (
-                <div key={index} className="flex items-center gap-1">
-                  <Coins className="w-3 h-3 text-green-600" />
-                  <span>
-                    {token.amount.toString()} {token.symbol}
-                  </span>
-                </div>
-              ))}
+              {campaign.totalRewards.tokens.map((token, index) => {
+                // Get token info from registry to format amount properly
+                const tokenInfo = udtRegistry.getTokenBySymbol(token.symbol)
+                const formattedAmount = tokenInfo 
+                  ? udtRegistry.formatAmount(Number(token.amount), tokenInfo)
+                  : `${Number(token.amount) / (10 ** 8)}`
+                
+                return (
+                  <div key={index} className="flex items-center gap-1">
+                    <Coins className="w-3 h-3 text-green-600" />
+                    <span>{formattedAmount} {token.symbol}</span>
+                  </div>
+                )
+              })}
             </div>
           </div>
 

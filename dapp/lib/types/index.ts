@@ -7,6 +7,7 @@ import type {
   CampaignDataLike, 
   QuestDataLike, 
 } from 'ssri-ckboost/types'
+import { udtRegistry } from "@/lib/services/udt-registry"
 
 // Transaction status for UI display (this is UI-only, not stored in schema)
 export interface TransactionStatus {
@@ -88,7 +89,12 @@ export function calculateCampaignTotalRewards(campaign: CampaignDataLike): {
     totalPoints = ccc.numFrom(Number(totalPoints) + Number(quest.points))
     quest.rewards_on_completion?.forEach(assetList => {
       assetList.udt_assets?.forEach(udtAsset => {
-        const symbol = 'CKB' // TODO: Resolve symbol from UDT type script
+        // Get the actual token symbol from the registry
+        const script = ccc.Script.from(udtAsset.udt_script)
+        const scriptHash = script.hash()
+        const token = udtRegistry.getTokenByScriptHash(scriptHash)
+        const symbol = token?.symbol || 'UDT'
+        
         const current = tokenRewards.get(symbol) || ccc.numFrom(0)
         tokenRewards.set(symbol, ccc.numFrom(Number(current) + Number(udtAsset.amount)))
       })
@@ -113,8 +119,13 @@ export function getQuestRewards(quest: QuestDataLike): {
   
   quest.rewards_on_completion?.forEach(assetList => {
     assetList.udt_assets?.forEach(udtAsset => {
+      // Get the actual token symbol from the registry
+      const script = ccc.Script.from(udtAsset.udt_script)
+      const scriptHash = script.hash()
+      const token = udtRegistry.getTokenByScriptHash(scriptHash)
+      
       tokens.push({
-        symbol: 'CKB', // TODO: Resolve symbol from UDT type script
+        symbol: token?.symbol || 'UDT', // Use actual symbol or fallback to 'UDT'
         amount: ccc.numFrom(udtAsset.amount)
       })
     })

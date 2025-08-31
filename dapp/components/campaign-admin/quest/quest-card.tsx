@@ -32,6 +32,31 @@ export function QuestCard({ quest, index, onEdit, onDelete, showActions = true }
               <Trophy className="w-3 h-3 mr-1" />
               {Number(quest.points)} points
             </Badge>
+            {/* Display UDT reward badges */}
+            {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+              quest.rewards_on_completion[0]?.udt_assets?.map((udt, idx) => {
+                const script = ccc.Script.from(udt.udt_script)
+                const scriptHash = script.hash()
+                const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                
+                if (token) {
+                  const formattedAmount = udtRegistry.formatAmount(Number(udt.amount), token)
+                  return (
+                    <Badge key={`header-udt-${idx}`} className="bg-yellow-100 text-yellow-800">
+                      <Coins className="w-3 h-3 mr-1" />
+                      {formattedAmount} {token.symbol}
+                    </Badge>
+                  )
+                } else {
+                  return (
+                    <Badge key={`header-udt-${idx}`} className="bg-yellow-100 text-yellow-800">
+                      <Coins className="w-3 h-3 mr-1" />
+                      UDT
+                    </Badge>
+                  )
+                }
+              })
+            }
             {showActions && (
               <>
                 <Button

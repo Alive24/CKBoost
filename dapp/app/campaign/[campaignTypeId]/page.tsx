@@ -20,15 +20,18 @@ import {
   Star,
   ArrowLeft,
   Play,
-  Settings
+  Settings,
+  Coins
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/connector-react"
 import { useProtocol } from "@/lib/providers/protocol-provider"
 import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
+import type { AssetListLike, UDTAssetLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { getDifficultyString } from "@/lib"
+import { udtRegistry } from "@/lib/services/udt-registry"
 import { QuestSubmissionForm } from "@/components/quest-submission-form"
 import { useUser } from "@/lib/providers/user-provider"
 
@@ -500,6 +503,39 @@ export default function CampaignDetailPage() {
                                 <Trophy className="w-3 h-3 mr-1" />
                                 {Number(quest.points) || 100} points
                               </Badge>
+                              {/* Display UDT rewards if any */}
+                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                                quest.rewards_on_completion.flatMap((rewardList: AssetListLike, idx: number) => {
+                                  const badges = []
+                                  if (rewardList.udt_assets && rewardList.udt_assets.length > 0) {
+                                    rewardList.udt_assets.forEach((udtAsset: UDTAssetLike, udtIdx: number) => {
+                                      // Get token info from registry
+                                      const script = ccc.Script.from(udtAsset.udt_script)
+                                      const scriptHash = script.hash()
+                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                                      
+                                      const displayAmount = Number(udtAsset.amount) / (10 ** 8)
+                                      const symbol = token?.symbol || 'UDT'
+                                      
+                                      badges.push(
+                                        <Badge key={`udt-${idx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
+                                          <Coins className="w-3 h-3 mr-1" />
+                                          {displayAmount} {symbol}
+                                        </Badge>
+                                      )
+                                    })
+                                  }
+                                  if (rewardList.ckb_amount && Number(rewardList.ckb_amount) > 0) {
+                                    badges.push(
+                                      <Badge key={`ckb-${idx}`} className="bg-blue-100 text-blue-800">
+                                        <Coins className="w-3 h-3 mr-1" />
+                                        {Number(rewardList.ckb_amount) / (10 ** 8)} CKB
+                                      </Badge>
+                                    )
+                                  }
+                                  return badges
+                                })
+                              }
                               {quest.metadata?.time_estimate && (
                                 <Badge variant="outline">
                                   <Clock className="w-3 h-3 mr-1" />
@@ -648,6 +684,38 @@ export default function CampaignDetailPage() {
                                 <Trophy className="w-4 h-4 mr-1" />
                                 {Number(quest.points) || 100} points
                               </Badge>
+                              {/* Display UDT rewards if any */}
+                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                                quest.rewards_on_completion.flatMap((rewardList: AssetListLike, idx: number) => {
+                                  const badges = []
+                                  if (rewardList.udt_assets && rewardList.udt_assets.length > 0) {
+                                    rewardList.udt_assets.forEach((udtAsset: UDTAssetLike, udtIdx: number) => {
+                                      const script = ccc.Script.from(udtAsset.udt_script)
+                                      const scriptHash = script.hash()
+                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                                      
+                                      const displayAmount = Number(udtAsset.amount) / (10 ** 8)
+                                      const symbol = token?.symbol || 'UDT'
+                                      
+                                      badges.push(
+                                        <Badge key={`udt2-${idx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
+                                          <Coins className="w-4 h-4 mr-1" />
+                                          {displayAmount} {symbol}
+                                        </Badge>
+                                      )
+                                    })
+                                  }
+                                  if (rewardList.ckb_amount && Number(rewardList.ckb_amount) > 0) {
+                                    badges.push(
+                                      <Badge key={`ckb2-${idx}`} className="bg-blue-100 text-blue-800">
+                                        <Coins className="w-4 h-4 mr-1" />
+                                        {Number(rewardList.ckb_amount) / (10 ** 8)} CKB
+                                      </Badge>
+                                    )
+                                  }
+                                  return badges
+                                })
+                              }
                               {quest.metadata?.difficulty && (
                                 <Badge variant="outline">
                                   Difficulty: {getDifficultyString(quest.metadata.difficulty)}
@@ -777,9 +845,26 @@ export default function CampaignDetailPage() {
                           {campaign.quests.map((quest: typeof campaign.quests[0], index: number) => (
                             <div key={index} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
                               <span className="text-sm">{quest.metadata?.title || `Quest ${index + 1}`}</span>
-                              <Badge variant="outline">
-                                {Number(quest.points) || 100} points
-                              </Badge>
+                              <div className="flex gap-2">
+                                <Badge variant="outline">
+                                  {Number(quest.points) || 100} points
+                                </Badge>
+                                {/* Display UDT rewards inline */}
+                                {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                                  quest.rewards_on_completion.some((rl: AssetListLike) => rl.udt_assets && rl.udt_assets.length > 0) && (
+                                    <Badge className="bg-yellow-100 text-yellow-800">
+                                      <Coins className="w-3 h-3 mr-1" />
+                                      {quest.rewards_on_completion[0].udt_assets && quest.rewards_on_completion[0].udt_assets[0] ? (() => {
+                                        const udtAsset = quest.rewards_on_completion[0].udt_assets[0]
+                                        const script = ccc.Script.from(udtAsset.udt_script)
+                                        const scriptHash = script.hash()
+                                        const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                                        return token?.symbol || 'UDT'
+                                      })() : 'UDT'}
+                                    </Badge>
+                                  )
+                                }
+                              </div>
                             </div>
                           ))}
                         </div>
