@@ -490,6 +490,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
         let mut updated_quests = vec![];
         let mut quest_found = false;
         let mut _points_to_mint = 0u64;
+        let mut total_new_approvals = 0u32;  // Track total new approvals for updating campaign total_completions
 
         for i in 0..quests.len() {
             let quest = quests.get(i).unwrap();
@@ -519,7 +520,8 @@ impl CKBoostCampaign for CKBoostCampaignType {
                     accepted_ids.push(current_accepted.get(j).unwrap());
                 }
                 
-                // Add new user type IDs
+                // Add new user type IDs and count new approvals
+                let mut new_approval_count = 0u32;
                 for i in 0..user_type_ids.len() {
                     let user_type_id = user_type_ids.get(i).unwrap();
                     
@@ -536,10 +538,29 @@ impl CKBoostCampaign for CKBoostCampaignType {
                         // Convert from ckb_std::Byte32 to ckboost_shared::Byte32
                         let shared_byte32 = SharedByte32::from_slice(user_type_id.as_slice()).unwrap();
                         accepted_ids.push(shared_byte32);
+                        new_approval_count += 1;
                     }
                 }
 
-                // Create updated quest
+                // Update completion count - increment by number of newly approved users
+                let current_completion_count = quest.completion_count();
+                let current_count_bytes = current_completion_count.as_slice();
+                let current_count = if current_count_bytes.len() >= 4 {
+                    u32::from_le_bytes([
+                        current_count_bytes[0],
+                        current_count_bytes[1],
+                        current_count_bytes[2],
+                        current_count_bytes[3],
+                    ])
+                } else {
+                    0u32
+                };
+                
+                // Use the actual count of new approvals (not already approved)
+                let updated_count = current_count + new_approval_count;
+                total_new_approvals = new_approval_count;  // Store for campaign total_completions update
+                
+                // Create updated quest with incremented completion_count
                 let updated_quest = QuestData::new_builder()
                     .quest_id(quest.quest_id())
                     .metadata(quest.metadata())
@@ -553,7 +574,12 @@ impl CKBoostCampaign for CKBoostCampaignType {
                     .status(quest.status())
                     .sub_tasks(quest.sub_tasks())
                     .points(quest.points())
-                    .completion_count(quest.completion_count())
+                    .completion_count(
+                        ckboost_shared::generated::ckboost::Uint32::from_slice(
+                            &updated_count.to_le_bytes(),
+                        )
+                        .unwrap()
+                    )
                     .build();
                 
                 updated_quests.push(updated_quest);
@@ -575,7 +601,7 @@ impl CKBoostCampaign for CKBoostCampaignType {
             current_completions_bytes[2],
             current_completions_bytes[3],
         ]);
-        let new_completions = current_completions + user_type_ids.len() as u32;
+        let new_completions = current_completions + total_new_approvals;
 
         // Create updated campaign data
         let updated_campaign_data = CampaignData::new_builder()
@@ -622,42 +648,9 @@ impl CKBoostCampaign for CKBoostCampaignType {
         // Note: Points minting will be handled by the Points UDT contract
         // The campaign contract only updates the accepted_submission_user_type_ids
         // The actual Points cells creation happens in the transaction builder
-
-        // Handle UDT distribution from funded campaign assets
-        // Check if quest has UDT rewards to distribute
-        let quest_index = (0..quests.len())
-            .find(|&i| quests.get(i).unwrap().quest_id().as_slice() == &quest_id.to_le_bytes())
-            .unwrap();
-        let quest = quests.get(quest_index).unwrap();
-        
-        let rewards = quest.rewards_on_completion();
-        if rewards.len() > 0 {
-            let reward = rewards.get(0).unwrap();
-            let udt_assets = reward.udt_assets();
-            
-            // For each UDT asset type in the rewards
-            for i in 0..udt_assets.len() {
-                let udt_asset = udt_assets.get(i).unwrap();
-                let udt_script = udt_asset.udt_script();
-                let amount_per_user = udt_asset.amount();
-                
-                // TODO: In production, this would:
-                // 1. Find campaign-locked UDT cells with matching UDT type
-                // 2. Check sufficient balance exists
-                // 3. Add those cells as inputs
-                // 4. Create outputs for each approved user
-                // 5. Return change to campaign if any
-                
-                // For now, we'll add placeholder logic
-                // The actual implementation would need to:
-                // - Query campaign-locked UDT cells
-                // - Validate sufficient funding exists
-                // - Build proper input/output cells
-                
-                debug_trace!("UDT distribution placeholder - would distribute {:?} of UDT {:?}", 
-                    amount_per_user.as_slice(), udt_script);
-            }
-        }
+        // UDT distribution and validation would be done in the campaign-lock
+      
+      
 
         // Encode user_type_ids as a Byte32Vec for the recipe
         let mut user_type_ids_builder = Byte32VecBuilder::default();
