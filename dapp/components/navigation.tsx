@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { Home, Trophy, MessageSquare, Menu, X } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { PointsBalance } from "@/components/points-balance"
 
 
 const NAVIGATION_ITEMS = [
@@ -72,6 +73,9 @@ export function Navigation() {
 
           {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3 flex-shrink-0">
+            {/* Points Balance */}
+            <PointsBalance />
+            
             {/* Theme Toggle */}
             <ThemeToggle />
 
@@ -116,6 +120,7 @@ export function Navigation() {
               })}
               
               <div className="pt-4 border-t border-gray-200 dark:border-gray-800 space-y-4">
+                <PointsBalance />
                 <ThemeToggle />
                 <WalletConnect />
               </div>
