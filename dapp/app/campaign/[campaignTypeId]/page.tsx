@@ -26,7 +26,7 @@ import {
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/connector-react"
 import { useProtocol } from "@/lib/providers/protocol-provider"
-import { extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
+import { isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike } from "ssri-ckboost/types"
 import type { AssetListLike, UDTAssetLike } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
@@ -46,6 +46,52 @@ export default function CampaignDetailPage() {
   const [selectedQuestIndex, setSelectedQuestIndex] = useState<number | null>(null)
   const [questSubmissionStatuses, setQuestSubmissionStatuses] = useState<Record<number, boolean>>({})
   const [isOwner, setIsOwner] = useState(false)
+  const [fundingData, setFundingData] = useState<Map<ccc.Hex, bigint>>(new Map())
+  const [isLoadingFunding, setIsLoadingFunding] = useState(true)
+
+  // Fetch UDT funding data for the campaign
+  useEffect(() => {
+    const fetchFundingData = async () => {
+      if (!signer || !campaignTypeId || !protocolData) {
+        return
+      }
+      
+      try {
+        setIsLoadingFunding(true)
+        const protocolCellTypeHash = protocolCell?.cellOutput.type?.hash() || ccc.hexFrom("0x")
+        const { fetchUDTCellsByCampaignLock, groupUDTCellsByType, calculateUDTBalance } = await import("@/lib/ckb/udt-cells")
+        
+        const campaignLockCodeHash = protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_lock_code_hash || 
+          ccc.hexFrom("0x")
+        const campaignTypeCodeHash = protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash || 
+          ccc.hexFrom("0x")
+        const udtCells = await fetchUDTCellsByCampaignLock(
+          campaignTypeId,
+          campaignLockCodeHash,
+          campaignTypeCodeHash,
+          protocolCellTypeHash,
+          signer
+        )
+        
+        const groupedCells = groupUDTCellsByType(udtCells)
+        const fundingMap = new Map<ccc.Hex, bigint>()
+        
+        for (const [typeHash, cells] of groupedCells) {
+          const balance = calculateUDTBalance(cells)
+          fundingMap.set(typeHash as ccc.Hex, balance)
+        }
+        
+        setFundingData(fundingMap)
+        debug.log("Fetched funding data:", fundingMap)
+      } catch (error) {
+        debug.error("Failed to fetch funding data:", error)
+      } finally {
+        setIsLoadingFunding(false)
+      }
+    }
+    
+    fetchFundingData()
+  }, [signer, campaignTypeId, protocolData, protocolCell])
 
   // Check if current user owns this campaign
   useEffect(() => {
@@ -817,25 +863,211 @@ export default function CampaignDetailPage() {
             </TabsContent>
 
             <TabsContent value="rewards" className="space-y-6">
+              {/* Total Points Rewarded */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Reward Distribution</CardTitle>
+                  <CardTitle>Total Points Rewarded</CardTitle>
                   <CardDescription>
-                    How rewards are distributed among participants
+                    Points that have been distributed to participants
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">Total Points Pool</span>
-                        <span className="text-2xl font-bold">
-                          {totalPoints} Points
-                        </span>
-                      </div>
-                      <Progress value={0} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1">0% distributed</p>
+                      {(() => {
+                        // Calculate actual points distributed based on completion_count
+                        let totalDistributed = 0
+                        campaign?.quests?.forEach((quest: typeof campaign.quests[0]) => {
+                          const completions = Number(quest.completion_count || 0)
+                          const questPoints = Number(quest.points || 0)
+                          totalDistributed += completions * questPoints
+                        })
+                        
+                        const distributionPercentage = totalPoints > 0 
+                          ? Math.min(100, (totalDistributed / Number(totalPoints)) * 100)
+                          : 0
+                        
+                        return (
+                          <>
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium">Total Points Pool</span>
+                              <span className="text-2xl font-bold">
+                                {totalPoints} Points
+                              </span>
+                            </div>
+                            <Progress value={distributionPercentage} className="h-2" />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {totalDistributed.toLocaleString()} points distributed ({distributionPercentage.toFixed(1)}%)
+                            </p>
+                          </>
+                        )
+                      })()}
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Available UDT Rewards */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Available UDT Rewards</CardTitle>
+                  <CardDescription>
+                    Token rewards remaining in the campaign funding pool
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {isLoadingFunding ? (
+                      <div className="flex items-center justify-center py-8">
+                        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+                      </div>
+                    ) : (() => {
+                      // Calculate total UDT rewards needed, distributed, and available
+                      const udtRewardsSummary = new Map<string, { 
+                        totalPerQuest: number,  // Total rewards per quest completion
+                        totalDistributed: number,  // Already distributed based on completion_count
+                        totalFunded: number,  // Total amount in funding pool (simulated for now)
+                        available: number,  // Remaining available
+                        tokenInfo: ReturnType<typeof udtRegistry.getTokenByScriptHash>,
+                        averagePerQuest: number,
+                        questCount: number
+                      }>()
+                      
+                      // Calculate UDT rewards distributed and needed
+                      campaign?.quests?.forEach((quest: typeof campaign.quests[0]) => {
+                        const completions = Number(quest.completion_count || 0)
+                        
+                        quest.rewards_on_completion?.forEach((rewardList: AssetListLike) => {
+                          rewardList.udt_assets?.forEach((udtAsset: UDTAssetLike) => {
+                            const script = ccc.Script.from(udtAsset.udt_script)
+                            const scriptHash = script.hash()
+                            const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                            const symbol = token?.symbol || 'UDT'
+                            
+                            const amountPerCompletion = Number(udtAsset.amount)
+                            const amountDistributed = amountPerCompletion * completions
+                            
+                            const current = udtRewardsSummary.get(symbol) || {
+                              totalPerQuest: 0,
+                              totalDistributed: 0,
+                              totalFunded: 0,  // TODO: Get from funding cell
+                              available: 0,
+                              tokenInfo: token,
+                              averagePerQuest: 0,
+                              questCount: 0
+                            }
+                            
+                            current.totalPerQuest += amountPerCompletion
+                            current.totalDistributed += amountDistributed
+                            current.questCount += 1
+                            current.averagePerQuest = current.totalPerQuest / current.questCount
+                            udtRewardsSummary.set(symbol, current)
+                          })
+                        })
+                      })
+                      
+                      // Use actual funding amounts from campaign lock cells
+                      udtRewardsSummary.forEach((value) => {
+                        // Find the funding for this token by matching script hash
+                        let actualAvailableInPool = 0n
+                        
+                        // Match funding data by script hash - this is what's currently in the pool
+                        if (value.tokenInfo && value.tokenInfo.script) {
+                          const tokenScript = ccc.Script.from(value.tokenInfo.script)
+                          const tokenScriptHash = tokenScript.hash()
+                          actualAvailableInPool = fundingData.get(tokenScriptHash) || 0n
+                        }
+                        
+                        // Available is what's currently in the funding pool
+                        value.available = Number(actualAvailableInPool)
+                        
+                        // Total funded = available (in pool) + distributed (already given out)
+                        value.totalFunded = value.available + value.totalDistributed
+                      })
+                      
+                      if (udtRewardsSummary.size === 0) {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No UDT rewards configured for this campaign
+                          </div>
+                        )
+                      }
+                      
+                      return Array.from(udtRewardsSummary.entries()).map(([symbol, info]) => {
+                        const formattedAvailable = info.tokenInfo 
+                          ? udtRegistry.formatAmount(info.available, info.tokenInfo)
+                          : `${info.available / (10 ** 8)}`
+                        
+                        const formattedDistributed = info.tokenInfo
+                          ? udtRegistry.formatAmount(info.totalDistributed, info.tokenInfo)
+                          : `${info.totalDistributed / (10 ** 8)}`
+                          
+                        const formattedTotal = info.tokenInfo
+                          ? udtRegistry.formatAmount(info.totalFunded, info.tokenInfo)
+                          : `${info.totalFunded / (10 ** 8)}`
+                        
+                        const formattedAverage = info.tokenInfo
+                          ? udtRegistry.formatAmount(info.averagePerQuest, info.tokenInfo)
+                          : `${info.averagePerQuest / (10 ** 8)}`
+                        
+                        // Calculate how many more quest completions can be funded
+                        const completionQuota = info.averagePerQuest > 0 
+                          ? Math.floor(info.available / info.averagePerQuest)
+                          : 0
+                        
+                        // Calculate usage percentage based on what's been distributed vs total funded
+                        const usagePercentage = info.totalFunded > 0
+                          ? Math.min(100, (info.totalDistributed / info.totalFunded) * 100)
+                          : 0
+                        
+                        return (
+                          <div key={symbol} className="p-4 border rounded-lg space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Coins className="w-5 h-5 text-yellow-600" />
+                                <span className="font-medium text-lg">{symbol}</span>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground mb-1">Available in Pool</p>
+                                <span className="text-2xl font-bold">
+                                  {formattedAvailable} {symbol}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <Progress value={usagePercentage} className="h-2" />
+                            <p className="text-xs text-muted-foreground">
+                              {formattedDistributed} {symbol} distributed of {formattedTotal} {symbol} total ({usagePercentage.toFixed(1)}%)
+                            </p>
+                            
+                            <div className="grid grid-cols-2 gap-4 pt-2">
+                              <div>
+                                <p className="text-xs text-muted-foreground">Average per Quest</p>
+                                <p className="font-medium">{formattedAverage} {symbol}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground">Available Completions (Estimated)</p>
+                                <p className="font-medium">{completionQuota.toLocaleString()} quests</p>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Quest Rewards Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Quest Rewards Breakdown</CardTitle>
+                  <CardDescription>
+                    Individual rewards for each quest in the campaign
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
 
                     {/* Show individual quest rewards */}
                     {campaign?.quests && campaign.quests.length > 0 && (
@@ -843,25 +1075,34 @@ export default function CampaignDetailPage() {
                         <h4 className="font-medium">Quest Rewards</h4>
                         <div className="space-y-2">
                           {campaign.quests.map((quest: typeof campaign.quests[0], index: number) => (
-                            <div key={index} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                              <span className="text-sm">{quest.metadata?.title || `Quest ${index + 1}`}</span>
-                              <div className="flex gap-2">
+                            <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded">
+                              <div className="flex-1">
+                                <span className="text-sm font-medium">{quest.metadata?.title || `Quest ${index + 1}`}</span>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {Number(quest.completion_count || 0)} completions
+                                </p>
+                              </div>
+                              <div className="flex gap-2 items-center">
                                 <Badge variant="outline">
                                   {Number(quest.points) || 100} points
                                 </Badge>
                                 {/* Display UDT rewards inline */}
                                 {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
-                                  quest.rewards_on_completion.some((rl: AssetListLike) => rl.udt_assets && rl.udt_assets.length > 0) && (
-                                    <Badge className="bg-yellow-100 text-yellow-800">
-                                      <Coins className="w-3 h-3 mr-1" />
-                                      {quest.rewards_on_completion[0].udt_assets && quest.rewards_on_completion[0].udt_assets[0] ? (() => {
-                                        const udtAsset = quest.rewards_on_completion[0].udt_assets[0]
-                                        const script = ccc.Script.from(udtAsset.udt_script)
-                                        const scriptHash = script.hash()
-                                        const token = udtRegistry.getTokenByScriptHash(scriptHash)
-                                        return token?.symbol || 'UDT'
-                                      })() : 'UDT'}
-                                    </Badge>
+                                  quest.rewards_on_completion.flatMap((rl: AssetListLike, rlIdx: number) => 
+                                    (rl.udt_assets || []).map((udtAsset: UDTAssetLike, udtIdx: number) => {
+                                      const script = ccc.Script.from(udtAsset.udt_script)
+                                      const scriptHash = script.hash()
+                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                                      const formattedAmount = token
+                                        ? udtRegistry.formatAmount(Number(udtAsset.amount), token)
+                                        : `${Number(udtAsset.amount) / (10 ** 8)}`
+                                      return (
+                                        <Badge key={`reward-${rlIdx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
+                                          <Coins className="w-3 h-3 mr-1" />
+                                          {formattedAmount} {token?.symbol || 'UDT'}
+                                        </Badge>
+                                      )
+                                    })
                                   )
                                 }
                               </div>

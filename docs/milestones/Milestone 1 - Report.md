@@ -78,7 +78,7 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 - ✅ PRD-driven development methodology established
 - ✅ CKB Deterministic framework examples
 
-## ⚠️ Known Issues & Deferred Items
+## ⚠️ Deferred Issues & New Todo Items
 
 ### 1. Approve Completion - Status Check Commented Out
 
@@ -108,7 +108,7 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 ```
 
 **Issue**: Protocol timestamp is accurate and validated
-**Status**: Deferred as only needed in tipping proposal.
+**Status**: Deferred as only needed in tipping proposal and it is not a critical feature at the moment.
 
 ### 3. SSRI Server Error Reporting
 
@@ -116,3 +116,17 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 **Issue**: When SSRI server is not ready, errors are generic.
 **Status**: Deferred as implementations of executor is not confirmed yet and it shouldn't be sensible to generic users.
 
+### 4. Re-funding after approval of campaign
+
+**Issue**: After approval of campaign, the re-funding interface is not available yet.
+**Status**: Deferred as it is not a critical feature at the moment.
+
+### 5. Store Campaign cover with Nostr
+
+**Issue**: Campaign cover should be stored on Nostr
+**Status**: Deferred as it is not a critical feature at the moment.
+
+### 6. Rewards stats for campaign detail page
+
+**Issue**: It's getting the available rewards but not the distributed rewards.
+**Status**: Deferred as it is not a critical feature at the moment.

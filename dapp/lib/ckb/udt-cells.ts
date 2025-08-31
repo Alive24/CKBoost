@@ -1,5 +1,6 @@
 import { ccc } from "@ckb-ccc/connector-react";
 import { debug } from "../utils/debug";
+import { ConnectedTypeID } from "ssri-ckboost/types";
 
 /**
  * Fetch UDT cells locked with campaign-lock for a specific campaign
@@ -7,16 +8,35 @@ import { debug } from "../utils/debug";
 export async function fetchUDTCellsByCampaignLock(
   campaignTypeId: ccc.Hex,
   campaignLockCodeHash: ccc.Hex,
+  campaignTypeCodeHash: ccc.Hex,
+  protocolCellTypeHash: ccc.Hex,
   signer: ccc.Signer
 ): Promise<ccc.Cell[]> {
   debug.log("Fetching UDT cells for campaign", campaignTypeId);
 
   try {
-    // Create the campaign-lock script to search for
+    // First, we need to construct the campaign type script to get its hash
+    // The campaign cell type script has ConnectedTypeID args: [type_id (32 bytes) + connected_key (32 bytes)]
+    // We need to find the campaign cell first to get its complete type script
+    const campaignConnectedTypeId = ConnectedTypeID.encode({
+      type_id: campaignTypeId,
+      connected_key: protocolCellTypeHash,
+    });
+    
+    const campaignTypeScript = ccc.Script.from({
+      codeHash: campaignTypeCodeHash,
+      hashType: "type" as ccc.HashType,
+      args: campaignConnectedTypeId, // This is actually the ConnectedTypeID containing the type_id
+    });
+    
+    // Get the type hash of the campaign cell's type script
+    const campaignTypeHash = campaignTypeScript.hash();
+    
+    // Create the campaign-lock script using the campaign type hash as args
     const campaignLockScript = ccc.Script.from({
       codeHash: campaignLockCodeHash,
       hashType: "type" as ccc.HashType,
-      args: campaignTypeId,
+      args: campaignTypeHash,
     });
 
     // Find all cells with this lock script
