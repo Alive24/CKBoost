@@ -8,6 +8,8 @@ import { useProtocol } from "@/lib/providers/protocol-provider"
 import { fetchCampaignsOwnedByUser, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData, CampaignDataLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
+import { fetchAllUserCells, parseUserData, extractTypeIdFromUserCell } from "@/lib/ckb/user-cells"
+import { deploymentManager } from "@/lib/ckb/deployment-manager"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -66,6 +68,7 @@ export default function CampaignAdminDashboard() {
     completedQuests: number  // computed from submissions
     pendingReviews: number  // computed from submissions
   })[]>([])
+  const [campaignPendingCounts, setCampaignPendingCounts] = useState<Record<string, number>>({})
   const [pendingReviews, setPendingReviews] = useState<{
     campaignTitle: string
     campaignTypeId: string
@@ -227,6 +230,88 @@ export default function CampaignAdminDashboard() {
     fetchCampaigns()
   }, [signer, protocolCell, protocolData])
 
+  // Fetch pending submissions count for campaigns
+  useEffect(() => {
+    if (!signer || ownedCampaigns.length === 0) return
+
+    const fetchPendingSubmissions = async () => {
+      try {
+        debug.group('Fetching pending submissions')
+        
+        const network = deploymentManager.getCurrentNetwork()
+        const userTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostUserType")
+        
+        if (!userTypeCodeHash) {
+          debug.warn("User type code hash not found")
+          return
+        }
+
+        // Fetch all user cells
+        const userCells = await fetchAllUserCells(userTypeCodeHash, signer)
+        debug.log(`Found ${userCells.length} total user cells`)
+
+        // Count pending submissions per campaign
+        const pendingCounts: Record<string, number> = {}
+
+        for (const userCell of userCells) {
+          const userData = parseUserData(userCell)
+          if (!userData || !userData.submission_records) continue
+
+          // Extract the user's type_id from the cell's ConnectedTypeID args
+          const userTypeId = extractTypeIdFromUserCell(userCell)
+          if (!userTypeId) {
+            debug.warn("Could not extract type_id from user cell")
+            continue
+          }
+
+          // Check each submission record
+          for (const submission of userData.submission_records) {
+            // The submission contains the campaign_type_id which is the type_id of the campaign
+            const submissionCampaignTypeId = ccc.hexFrom(submission.campaign_type_id)
+            
+            // Find the campaign by matching typeId
+            const campaign = ownedCampaigns.find(c => {
+              // The campaign's typeId is the type_id from its ConnectedTypeID args
+              // This should match the campaign_type_id in the submission
+              return c.typeId === submissionCampaignTypeId
+            })
+
+            if (campaign) {
+              // Find the quest in the campaign
+              const questId = Number(submission.quest_id)
+              const quest = campaign.quests?.find(q => Number(q.quest_id) === questId)
+              
+              if (quest) {
+                // Check if this user's submission is already accepted
+                const acceptedUserTypeIds = quest.accepted_submission_user_type_ids || []
+                const isAccepted = acceptedUserTypeIds.some(acceptedId => {
+                  const acceptedHex = typeof acceptedId === 'string' ? acceptedId : ccc.hexFrom(acceptedId)
+                  return acceptedHex === userTypeId
+                })
+                
+                // Only count as pending if not already accepted
+                if (!isAccepted) {
+                  const key = campaign.typeId
+                  pendingCounts[key] = (pendingCounts[key] || 0) + 1
+                }
+              }
+            }
+          }
+        }
+
+        debug.log('Pending submissions per campaign:', pendingCounts)
+        setCampaignPendingCounts(pendingCounts)
+        
+      } catch (error) {
+        debug.error("Failed to fetch pending submissions:", error)
+      } finally {
+        debug.groupEnd()
+      }
+    }
+
+    fetchPendingSubmissions()
+  }, [signer, ownedCampaigns])
+
   // Check for pending funding from recently created campaigns
   useEffect(() => {
     const checkPendingFunding = () => {
@@ -309,7 +394,7 @@ export default function CampaignAdminDashboard() {
   const campaignsToShow =  ownedCampaigns
   const totalActiveCampaigns = campaignsToShow.filter(c => c.status === "active").length
   const totalParticipants = campaignsToShow.reduce((sum, c) => sum + (c.participants || 0), 0)
-  const totalPendingReviews = campaignsToShow.reduce((sum, c) => sum + (c.pendingReviews || 0), 0)
+  const totalPendingReviews = Object.values(campaignPendingCounts).reduce((sum, count) => sum + count, 0)
   const totalStaff = 0
 
   // Check if user has access (either owns campaigns, is an endorser, or is a platform admin)
@@ -737,7 +822,7 @@ export default function CampaignAdminDashboard() {
                         <div className="text-center">
                           <div className="flex items-center justify-center gap-1 text-orange-600 mb-1">
                             <AlertCircle className="w-4 h-4" />
-                            <span className="font-semibold">{campaign.pendingReviews || 0}</span>
+                            <span className="font-semibold">{campaignPendingCounts[campaign.typeId] || 0}</span>
                           </div>
                           <p className="text-xs text-muted-foreground">Pending Reviews</p>
                         </div>
@@ -927,13 +1012,23 @@ export default function CampaignAdminDashboard() {
                         Campaigns will appear here once they are deployed and connected to your protocol.
                       </p>
                     </div>
+                  ) : ownedCampaigns.filter(campaign => {
+                    const pendingCount = campaignPendingCounts[campaign.typeId] || 0
+                    return pendingCount > 0
+                  }).length === 0 ? (
+                    <div className="text-center py-8">
+                      <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground">No pending submissions to review.</p>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        All quest submissions have been reviewed. Check back later for new submissions.
+                      </p>
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       {ownedCampaigns.filter(campaign => {
-                        // Only show campaigns that have pending reviews
-                        // In a real implementation, we'd fetch submission data here
-                        // For now, show all campaigns with a "View Submissions" button
-                        return campaign.quests && campaign.quests.length > 0
+                        // Only show campaigns that actually have pending submissions
+                        const pendingCount = campaignPendingCounts[campaign.typeId] || 0
+                        return pendingCount > 0
                       }).map((campaign, index) => {
                         try {
                           // Campaign is already processed with all needed fields
@@ -960,8 +1055,7 @@ export default function CampaignAdminDashboard() {
                                   <div className="flex items-center gap-2">
                                     <Badge className="bg-yellow-100 text-yellow-800">
                                       <Clock className="w-3 h-3 mr-1" />
-                                      {/* TODO: Get actual pending count */}
-                                      Pending Submissions
+                                      {campaignPendingCounts[campaignTypeId] || 0} Pending Submissions
                                     </Badge>
                                     <Link href={`/campaign-admin/${campaignTypeId}?tab=submissions`}>
                                       <Button size="sm">
