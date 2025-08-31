@@ -504,7 +504,7 @@ const PENDING_VERIFICATIONS = [
 ]
 
 export default function PlatformAdminDashboard() {
-  const { protocolData, protocolCell, signer } = useProtocol()
+  const { protocolData, protocolCell, signer, isAdmin } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isRewardDialogOpen, setIsRewardDialogOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -760,6 +760,38 @@ export default function PlatformAdminDashboard() {
       return { status: "manual_verified", color: "bg-purple-100 text-purple-800", text: "Manual Verified" }
     }
     return { status: "unverified", color: "bg-red-100 text-red-800", text: "Unverified" }
+  }
+
+  // Redirect non-admins away from this page
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 via-purple-50 to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Access Denied</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  You do not have permission to access the platform admin dashboard.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Only protocol administrators can access this page. If you believe you should have access, 
+                  please contact the platform administrators.
+                </p>
+                <div className="pt-4">
+                  <Link href="/">
+                    <Button>Return to Home</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (

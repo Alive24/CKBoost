@@ -51,6 +51,7 @@ interface ProtocolContextType {
   userBalance: string | null;
   isWalletConnected: boolean;
   isAdmin: boolean;
+  isEndorser: boolean;
   
   // Signer for blockchain operations
   signer: ccc.Signer | undefined;
@@ -79,6 +80,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
   const [userAddress, setUserAddress] = useState<string | null>(null);
   const [userBalance, setUserBalance] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isEndorser, setIsEndorser] = useState(false);
 
   // CCC hooks
   const signer = ccc.useSigner();
@@ -190,9 +192,23 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
                 }
               );
             setIsAdmin(isUserAdmin);
+            
+            // Check if user is in endorser whitelist
+            const isUserEndorser = 
+              protocolData.endorsers_whitelist?.some(
+                (endorser: any) => {
+                  const endorserHash = 
+                    typeof endorser.endorser_lock_hash === "string"
+                      ? endorser.endorser_lock_hash
+                      : ccc.hexFrom(new Uint8Array(endorser.endorser_lock_hash));
+                  return endorserHash.toLowerCase() === userLockHash.toLowerCase();
+                }
+              ) || false;
+            setIsEndorser(isUserEndorser);
           } catch (adminCheckErr) {
-            console.error("Failed to check admin status:", adminCheckErr);
+            console.error("Failed to check admin/endorser status:", adminCheckErr);
             setIsAdmin(false);
+            setIsEndorser(false);
           }
         }
       } catch (err) {
@@ -520,6 +536,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     userBalance,
     isWalletConnected,
     isAdmin,
+    isEndorser,
     
     // Signer for blockchain operations
     signer,

@@ -48,7 +48,7 @@ const CURRENT_USER = {
 
 
 export default function CampaignAdminDashboard() {
-  const { signer, protocolCell, protocolData } = useProtocol()
+  const { signer, protocolCell, protocolData, isAdmin, isEndorser } = useProtocol()
   const [activeTab, setActiveTab] = useState("overview")
   const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
   const [staffForm, setStaffForm] = useState({
@@ -311,6 +311,72 @@ export default function CampaignAdminDashboard() {
   const totalParticipants = campaignsToShow.reduce((sum, c) => sum + (c.participants || 0), 0)
   const totalPendingReviews = campaignsToShow.reduce((sum, c) => sum + (c.pendingReviews || 0), 0)
   const totalStaff = 0
+
+  // Check if user has access (either owns campaigns, is an endorser, or is a platform admin)
+  const hasAccess = isAdmin || isEndorser || ownedCampaigns.length > 0
+  
+  // Show access denied message if user doesn't have access
+  if (!hasAccess && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">Access Restricted</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  You need to be an endorsed campaign creator to access this page.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Only users in the endorser whitelist can create and manage campaigns. 
+                  Please contact the platform administrators to become an endorsed creator.
+                </p>
+                <div className="pt-4">
+                  <Link href="/">
+                    <Button>Return to Home</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    )
+  }
+  
+  // Show different message if user is an endorser but has no campaigns yet
+  if (isEndorser && ownedCampaigns.length === 0 && !isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">No Campaigns Yet</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  Welcome! As an endorsed creator, you can now create your first campaign.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Create a campaign to start managing quests, reviewing submissions, and tracking performance.
+                </p>
+                <div className="pt-4">
+                  <Link href="/platform-admin">
+                    <Button>Create Your First Campaign</Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">

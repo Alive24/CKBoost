@@ -9,6 +9,7 @@ import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { ccc } from "@ckb-ccc/connector-react"
 import { NeventParserDialog } from "@/components/nevent-parser-dialog"
+import { useProtocol } from "@/lib/providers/protocol-provider"
 
 // Mock verification status - in real app, this would come from authentication
 const USER_VERIFICATION_STATUS = {
@@ -16,15 +17,6 @@ const USER_VERIFICATION_STATUS = {
   kyc: false,
   did: false,
   manualReview: false,
-}
-
-// Mock user role - in real app, this would come from authentication
-const USER_ROLE: "user" | "campaign_admin" | "platform_admin" | "both" = "both"
-
-// Helper function to check user permissions
-const hasPermission = (permission: "campaign_admin" | "platform_admin") => {
-  if (USER_ROLE === "both") return true
-  return USER_ROLE === permission
 }
 
 // Helper function to get verification status info
@@ -62,6 +54,7 @@ const getVerificationStatus = () => {
 export function WalletConnect() {
   const { open } = ccc.useCcc()
   const signer = ccc.useSigner()
+  const { isAdmin, isEndorser } = useProtocol()
   const [address, setAddress] = React.useState<string>("")
   const [isConnecting, setIsConnecting] = React.useState(false)
   const [showNeventParser, setShowNeventParser] = React.useState(false)
@@ -210,35 +203,39 @@ export function WalletConnect() {
         
         <DropdownMenuSeparator />
         
-        {/* Tools */}
-        <DropdownMenuItem onClick={() => setShowNeventParser(true)}>
-          <Search className="w-4 h-4 mr-2" />
-          Parse Nevent Submission
-        </DropdownMenuItem>
-        
-        <DropdownMenuSeparator />
-        
-        {/* Admin Actions */}
-        {hasPermission("campaign_admin") && (
-          <DropdownMenuItem asChild>
-            <Link href="/campaign-admin" className="w-full">
-              <Settings className="w-4 h-4 mr-2" />
-              Campaign Admin
-            </Link>
-          </DropdownMenuItem>
+        {/* Campaign Admin - Visible to endorsers and admins */}
+        {(isEndorser || isAdmin) && (
+          <>
+            <DropdownMenuItem asChild>
+              <Link href="/campaign-admin" className="w-full">
+                <Settings className="w-4 h-4 mr-2" />
+                Campaign Admin
+              </Link>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+          </>
         )}
         
-        {hasPermission("platform_admin") && (
-          <DropdownMenuItem asChild>
-            <Link href="/platform-admin" className="w-full">
-              <Shield className="w-4 h-4 mr-2" />
-              Platform Admin
-            </Link>
-          </DropdownMenuItem>
-        )}
-        
-        {(hasPermission("campaign_admin") || hasPermission("platform_admin")) && (
-          <DropdownMenuSeparator />
+        {/* Platform Admin Tools - Only visible to platform admins */}
+        {isAdmin && (
+          <>
+            {/* Tools */}
+            <DropdownMenuItem onClick={() => setShowNeventParser(true)}>
+              <Search className="w-4 h-4 mr-2" />
+              Parse Nevent Submission
+            </DropdownMenuItem>
+            
+            {/* Platform Admin */}
+            <DropdownMenuItem asChild>
+              <Link href="/platform-admin" className="w-full">
+                <Shield className="w-4 h-4 mr-2" />
+                Platform Admin
+              </Link>
+            </DropdownMenuItem>
+            
+            <DropdownMenuSeparator />
+          </>
         )}
         
         <DropdownMenuItem onClick={handleDisconnect} className="text-red-600">
