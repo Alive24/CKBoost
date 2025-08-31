@@ -12,7 +12,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Trophy, 
-  Calendar, 
   Users, 
   Target,
   CheckCircle,
@@ -20,7 +19,8 @@ import {
   AlertCircle,
   Star,
   ArrowLeft,
-  Play
+  Play,
+  Settings
 } from "lucide-react"
 import Link from "next/link"
 import { ccc } from "@ckb-ccc/connector-react"
@@ -35,13 +35,41 @@ import { useUser } from "@/lib/providers/user-provider"
 export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeId = params.campaignTypeId as ccc.Hex
-  const { signer, protocolData, protocolCell } = useProtocol()
+  const { signer, protocolData, protocolCell, isAdmin, isEndorser } = useProtocol()
   const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading, refreshUserData } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedQuestIndex, setSelectedQuestIndex] = useState<number | null>(null)
   const [questSubmissionStatuses, setQuestSubmissionStatuses] = useState<Record<number, boolean>>({})
+  const [isOwner, setIsOwner] = useState(false)
+
+  // Check if current user owns this campaign
+  useEffect(() => {
+    const checkOwnership = async () => {
+      if (!signer || !campaign?.cell) {
+        setIsOwner(false)
+        return
+      }
+      
+      try {
+        // Get the user's lock script
+        const userLockScript = (await signer.getRecommendedAddressObj()).script
+        const userLockHash = userLockScript.hash()
+        
+        // Get the campaign's lock hash
+        const campaignLockHash = campaign.cell.cellOutput.lock.hash()
+        
+        // Check if they match
+        setIsOwner(userLockHash === campaignLockHash)
+      } catch (error) {
+        debug.error("Failed to check campaign ownership:", error)
+        setIsOwner(false)
+      }
+    }
+    
+    checkOwnership()
+  }, [signer, campaign])
 
   useEffect(() => {
     const fetchCampaign = async () => {
@@ -76,7 +104,7 @@ export default function CampaignDetailPage() {
           return
         }
         const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
-        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer, protocolCell)
+        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer.client, protocolCell)
         if (cell) {
           const campaignData = CampaignData.decode(cell.outputData) as CampaignDataLike
           setCampaign({ ...campaignData, typeHash: cell.cellOutput.type?.hash() || "0x", cell })
@@ -274,13 +302,26 @@ export default function CampaignDetailPage() {
                         {campaign.metadata?.title?.substring(0, 2).toUpperCase() || "C"}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <CardTitle className="text-3xl">
-                        {campaign.metadata?.title || "Untitled Campaign"}
-                      </CardTitle>
-                      <CardDescription className="text-lg mt-1">
-                        {campaign.metadata?.short_description || "No description available"}
-                      </CardDescription>
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-3xl">
+                            {campaign.metadata?.title || "Untitled Campaign"}
+                          </CardTitle>
+                          <CardDescription className="text-lg mt-1">
+                            {campaign.metadata?.short_description || "No description available"}
+                          </CardDescription>
+                        </div>
+                        {/* Management Button for Campaign Owner and Admins */}
+                        {(isOwner || isAdmin) && (
+                          <Link href={`/campaign-admin/${campaignTypeId}`}>
+                            <Button>
+                              <Settings className="w-4 h-4 mr-2" />
+                              Manage Campaign
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
                     </div>
                   </div>
                   

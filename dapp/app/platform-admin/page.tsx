@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
 import { ccc } from "@ckb-ccc/connector-react"
-import { fetchCampaignsConnectedToProtocol, extractTypeIdFromCampaignCell } from "@/lib/ckb/campaign-cells"
+import { fetchCampaignsConnectedToProtocol, extractTypeIdFromCampaignCell, isCampaignApproved } from "@/lib/ckb/campaign-cells"
 import { CampaignData } from "ssri-ckboost/types"
 import { debug, formatDateConsistent } from "@/lib/utils/debug"
 import { Button } from "@/components/ui/button"
@@ -557,13 +557,22 @@ export default function PlatformAdminDashboard() {
         // Fetch campaigns connected to this protocol
         debug.log('Fetching campaigns connected to protocol...')
         const campaigns = await fetchCampaignsConnectedToProtocol(
-          signer,
+          signer.client,
           campaignCodeHash as ccc.Hex,
           protocolTypeHash as ccc.Hex
         )
         
         debug.log(`Received ${campaigns.length} connected campaigns`)
-        setConnectedCampaigns(campaigns)
+        
+        // Filter out approved campaigns - only show pending review campaigns
+        const approvedCampaignIds = protocolData.campaigns_approved || []
+        const pendingCampaigns = campaigns.filter(campaign => {
+          const campaignTypeId = extractTypeIdFromCampaignCell(campaign)
+          return !isCampaignApproved(campaignTypeId, approvedCampaignIds)
+        })
+        
+        debug.log(`Filtered to ${pendingCampaigns.length} pending review campaigns`)
+        setConnectedCampaigns(pendingCampaigns)
         
         // Log campaign details
         if (campaigns.length > 0) {
@@ -1025,9 +1034,11 @@ export default function PlatformAdminDashboard() {
             <TabsContent value="campaigns" className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-semibold">Campaign Application Reviews</h2>
-                <Badge className="bg-yellow-100 text-yellow-800">
-                  {connectedCampaigns.length} Connected Campaigns
-                </Badge>
+                {connectedCampaigns.length > 0 && (
+                  <Badge className="bg-yellow-100 text-yellow-800">
+                    {connectedCampaigns.length} Pending Review
+                  </Badge>
+                )}
               </div>
               
               {isLoadingCampaigns ? (
@@ -1041,9 +1052,9 @@ export default function PlatformAdminDashboard() {
                 <Card>
                   <CardContent className="text-center py-12">
                     <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-lg font-medium mb-2">No campaigns found</p>
+                    <p className="text-lg font-medium mb-2">No pending campaigns</p>
                     <p className="text-sm text-muted-foreground">
-                      Campaigns connected to this protocol will appear here once they are deployed.
+                      All connected campaigns have been reviewed and approved.
                     </p>
                   </CardContent>
                 </Card>
