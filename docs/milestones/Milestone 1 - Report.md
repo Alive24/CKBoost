@@ -80,6 +80,8 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 
 ## ⚠️ Deferred Issues & New Todo Items
 
+The following issues are deferred as they are not critical features at the moment but they will be registered as trackable issues.
+
 ### 1. Approve Completion - Status Check Commented Out
 
 **File**: `/contracts/contracts/ckboost-campaign-type/src/recipes.rs`
@@ -129,4 +131,9 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 ### 6. Rewards stats for campaign detail page
 
 **Issue**: It's getting the available rewards but not the distributed rewards.
+**Status**: Deferred as it is not a critical feature at the moment.
+
+### 7. Endorser info for campaigns
+
+**Issue**: Endorser info is not showing up for campaigns.
 **Status**: Deferred as it is not a critical feature at the moment.
