@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "next build",
+    "prebuild": "cd ../packages/ssri-ckboost && npm install && npm run build",
+    "build": "pnpm run prebuild && next build",
     "dev": "next dev",
     "lint": "next lint",
     "start": "next start",

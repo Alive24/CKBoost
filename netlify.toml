@@ -1,16 +1,5 @@
 # Netlify configuration file
 
-[build]
-  # Install build tools and build the Next.js application
-  command = "./scripts/install-build-tools.sh && source $HOME/.cargo/env && export PATH=\"$HOME/.local/bin:$HOME/.cargo/bin:$PATH\" && pnpm build"
-
-  # The directory where the Next.js app is located
-  base = "dapp"
-
-  # The directory that contains the built site.
-  # This is relative to the base directory.
-  publish = ".next"
-
 [[plugins]]
   # Essential plugin for deploying Next.js sites on Netlify.
   # It automatically configures redirects, serverless functions, and more.
