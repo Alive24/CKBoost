@@ -38,6 +38,7 @@ import { useUser } from "@/lib/providers/user-provider"
 export default function CampaignDetailPage() {
   const params = useParams()
   const campaignTypeId = params.campaignTypeId as ccc.Hex
+  const { client } = ccc.useCcc()
   const { signer, protocolData, protocolCell, isAdmin, isEndorser } = useProtocol()
   const { currentUserTypeId, hasUserSubmittedQuest, isLoading: userLoading, refreshUserData } = useUser()
   const [campaign, setCampaign] = useState<CampaignDataLike & { typeHash: ccc.Hex; cell: ccc.Cell } | null>(null)
@@ -49,10 +50,17 @@ export default function CampaignDetailPage() {
   const [fundingData, setFundingData] = useState<Map<ccc.Hex, bigint>>(new Map())
   const [isLoadingFunding, setIsLoadingFunding] = useState(true)
 
-  // Fetch UDT funding data for the campaign
+  // Fetch UDT funding data for the campaign (only when signer is available)
   useEffect(() => {
     const fetchFundingData = async () => {
-      if (!signer || !campaignTypeId || !protocolData) {
+      // Only fetch funding data if we have a signer
+      // If no signer, just mark as not loading - funding data isn't critical for viewing
+      if (!signer) {
+        setIsLoadingFunding(false)
+        return
+      }
+      
+      if (!campaignTypeId || !protocolData) {
         return
       }
       
@@ -122,10 +130,9 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     const fetchCampaign = async () => {
-      // Keep loading state while waiting for signer
-      if (!signer) {
-        debug.warn("Waiting for signer to connect...")
-        // Don't set loading to false here - wait for signer
+      // Use public client if no signer is available
+      if (!client) {
+        debug.warn("Waiting for client to initialize...")
         return
       }
 
@@ -153,7 +160,7 @@ export default function CampaignDetailPage() {
           return
         }
         const { fetchCampaignByTypeId } = await import("@/lib/ckb/campaign-cells")
-        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, signer.client, protocolCell)
+        const cell = await fetchCampaignByTypeId(campaignTypeId, campaignCodeHash, client, protocolCell)
         if (cell) {
           const campaignData = CampaignData.decode(cell.outputData) as CampaignDataLike
           setCampaign({ ...campaignData, typeHash: cell.cellOutput.type?.hash() || "0x", cell })
@@ -169,7 +176,7 @@ export default function CampaignDetailPage() {
     }
 
     fetchCampaign()
-  }, [signer, campaignTypeId, protocolData, protocolCell])
+  }, [client, campaignTypeId, protocolData, protocolCell])
 
   // Check submission statuses for all quests
   useEffect(() => {
@@ -194,8 +201,8 @@ export default function CampaignDetailPage() {
   }, [currentUserTypeId, campaign, campaignTypeId, hasUserSubmittedQuest])
 
 
-  // Show loading state while waiting for signer, campaign data, or user data
-  if (isLoading || userLoading || (!signer && !campaign)) {
+  // Show loading state while waiting for campaign data
+  if (isLoading || (!client && !campaign)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Navigation />
@@ -204,8 +211,7 @@ export default function CampaignDetailPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">
-                {!signer ? "Connecting to wallet..." : 
-                 userLoading ? "Loading user data..." : 
+                {!client ? "Connecting to blockchain..." : 
                  "Loading campaign details..."}
               </p>
             </div>
