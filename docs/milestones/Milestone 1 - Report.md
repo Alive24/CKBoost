@@ -84,8 +84,8 @@ The following issues are deferred as they are not critical features at the momen
 
 ### 1. Approve Completion - Status Check Commented Out
 
-**File**: `/contracts/contracts/ckboost-campaign-type/src/recipes.rs`
-**Content**:
+- **File**: `/contracts/contracts/ckboost-campaign-type/src/recipes.rs`
+- **Content**:
 
 ```rust
 // TODO: Not handling this for now
@@ -96,44 +96,49 @@ The following issues are deferred as they are not critical features at the momen
 // }
 ```
 
-**Issue**: Campaign status validation is disabled, allowing approval at any status.
-**Status**: Deferred as only necessary for marginal cases.
+- **Issue**: Campaign status validation is disabled, allowing approval at any status.
+- **Status**: Deferred as only necessary for marginal cases.
 
 ### 2. Protocol Type - Timestamp
 
-**File**: `/contracts/contracts/ckboost-protocol-type/src/recipes.rs`
-**Content**:
+- **File**: `/contracts/contracts/ckboost-protocol-type/src/recipes.rs`
+- **Content**:
 
 ```rust
 // TODO: Implement proper timestamp retrieval from header deps
 // TODO: Check expiration when we have proper timestamp access
 ```
 
-**Issue**: Protocol timestamp is accurate and validated
-**Status**: Deferred as only needed in tipping proposal and it is not a critical feature at the moment.
+- **Issue**: Protocol timestamp is accurate and validated
+- **Status**: Deferred as only needed in tipping proposal and it is not a critical feature at the moment.
 
 ### 3. SSRI Server Error Reporting
 
-**File**: Multiple service files in `/dapp/lib/services/`
-**Issue**: When SSRI server is not ready, errors are generic.
-**Status**: Deferred as implementations of executor is not confirmed yet and it shouldn't be sensible to generic users.
+- **File**: Multiple service files in `/dapp/lib/services/`
+- **Issue**: When SSRI server is not ready, errors are generic.
+- **Status**: Deferred as implementations of executor is not confirmed yet and it shouldn't be sensible to generic users.
 
 ### 4. Re-funding after approval of campaign
 
-**Issue**: After approval of campaign, the re-funding interface is not available yet.
-**Status**: Deferred as it is not a critical feature at the moment.
+- **Issue**: After approval of campaign, the re-funding interface is not available yet.
+- **Status**: Deferred as it is not a critical feature at the moment.
 
 ### 5. Store Campaign cover with Nostr
 
-**Issue**: Campaign cover should be stored on Nostr
-**Status**: Deferred as it is not a critical feature at the moment.
+- **Issue**: Campaign cover should be stored on Nostr
+- **Status**: Deferred as it is not a critical feature at the moment.
 
 ### 6. Rewards stats for campaign detail page
 
-**Issue**: It's getting the available rewards but not the distributed rewards.
-**Status**: Deferred as it is not a critical feature at the moment.
+- **Issue**: It's getting the available rewards but not the distributed rewards.
+- **Status**: Deferred as it is not a critical feature at the moment.
 
 ### 7. Endorser info for campaigns
 
-**Issue**: Endorser info is not showing up for campaigns.
-**Status**: Deferred as it is not a critical feature at the moment.
+- **Issue**: Endorser info is not showing up for campaigns.
+- **Status**: Deferred as it is not a critical feature at the moment.
+
+### 8. Campaign Rules are descriptive
+
+- **Issue**: Campaign Rules are only descriptive. Should work together with automatic submission approval.
+- **Status**: Deferred as it is not a critical feature at the moment.

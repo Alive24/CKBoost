@@ -564,10 +564,17 @@ export function ProtocolManagement() {
         typeof value === "bigint" ? value.toString() : value
       );
 
-    if (scriptHashesEqual && tippingEqual) {
+    // Check if admins have changed
+    const currentAdmins = protocolData?.protocol_config.admin_lock_hash_vec.map((hash) =>
+      ccc.hexFrom(hash as ccc.BytesLike)
+    ) || [];
+    const adminsEqual = JSON.stringify(currentAdmins) === JSON.stringify(finalAdminLockHashes);
+
+    if (scriptHashesEqual && tippingEqual && adminsEqual) {
       // No changes detected, clear pending changes
       setPendingChanges((prev) => ({
         ...prev,
+        admins: false,
         scriptCodeHashes: false,
         tippingConfig: false,
       }));
