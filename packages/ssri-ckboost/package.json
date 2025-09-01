@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "generate": "mkdir -p src/generated && moleculec --language - --schema-file ../../schemas/ckboost.mol --format json > src/generated/ckboost.json && ts-node scripts/generate-types.ts",
+    "generate": "mkdir -p src/generated && moleculec --language - --schema-file ../../schemas/ckboost.mol --format json > src/generated/ckboost.json && npx ts-node scripts/generate-types.ts",
     "prebuild": "npm run generate",
     "build": "rimraf ./dist && tsc",
     "lint": "eslint ./src",
@@ -33,6 +33,7 @@
   },
   "devDependencies": {
     "@ckb-ccc/eip6963": "^1.0.18",
+    "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.10.2",
     "eslint": "^9.1.0",
@@ -41,6 +42,7 @@
     "rimraf": "^5.0.5",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
     "typescript": "^5.4.5"
   },
   "publishConfig": {
