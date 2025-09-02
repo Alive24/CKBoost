@@ -24,6 +24,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { getDaysUntilEnd, type CampaignDisplay } from "@/lib";
+import { formatDateConsistent } from "@/lib/utils/debug";
 import { udtRegistry } from "@/lib/services/udt-registry";
 
 interface CampaignCardProps {
@@ -133,9 +134,13 @@ export function CampaignCard({
   };
 
   const getProgressPercentage = () => {
-    return campaign.questsCount > 0
-      ? (campaign.questsCompleted / campaign.questsCount) * 100
-      : 0;
+    // Time-based progress between start and end dates
+    const start = new Date(campaign.startDate).getTime();
+    const end = new Date(campaign.endDate).getTime();
+    const now = Date.now();
+    const totalDuration = Math.max(0, end - start);
+    const elapsed = Math.max(0, Math.min(now - start, totalDuration));
+    return totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0;
   };
 
   return (
@@ -254,15 +259,17 @@ export function CampaignCard({
             )}
           </div>
 
-          {/* Progress */}
+          {/* Progress (time-based, consistent with campaign detail) */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span>Quest Progress</span>
-              <span>
-                {campaign.questsCompleted}/{campaign.questsCount} completed
-              </span>
+              <span>Campaign Progress</span>
+              <span>{getProgressPercentage().toFixed(0)}%</span>
             </div>
             <Progress value={getProgressPercentage()} className="h-2" />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Started: {formatDateConsistent(campaign.startDate)}</span>
+              <span>Ends: {formatDateConsistent(campaign.endDate)}</span>
+            </div>
           </div>
 
           {/* Stats */}
