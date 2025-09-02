@@ -663,7 +663,7 @@ export default function CampaignDetailPage() {
                               ) : (
                                 <>
                                   <Users className="w-4 h-4" />
-                                  <span>0 participants</span>
+                                  <span>{Number(quest.completion_count || 0)} completions</span>
                                 </>
                               )}
                             </div>
@@ -869,46 +869,70 @@ export default function CampaignDetailPage() {
             </TabsContent>
 
             <TabsContent value="rewards" className="space-y-6">
-              {/* Total Points Rewarded */}
+              {/* Combined: Total Points (configured) + UDT Rewards Distributed */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Total Points Rewarded</CardTitle>
-                  <CardDescription>
-                    Points that have been distributed to participants
-                  </CardDescription>
+                  <CardTitle>Rewards Summary</CardTitle>
+                  <CardDescription>Points configured and UDT distributed so far</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 border rounded-lg">
-                      {(() => {
-                        // Calculate actual points distributed based on completion_count
-                        let totalDistributed = 0
-                        campaign?.quests?.forEach((quest: typeof campaign.quests[0]) => {
-                          const completions = Number(quest.completion_count || 0)
-                          const questPoints = Number(quest.points || 0)
-                          totalDistributed += completions * questPoints
-                        })
-                        
-                        const distributionPercentage = totalPoints > 0 
-                          ? Math.min(100, (totalDistributed / Number(totalPoints)) * 100)
-                          : 0
-                        
-                        return (
-                          <>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-medium">Total Points Pool</span>
-                              <span className="text-2xl font-bold">
-                                {totalPoints} Points
-                              </span>
-                            </div>
-                            <Progress value={distributionPercentage} className="h-2" />
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {totalDistributed.toLocaleString()} points distributed ({distributionPercentage.toFixed(1)}%)
-                            </p>
-                          </>
-                        )
-                      })()}
+                    {/* Total Points Configured */}
+                    <div className="p-4 border rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-yellow-600" />
+                        <span className="font-medium">Total Points</span>
+                      </div>
+                      <span className="text-2xl font-bold">{totalPoints} Points</span>
                     </div>
+
+                    {/* UDT Distributed (aggregated) */}
+                    {(() => {
+                      const distributedBySymbol = new Map<string, { amount: number; tokenInfo: ReturnType<typeof udtRegistry.getTokenByScriptHash> }>()
+
+                      campaign?.quests?.forEach((quest: typeof campaign.quests[0]) => {
+                        const completions = Number(quest.completion_count || 0)
+                        quest.rewards_on_completion?.forEach((rewardList: AssetListLike) => {
+                          rewardList.udt_assets?.forEach((udtAsset: UDTAssetLike) => {
+                            const script = ccc.Script.from(udtAsset.udt_script)
+                            const scriptHash = script.hash()
+                            const token = udtRegistry.getTokenByScriptHash(scriptHash)
+                            const symbol = token?.symbol || 'UDT'
+                            const amountDistributed = Number(udtAsset.amount) * completions
+                            const current = distributedBySymbol.get(symbol) || { amount: 0, tokenInfo: token }
+                            current.amount += amountDistributed
+                            current.tokenInfo = token || current.tokenInfo
+                            distributedBySymbol.set(symbol, current)
+                          })
+                        })
+                      })
+
+                      if (distributedBySymbol.size === 0) {
+                        return (
+                          <div className="text-center py-8 text-muted-foreground">
+                            No UDT rewards distributed yet
+                          </div>
+                        )
+                      }
+
+                      return Array.from(distributedBySymbol.entries()).map(([symbol, info]) => {
+                        const formatted = info.tokenInfo
+                          ? udtRegistry.formatAmount(info.amount, info.tokenInfo)
+                          : `${info.amount / (10 ** 8)}`
+                        return (
+                          <div key={symbol} className="p-4 border rounded-lg flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Coins className="w-5 h-5 text-yellow-600" />
+                              <span className="font-medium text-lg">{symbol}</span>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Distributed</p>
+                              <span className="text-2xl font-bold">{formatted} {symbol}</span>
+                            </div>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -917,9 +941,7 @@ export default function CampaignDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Available UDT Rewards</CardTitle>
-                  <CardDescription>
-                    Token rewards remaining in the campaign funding pool
-                  </CardDescription>
+                  <CardDescription>Remaining token rewards bound to this campaign</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -1003,29 +1025,13 @@ export default function CampaignDetailPage() {
                         const formattedAvailable = info.tokenInfo 
                           ? udtRegistry.formatAmount(info.available, info.tokenInfo)
                           : `${info.available / (10 ** 8)}`
-                        
-                        const formattedDistributed = info.tokenInfo
-                          ? udtRegistry.formatAmount(info.totalDistributed, info.tokenInfo)
-                          : `${info.totalDistributed / (10 ** 8)}`
-                          
-                        const formattedTotal = info.tokenInfo
-                          ? udtRegistry.formatAmount(info.totalFunded, info.tokenInfo)
-                          : `${info.totalFunded / (10 ** 8)}`
-                        
                         const formattedAverage = info.tokenInfo
                           ? udtRegistry.formatAmount(info.averagePerQuest, info.tokenInfo)
                           : `${info.averagePerQuest / (10 ** 8)}`
-                        
-                        // Calculate how many more quest completions can be funded
                         const completionQuota = info.averagePerQuest > 0 
                           ? Math.floor(info.available / info.averagePerQuest)
                           : 0
-                        
-                        // Calculate usage percentage based on what's been distributed vs total funded
-                        const usagePercentage = info.totalFunded > 0
-                          ? Math.min(100, (info.totalDistributed / info.totalFunded) * 100)
-                          : 0
-                        
+
                         return (
                           <div key={symbol} className="p-4 border rounded-lg space-y-3">
                             <div className="flex items-center justify-between">
@@ -1034,18 +1040,11 @@ export default function CampaignDetailPage() {
                                 <span className="font-medium text-lg">{symbol}</span>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs text-muted-foreground mb-1">Available in Pool</p>
-                                <span className="text-2xl font-bold">
-                                  {formattedAvailable} {symbol}
-                                </span>
+                                <p className="text-xs text-muted-foreground">Available</p>
+                                <span className="text-2xl font-bold">{formattedAvailable} {symbol}</span>
                               </div>
                             </div>
-                            
-                            <Progress value={usagePercentage} className="h-2" />
-                            <p className="text-xs text-muted-foreground">
-                              {formattedDistributed} {symbol} distributed of {formattedTotal} {symbol} total ({usagePercentage.toFixed(1)}%)
-                            </p>
-                            
+
                             <div className="grid grid-cols-2 gap-4 pt-2">
                               <div>
                                 <p className="text-xs text-muted-foreground">Average per Quest</p>
@@ -1063,78 +1062,7 @@ export default function CampaignDetailPage() {
                   </div>
                 </CardContent>
               </Card>
-              
-              {/* Quest Rewards Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quest Rewards Breakdown</CardTitle>
-                  <CardDescription>
-                    Individual rewards for each quest in the campaign
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
 
-                    {/* Show individual quest rewards */}
-                    {campaign?.quests && campaign.quests.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Quest Rewards</h4>
-                        <div className="space-y-2">
-                          {campaign.quests.map((quest: typeof campaign.quests[0], index: number) => (
-                            <div key={index} className="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                              <div className="flex-1">
-                                <span className="text-sm font-medium">{quest.metadata?.title || `Quest ${index + 1}`}</span>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  {Number(quest.completion_count || 0)} completions
-                                </p>
-                              </div>
-                              <div className="flex gap-2 items-center">
-                                <Badge variant="outline">
-                                  {Number(quest.points) || 100} points
-                                </Badge>
-                                {/* Display UDT rewards inline */}
-                                {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
-                                  quest.rewards_on_completion.flatMap((rl: AssetListLike, rlIdx: number) => 
-                                    (rl.udt_assets || []).map((udtAsset: UDTAssetLike, udtIdx: number) => {
-                                      const script = ccc.Script.from(udtAsset.udt_script)
-                                      const scriptHash = script.hash()
-                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
-                                      const formattedAmount = token
-                                        ? udtRegistry.formatAmount(Number(udtAsset.amount), token)
-                                        : `${Number(udtAsset.amount) / (10 ** 8)}`
-                                      return (
-                                        <Badge key={`reward-${rlIdx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
-                                          <Coins className="w-3 h-3 mr-1" />
-                                          {formattedAmount} {token?.symbol || 'UDT'}
-                                        </Badge>
-                                      )
-                                    })
-                                  )
-                                }
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <h4 className="font-medium">Distribution Rules</h4>
-                      <ul className="space-y-1 text-sm text-muted-foreground">
-                        {campaign.rules?.map((rule: string, index: number) => (
-                          <li key={index}>• {rule}</li>
-                        )) || (
-                          <>
-                            <li>• Complete quests to earn points</li>
-                            <li>• Points are awarded upon quest completion</li>
-                            <li>• Check individual quest requirements</li>
-                          </>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>
