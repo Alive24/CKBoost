@@ -276,7 +276,7 @@ export function CampaignCard({
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-blue-600" />
-              <span>{Number(campaign.participants_count || 0)} participants</span>
+              <span>{Number(campaign.total_completions || 0)} completions</span>
             </div>
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-orange-600" />
