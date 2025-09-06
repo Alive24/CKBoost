@@ -1,11 +1,13 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Navigation } from "@/components/navigation"
+import { useVerification } from "@/lib/hooks/use-verification"
+import { ccc } from "@ckb-ccc/connector-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -22,6 +24,7 @@ import {
   Twitter,
   MessageSquare,
 } from "lucide-react"
+import { LoginButton } from '@telegram-auth/react';
 
 const VERIFICATION_METHODS = [
   {
@@ -98,31 +101,58 @@ const VERIFICATION_METHODS = [
 
 export default function VerifyIdentity() {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
-  const [telegramUsername, setTelegramUsername] = useState("")
   const [twitterUsername, setTwitterUsername] = useState("")
   const [discordUsername, setDiscordUsername] = useState("")
   const [redditUsername, setRedditUsername] = useState("")
   const [manualApplication, setManualApplication] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [justCompleted, setJustCompleted] = useState<string | null>(null)
-  const [currentUserStatus, setCurrentUserStatus] = useState({
-    telegram: true,
+  const [walletAddress, setWalletAddress] = useState<string | null>(null)
+  
+  // Get wallet connection
+  const { open } = ccc.useCcc()
+  const signer = ccc.useSigner()
+  
+  // Get wallet address when signer is connected
+  useEffect(() => {
+    const getAddress = async () => {
+      if (signer) {
+        try {
+          const addr = await signer.getRecommendedAddress()
+          setWalletAddress(addr)
+        } catch (error) {
+          console.error("Failed to get wallet address:", error)
+        }
+      } else {
+        setWalletAddress(null)
+      }
+    }
+    getAddress()
+  }, [signer])
+
+  // Use the verification hook for real verification management
+  const { verificationStatus, isLoading } = useVerification()
+
+  // Map verification status to the UI format
+  const currentUserStatus = verificationStatus ? {
+    telegram: verificationStatus.telegram,
+    twitter: verificationStatus.twitter,
+    discord: verificationStatus.discord,
+    reddit: verificationStatus.reddit,
+    kyc: verificationStatus.kyc,
+    did: verificationStatus.did,
+    manualReview: verificationStatus.manual_review,
+  } : {
+    telegram: false,
     twitter: false,
     discord: false,
     reddit: false,
     kyc: false,
     did: false,
     manualReview: false,
-  })
-
-  const handleTelegramVerification = async () => {
-    setIsSubmitting(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsSubmitting(false)
-    // In real app, would redirect to Telegram bot
-    window.open(`https://t.me/ckboost_verify_bot?start=${telegramUsername}`, "_blank")
   }
+
+  // Telegram verification: use Telegram Login widget (no code generation)
 
   const handleTwitterVerification = async () => {
     setIsSubmitting(true)
@@ -132,8 +162,7 @@ export default function VerifyIdentity() {
     // Simulate OAuth flow and transaction signing
     await new Promise((resolve) => setTimeout(resolve, 3000))
     
-    // Simulate successful binding
-    setCurrentUserStatus(prev => ({ ...prev, twitter: true }))
+    // This would normally update via the backend
     setJustCompleted("twitter")
     setIsSubmitting(false)
     
@@ -153,8 +182,7 @@ export default function VerifyIdentity() {
     // Simulate OAuth flow and transaction signing
     await new Promise((resolve) => setTimeout(resolve, 3000))
     
-    // Simulate successful binding
-    setCurrentUserStatus(prev => ({ ...prev, discord: true }))
+    // This would normally update via the backend
     setJustCompleted("discord")
     setIsSubmitting(false)
     
@@ -174,8 +202,7 @@ export default function VerifyIdentity() {
     // Simulate OAuth flow and transaction signing
     await new Promise((resolve) => setTimeout(resolve, 3000))
     
-    // Simulate successful binding
-    setCurrentUserStatus(prev => ({ ...prev, reddit: true }))
+    // This would normally update via the backend
     setJustCompleted("reddit")
     setIsSubmitting(false)
     
@@ -328,93 +355,145 @@ export default function VerifyIdentity() {
                     <Card
                       key={method.id}
                       className={`cursor-pointer transition-all ${
-                        isCompleted 
+                        isCompleted
                           ? (() => {
                               switch (method.id) {
                                 case "telegram":
-                                  return "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                                  return "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20";
                                 case "kyc":
-                                  return "ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-900/20"
+                                  return "ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-900/20";
                                 case "did":
-                                  return "ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
+                                  return "ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/20";
                                 case "manual":
-                                  return "ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20"
+                                  return "ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20";
                                 default:
-                                  return "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20"
+                                  return "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20";
                               }
                             })()
-                          : isSelected 
-                            ? (() => {
-                                switch (method.id) {
-                                  case "telegram":
-                                    return "ring-2 ring-blue-500 border-blue-300"
-                                  case "kyc":
-                                    return "ring-2 ring-purple-500 border-purple-300"
-                                  case "did":
-                                    return "ring-2 ring-indigo-500 border-indigo-300"
-                                  case "manual":
-                                    return "ring-2 ring-orange-500 border-orange-300"
-                                  default:
-                                    return "ring-2 ring-purple-500 border-purple-300"
-                                }
-                              })()
-                            : "hover:shadow-md"
+                          : isSelected
+                          ? (() => {
+                              switch (method.id) {
+                                case "telegram":
+                                  return "ring-2 ring-blue-500 border-blue-300";
+                                case "kyc":
+                                  return "ring-2 ring-purple-500 border-purple-300";
+                                case "did":
+                                  return "ring-2 ring-indigo-500 border-indigo-300";
+                                case "manual":
+                                  return "ring-2 ring-orange-500 border-orange-300";
+                                default:
+                                  return "ring-2 ring-purple-500 border-purple-300";
+                              }
+                            })()
+                          : "hover:shadow-md"
                       } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() => !isDisabled && !isCompleted && !isSubmitting && justCompleted !== method.id && setSelectedMethod(isSelected ? null : method.id)}
+                      onClick={() =>
+                        !isDisabled &&
+                        !isCompleted &&
+                        !isSubmitting &&
+                        justCompleted !== method.id &&
+                        setSelectedMethod(isSelected ? null : method.id)
+                      }
                     >
                       <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Icon className="w-5 h-5" />
                             {method.name}
-                            {isCompleted && <CheckCircle className={`w-4 h-4 ${(() => {
-                              switch (method.id) {
-                                case "telegram":
-                                  return "text-blue-600"
-                                case "kyc":
-                                  return "text-purple-600"
-                                case "did":
-                                  return "text-indigo-600"
-                                case "manual":
-                                  return "text-orange-600"
-                                default:
-                                  return "text-green-600"
-                              }
-                            })()}`} />}
+                            {isCompleted && (
+                              <CheckCircle
+                                className={`w-4 h-4 ${(() => {
+                                  switch (method.id) {
+                                    case "telegram":
+                                      return "text-blue-600";
+                                    case "kyc":
+                                      return "text-purple-600";
+                                    case "did":
+                                      return "text-indigo-600";
+                                    case "manual":
+                                      return "text-orange-600";
+                                    default:
+                                      return "text-green-600";
+                                  }
+                                })()}`}
+                              />
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <Badge className={getDifficultyColor(method.difficulty)}>{method.difficulty}</Badge>
+                            <Badge
+                              className={getDifficultyColor(method.difficulty)}
+                            >
+                              {method.difficulty}
+                            </Badge>
                             {isCompleted ? (
-                              <Badge className={(() => {
-                                switch (method.id) {
-                                  case "telegram":
-                                    return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
-                                  case "kyc":
-                                    return "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100"
-                                  case "did":
-                                    return "bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100"
-                                  case "manual":
-                                    return "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100"
-                                  default:
-                                    return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                }
-                              })()}>
+                              <Badge
+                                className={(() => {
+                                  switch (method.id) {
+                                    case "telegram":
+                                      return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100";
+                                    case "kyc":
+                                      return "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100";
+                                    case "did":
+                                      return "bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100";
+                                    case "manual":
+                                      return "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100";
+                                    default:
+                                      return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100";
+                                  }
+                                })()}
+                              >
                                 <CheckCircle className="w-3 h-3 mr-1" />
                                 Verified
                               </Badge>
                             ) : (
                               <Badge className={getStatusColor(method.status)}>
-                                {method.status === "coming_soon" ? "Coming Soon" : "Available"}
+                                {method.status === "coming_soon"
+                                  ? "Coming Soon"
+                                  : "Available"}
                               </Badge>
                             )}
                           </div>
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">{method.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {method.description}
+                        </p>
+
+                        {/* Show verification details if completed and is Telegram */}
+                        {isCompleted &&
+                          method.id === "telegram" &&
+                          verificationStatus?.telegram_data && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                              <div className="text-sm space-y-1">
+                                <p className="font-medium text-blue-800 dark:text-blue-200">
+                                  ✅ Verification Details:
+                                </p>
+                                {verificationStatus.telegram_data.username && (
+                                  <p className="text-blue-700 dark:text-blue-300">
+                                    <strong>Username:</strong> @
+                                    {verificationStatus.telegram_data.username}
+                                  </p>
+                                )}
+                                <p className="text-blue-700 dark:text-blue-300">
+                                  <strong>Verified:</strong>{" "}
+                                  {new Date(
+                                    verificationStatus.telegram_data
+                                      .verified_at * 1000
+                                  ).toLocaleString()}
+                                </p>
+                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                                  Your Telegram account is now linked to your
+                                  wallet
+                                </p>
+                              </div>
+                            </div>
+                          )}
 
                         <div className="text-sm">
-                          <div className="font-medium mb-1">Time Estimate: {method.timeEstimate}</div>
+                          <div className="font-medium mb-1">
+                            Time Estimate: {method.timeEstimate}
+                          </div>
                           <div className="font-medium mb-2">Requirements:</div>
                           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                             {method.requirements.map((req, index) => (
@@ -430,40 +509,63 @@ export default function VerifyIdentity() {
                             <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
                               <CheckCircle className="h-4 w-4 text-green-600" />
                               <AlertDescription className="text-green-800 dark:text-green-200">
-                                ✅ {method.name} completed successfully! This verification is now active.
+                                ✅ {method.name} completed successfully! This
+                                verification is now active.
                               </AlertDescription>
                             </Alert>
                           </div>
                         )}
-                        
-                        {isSelected && !isCompleted && method.id === "telegram" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <div>
-                              <Label htmlFor="telegram">Telegram Username</Label>
-                              <Input
-                                id="telegram"
-                                placeholder="@yourusername"
-                                value={telegramUsername}
-                                onChange={(e) => setTelegramUsername(e.target.value)}
-                              />
+
+                        {isSelected &&
+                          !isCompleted &&
+                          method.id === "telegram" && (
+                            <div className="space-y-4 pt-4 border-t">
+                              {!walletAddress && (
+                                <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
+                                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                  <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                                    Please connect your wallet first to start
+                                    verification
+                                  </AlertDescription>
+                                </Alert>
+                              )}
+
+                              <Alert>
+                                <MessageCircle className="h-4 w-4" />
+                                <AlertDescription>
+                                  Use the official Telegram Login widget below
+                                  to link your Telegram account. After login,
+                                  we’ll bind it to your wallet.
+                                </AlertDescription>
+                              </Alert>
+
+                              {walletAddress ? (
+                                <div className="flex justify-center">
+                                  <LoginButton
+                                    botUsername={"ckboost_bot"}
+                                    authCallbackUrl="https://feature-identity-verification--ckboost.netlify.app/verify?source=telegram"
+                                    buttonSize="large" // "large" | "medium" | "small"
+                                    cornerRadius={5} // 0 - 20
+                                    showAvatar={true} // true | false
+                                    lang="en"
+                                  />
+                                </div>
+                              ) : (
+                                <Button onClick={open} className="w-full">
+                                  Connect Wallet to Verify
+                                  <ExternalLink className="w-4 h-4 ml-2" />
+                                </Button>
+                              )}
                             </div>
-                            <Button
-                              onClick={handleTelegramVerification}
-                              disabled={!telegramUsername || isSubmitting}
-                              className="w-full"
-                            >
-                              {isSubmitting ? "Connecting..." : "Start Telegram Verification"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </Button>
-                          </div>
-                        )}
+                          )}
 
                         {isSelected && !isCompleted && method.id === "kyc" && (
                           <div className="space-y-4 pt-4 border-t">
                             <Alert>
                               <FileText className="h-4 w-4" />
                               <AlertDescription>
-                                KYC verification will redirect you to our secure partner for document verification.
+                                KYC verification will redirect you to our secure
+                                partner for document verification.
                               </AlertDescription>
                             </Alert>
                             <Button className="w-full">
@@ -473,30 +575,40 @@ export default function VerifyIdentity() {
                           </div>
                         )}
 
-                        {isSelected && !isCompleted && method.id === "manual" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <div>
-                              <Label htmlFor="application">Verification Application</Label>
-                              <Textarea
-                                id="application"
-                                placeholder="Please explain why you should be verified. Include any relevant information about your identity, social media profiles, or community involvement..."
-                                value={manualApplication}
-                                onChange={(e) => setManualApplication(e.target.value)}
-                                rows={4}
-                              />
+                        {isSelected &&
+                          !isCompleted &&
+                          method.id === "manual" && (
+                            <div className="space-y-4 pt-4 border-t">
+                              <div>
+                                <Label htmlFor="application">
+                                  Verification Application
+                                </Label>
+                                <Textarea
+                                  id="application"
+                                  placeholder="Please explain why you should be verified. Include any relevant information about your identity, social media profiles, or community involvement..."
+                                  value={manualApplication}
+                                  onChange={(e) =>
+                                    setManualApplication(e.target.value)
+                                  }
+                                  rows={4}
+                                />
+                              </div>
+                              <Button
+                                onClick={handleManualSubmission}
+                                disabled={
+                                  !manualApplication.trim() || isSubmitting
+                                }
+                                className="w-full"
+                              >
+                                {isSubmitting
+                                  ? "Submitting..."
+                                  : "Submit for Manual Review"}
+                              </Button>
                             </div>
-                            <Button
-                              onClick={handleManualSubmission}
-                              disabled={!manualApplication.trim() || isSubmitting}
-                              className="w-full"
-                            >
-                              {isSubmitting ? "Submitting..." : "Submit for Manual Review"}
-                            </Button>
-                          </div>
-                        )}
+                          )}
                       </CardContent>
                     </Card>
-                  )
+                  );
                 })}
               </div>
             </div>

@@ -14,6 +14,9 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.60.0(react@19.1.0))
+      '@netlify/functions':
+        specifier: ^2.8.2
+        version: 2.8.2
       '@nostrify/nostrify':
         specifier: npm:@jsr/nostrify__nostrify@^0.46.4
         version: '@jsr/nostrify__nostrify@0.46.4(typescript@5.8.3)'
@@ -107,6 +110,9 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.85.0
         version: 5.85.5(react@19.1.0)
+      '@telegram-auth/react':
+        specifier: ^1.0.4
+        version: 1.0.4(react@19.1.0)
       '@tinymce/tinymce-react':
         specifier: ^6.3.0
         version: 6.3.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tinymce@8.0.2)
@@ -425,6 +431,9 @@ packages:
   '@ckb-ccc/connector@1.0.18':
     resolution: {integrity: sha512-zo923w2aFUSjepAIKituvsFxRB75NYVNzwLTIqCD1gcE5Pt5Cmg0U+p/4o5OweqKjL2lLLnsL+NDm4YhTwA/dA==}
 
+  '@ckb-ccc/core@1.11.4':
+    resolution: {integrity: sha512-pcfvqsRqWpyxOldNZ8gOhil+8Xz7oYhXUBLiR29HkgU42H74PuU++AJpDooc0GWQuIbRgsqn69TYk3mit4m0SA==}
+
   '@ckb-ccc/core@1.3.1':
     resolution: {integrity: sha512-av9d+bGsCauwr5CAckyKwmGofGeDMC7PAJPVz0weeHNYgkqIf0pbYyMMDya8NAFmwNgESptBN3skkVPo8HfdCg==}
 
@@ -455,11 +464,17 @@ packages:
   '@ckb-ccc/ssri@0.1.1':
     resolution: {integrity: sha512-yslvnZzscOqcExBBgaansZaKfn5sVd+QCNzWl103Re8ZKNpH+2KdQEZVMV/g4q7pFPS7Ylc33izRp/dVa4lumA==}
 
+  '@ckb-ccc/ssri@0.2.15':
+    resolution: {integrity: sha512-r9P/WAzps5drN6t+hl9Ma0xfX1jvNxhQEl28xe5AcOaFcBt/6QyKn7Dgv/nMfLpjg5kB5/oz970XQv8Xjtpt7Q==}
+
   '@ckb-ccc/ssri@0.2.8':
     resolution: {integrity: sha512-FtbLzdT74ztDmmkzhXO5/2sCvCdpBWmW/XTRg3sK26kGB1k1WHoWHfC3UML7xd9sWWxGAlyjlnLbR8XqZaAlew==}
 
   '@ckb-ccc/udt@0.1.10':
     resolution: {integrity: sha512-Cf8oZPWs+rbagy7YHzKbemNgTZuWEMmyx7HbmnHGuK41P23Z8QbY4yiZ1QRv3p/TT845vV8528yaA9FG2mankg==}
+
+  '@ckb-ccc/udt@0.1.17':
+    resolution: {integrity: sha512-zwRsvpFeDbzm2o5oJnyTYliF3vy2KjVY+5ks2x+fOF0n6rjd9XelEcfUj/dRBFA+E3G0QWGVasR6f1xHfTAh1Q==}
 
   '@ckb-ccc/uni-sat@1.0.18':
     resolution: {integrity: sha512-swMlWGIW9ms+BNHkYZ5rzwP8IPPA6u7NKeWphPB09gvMwmTgwaIj5t0356mxwaGd3LsYKGx3lDA2p95Mjvru+Q==}
@@ -787,6 +802,18 @@ packages:
   '@nervosnetwork/ckb-types@0.109.5':
     resolution: {integrity: sha512-5jQNjFw76YCd+Ppl+0RvBWzxwvWaKfWC5wjVFFdNAieX7xksCHfZFIeow8je7AF8uVypwe56WlLBlblxw9NBBQ==}
 
+  '@netlify/functions@2.8.2':
+    resolution: {integrity: sha512-DeoAQh8LuNPvBE4qsKlezjKj0PyXDryOFJfJKo3Z1qZLKzQ21sT314KQKPVjfvw6knqijj+IO+0kHXy/TJiqNA==}
+    engines: {node: '>=14.0.0'}
+
+  '@netlify/node-cookies@0.1.0':
+    resolution: {integrity: sha512-OAs1xG+FfLX0LoRASpqzVntVV/RpYkgpI0VrUnw2u0Q1qiZUzcPffxRK8HF3gc4GjuhG5ahOEMJ9bswBiZPq0g==}
+    engines: {node: ^14.16.0 || >=16.0.0}
+
+  '@netlify/serverless-functions-api@1.26.1':
+    resolution: {integrity: sha512-q3L9i3HoNfz0SGpTIS4zTcKBbRkxzCRpd169eyiTuk3IwcPC3/85mzLHranlKo2b+HYT0gu37YxGB45aD8A3Tw==}
+    engines: {node: '>=18.0.0'}
+
   '@next/env@15.3.5':
     resolution: {integrity: sha512-7g06v8BUVtN2njAX/r8gheoVffhiKFVt4nx74Tt6G4Hqw9HCLYQVx/GkH2qHvPtAHZaUNZ0VXAa0pQP6v1wk7g==}
 
@@ -852,6 +879,10 @@ packages:
 
   '@noble/curves@1.9.2':
     resolution: {integrity: sha512-HxngEd2XUcg9xi20JkwlLCtYwfoFw4JGkuZpT+WlsPD4gB/cxkvTD8fSsoAnphGZhFdZYKeQIPCuFlWPm1uE0g==}
+    engines: {node: ^14.21.3 || >=16}
+
+  '@noble/curves@1.9.7':
+    resolution: {integrity: sha512-gbKGcRUYIjA3/zCCNaWDciTMFI0dCkvou3TL8Zmy5Nc7sJ47a0jtOeZoTaMxkuqRo9cRhjOdZJXegxYE5FN/xw==}
     engines: {node: ^14.21.3 || >=16}
 
   '@noble/hashes@1.3.1':
@@ -1956,6 +1987,11 @@ packages:
     resolution: {integrity: sha512-/X4EFNcnPiSs8wM2v+b6DqS5mmGeuJQvxBglmDxl6ZQb5V26ouD2SJYAcC3VjbNwqhY2zjxVD15rDA5nGbMn3A==}
     peerDependencies:
       react: ^18 || ^19
+
+  '@telegram-auth/react@1.0.4':
+    resolution: {integrity: sha512-VPCIrA6h5+w69S1QvB/k2PphmAA9E8BSqEX4WMSE1P7KxexKl/VRdoTRKSsSx1/In94S+R7FufbjLrRMnEGEKg==}
+    peerDependencies:
+      react: '>=18'
 
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
@@ -4740,6 +4776,9 @@ packages:
   url-parse@1.5.10:
     resolution: {integrity: sha512-WypcfiRhfeUP9vvF0j6rw0J3hrWrw6iZv3+22h6iRMJ/8z1Tj6XfLP4DsUix5MhMPnXpiHDoKyoZ/bdCkwBCiQ==}
 
+  urlpattern-polyfill@8.0.2:
+    resolution: {integrity: sha512-Qp95D4TPJl1kC9SKigDcqgyM2VDVO4RiJc2d4qe5GrYm+zbIQCWWKAFaJNQ4BhdFeDGwBmAxqJBwWSJDb9T3BQ==}
+
   use-callback-ref@1.3.3:
     resolution: {integrity: sha512-jQL3lRnocaFtu3V00JToYz/4QkNWswxijDaCVNZRiRTO3HQDLsdu1ZtmIUvV4yPp+rvWm5j0y0TG/S61cuijTg==}
     engines: {node: '>=10'}
@@ -5166,6 +5205,26 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/core@1.11.4(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      bech32: 2.0.0
+      bitcoinjs-message: 2.2.0
+      bs58check: 4.0.0
+      buffer: 6.0.3
+      ethers: 6.15.0
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/core@1.3.1(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
@@ -5300,6 +5359,16 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/ssri@0.2.15(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.11.4(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/ssri@0.2.8(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
@@ -5314,6 +5383,17 @@ snapshots:
     dependencies:
       '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
       '@ckb-ccc/ssri': 0.2.8(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/udt@0.1.17(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.11.4(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/ssri': 0.2.15(typescript@5.8.3)(zod@3.25.74)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -5779,6 +5859,17 @@ snapshots:
 
   '@nervosnetwork/ckb-types@0.109.5': {}
 
+  '@netlify/functions@2.8.2':
+    dependencies:
+      '@netlify/serverless-functions-api': 1.26.1
+
+  '@netlify/node-cookies@0.1.0': {}
+
+  '@netlify/serverless-functions-api@1.26.1':
+    dependencies:
+      '@netlify/node-cookies': 0.1.0
+      urlpattern-polyfill: 8.0.2
+
   '@next/env@15.3.5': {}
 
   '@next/eslint-plugin-next@15.4.5':
@@ -5820,6 +5911,10 @@ snapshots:
       '@noble/hashes': 1.3.2
 
   '@noble/curves@1.9.2':
+    dependencies:
+      '@noble/hashes': 1.8.0
+
+  '@noble/curves@1.9.7':
     dependencies:
       '@noble/hashes': 1.8.0
 
@@ -6934,6 +7029,10 @@ snapshots:
   '@tanstack/react-query@5.85.5(react@19.1.0)':
     dependencies:
       '@tanstack/query-core': 5.85.5
+      react: 19.1.0
+
+  '@telegram-auth/react@1.0.4(react@19.1.0)':
+    dependencies:
       react: 19.1.0
 
   '@testing-library/dom@10.4.0':
@@ -9959,6 +10058,7 @@ snapshots:
     dependencies:
       '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
       '@ckb-ccc/ssri': 0.1.1(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/udt': 0.1.17(typescript@5.8.3)(zod@3.25.74)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -10303,6 +10403,8 @@ snapshots:
     dependencies:
       querystringify: 2.2.0
       requires-port: 1.0.0
+
+  urlpattern-polyfill@8.0.2: {}
 
   use-callback-ref@1.3.3(@types/react@19.1.8)(react@19.1.0):
     dependencies:

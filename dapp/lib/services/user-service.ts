@@ -806,6 +806,357 @@ export class UserService {
   }
 
   /**
+   * Update user verification data (Telegram)
+   */
+  async updateTelegramVerification(
+    telegramChatId: ccc.NumLike,
+    telegramUsername: string,
+    protocolCell: ccc.Cell
+  ): Promise<ccc.Hex> {
+    // Ensure deployment info is loaded
+    await this.ensureDeploymentInfo();
+
+    // Get current user
+    const lockScript = (await this.signer.getRecommendedAddressObj()).script;
+    const lockHash = lockScript.hash();
+    const existingUserData = await this.getUserByLockHash(lockHash);
+
+    if (!existingUserData || !existingUserData.typeId) {
+      throw new Error("User must exist before updating verification. Please create user first.");
+    }
+
+    // Convert NumLike to bigint for internal processing
+    let chatIdBigInt: bigint;
+    if (typeof telegramChatId === 'bigint') {
+      chatIdBigInt = telegramChatId;
+    } else if (typeof telegramChatId === 'number' || typeof telegramChatId === 'string') {
+      chatIdBigInt = BigInt(telegramChatId);
+    } else {
+      // It's BytesLike, convert to hex then to bigint
+      const hex = ccc.hexFrom(telegramChatId);
+      chatIdBigInt = BigInt(hex);
+    }
+    
+    debug.log("Updating Telegram verification for user", {
+      userTypeId: existingUserData.typeId.slice(0, 10) + "...",
+      telegramChatId: chatIdBigInt.toString(),
+      telegramUsername
+    });
+
+    // Fetch current user cell
+    const userCell = await fetchUserByTypeId(
+      existingUserData.typeId,
+      this.userTypeCodeHash,
+      this.signer,
+      this.protocolTypeHash
+    );
+
+    if (!userCell) {
+      throw new Error("User cell not found");
+    }
+
+    // Parse current user data
+    const currentUserData = parseUserData(userCell);
+    if (!currentUserData) {
+      throw new Error("Failed to parse user data");
+    }
+
+    // Create updated identity verification JSON
+    const currentIdentityData = currentUserData.verification_data.identity_verification_data;
+    let identityObject;
+    
+    try {
+      // Try to parse existing identity data as JSON
+      const identityString = Buffer.from(currentIdentityData).toString('utf8');
+      identityObject = JSON.parse(identityString);
+    } catch {
+      // If parsing fails, start with empty object
+      debug.log("No existing identity data found, creating new");
+      identityObject = {};
+    }
+
+    // Add Telegram verification data
+    identityObject.telegram = {
+      username: telegramUsername,
+      chat_id: chatIdBigInt.toString(),
+      verified_at: Math.floor(Date.now() / 1000),
+      verification_method: "bot_auth"
+    };
+
+    // Update verification flags to include Telegram (bit 0)
+    const VERIFICATION_TELEGRAM = 1;
+    identityObject.verification_flags = (identityObject.verification_flags || 0) | VERIFICATION_TELEGRAM;
+
+    debug.log("Updated identity data with Telegram verification", {
+      telegramUsername,
+      chatId: chatIdBigInt.toString(),
+      verificationFlags: identityObject.verification_flags
+    });
+
+    // Create updated user verification data
+    const updatedVerificationData = {
+      telegram_personal_chat_id: chatIdBigInt,
+      identity_verification_data: ccc.bytesFrom(JSON.stringify(identityObject), "utf8")
+    };
+
+    // Create updated user data with the new verification data
+    const updatedUserData = {
+      verification_data: updatedVerificationData,
+      total_points_earned: currentUserData.total_points_earned,
+      last_activity_timestamp: BigInt(Date.now()),
+      submission_records: currentUserData.submission_records
+    };
+
+    // Create executor for SSRI operations
+    const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
+    const executor = new ssri.ExecutorJsonRpc(executorUrl);
+    
+    // Create User instance with current cell's script args and executor
+    const userInstanceWithScript = new ckboost.User(
+      this.userTypeCodeCell!,
+      ccc.Script.from({
+        codeHash: this.userTypeCodeHash,
+        hashType: "type",
+        args: userCell.cellOutput.type?.args || ""
+      }),
+      { executor }
+    );
+
+    // Build transaction using submitQuest method (which handles user updates)
+    const result = await userInstanceWithScript.submitQuest(
+      this.signer,
+      updatedUserData,
+      undefined // No base transaction needed
+    );
+
+    // Get the transaction from the result
+    const updateTx = result.res;
+    
+    // Add the protocol cell as a dependency (required for validation)
+    updateTx.addCellDeps({
+      outPoint: protocolCell.outPoint,
+      depType: "code",
+    });
+
+    // Complete fees and send transaction
+    await updateTx.completeInputsByCapacity(this.signer);
+    await updateTx.completeFeeBy(this.signer);
+    
+    debug.log("Updating user cell with Telegram verification", {
+      userTypeId: existingUserData.typeId.slice(0, 10) + "...",
+      telegramUsername,
+      chatId: chatIdBigInt.toString()
+    });
+    
+    const txHash = await this.signer.sendTransaction(updateTx);
+    
+    debug.log("User Telegram verification updated", {
+      txHash: txHash.slice(0, 10) + "...",
+      telegramUsername
+    });
+
+    return txHash;
+  }
+
+  /**
+   * Get user verification status
+   */
+  async getUserVerificationStatus(userTypeId?: ccc.Hex | null): Promise<{
+    telegram: boolean;
+    twitter: boolean;
+    discord: boolean;
+    reddit: boolean;
+    kyc: boolean;
+    did: boolean;
+    manual_review: boolean;
+    verification_flags: number;
+    telegram_data?: {
+      username: string;
+      chat_id: string;
+      verified_at: number;
+    };
+  }> {
+    let targetTypeId = userTypeId;
+    
+    if (!targetTypeId) {
+      // Get current user's type ID
+      targetTypeId = await this.getCurrentUserTypeId();
+      if (!targetTypeId) {
+        // Return empty verification status if user doesn't exist
+        return {
+          telegram: false,
+          twitter: false,
+          discord: false,
+          reddit: false,
+          kyc: false,
+          did: false,
+          manual_review: false,
+          verification_flags: 0
+        };
+      }
+    }
+
+    const userCell = await fetchUserByTypeId(
+      targetTypeId,
+      this.userTypeCodeHash,
+      this.signer,
+      this.protocolTypeHash
+    );
+
+    if (!userCell) {
+      return {
+        telegram: false,
+        twitter: false,
+        discord: false,
+        reddit: false,
+        kyc: false,
+        did: false,
+        manual_review: false,
+        verification_flags: 0
+      };
+    }
+
+    const userData = parseUserData(userCell);
+    if (!userData) {
+      return {
+        telegram: false,
+        twitter: false,
+        discord: false,
+        reddit: false,
+        kyc: false,
+        did: false,
+        manual_review: false,
+        verification_flags: 0
+      };
+    }
+
+    // Parse identity verification data
+    let identityData;
+    try {
+      const identityString = Buffer.from(userData.verification_data.identity_verification_data).toString('utf8');
+      identityData = JSON.parse(identityString);
+    } catch {
+      debug.log("Failed to parse identity verification data");
+      identityData = {};
+    }
+
+    // Determine Telegram binding strictly from telegram_personal_chat_id
+    const chatId = userData.verification_data?.telegram_personal_chat_id as unknown;
+    const telegramBound = typeof chatId === 'bigint'
+      ? (chatId as bigint) > 0n
+      : !!chatId && Number(chatId) > 0;
+
+    // Start from stored flags (if any), but force-sync telegram bit with chat_id presence
+    let verificationFlags = identityData.verification_flags || 0;
+    const VERIFICATION_TELEGRAM = 1;
+    if (telegramBound) {
+      verificationFlags = verificationFlags | VERIFICATION_TELEGRAM;
+    } else {
+      verificationFlags = verificationFlags & ~VERIFICATION_TELEGRAM;
+    }
+
+    // Check individual verification methods
+    const VERIFICATION_KYC = 2;
+    const VERIFICATION_DID = 4;
+    const VERIFICATION_MANUAL = 8;
+    const VERIFICATION_TWITTER = 16;
+    const VERIFICATION_DISCORD = 32;
+    const VERIFICATION_REDDIT = 64;
+
+    const status = {
+      telegram: telegramBound,
+      twitter: (verificationFlags & VERIFICATION_TWITTER) !== 0,
+      discord: (verificationFlags & VERIFICATION_DISCORD) !== 0,
+      reddit: (verificationFlags & VERIFICATION_REDDIT) !== 0,
+      kyc: (verificationFlags & VERIFICATION_KYC) !== 0,
+      did: (verificationFlags & VERIFICATION_DID) !== 0,
+      manual_review: (verificationFlags & VERIFICATION_MANUAL) !== 0,
+      verification_flags: verificationFlags
+    };
+
+    // Add Telegram-specific data if available
+    if (status.telegram && identityData.telegram) {
+      return {
+        ...status,
+        telegram_data: {
+          username: identityData.telegram.username,
+          chat_id: identityData.telegram.chat_id,
+          verified_at: identityData.telegram.verified_at
+        }
+      };
+    }
+
+    debug.log("User verification status", {
+      userTypeId: targetTypeId.slice(0, 10) + "...",
+      status,
+      verificationFlags: verificationFlags.toString(2) // Binary representation
+    });
+
+    return status;
+  }
+
+  /**
+   * Check if user meets campaign verification requirements
+   */
+  async checkCampaignEligibility(
+    campaignVerificationRequirements: number[],
+    userTypeId?: ccc.Hex | null
+  ): Promise<{
+    eligible: boolean;
+    userVerificationFlags: number;
+    requiredFlags: number[];
+    missingVerifications: string[];
+  }> {
+    const userStatus = await this.getUserVerificationStatus(userTypeId);
+    const userFlags = userStatus.verification_flags;
+
+    const missingVerifications: string[] = [];
+    const flagNames = {
+      1: 'telegram',
+      2: 'kyc', 
+      4: 'did',
+      8: 'manual_review',
+      16: 'twitter',
+      32: 'discord',
+      64: 'reddit'
+    };
+
+    // Check if user meets any of the verification requirement levels
+    let eligible = false;
+    for (const requiredFlags of campaignVerificationRequirements) {
+      if ((userFlags & requiredFlags) === requiredFlags) {
+        eligible = true;
+        break;
+      }
+    }
+
+    // If not eligible, determine what's missing from the minimum requirement
+    if (!eligible && campaignVerificationRequirements.length > 0) {
+      const minRequiredFlags = Math.min(...campaignVerificationRequirements);
+      for (const [flag, name] of Object.entries(flagNames)) {
+        const flagNum = parseInt(flag);
+        if ((minRequiredFlags & flagNum) !== 0 && (userFlags & flagNum) === 0) {
+          missingVerifications.push(name);
+        }
+      }
+    }
+
+    debug.log("Campaign eligibility check", {
+      eligible,
+      userFlags: userFlags.toString(2),
+      requiredFlags: campaignVerificationRequirements.map(f => f.toString(2)),
+      missingVerifications
+    });
+
+    return {
+      eligible,
+      userVerificationFlags: userFlags,
+      requiredFlags: campaignVerificationRequirements,
+      missingVerifications
+    };
+  }
+
+  /**
    * Clean up resources
    */
   dispose() {
