@@ -73,8 +73,8 @@ export async function fetchUserPointsBalance(
  * @returns Formatted string
  */
 export function formatPointsBalance(balance: bigint): string {
-  // Points have 8 decimal places
-  const decimals = 8;
+  // Points have 0 decimal places
+  const decimals = 0;
   const divisor = BigInt(10 ** decimals);
   
   const wholePart = balance / divisor;

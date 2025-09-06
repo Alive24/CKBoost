@@ -162,10 +162,15 @@ export default function CampaignAdminPage() {
           return
         }
 
+        if (!signer) {
+          debug.error("Signer not found")
+          return
+        }
+
         const campaignCell = await fetchCampaignByTypeId(
           campaignTypeId as ccc.Hex,
           campaignCodeHash as ccc.Hex,
-          signer!,
+          signer.client,
           protocolCell!
         )
         if (!campaignCell) {
@@ -349,10 +354,14 @@ export default function CampaignAdminPage() {
         )
       } else {
         // For existing campaigns, we need to fetch the cell first to get its type script
+        if (!signer) {
+          debug.error("Signer not found")
+          return
+        }
         const existingCampaignCell = await fetchCampaignByTypeId(
           campaignTypeId as ccc.Hex,
           campaignCodeHash as ccc.Hex,
-          signer,
+          signer.client,
           protocolCell
         )
         
@@ -498,10 +507,15 @@ export default function CampaignAdminPage() {
         return
       }
 
+      if (!signer) {
+        debug.error("Signer not found")
+        return
+      }
+
       const campaignCell = await fetchCampaignByTypeId(
         campaignTypeId as ccc.Hex,
         campaignCodeHash as ccc.Hex,
-        signer!,
+        signer.client,
         protocolCell!
       )
       if (!campaignCell) {
