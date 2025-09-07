@@ -142,3 +142,8 @@ The following issues are deferred as they are not critical features at the momen
 
 - **Issue**: Campaign Rules are only descriptive. Should work together with automatic submission approval.
 - **Status**: Deferred as it is not a critical feature at the moment.
+
+### 9. Quest Submission Simplified UI
+
+- **Issue**: Quest submission UI is not simplified. User should not feel the usage of Nostr.
+- **Status**: Deferred as it is not a critical feature at the moment.

@@ -21,7 +21,8 @@
 6. [x] In campaign detail page, buttons should show up for campaign-admin and platform-admin to manage (jump to /campaign-admin)
 7. [x] Quests with UDT rewards should show it in the tags too in the Quests tab in the campaign detail page, campaign cards on campaign list (it's now mock data, replace them), and also in the Submission tab for campaign-admin detail page.
 8. [x] In the Rewards tab for campaign, should show info about Total Points Rewarded and the available UDT rewards left (also provide the available completion quota calculated with the average amount of UDT rewards per quest dividing the left over)
-9. [ ] Quest progress on campaign card
+9. [x] Quest progress on campaign card
+10. [ ] JoyID compatibility issue
 
 ## Contract Improvements
 
@@ -29,4 +30,4 @@
 
 ## DevOps
 
-1. Full walkthrough on Netlify;
+1. [x] Full walkthrough on Netlify;
