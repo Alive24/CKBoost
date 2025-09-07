@@ -466,8 +466,8 @@ export default function CampaignDetailPage() {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-muted-foreground">Participants</p>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-sm text-muted-foreground">Completions</p>
+                    <p className="text-2xl font-bold">{Number(campaign.total_completions || 0)}</p>
                   </div>
                   <Users className="w-8 h-8 text-purple-600" />
                 </div>
