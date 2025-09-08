@@ -9,6 +9,7 @@ import { NostrProvider } from '@/lib/providers/nostr-provider'
 import { CampaignAdminProvider } from '@/lib/providers/campaign-admin-provider'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
+import { StorageModalProvider } from '@/lib/providers/storage-modal-provider'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -34,7 +35,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
               <CampaignProvider>
                 <UserProvider>
                   <CampaignAdminProvider>
-                    {children}
+                    <StorageModalProvider>
+                      {children}
+                    </StorageModalProvider>
                   </CampaignAdminProvider>
                 </UserProvider>
               </CampaignProvider>

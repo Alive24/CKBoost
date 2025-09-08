@@ -16,7 +16,8 @@ import { useNostrStorage } from "@/hooks/use-nostr-storage"
 import { ccc } from "@ckb-ccc/connector-react"
 import { debug } from "@/lib/utils/debug"
 import { useNostrFetch } from "@/hooks/use-nostr-fetch"
-import { NostrStorageModal } from "@/components/nostr-storage-modal"
+// Global storage modal
+import { useStorageModal } from "@/lib/providers/storage-modal-provider"
 import { isNostrSubmissionData, QuestSubtask } from "@/types/submission"
 
 interface QuestSubmissionFormProps {
@@ -65,6 +66,7 @@ export function QuestSubmissionForm({
     twitter: "",
     discord: ""
   })
+  const storageModal = useStorageModal()
 
   // Check if user has already submitted this quest and load the submission
   const checkSubmission = async () => {
@@ -420,8 +422,22 @@ Lines        : 93.84% ( 183/195 )
         setPendingNeventId(nostrNeventId)
         debug.log("Pending data set with nevent ID:", nostrNeventId)
         
-        // Show the modal after successful Nostr storage
-        setShowStorageModal(true)
+        // Open global modal after successful Nostr storage
+        const questIdNum = Number(quest.quest_id || questIndex + 1)
+        storageModal.open({
+          neventId: nostrNeventId,
+          mode: "verifying",
+          onConfirm: async () => finalizeSubmission(campaignTypeId, questIdNum, nostrNeventId),
+          onClose: async () => {
+            setPendingNeventId(null)
+            setPendingSubmissionData(null)
+            setIsSubmitting(false)
+            // If submission exists, reload
+            if (hasSubmitted) {
+              await checkSubmission()
+            }
+          }
+        })
         setIsSubmitting(false)
         
         // Don't proceed with transaction yet - wait for verification
@@ -439,7 +455,19 @@ Lines        : 93.84% ( 183/195 )
       questId: Number(quest.quest_id || questIndex + 1),
       contentToStore: submissionContent
     })
-    setShowStorageModal(true)
+    if (pendingNeventId) {
+      storageModal.open({
+        neventId: pendingNeventId,
+        mode: "verifying",
+        onConfirm: async () => finalizeSubmission(),
+        onClose: async () => {
+          setPendingNeventId(null)
+          setPendingSubmissionData(null)
+          setIsSubmitting(false)
+          if (hasSubmitted) await checkSubmission()
+        }
+      })
+    }
   }
 
   // Separate function to finalize submission after verification
@@ -490,7 +518,7 @@ Lines        : 93.84% ( 183/195 )
         setExistingSubmission(submission)
       }
 
-      // Clear pending data after successful submission
+      // Clear pending data after successful submission (modal stays open until user finishes)
       setPendingSubmissionData(null)
       setPendingNeventId(null)
       
@@ -960,29 +988,7 @@ Lines        : 93.84% ( 183/195 )
       </Card>
 
       {/* Nostr Storage Verification Modal */}
-      <NostrStorageModal
-        isOpen={showStorageModal}
-        onClose={() => {
-          // Only clear data and close modal when user explicitly closes it
-          setShowStorageModal(false)
-          setPendingNeventId(null)
-          setPendingSubmissionData(null)
-          setIsSubmitting(false)
-          // If submission was successful, reload the submission data
-          if (hasSubmitted) {
-            checkSubmission()
-          }
-        }}
-        neventId={pendingNeventId}
-        onConfirm={async () => {
-          // Don't close the modal - let it stay open to show tx result
-          const txHash = await finalizeSubmission()
-          // Modal will handle showing success/error state
-          // Return the txHash so modal can display success
-          return txHash
-        }}
-        mode="verifying"
-      />
+      {/* Modal moved to global provider */}
     </div>
   )
 }

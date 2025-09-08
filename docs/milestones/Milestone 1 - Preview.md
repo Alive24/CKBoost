@@ -23,7 +23,8 @@
 8. [x] In the Rewards tab for campaign, should show info about Total Points Rewarded and the available UDT rewards left (also provide the available completion quota calculated with the average amount of UDT rewards per quest dividing the left over)
 9. [x] Quest progress on campaign card
 10. [ ] JoyID compatibility issue
-11. [ ] Nostr submission for editing
+11. [x] Nostr submission for editing
+12. [ ] Indicate approved submission (not editable as such)
 
 ## Contract Improvements
 
