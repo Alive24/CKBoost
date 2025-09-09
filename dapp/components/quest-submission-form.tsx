@@ -30,6 +30,7 @@ interface QuestSubmissionFormProps {
   isAccepted?: boolean
   earnedPoints?: number
   earnedUdts?: Array<{ symbol: string; amount: string }>
+  ckbPerCompletion?: number
   onSuccess?: () => void | Promise<void>
 }
 
@@ -40,6 +41,7 @@ export function QuestSubmissionForm({
   isAccepted: isAcceptedProp,
   earnedPoints,
   earnedUdts = [],
+  ckbPerCompletion,
   onSuccess 
 }: QuestSubmissionFormProps) {
   const { currentUserTypeId, submitQuest, hasUserSubmittedQuest, getUserSubmissions, isLoading: userLoading } = useUser()
@@ -717,7 +719,37 @@ Lines        : 93.84% ( 183/195 )
                     {r.amount} {r.symbol}
                   </Badge>
                 ))}
+                {ckbPerCompletion && ckbPerCompletion > 0 && (
+                  <Badge className="bg-green-100 text-green-800">
+                    <Coins className="w-3 h-3 mr-1" />
+                    {ckbPerCompletion} CKB
+                  </Badge>
+                )}
               </div>
+              {/* Claim button for CKB (M1 availability) */}
+              {ckbPerCompletion && ckbPerCompletion > 0 && (
+                <div className="mt-2">
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      // For Milestone 1, CKB rewards are paid upon approval or via sponsor pool.
+                      // Enable claim button to signal availability and unify UX.
+                      try {
+                        console.log('CKB claim requested for', ckbPerCompletion, 'CKB');
+                        // TODO: Integrate on-chain claim when campaign CKB pool is live.
+                        // This will build a tx spending campaign-locked CKB to the user lock.
+                        alert('CKB claim requested. In Milestone 1, CKB payouts are distributed upon approval or from sponsor pool once funded.');
+                      } catch (e) {
+                        console.error('CKB claim failed', e);
+                        alert('Failed to initiate CKB claim. Please try again later.');
+                      }
+                    }}
+                  >
+                    Claim CKB
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </>

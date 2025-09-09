@@ -90,13 +90,16 @@ export function QuestDialog({
     onQuestFormChange({ ...questForm, sub_tasks: newSubtasks })
   }
 
-  // Initialize UDT rewards from questForm when dialog opens
+  // Initialize UDT/CKB rewards from questForm when dialog opens
   useEffect(() => {
     // Don't re-initialize if we're actively editing rewards
     if (isEditingRewards) return
-    
-    if (open && questForm.rewards_on_completion[0]?.udt_assets) {
-      const rewards = questForm.rewards_on_completion[0].udt_assets.map(asset => {
+
+    if (open && questForm.rewards_on_completion[0]) {
+      const base = questForm.rewards_on_completion[0]
+
+      // Map UDT assets
+      const rewardsFromUdts = (base.udt_assets || []).map(asset => {
         const token = udtRegistry.getTokenByScriptHash(
           ccc.Script.from(asset.udt_script).hash()
         )
@@ -105,6 +108,24 @@ export function QuestDialog({
           amount: token ? udtRegistry.formatAmount(Number(asset.amount), token) : asset.amount.toString()
         }
       })
+
+      // Map CKB amount (if any) as a pseudo token
+      const rewards: Array<{ token?: UDTToken; amount: string }> = [...rewardsFromUdts]
+      const ckbAmount = Number(base.ckb_amount || 0)
+      if (!isNaN(ckbAmount) && ckbAmount > 0) {
+        const net = (process.env.NEXT_PUBLIC_CKB_NETWORK === 'testnet' ? 'testnet' : 'mainnet') as 'testnet' | 'mainnet'
+        const ckbToken: UDTToken = {
+          network: net,
+          symbol: 'CKB',
+          name: 'CKB (native)',
+          decimals: 8,
+          script: { codeHash: '0x' as ccc.Hex, hashType: 'type' as ccc.HashType, args: '0x' as ccc.Hex },
+          contractScript: { codeHash: '0x', hashType: 'type', args: '0x' }
+        }
+        const ckbFormatted = (ckbAmount / (10 ** 8)).toString()
+        rewards.push({ token: ckbToken, amount: ckbFormatted })
+      }
+
       setUdtRewards(rewards)
     } else if (open && !isEditingRewards) {
       setUdtRewards([])
@@ -143,16 +164,19 @@ export function QuestDialog({
     const newRewards = udtRewards.filter((_, i) => i !== index)
     setUdtRewards(newRewards)
     
-    // Update questForm immediately when removing UDT rewards
+    // Update questForm immediately when removing rewards (handle UDT and CKB)
+    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB' && r.amount)
+    const ckbAmount = ckbReward ? BigInt(Math.round(Number(ckbReward.amount) * 10 ** 8)) : 0n
     const udtAssets = newRewards
-      .filter(r => r.token && r.amount)
+      .filter(r => r.token && r.amount && r.token.symbol !== 'CKB')
       .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
     
     const updatedRewards = [...questForm.rewards_on_completion]
     if (updatedRewards[0]) {
       updatedRewards[0] = {
         ...updatedRewards[0],
-        udt_assets: udtAssets
+        udt_assets: udtAssets,
+        ckb_amount: ckbAmount
       }
     }
     
@@ -169,23 +193,26 @@ export function QuestDialog({
     newRewards[index] = value
     setUdtRewards(newRewards)
     
-    // Update questForm immediately when user changes UDT rewards
+    // Update questForm immediately when user changes rewards (handle UDT and CKB)
+    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB' && r.amount)
+    const ckbAmount = ckbReward ? BigInt(Math.round(Number(ckbReward.amount) * 10 ** 8)) : 0n
     const udtAssets = newRewards
-      .filter(r => r.token && r.amount)
+      .filter(r => r.token && r.amount && r.token.symbol !== 'CKB')
       .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
     
     const updatedRewards = [...questForm.rewards_on_completion]
     if (updatedRewards.length === 0 && udtAssets.length > 0) {
       updatedRewards.push({
         points_amount: 0,
-        ckb_amount: 0,
+        ckb_amount: ckbAmount,
         nft_assets: [],
         udt_assets: udtAssets
       })
     } else if (updatedRewards[0]) {
       updatedRewards[0] = {
         ...updatedRewards[0],
-        udt_assets: udtAssets
+        udt_assets: udtAssets,
+        ckb_amount: ckbAmount
       }
     }
     
@@ -370,14 +397,12 @@ export function QuestDialog({
             />
           </div>
 
-          {/* UDT Rewards Configuration */}
+          {/* Rewards Configuration */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label>UDT Rewards (Optional)</Label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Configure UDT tokens to distribute as quest rewards
-                </p>
+                <Label>Rewards</Label>
+                <p className="text-xs text-muted-foreground mt-1">Configure CKB and UDT tokens to distribute as quest rewards</p>
               </div>
               <Button
                 type="button"
@@ -386,7 +411,7 @@ export function QuestDialog({
                 onClick={handleAddUDTReward}
               >
                 <Plus className="w-4 h-4 mr-1" />
-                Add UDT Reward
+                Add Reward
               </Button>
             </div>
             
@@ -396,7 +421,7 @@ export function QuestDialog({
                   <Card key={index} className="p-4">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <Label className="text-sm">UDT Reward #{index + 1}</Label>
+                        <Label className="text-sm">Reward #{index + 1}</Label>
                         <Button
                           type="button"
                           variant="ghost"
@@ -412,8 +437,9 @@ export function QuestDialog({
                         onChange={(value) => handleUDTRewardChange(index, value)}
                         signer={signer}
                         showBalance={true}
-                        label="Token and Amount"
+                        label="Asset and Amount"
                         placeholder="Enter amount per completion"
+                        includeCKB={true}
                       />
                     </div>
                   </Card>

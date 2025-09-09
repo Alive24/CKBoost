@@ -29,6 +29,7 @@ interface UDTSelectorProps {
   label?: string;
   placeholder?: string;
   className?: string;
+  includeCKB?: boolean;
 }
 
 export function UDTSelector({
@@ -40,7 +41,8 @@ export function UDTSelector({
   showBalance = true,
   label = "UDT Reward",
   placeholder = "Enter amount",
-  className
+  className,
+  includeCKB = false
 }: UDTSelectorProps) {
   const [tokens, setTokens] = useState<UDTToken[]>([]);
   const [selectedToken, setSelectedToken] = useState<UDTToken | undefined>(value.token);
@@ -51,9 +53,20 @@ export function UDTSelector({
 
   useEffect(() => {
     const allTokens = udtRegistry.getAllTokens();
-    setTokens(allTokens);
-    if (!selectedToken && allTokens.length > 0) {
-      setSelectedToken(allTokens[0]);
+    const network = (process.env.NEXT_PUBLIC_CKB_NETWORK === 'testnet' ? 'testnet' : 'mainnet') as 'testnet' | 'mainnet'
+    const list = includeCKB
+      ? ([{
+          network: network,
+          symbol: 'CKB',
+          name: 'CKB (native)',
+          decimals: 8,
+          script: { codeHash: '0x' as ccc.Hex, hashType: 'type' as ccc.HashType, args: '0x' as ccc.Hex },
+          contractScript: { codeHash: '0x', hashType: 'type', args: '0x' }
+        } as UDTToken] as UDTToken[]).concat(allTokens)
+      : allTokens;
+    setTokens(list);
+    if (!selectedToken && list.length > 0) {
+      setSelectedToken(list[0]);
     }
   }, []);
 
@@ -103,7 +116,7 @@ export function UDTSelector({
 
   const formatBalance = () => {
     if (!selectedToken || !showBalance) return null;
-    
+
     if (balance.loading) {
       return <RefreshCw className="w-3 h-3 animate-spin" />;
     }
@@ -120,9 +133,7 @@ export function UDTSelector({
     return (
       <div className="flex items-center gap-1">
         <Wallet className="w-3 h-3" />
-        <span className="text-sm">
-          {balance.formatted} {selectedToken.symbol}
-        </span>
+        <span className="text-sm">{balance.formatted} {selectedToken.symbol}</span>
       </div>
     );
   };
@@ -141,15 +152,15 @@ export function UDTSelector({
             onValueChange={handleTokenChange}
             disabled={disabled}
           >
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[240px]">
               <SelectValue placeholder="Select token" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-[240px]">
               {tokens.map((token) => (
                 <SelectItem key={token.symbol} value={token.symbol}>
-                  <div className="flex items-center justify-between w-full">
-                    <span>{token.symbol}</span>
-                    <span className="text-xs text-muted-foreground ml-2">
+                  <div className="flex items-center justify-between w-full whitespace-nowrap gap-2">
+                    <span className="font-medium">{token.symbol}</span>
+                    <span className="text-xs text-muted-foreground ml-2 truncate">
                       {token.name}
                     </span>
                   </div>

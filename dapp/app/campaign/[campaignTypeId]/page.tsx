@@ -845,6 +845,13 @@ export default function CampaignDetailPage() {
                             const amountFmt = (Number(udtAsset.amount) / (10 ** 8)).toString()
                             return { symbol: 'UDT', amount: amountFmt }
                           })}
+                        ckbPerCompletion={(() => {
+                          const r = quest.rewards_on_completion?.[0]
+                          if (r && r.ckb_amount && Number(r.ckb_amount) > 0) {
+                            return Number(r.ckb_amount) / (10 ** 8)
+                          }
+                          return 0
+                        })()}
                         onSuccess={async () => {
                           // Refresh user data after successful submission
                           console.log("[CampaignPage] Quest submitted successfully, refreshing data...")

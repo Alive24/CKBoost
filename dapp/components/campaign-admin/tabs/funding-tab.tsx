@@ -52,6 +52,33 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
   const [unlockAmount, setUnlockAmount] = useState("")
   const [isUnlocking, setIsUnlocking] = useState(false)
 
+  // Calculate total required CKB based on quest rewards and initial quotas
+  const ckbRequired = useMemo(() => {
+    if (!campaignData?.quests || initialQuotas.length === 0) return 0n
+    try {
+      return campaignData.quests.reduce((sum, quest, idx) => {
+        const rewardList = quest.rewards_on_completion?.[0]
+        if (!rewardList) return sum
+        const ckbAmt = ccc.numFrom(rewardList.ckb_amount || 0)
+        const quota = BigInt(Number(initialQuotas[idx] ?? 0))
+        if (ckbAmt <= 0n || quota <= 0n) return sum
+        return sum + (ckbAmt * quota)
+      }, 0n)
+    } catch (_) {
+      return 0n
+    }
+  }, [campaignData, initialQuotas])
+
+  const formatShannons = (amount: bigint) => {
+    const decimals = 8n
+    const base = 10n ** decimals
+    const integer = amount / base
+    const fractional = amount % base
+    if (fractional === 0n) return integer.toString()
+    const fracStr = fractional.toString().padStart(Number(decimals), '0').replace(/0+$/, '')
+    return `${integer.toString()}.${fracStr}`
+  }
+
   // Get all tokens that might be needed for the campaign
   const requiredTokens = useMemo(() => {
     return campaignData?.quests?.reduce((tokens, quest) => {
@@ -311,6 +338,35 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
 
   return (
     <div className="space-y-6">
+      {/* CKB Rewards Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5" />
+            CKB Rewards
+          </CardTitle>
+          <CardDescription>Summary for simple CKB rewards configured per quest</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-muted-foreground">Total Required (based on initial quotas)</div>
+              <div className="font-mono font-semibold">{formatShannons(ckbRequired)} CKB</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Funding</div>
+              <div className="text-xs text-muted-foreground">Funding transfers for CKB rewards will be available soon.</div>
+            </div>
+          </div>
+          <div className="mt-3">
+            <Alert>
+              <AlertDescription>
+                CKB rewards are distributed upon approval. Campaign sponsors will be able to deposit CKB to a campaign pool for automated payouts.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </CardContent>
+      </Card>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

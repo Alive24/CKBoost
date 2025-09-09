@@ -135,6 +135,16 @@ export class UDTRegistryService {
     formatted: string;
   }> {
     try {
+      // Special-case native CKB: use client.getBalance for lock capacity
+      if (token.symbol.toUpperCase() === 'CKB') {
+        const lockScript = (await signer.getRecommendedAddressObj()).script;
+        const raw = await signer.client.getBalance([lockScript]);
+        return {
+          raw,
+          formatted: this.formatAmount(raw, token)
+        };
+      }
+
       const udtScript = ccc.Script.from({
         codeHash: token.script.codeHash,
         hashType: token.script.hashType,
