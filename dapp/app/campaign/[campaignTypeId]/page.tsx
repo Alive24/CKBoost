@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, JSX } from "react"
 import { useParams } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -551,43 +551,42 @@ export default function CampaignDetailPage() {
                               </p>
                             </div>
                             <div className="flex flex-col items-end gap-2">
+                              {/* If accepted, show 'You received' label first */}
+                              {currentUserTypeId && (quest.accepted_submission_user_type_ids || []).includes(currentUserTypeId) && (
+                                <span className="text-xs text-green-700 font-medium">You received:</span>
+                              )}
+                              {/* Points */}
                               <Badge className="bg-green-100 text-green-800">
                                 <Trophy className="w-3 h-3 mr-1" />
                                 {Number(quest.points) || 100} points
                               </Badge>
-                              {/* Display UDT rewards if any */}
-                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                              {/* UDT + CKB rewards */}
+                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && (
                                 quest.rewards_on_completion.flatMap((rewardList: AssetListLike, idx: number) => {
-                                  const badges = []
+                                  const badges = [] as JSX.Element[]
                                   if (rewardList.udt_assets && rewardList.udt_assets.length > 0) {
                                     rewardList.udt_assets.forEach((udtAsset: UDTAssetLike, udtIdx: number) => {
-                                      // Get token info from registry
                                       const script = ccc.Script.from(udtAsset.udt_script)
-                                      const scriptHash = script.hash()
-                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
-                                      
-                                      const displayAmount = Number(udtAsset.amount) / (10 ** 8)
+                                      const token = udtRegistry.getTokenByScriptHash(script.hash())
+                                      const amount = token ? udtRegistry.formatAmount(Number(udtAsset.amount), token) : (Number(udtAsset.amount) / (10 ** 8)).toString()
                                       const symbol = token?.symbol || 'UDT'
-                                      
                                       badges.push(
-                                        <Badge key={`udt-${idx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
-                                          <Coins className="w-3 h-3 mr-1" />
-                                          {displayAmount} {symbol}
+                                        <Badge key={`udt-${idx}-${udtIdx}`} className="bg-green-100 text-green-800">
+                                          <Coins className="w-3 h-3 mr-1" />{amount} {symbol}
                                         </Badge>
                                       )
                                     })
                                   }
                                   if (rewardList.ckb_amount && Number(rewardList.ckb_amount) > 0) {
                                     badges.push(
-                                      <Badge key={`ckb-${idx}`} className="bg-blue-100 text-blue-800">
-                                        <Coins className="w-3 h-3 mr-1" />
-                                        {Number(rewardList.ckb_amount) / (10 ** 8)} CKB
+                                      <Badge key={`ckb-${idx}`} className="bg-green-100 text-green-800">
+                                        <Coins className="w-3 h-3 mr-1" />{Number(rewardList.ckb_amount) / (10 ** 8)} CKB
                                       </Badge>
                                     )
                                   }
                                   return badges
                                 })
-                              }
+                              )}
                               {quest.metadata?.time_estimate && (
                                 <Badge variant="outline">
                                   <Clock className="w-3 h-3 mr-1" />
@@ -654,18 +653,35 @@ export default function CampaignDetailPage() {
 
                           {/* Quest Actions */}
                           <div className="flex items-center justify-between mt-4 pt-3 border-t">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              {questSubmissionStatuses[Number(quest.quest_id || index + 1)] ? (
-                                <Badge className="bg-green-100 text-green-800">
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  Submitted
-                                </Badge>
-                              ) : (
-                                <>
-                                  <Users className="w-4 h-4" />
-                                  <span>{Number(quest.completion_count || 0)} completions</span>
-                                </>
-                              )}
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                              {(() => {
+                                const questId = Number(quest.quest_id || index + 1)
+                                const isSubmitted = !!questSubmissionStatuses[questId]
+                                const userAccepted = currentUserTypeId ? (quest.accepted_submission_user_type_ids || []).includes(currentUserTypeId) : false
+                                if (userAccepted) {
+                                  return (
+                                    <>
+                                      <Badge className="bg-green-100 text-green-800">
+                                        <CheckCircle className="w-3 h-3 mr-1" />
+                                        Approved
+                                      </Badge>
+                                    </>
+                                  )
+                                }
+                                if (isSubmitted) {
+                                  return (
+                                    <Badge className="bg-blue-100 text-blue-800">
+                                      <CheckCircle className="w-3 h-3 mr-1" />Submitted
+                                    </Badge>
+                                  )
+                                }
+                                return (
+                                  <>
+                                    <Users className="w-4 h-4" />
+                                    <span>{Number(quest.completion_count || 0)} completions</span>
+                                  </>
+                                )
+                              })()}
                             </div>
                             {isApproved ? (
                               <Button 
@@ -731,43 +747,43 @@ export default function CampaignDetailPage() {
                                 {quest.metadata?.short_description || ""}
                               </CardDescription>
                             </div>
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 items-end">
+                              {/* If accepted, show 'You received' label first */}
+                              {currentUserTypeId && (quest.accepted_submission_user_type_ids || []).includes(currentUserTypeId) && (
+                                <span className="text-xs text-green-700 font-medium">You received:</span>
+                              )}
+                              {/* Points */}
                               <Badge className="bg-green-100 text-green-800">
                                 <Trophy className="w-4 h-4 mr-1" />
                                 {Number(quest.points) || 100} points
                               </Badge>
-                              {/* Display UDT rewards if any */}
-                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && 
+                              {/* UDT + CKB rewards */}
+                              {quest.rewards_on_completion && quest.rewards_on_completion.length > 0 && (
                                 quest.rewards_on_completion.flatMap((rewardList: AssetListLike, idx: number) => {
-                                  const badges = []
+                                  const badges = [] as JSX.Element[]
                                   if (rewardList.udt_assets && rewardList.udt_assets.length > 0) {
                                     rewardList.udt_assets.forEach((udtAsset: UDTAssetLike, udtIdx: number) => {
                                       const script = ccc.Script.from(udtAsset.udt_script)
-                                      const scriptHash = script.hash()
-                                      const token = udtRegistry.getTokenByScriptHash(scriptHash)
-                                      
-                                      const displayAmount = Number(udtAsset.amount) / (10 ** 8)
+                                      const token = udtRegistry.getTokenByScriptHash(script.hash())
+                                      const amount = token ? udtRegistry.formatAmount(Number(udtAsset.amount), token) : (Number(udtAsset.amount) / (10 ** 8)).toString()
                                       const symbol = token?.symbol || 'UDT'
-                                      
                                       badges.push(
-                                        <Badge key={`udt2-${idx}-${udtIdx}`} className="bg-yellow-100 text-yellow-800">
-                                          <Coins className="w-4 h-4 mr-1" />
-                                          {displayAmount} {symbol}
+                                        <Badge key={`udt2-${idx}-${udtIdx}`} className="bg-green-100 text-green-800">
+                                          <Coins className="w-4 h-4 mr-1" />{amount} {symbol}
                                         </Badge>
                                       )
                                     })
                                   }
                                   if (rewardList.ckb_amount && Number(rewardList.ckb_amount) > 0) {
                                     badges.push(
-                                      <Badge key={`ckb2-${idx}`} className="bg-blue-100 text-blue-800">
-                                        <Coins className="w-4 h-4 mr-1" />
-                                        {Number(rewardList.ckb_amount) / (10 ** 8)} CKB
+                                      <Badge key={`ckb2-${idx}`} className="bg-green-100 text-green-800">
+                                        <Coins className="w-4 h-4 mr-1" />{Number(rewardList.ckb_amount) / (10 ** 8)} CKB
                                       </Badge>
                                     )
                                   }
                                   return badges
                                 })
-                              }
+                              )}
                               {quest.metadata?.difficulty && (
                                 <Badge variant="outline">
                                   Difficulty: {getDifficultyString(quest.metadata.difficulty)}
@@ -815,6 +831,20 @@ export default function CampaignDetailPage() {
                         }}
                         questIndex={selectedQuestIndex}
                         campaignTypeId={campaignTypeId}
+                        isAccepted={currentUserTypeId ? (quest.accepted_submission_user_type_ids || []).includes(currentUserTypeId) : false}
+                        earnedPoints={Number(quest.points || 0)}
+                        earnedUdts={(quest.rewards_on_completion || [])
+                          .flatMap((rewardList: AssetListLike) => rewardList.udt_assets || [])
+                          .map((udtAsset: UDTAssetLike) => {
+                            const script = ccc.Script.from(udtAsset.udt_script)
+                            const token = udtRegistry.getTokenByScriptHash(script.hash())
+                            if (token) {
+                              return { symbol: token.symbol, amount: udtRegistry.formatAmount(Number(udtAsset.amount), token) }
+                            }
+                            // Fallback formatting with 8 decimals if unknown
+                            const amountFmt = (Number(udtAsset.amount) / (10 ** 8)).toString()
+                            return { symbol: 'UDT', amount: amountFmt }
+                          })}
                         onSuccess={async () => {
                           // Refresh user data after successful submission
                           console.log("[CampaignPage] Quest submitted successfully, refreshing data...")

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle, Send, AlertCircle, Loader2, UserPlus, TestTube, ExternalLink, Database, Cloud } from "lucide-react"
+import { CheckCircle, Send, AlertCircle, Loader2, UserPlus, TestTube, ExternalLink, Database, Cloud, Coins } from "lucide-react"
 import { MarkdownEditor } from "@/components/markdown-editor"
 import { useUser } from "@/lib/providers/user-provider"
 import { useProtocol } from "@/lib/providers/protocol-provider"
@@ -27,6 +27,9 @@ interface QuestSubmissionFormProps {
   }
   questIndex: number
   campaignTypeId: ccc.Hex
+  isAccepted?: boolean
+  earnedPoints?: number
+  earnedUdts?: Array<{ symbol: string; amount: string }>
   onSuccess?: () => void | Promise<void>
 }
 
@@ -34,6 +37,9 @@ export function QuestSubmissionForm({
   quest, 
   questIndex,
   campaignTypeId,
+  isAccepted: isAcceptedProp,
+  earnedPoints,
+  earnedUdts = [],
   onSuccess 
 }: QuestSubmissionFormProps) {
   const { currentUserTypeId, submitQuest, hasUserSubmittedQuest, getUserSubmissions, isLoading: userLoading } = useUser()
@@ -565,9 +571,8 @@ Lines        : 93.84% ( 183/195 )
     )
   }
 
-  // Check if submission is accepted
-  // Note: acceptance status would need to be fetched from the campaign cell
-  const isAccepted = false // TODO: Implement acceptance checking from campaign cell
+  // Acceptance status provided by parent (campaign page)
+  const isAccepted = !!isAcceptedProp
 
   return (
     <div className="space-y-6">
@@ -645,17 +650,19 @@ Lines        : 93.84% ( 183/195 )
                     Your submission is recorded on-chain, but the content needs to be resubmitted to restore access.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="default"
-                  className="bg-orange-600 hover:bg-orange-700"
-                  onClick={() => {
-                    setIsEditMode(true)
-                    setNostrFetchError(false)
-                  }}
-                >
-                  Resubmit Content
-                </Button>
+                {!isAccepted && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    className="bg-orange-600 hover:bg-orange-700"
+                    onClick={() => {
+                      setIsEditMode(true)
+                      setNostrFetchError(false)
+                    }}
+                  >
+                    Resubmit Content
+                  </Button>
+                )}
               </div>
             </Alert>
           )}
@@ -669,7 +676,7 @@ Lines        : 93.84% ( 183/195 )
                     <>
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <AlertDescription className="text-green-800 dark:text-green-200">
-                        Your submission has been accepted! You earned 10 points.
+                        Your submission has been accepted! You earned {Number(earnedPoints || 0)} points.
                       </AlertDescription>
                     </>
                   ) : (
@@ -697,6 +704,21 @@ Lines        : 93.84% ( 183/195 )
                 </div>
               </div>
             </Alert>
+          )}
+
+          {/* Earned UDTs (if accepted) */}
+          {isAccepted && earnedUdts.length > 0 && (
+            <div className="mt-3">
+              <div className="text-sm text-muted-foreground mb-1">Your rewards:</div>
+              <div className="flex flex-wrap gap-2">
+                {earnedUdts.map((r, idx) => (
+                  <Badge key={`earned-udt-${idx}`} className="bg-yellow-100 text-yellow-800">
+                    <Coins className="w-3 h-3 mr-1" />
+                    {r.amount} {r.symbol}
+                  </Badge>
+                ))}
+              </div>
+            </div>
           )}
         </>
       )}

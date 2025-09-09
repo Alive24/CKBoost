@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Clock, Star, Users, ChevronDown, ChevronUp, Coins } from "lucide-react"
+import { Clock, Star, Users, ChevronDown, ChevronUp, Coins, CheckCircle, Play } from "lucide-react"
 import Link from "next/link"
 import type { QuestDataLike } from "ssri-ckboost/types"
 import { getDifficultyString, getTimeEstimateString, getQuestIcon, getQuestRewards } from "@/lib/types"
@@ -14,9 +14,12 @@ import { ccc, mol } from "@ckb-ccc/core"
 interface QuestCardProps {
   quest: QuestDataLike
   campaignTypeId: string
+  isAccepted?: boolean
+  isSubmitted?: boolean
+  completionsOverride?: number
 }
 
-export function QuestCard({ quest, campaignTypeId }: QuestCardProps) {
+export function QuestCard({ quest, campaignTypeId, isAccepted = false, isSubmitted = false, completionsOverride }: QuestCardProps) {
   const [showSubtasks, setShowSubtasks] = useState(false)
 
   const getDifficultyColor = (difficulty: string) => {
@@ -80,9 +83,13 @@ export function QuestCard({ quest, campaignTypeId }: QuestCardProps) {
             </div>
           </div>
           <div className="text-right">
-            <div className="flex items-center gap-1 text-yellow-600 font-semibold mb-1">
+            {/* Optional received label when accepted */}
+            {isAccepted && questRewards.tokens.length + Number(questRewards.points) > 0 && (
+              <div className="text-xs text-green-700 font-medium mb-1">You received:</div>
+            )}
+            <div className="flex items-center gap-1 text-green-600 font-semibold mb-1">
               <Star className="w-4 h-4 fill-current" />
-              {questRewards.points.toString()}
+              {questRewards.points.toString()} points
             </div>
             <div className="space-y-1">
               {questRewards.tokens.map((token, index) => (
@@ -166,12 +173,26 @@ export function QuestCard({ quest, campaignTypeId }: QuestCardProps) {
         )}
 
         <div className="flex items-center justify-between pt-2 border-t">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            {questTimeEstimate}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {isAccepted ? (
+              <Badge className="bg-green-100 text-green-800">
+                <CheckCircle className="w-3 h-3 mr-1" /> Approved
+              </Badge>
+            ) : isSubmitted ? (
+              <Badge className="bg-blue-100 text-blue-800">
+                <CheckCircle className="w-3 h-3 mr-1" /> Submitted
+              </Badge>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Users className="w-4 h-4" />
+                <span>{(completionsOverride ?? Number(quest.completion_count || 0)).toString()} completions</span>
+              </div>
+            )}
           </div>
           <Link href={`/campaign/${campaignTypeId}/quest/${quest.quest_id}`}>
-            <Button size="sm">Start Quest</Button>
+            <Button size="sm">
+              <Play className="w-3 h-3 mr-1" /> Start Quest
+            </Button>
           </Link>
         </div>
       </CardContent>
