@@ -1,8 +1,12 @@
 # Milestone 1 Report for CKBoost
 
+## Preface
+
+Development of CKBoost for Milestone 1 will be moving into review stage as we start to roll out more guidance and coordination on testing. At the same time, development for Milestone 2 has already started as well.
+
 ## Overview
 
-CKBoost Milestone 1 delivers the bare bone framework for CKBoost, the gamified engagement platform on CKB testnet, implementing core smart contracts, dApp infrastructure, and essential user workflows. Additionally, the ckb_deterministic framework was developed to provide standardized smart contract validation patterns.
+CKBoost Milestone 1 delivers the bare bone framework for CKBoost, implementing core smart contracts, dApp infrastructure, and essential user workflows. Additionally, the ckb_deterministic framework was developed to provide standardized smart contract validation patterns.
 
 Notes: In milestone 1, we focus on delivering the bare bone framework of the project which involves a high level of interdependency between core modules of both smart contracts and dApp. As we progress to the next milestones, we will switch to issue based development and continuous delivery.
 
@@ -74,76 +78,6 @@ Notes: In milestone 1, we focus on delivering the bare bone framework of the pro
 ## 📊 Testing & Documentation Status
 
 - ⏰ Test coverage designed and drafted but not strictly implemented yet
-- ⏰ Milestone 1 Testing Guideline pending
+- ⏰ Milestone 1 Testing Guideline drafted and under revision and coordination
 - ✅ PRD-driven development methodology established
-- ✅ CKB Deterministic framework examples
-
-## ⚠️ Deferred Issues & New Todo Items
-
-The following issues are deferred as they are not critical features at the moment but they will be registered as trackable issues.
-
-### 1. Approve Completion - Status Check Commented Out
-
-- **File**: `/contracts/contracts/ckboost-campaign-type/src/recipes.rs`
-- **Content**:
-
-```rust
-// TODO: Not handling this for now
-// // Verify campaign status is active (4)
-// if input_campaign_data.status() != 4u8.into() {
-//     debug!("Campaign is not active, status: {}", input_campaign_data.status());
-//     return Err(DeterministicError::BusinessRuleViolation);
-// }
-```
-
-- **Issue**: Campaign status validation is disabled, allowing approval at any status.
-- **Status**: Deferred as only necessary for marginal cases.
-
-### 2. Protocol Type - Timestamp
-
-- **File**: `/contracts/contracts/ckboost-protocol-type/src/recipes.rs`
-- **Content**:
-
-```rust
-// TODO: Implement proper timestamp retrieval from header deps
-// TODO: Check expiration when we have proper timestamp access
-```
-
-- **Issue**: Protocol timestamp is accurate and validated
-- **Status**: Deferred as only needed in tipping proposal and it is not a critical feature at the moment.
-
-### 3. SSRI Server Error Reporting
-
-- **File**: Multiple service files in `/dapp/lib/services/`
-- **Issue**: When SSRI server is not ready, errors are generic.
-- **Status**: Deferred as implementations of executor is not confirmed yet and it shouldn't be sensible to generic users.
-
-### 4. Re-funding after approval of campaign
-
-- **Issue**: After approval of campaign, the re-funding interface is not available yet.
-- **Status**: Deferred as it is not a critical feature at the moment.
-
-### 5. Store Campaign cover with Nostr
-
-- **Issue**: Campaign cover should be stored on Nostr
-- **Status**: Deferred as it is not a critical feature at the moment.
-
-### 6. Rewards stats for campaign detail page
-
-- **Issue**: It's getting the available rewards but not the distributed rewards.
-- **Status**: Deferred as it is not a critical feature at the moment.
-
-### 7. Endorser info for campaigns
-
-- **Issue**: Endorser info is not showing up for campaigns.
-- **Status**: Deferred as it is not a critical feature at the moment.
-
-### 8. Campaign Rules are descriptive
-
-- **Issue**: Campaign Rules are only descriptive. Should work together with automatic submission approval.
-- **Status**: Deferred as it is not a critical feature at the moment.
-
-### 9. Quest Submission Simplified UI
-
-- **Issue**: Quest submission UI is not simplified. User should not feel the usage of Nostr.
-- **Status**: Deferred as it is not a critical feature at the moment.
+- ✅ Milestone 1 reports and follow ups drafted.
