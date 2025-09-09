@@ -20,21 +20,37 @@ function parseRequiredFee(errorMessage: string): bigint | null {
 }
 
 /**
- * Calculate the fee rate needed to achieve a specific total fee
- * @param tx The transaction
- * @param requiredFee The required total fee in shannons
- * @returns The fee rate to use
+ * Get fee rate from the node via CCC client; optionally boost to satisfy a parsed required fee.
+ * Returns shannons per kiloweight (KW) as number.
  */
-function calculateFeeRate(tx: ccc.Transaction, requiredFee: bigint): bigint {
-  // Get transaction size in bytes
-  const txSize = tx.toBytes().length;
-  
-  // Convert to kiloweight (1 KW = 1000 bytes in CKB)
-  // Add a small buffer (10%) to ensure we meet the minimum
-  const feeRate = (requiredFee * 1100n * 1000n) / (BigInt(txSize) * 1000n);
-  
-  // Ensure minimum of 1000 shannons/KW
-  return feeRate < 1000n ? 1000n : feeRate;
+async function calculateFeeRate(
+  signer: ccc.Signer,
+  tx?: ccc.Transaction,
+  requiredFee?: bigint
+): Promise<number> {
+  // 1) Ask node for recommended fee rate
+  let recommended = 1000; // default fallback (shannons/KW)
+  try {
+    const nodeRate = await signer.client.getFeeRate();
+    // getFeeRate may return bigint or number depending on client version
+    recommended = typeof nodeRate === 'bigint' ? Number(nodeRate) : Number(nodeRate);
+  } catch (_) {
+    // ignore and use fallback
+  }
+
+  // 2) If we know the required total fee from the error and have tx size, compute a minimum
+  if (requiredFee && tx) {
+    const txSizeBytes = tx.toBytes().length;
+    // ceil division using BigInt to avoid precision issues
+    const kiloWeightBig = (BigInt(txSizeBytes) + 999n) / 1000n;
+    const minRateBig = (requiredFee + kiloWeightBig - 1n) / kiloWeightBig; // ceil(requiredFee / KW)
+    // add ~10% buffer safely with BigInt: ceil(minRate * 1.1)
+    const bufferedBig = (minRateBig * 11n + 9n) / 10n;
+    const buffered = Number(bufferedBig);
+    return Math.max(recommended, buffered);
+  }
+
+  return recommended;
 }
 
 /**
@@ -93,8 +109,8 @@ export async function sendTransactionWithFeeRetry(
           tx = await buildTx();
         }
         
-        // Calculate the fee rate needed
-        const feeRate = calculateFeeRate(tx, requiredFee);
+        // Query fee rate from node and ensure it covers requiredFee
+        const feeRate = await calculateFeeRate(signer, tx, requiredFee);
         console.log(`Calculated fee rate: ${feeRate} shannons/KW`);
         
         // Clear existing fee outputs and rebuild with new fee rate
@@ -102,14 +118,14 @@ export async function sendTransactionWithFeeRetry(
         const senderAddress = await signer.getRecommendedAddressObj();
         const senderLockScript = senderAddress.script;
         
-        // Filter out change outputs
+        // Filter out change outputs (lock-only, back to sender)
         tx.outputs = tx.outputs.filter((output, index) => {
           // Keep all outputs except potential change outputs
           // Change outputs typically go back to the sender and have no type script
-          const isChange = !output.type && 
+          const isChange = !output.type &&
             output.lock.codeHash === senderLockScript.codeHash &&
             output.lock.hashType === senderLockScript.hashType &&
-            ccc.bytesFrom(output.lock.args) === ccc.bytesFrom(senderLockScript.args);
+            ccc.hexFrom(output.lock.args) === ccc.hexFrom(senderLockScript.args);
           
           if (isChange) {
             console.log(`Removing change output at index ${index}`);
@@ -117,7 +133,8 @@ export async function sendTransactionWithFeeRetry(
           return !isChange;
         });
         
-        // Recalculate fees with the new rate
+        // Ensure inputs satisfy capacity at new fee stage, then recalc fees
+        await tx.completeInputsByCapacity(signer);
         await tx.completeFeeBy(signer, feeRate);
         
         console.log("Transaction rebuilt with new fee. Requesting signature again...");

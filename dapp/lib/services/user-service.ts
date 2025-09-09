@@ -522,22 +522,105 @@ export class UserService {
 
     // Get the transaction from the result
     const updateTx = result.res;
+
+    // Debug: inspect outputs before any mutation/completion (stringified)
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: updateTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+        outputsDataLengths: updateTx.outputsData.map((d: any) => (typeof d === 'string' ? d.length : String(d).length)),
+      };
+      const s = JSON.stringify(payload);
+      debug.log(`[UserService.update] after-ssri-return ${s}`);
+    } catch (e) {
+      debug.log("[UserService.update] log error after-ssri-return", String(e));
+    }
     
+    // Ensure output capacity is auto-calculated by CCC for updated user cell
+    // Mutate the existing CellOutput instances to keep class methods intact
+    for (let i = 0; i < updateTx.outputs.length; i++) {
+      const output = updateTx.outputs[i];
+      if (output.type && output.type.codeHash === this.userTypeCodeHash) {
+        // Reconstruct CellOutput via CCC factory with outputData to trigger auto capacity calc
+        updateTx.outputs[i] = ccc.CellOutput.from(
+          {
+            lock: output.lock,
+            type: output.type,
+          },
+          updateTx.outputsData[i] as any,
+        );
+      }
+    }
+    
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: updateTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.update] after-set-capacity-0 ${JSON.stringify(payload)}`);
+    } catch {}
+
     // Add the protocol cell as a dependency (required for validation)
     updateTx.addCellDeps({
       outPoint: protocolCell.outPoint,
       depType: "code",
     });
 
+    console.log("Transaction before complete fees", updateTx);
+
     // Complete fees and send transaction (following campaign-service pattern)
     await updateTx.completeInputsByCapacity(this.signer);
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: updateTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.update] after-complete-inputs ${JSON.stringify(payload)}`);
+    } catch {}
     await updateTx.completeFeeBy(this.signer);
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: updateTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.update] after-complete-fee ${JSON.stringify(payload)}`);
+    } catch {}
     
     debug.log("Updating user cell with submission", {
       userTypeId: userTypeId.slice(0, 10) + "...",
       totalSubmissions: updatedSubmissions.length,
       lastActivity: new Date(Number(updatedUserData.last_activity_timestamp)).toISOString()
     });
+
+    console.log("updateTx before sending", updateTx);
     
     const txHash = await this.signer.sendTransaction(updateTx);
     
@@ -644,6 +727,25 @@ export class UserService {
 
     // The contract returns a transaction with the new user cell
     const createTx = result.res;
+
+    // Debug: inspect outputs before any mutation/completion (stringified)
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: createTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+        outputsDataLengths: createTx.outputsData.map((d: any) => (typeof d === 'string' ? d.length : String(d).length)),
+      };
+      debug.log(`[UserService.create] after-ssri-return ${JSON.stringify(payload)}`);
+    } catch (e) {
+      debug.log("[UserService.create] log error after-ssri-return", String(e));
+    }
     
     // Find the user cell output (should be the first output with the user type script)
     const userCellOutputIndex = createTx.outputs.findIndex(
@@ -676,6 +778,29 @@ export class UserService {
       createTx.outputs[userCellOutputIndex].type.args = updatedConnectedTypeIdArgs;
     }
     
+    // Ensure output capacity is auto-calculated by CCC for new user cell by reconstructing via factory
+    createTx.outputs[userCellOutputIndex] = ccc.CellOutput.from(
+      {
+        lock: createTx.outputs[userCellOutputIndex].lock,
+        type: createTx.outputs[userCellOutputIndex].type,
+      },
+      createTx.outputsData[userCellOutputIndex] as any,
+    );
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: createTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.create] after-set-capacity-0 ${JSON.stringify(payload)}`);
+    } catch {}
+    
     // Add the protocol cell as a dependency (required for validation)
     createTx.addCellDeps({
       outPoint: protocolCell.outPoint,
@@ -683,8 +808,38 @@ export class UserService {
     });
     
     // Complete fees and send transaction
+
+    console.log("createTx before complete fees", createTx);
     await createTx.completeInputsByCapacity(this.signer);
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: createTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.create] after-complete-inputs ${JSON.stringify(payload)}`);
+    } catch {}
     await createTx.completeFeeBy(this.signer);
+    try {
+      const sender = await this.signer.getRecommendedAddressObj();
+      const senderHash = sender.script.hash();
+      const payload = {
+        outputs: createTx.outputs.map((o, i) => ({
+          index: i,
+          capacity: o.capacity?.toString?.() ?? String(o.capacity),
+          hasType: !!o.type,
+          lockHash: o.lock.hash(),
+          isChangeCandidate: !o.type && o.lock.hash() === senderHash,
+        })),
+      };
+      debug.log(`[UserService.create] after-complete-fee ${JSON.stringify(payload)}`);
+    } catch {}
     
     debug.log("Creating user cell with submission", {
       userTypeHash: this.userTypeCodeHash.slice(0, 10) + "...",
@@ -692,7 +847,7 @@ export class UserService {
       userName: verificationData?.name || "Anonymous",
       hasSubmission: true
     });
-    
+    console.log("createTx after complete fees", createTx);
     // Send transaction
     const txHash = await this.signer.sendTransaction(createTx);
     
