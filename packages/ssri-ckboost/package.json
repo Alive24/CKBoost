@@ -27,12 +27,12 @@
     "test:debug": "echo 'Open VS Code/Cursor and click Debug above any test. See DEBUG_QUICKSTART.md'"
   },
   "dependencies": {
-    "@ckb-ccc/core": "^1.3.1",
-    "@ckb-ccc/ssri": "^0.1.1",
-    "@ckb-ccc/udt": "^0.1.17"
+    "@ckb-ccc/core": "^1.11.5",
+    "@ckb-ccc/ssri": "^0.2.16",
+    "@ckb-ccc/udt": "^0.1.18"
   },
   "devDependencies": {
-    "@ckb-ccc/eip6963": "^1.0.18",
+    "@ckb-ccc/eip6963": "^1.0.26",
     "@jest/globals": "^29.7.0",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.10.2",

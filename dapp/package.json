@@ -14,7 +14,7 @@
     "postinstall": "node ./postinstall.mjs"
   },
   "dependencies": {
-    "@ckb-ccc/connector-react": "^1.0.18",
+    "@ckb-ccc/connector-react": "^1.0.26",
     "@hookform/resolvers": "^3.9.1",
     "@nostrify/nostrify": "npm:@jsr/nostrify__nostrify@^0.46.4",
     "@nostrify/react": "npm:@jsr/nostrify__react@^0.2.8",
