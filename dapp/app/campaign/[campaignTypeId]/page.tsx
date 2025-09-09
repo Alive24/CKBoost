@@ -317,10 +317,11 @@ export default function CampaignDetailPage() {
   const elapsed = Math.max(0, Math.min(now.getTime() - startDate.getTime(), totalDuration))
   const progress = isApproved && totalDuration > 0 ? (elapsed / totalDuration) * 100 : 0
 
-  // Calculate total points distributed
+  // Calculate total points distributed (points per quest × accepted completions)
   const totalPoints = campaign.quests?.reduce((sum: number, quest: typeof campaign.quests[0]) => {
-    const points = quest.points || 100
-    return sum + Number(points)
+    const perCompletion = Number(quest.points || 0)
+    const completions = Number(quest.accepted_submission_user_type_ids?.length || 0)
+    return sum + (perCompletion * completions)
   }, 0) || 0
   
   // Debug quest structure
@@ -928,7 +929,7 @@ export default function CampaignDetailPage() {
                       const distributedBySymbol = new Map<string, { amount: number; tokenInfo: ReturnType<typeof udtRegistry.getTokenByScriptHash> }>()
 
                       campaign?.quests?.forEach((quest: typeof campaign.quests[0]) => {
-                        const completions = Number(quest.completion_count || 0)
+                        const completions = Number(quest.accepted_submission_user_type_ids.length || 0)
                         quest.rewards_on_completion?.forEach((rewardList: AssetListLike) => {
                           rewardList.udt_assets?.forEach((udtAsset: UDTAssetLike) => {
                             const script = ccc.Script.from(udtAsset.udt_script)
