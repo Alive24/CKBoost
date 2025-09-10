@@ -92,6 +92,28 @@ export class ProtocolService {
       updatedData
     );
 
+    // Ensure protocol output capacity matches updated data using CCC factory
+    try {
+      const network = deploymentManager.getCurrentNetwork();
+      const protocolTypeCodeHash = deploymentManager.getContractCodeHash(
+        network,
+        "ckboostProtocolType"
+      );
+      if (protocolTypeCodeHash) {
+        for (let i = 0; i < tx.outputs.length; i++) {
+          const out = tx.outputs[i];
+          if (out.type && out.type.codeHash.slice(0, 32) === protocolTypeCodeHash.slice(0, 32)) {
+            tx.outputs[i] = ccc.CellOutput.from(
+              { lock: out.lock, type: out.type },
+              tx.outputsData[i] as ccc.HexLike,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to rebuild protocol outputs for auto-capacity:", e);
+    }
+
     // Complete fees and send transaction with automatic retry
     await tx.completeInputsByCapacity(this.signer);
     await tx.completeFeeBy(this.signer);

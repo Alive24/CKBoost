@@ -41,6 +41,38 @@ export function QuestDialog({
   const [udtRewards, setUdtRewards] = useState<Array<{ token?: UDTToken; amount: string }>>([])
   const [isEditingRewards, setIsEditingRewards] = useState(false)
 
+  // Safe decimal string -> bigint converter with fixed decimals
+  const parseAmountToUnits = (amountStr: string | undefined, decimals: number): bigint => {
+    if (!amountStr) return 0n
+    const s = amountStr.trim()
+    if (!s) return 0n
+    // allow digits with optional single dot
+    if (!/^\d*(?:\.\d*)?$/.test(s)) return 0n
+    const [ints, fracs = ""] = s.split(".")
+    const fracPadded = (fracs + "0".repeat(decimals)).slice(0, decimals)
+    const base = 10n ** BigInt(decimals)
+    try {
+      const intPart = ints ? BigInt(ints) : 0n
+      const fracPart = fracPadded ? BigInt(fracPadded) : 0n
+      return intPart * base + fracPart
+    } catch {
+      return 0n
+    }
+  }
+
+  const toUDTAsset = (token: UDTToken, amountStr: string): { udt_script: ccc.ScriptLike; amount: bigint } | null => {
+    const raw = parseAmountToUnits(amountStr, token.decimals)
+    if (raw <= 0n) return null
+    return {
+      udt_script: {
+        codeHash: token.script.codeHash,
+        hashType: token.script.hashType,
+        args: token.script.args
+      },
+      amount: raw
+    }
+  }
+
   const handleAddSubtask = () => {
     onQuestFormChange({
       ...questForm,
@@ -165,11 +197,12 @@ export function QuestDialog({
     setUdtRewards(newRewards)
     
     // Update questForm immediately when removing rewards (handle UDT and CKB)
-    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB' && r.amount)
-    const ckbAmount = ckbReward ? BigInt(Math.round(Number(ckbReward.amount) * 10 ** 8)) : 0n
+    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB')
+    const ckbAmount = ckbReward ? parseAmountToUnits(ckbReward.amount, 8) : 0n
     const udtAssets = newRewards
-      .filter(r => r.token && r.amount && r.token.symbol !== 'CKB')
-      .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
+      .filter(r => r.token && r.token.symbol !== 'CKB')
+      .map(r => (r.token ? toUDTAsset(r.token, r.amount) : null))
+      .filter((a): a is { udt_script: ccc.ScriptLike; amount: bigint } => !!a)
     
     const updatedRewards = [...questForm.rewards_on_completion]
     if (updatedRewards[0]) {
@@ -194,11 +227,12 @@ export function QuestDialog({
     setUdtRewards(newRewards)
     
     // Update questForm immediately when user changes rewards (handle UDT and CKB)
-    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB' && r.amount)
-    const ckbAmount = ckbReward ? BigInt(Math.round(Number(ckbReward.amount) * 10 ** 8)) : 0n
+    const ckbReward = newRewards.find(r => r.token?.symbol === 'CKB')
+    const ckbAmount = ckbReward ? parseAmountToUnits(ckbReward.amount, 8) : 0n
     const udtAssets = newRewards
-      .filter(r => r.token && r.amount && r.token.symbol !== 'CKB')
-      .map(r => udtRegistry.createUDTAsset(r.token!, r.amount))
+      .filter(r => r.token && r.token.symbol !== 'CKB')
+      .map(r => (r.token ? toUDTAsset(r.token, r.amount) : null))
+      .filter((a): a is { udt_script: ccc.ScriptLike; amount: bigint } => !!a)
     
     const updatedRewards = [...questForm.rewards_on_completion]
     if (updatedRewards.length === 0 && udtAssets.length > 0) {

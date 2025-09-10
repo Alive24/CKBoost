@@ -136,7 +136,8 @@ export class CampaignAdminService {
     campaignData: CampaignDataLike,
     campaignTypeId?: ccc.Hex,
     _tx?: ccc.Transaction, // Kept for backward compatibility but not used
-    udtFunding?: Array<{ scriptHash: string; amount: bigint }>
+    udtFunding?: Array<{ scriptHash: string; amount: bigint }>,
+    ckbFunding?: bigint
   ): Promise<ccc.Hex> {
     if (!this.signer) {
       throw new Error(
@@ -170,6 +171,18 @@ export class CampaignAdminService {
           campaignData
         );
         updateTx = result.res;
+
+        // Ensure campaign output capacity matches updated data size
+        // Rebuild any campaign-type outputs via CCC factory using outputsData to trigger auto-capacity
+        for (let i = 0; i < updateTx.outputs.length; i++) {
+          const out = updateTx.outputs[i];
+          if (out.type && out.type.codeHash.slice(0, 32) === this.campaignTypeCodeHash.slice(0, 32)) {
+            updateTx.outputs[i] = ccc.CellOutput.from(
+              { lock: out.lock, type: out.type },
+              updateTx.outputsData[i] as ccc.HexLike,
+            );
+          }
+        }
       } else {
         // Campaign updates now require a type ID, not type hash
         // The campaign should already have the current data loaded
@@ -294,6 +307,43 @@ export class CampaignAdminService {
         );
 
         console.log("UDT funding added to transaction");
+      }
+
+      // Add CKB funding if provided
+      if (ckbFunding && ckbFunding > 0n) {
+        const { FundingService } = await import("@/lib/services/funding-service")
+        const { deploymentManager } = await import("@/lib/ckb/deployment-manager")
+
+        const network = deploymentManager.getCurrentNetwork();
+        const campaignTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType")
+        const campaignLockCodeHash =
+          deploymentManager.getContractCodeHash(network, "ckboostCampaignLock") || "0x" + "00".repeat(32)
+        if (!campaignTypeCodeHash) throw new Error(`Campaign type contract not deployed on ${network}`)
+
+        const fundingService = new FundingService(
+          this.signer,
+          campaignTypeCodeHash as ccc.Hex,
+          campaignLockCodeHash as ccc.Hex,
+          this.protocolCell!
+        )
+
+        // Determine campaign lock from the freshly built campaign output
+        const campaignOutput = updateTx.outputs.find(
+          (output) =>
+            output.type?.codeHash.slice(0, 32) === this.campaignTypeCodeHash.slice(0, 32)
+        )
+        if (!campaignOutput) throw new Error("Campaign output not found for CKB funding")
+        const campaignTypeHash = campaignOutput.type?.hash()
+        if (!campaignTypeHash) throw new Error("Campaign type hash missing for CKB funding")
+
+        const campaignLock = ccc.Script.from({
+          codeHash: campaignLockCodeHash as ccc.Hex,
+          hashType: campaignOutput.lock.hashType,
+          args: ccc.bytesFrom(campaignTypeHash),
+        })
+
+        updateTx = await fundingService.addCKBFundingToTransaction(updateTx, campaignLock, ckbFunding)
+        console.log("CKB funding added to transaction")
       }
 
       // Complete fees and send transaction

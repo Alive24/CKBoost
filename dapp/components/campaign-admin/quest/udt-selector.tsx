@@ -93,11 +93,33 @@ export function UDTSelector({
       return;
     }
 
+    // Pre-validate simple numeric format to avoid throwing during BigInt conversion
+    const s = amountStr.trim();
+    if (!/^\d*(?:\.\d*)?$/.test(s)) {
+      setAmountError("Invalid number format");
+      return;
+    }
+
+    // Validate decimal places do not exceed token decimals
+    const parts = s.split(".");
+    if (parts.length > 1) {
+      const frac = parts[1] ?? "";
+      if (frac.length > token.decimals) {
+        setAmountError(`Too many decimals (max ${token.decimals})`);
+        return;
+      }
+    }
+
     try {
-      const amountNumber = Number(amountStr);
-      const amountNumberFixed = Number(amountNumber.toFixed(token.decimals));
-      const rawAmount = BigInt(amountNumberFixed * 10 ** token.decimals);
-      
+      // Convert to smallest units using bigint-safe logic
+      const [ints, fracs = ""] = s.split(".");
+      const decs = token.decimals;
+      const fracPadded = (fracs + "0".repeat(decs)).slice(0, decs);
+      const base = 10n ** BigInt(decs);
+      const intPart = ints ? BigInt(ints) : 0n;
+      const fracPart = fracPadded ? BigInt(fracPadded) : 0n;
+      const rawAmount = intPart * base + fracPart;
+
       if (rawAmount <= 0n) {
         setAmountError("Amount must be greater than 0");
         return;
@@ -109,8 +131,8 @@ export function UDTSelector({
       }
 
       setAmountError(null);
-    } catch (error) {
-      setAmountError(`Invalid amount format: ${error}`);
+    } catch {
+      setAmountError("Invalid number format");
     }
   };
 

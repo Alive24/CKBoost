@@ -15,6 +15,7 @@ export class FundingService {
   private campaignTypeCodeHash: ccc.Hex;
   private campaignLockCodeHash: ccc.Hex;
   private protocolCell: ccc.Cell;
+  private protocolCellTypeHash: ccc.Hex;
   private executor: ssri.Executor;
   private udtInstances: Map<string, udt.Udt>;
 
@@ -28,6 +29,7 @@ export class FundingService {
     this.campaignTypeCodeHash = campaignTypeCodeHash;
     this.campaignLockCodeHash = campaignLockCodeHash;
     this.protocolCell = protocolCell;
+    this.protocolCellTypeHash = (this.protocolCell.cellOutput.type?.hash() || ("0x" as ccc.Hex)) as ccc.Hex;
     
     // Initialize SSRI executor
     const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
@@ -157,6 +159,34 @@ export class FundingService {
     
     this.udtInstances.set(scriptHash, newInstance);
     return newInstance;
+  }
+
+  /**
+   * Add CKB funding (capacity-only cell) locked by campaign lock to an existing transaction
+   */
+  async addCKBFundingToTransaction(
+    tx: ccc.Transaction,
+    campaignLock: ccc.Script,
+    shannons: bigint
+  ): Promise<ccc.Transaction> {
+    if (shannons <= 0n) return tx
+
+    debug.log("Adding CKB funding to transaction", { shannons: shannons.toString() })
+
+    // Create a capacity-only output to the campaign lock
+    const ckbOutput = ccc.CellOutput.from({
+      capacity: shannons,
+      lock: campaignLock,
+    })
+    tx.addOutput(ckbOutput, "0x")
+
+    debug.log("CKB funding output added", {
+      lockHash: campaignLock.hash(),
+      capacity: shannons.toString(),
+      outputs: tx.outputs.length,
+    })
+
+    return tx
   }
 
   /**
@@ -351,7 +381,7 @@ export class FundingService {
       const campaignCell = await fetchCampaignByTypeId(
         campaignTypeId,
         this.campaignTypeCodeHash,
-        this.signer,
+        this.signer.client,
         this.protocolCell
       );
       if (!campaignCell) {
@@ -418,6 +448,8 @@ export class FundingService {
       const fundedCells = await fetchUDTCellsByCampaignLock(
         campaignTypeId,
         this.campaignLockCodeHash,
+        this.campaignTypeCodeHash,
+        this.protocolCellTypeHash,
         this.signer
       );
 
@@ -428,7 +460,7 @@ export class FundingService {
         const udtTypeHash = cell.cellOutput.type?.hash();
         if (udtTypeHash) {
           const currentAmount = fundedAmounts.get(udtTypeHash) || 0n;
-          const cellAmount = ccc.numFromBytes(cell.outputData);
+          const cellAmount = ccc.numFromBytes(cell.outputData.slice(0, 16));
           fundedAmounts.set(udtTypeHash, currentAmount + cellAmount);
         }
       }
@@ -468,6 +500,8 @@ export class FundingService {
       const fundedCells = await fetchUDTCellsByCampaignLock(
         campaignTypeId,
         this.campaignLockCodeHash,
+        this.campaignTypeCodeHash,
+        this.protocolCellTypeHash,
         this.signer
       );
 
@@ -479,7 +513,7 @@ export class FundingService {
         const udtTypeHash = cell.cellOutput.type?.hash();
         if (udtTypeHash) {
           const currentAmount = fundedAssets.get(udtTypeHash) || 0n;
-          const cellAmount = ccc.numFromBytes(cell.outputData);
+          const cellAmount = ccc.numFromBytes(cell.outputData.slice(0, 16));
           fundedAssets.set(udtTypeHash, currentAmount + cellAmount);
           totalValueLocked += cellAmount;
         }

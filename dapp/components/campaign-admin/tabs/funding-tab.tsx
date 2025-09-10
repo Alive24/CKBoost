@@ -8,7 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, RefreshCw, Wallet, AlertTriangle, Info, Lock, Unlock } from "lucide-react"
 import { useCampaignAdmin } from "@/lib/providers/campaign-admin-provider"
-import { CampaignDataLike, UDTAssetLike } from "ssri-ckboost/types"
+import { useProtocol } from "@/lib/providers/protocol-provider"
+import { CampaignDataLike, UDTAssetLike, ConnectedTypeID } from "ssri-ckboost/types"
 import { FundingDashboard } from "../funding/funding-dashboard"
 import { UDTSelector } from "../quest/udt-selector"
 import { udtRegistry, UDTToken } from "@/lib/services/udt-registry"
@@ -33,6 +34,8 @@ interface LockedUDT {
 export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
   const { campaignAdminService, campaign: campaignInstance, isLoadingCampaign: isServiceLoading, error: adminError } = useCampaignAdmin(campaignTypeId)
   const signer = ccc.useSigner()
+  const { client } = ccc.useCcc()
+  const { isAdmin, protocolData, protocolCell } = useProtocol()
   
   const [campaignData, setCampaignData] = useState<CampaignDataLike | null>(null)
   const [lockedUDTs, setLockedUDTs] = useState<Map<string, bigint>>(new Map())
@@ -51,18 +54,21 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
   const [unlockingToken, setUnlockingToken] = useState<LockedUDT | null>(null)
   const [unlockAmount, setUnlockAmount] = useState("")
   const [isUnlocking, setIsUnlocking] = useState(false)
+  const [ckbLocked, setCkbLocked] = useState<bigint>(0n)
 
   // Calculate total required CKB based on quest rewards and initial quotas
   const ckbRequired = useMemo(() => {
     if (!campaignData?.quests || initialQuotas.length === 0) return 0n
     try {
       return campaignData.quests.reduce((sum, quest, idx) => {
-        const rewardList = quest.rewards_on_completion?.[0]
-        if (!rewardList) return sum
-        const ckbAmt = ccc.numFrom(rewardList.ckb_amount || 0)
-        const quota = BigInt(Number(initialQuotas[idx] ?? 0))
-        if (ckbAmt <= 0n || quota <= 0n) return sum
-        return sum + (ckbAmt * quota)
+        const quota = ccc.numFrom(initialQuotas[idx] ?? 0)
+        if (quota <= 0n) return sum
+        const perCompletion = (quest.rewards_on_completion || []).reduce((acc, rewardList) => {
+          const amt = ccc.numFrom(rewardList?.ckb_amount || 0)
+          return acc + amt
+        }, 0n)
+        if (perCompletion <= 0n) return sum
+        return sum + (perCompletion * quota)
       }, 0n)
     } catch (_) {
       return 0n
@@ -132,45 +138,50 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
       const actualLockedList: LockedUDT[] = []
       
       try {
-        // Get code hashes
-        const network = deploymentManager.getCurrentNetwork()
-        const campaignTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignType")
-        const campaignLockCodeHash = deploymentManager.getContractCodeHash(network, "ckboostCampaignLock")
-        
-        if (campaignTypeCodeHash && campaignLockCodeHash && campaignInstance?.connectedProtocolCell) {
-          // Create funding service to check funding status
-          if (!signer) {
-            throw new Error("Signer is required for checking locked UDTs.")
+        // Prefer code hashes from protocol data (source of truth)
+        const campaignTypeCodeHash = ccc.hexFrom(
+          protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_type_code_hash || "0x"
+        ) as ccc.Hex
+        const campaignLockCodeHash = ccc.hexFrom(
+          protocolData?.protocol_config?.script_code_hashes?.ckb_boost_campaign_lock_code_hash || "0x"
+        ) as ccc.Hex
+
+        const chainClient = signer?.client || client
+
+        if (chainClient && campaignTypeCodeHash && campaignLockCodeHash && protocolCell) {
+          // Build scripts the same way as the campaign page
+          const protocolTypeHash = protocolCell.cellOutput.type?.hash() || ("0x" as ccc.Hex)
+          const connected = ConnectedTypeID.encode({ type_id: campaignTypeId, connected_key: protocolTypeHash })
+          const campaignTypeScript = ccc.Script.from({ codeHash: campaignTypeCodeHash, hashType: "type", args: connected })
+          const campaignTypeHash = campaignTypeScript.hash()
+          const campaignLockScript = ccc.Script.from({ codeHash: campaignLockCodeHash, hashType: "type", args: campaignTypeHash })
+
+          // Find all cells under campaign lock
+          const collector = chainClient.findCells({ script: campaignLockScript, scriptType: "lock", scriptSearchMode: "exact" })
+          let total = 0n
+          const udtSums = new Map<string, bigint>()
+          for await (const cell of collector) {
+            if (cell.cellOutput.type) {
+              const typeHash = cell.cellOutput.type.hash()
+              const current = udtSums.get(typeHash) || 0n
+              const cellAmount = ccc.numFromBytes(cell.outputData.slice(0, 16))
+              udtSums.set(typeHash, current + cellAmount)
+            } else {
+              // Capacity-only cells = CKB funding pool
+              total += ccc.numFrom(cell.cellOutput.capacity)
+            }
           }
-          const fundingService = new FundingService(
-            signer,
-            campaignTypeCodeHash,
-            campaignLockCodeHash,
-            campaignInstance.connectedProtocolCell
-          )
-          
-          // Get actual funding status
-          const { fundedAssets } = await fundingService.getCampaignFundingStatus(campaignTypeId)
-          
-          // Convert funded assets to our format
-          for (const [udtTypeHash, amount] of fundedAssets.entries()) {
-            // Find matching token from our registry
+          setCkbLocked(total)
+
+          // Convert UDT sums to token list
+          for (const [udtTypeHash, amount] of udtSums.entries()) {
             const token = tokens.find(t => {
-              const script = ccc.Script.from({
-                codeHash: t.script.codeHash,
-                hashType: t.script.hashType,
-                args: t.script.args
-              })
+              const script = ccc.Script.from({ codeHash: t.script.codeHash, hashType: t.script.hashType, args: t.script.args })
               return script.hash() === udtTypeHash
             })
-            
             if (token) {
               actualLockedUDTs.set(udtTypeHash, amount)
-              actualLockedList.push({
-                token,
-                amount,
-                scriptHash: udtTypeHash
-              })
+              actualLockedList.push({ token, amount, scriptHash: udtTypeHash })
             }
           }
         }
@@ -278,6 +289,10 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
   }
 
   const handleUnlock = async () => {
+    if (!isAdmin) {
+      setError("Only platform admins can unlock tokens")
+      return
+    }
     if (!unlockingToken || !unlockAmount) {
       return
     }
@@ -338,35 +353,6 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* CKB Rewards Status */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5" />
-            CKB Rewards
-          </CardTitle>
-          <CardDescription>Summary for simple CKB rewards configured per quest</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <div className="text-muted-foreground">Total Required (based on initial quotas)</div>
-              <div className="font-mono font-semibold">{formatShannons(ckbRequired)} CKB</div>
-            </div>
-            <div>
-              <div className="text-muted-foreground">Funding</div>
-              <div className="text-xs text-muted-foreground">Funding transfers for CKB rewards will be available soon.</div>
-            </div>
-          </div>
-          <div className="mt-3">
-            <Alert>
-              <AlertDescription>
-                CKB rewards are distributed upon approval. Campaign sponsors will be able to deposit CKB to a campaign pool for automated payouts.
-              </AlertDescription>
-            </Alert>
-          </div>
-        </CardContent>
-      </Card>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -401,6 +387,36 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
         initialQuotas={initialQuotas}
         lockedUDTs={lockedUDTs}
       />
+
+      {/* CKB Rewards Status (placed after Funding Overview) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5" />
+            CKB Rewards
+          </CardTitle>
+          <CardDescription>Summary for simple CKB rewards configured per quest</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <div className="text-muted-foreground">Total Required (based on initial quotas)</div>
+              <div className="font-mono font-semibold">{formatShannons(ckbRequired)} CKB</div>
+            </div>
+            <div>
+              <div className="text-muted-foreground">Locked</div>
+              <div className="font-mono font-semibold">{formatShannons(ckbLocked)} CKB</div>
+            </div>
+          </div>
+          <div className="mt-3">
+            <Alert>
+              <AlertDescription>
+                CKB rewards are distributed upon approval. Campaign sponsors will be able to deposit CKB to a campaign pool for automated payouts.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Locked Tokens Management */}
       <Card>
@@ -450,10 +466,12 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => {
+                      if (!isAdmin) return
                       setUnlockingToken(locked)
                       setIsUnlockDialogOpen(true)
                     }}
-                    disabled={!signer}
+                    disabled={!signer || !isAdmin}
+                    title={!isAdmin ? "Only platform admins can unlock tokens" : undefined}
                   >
                     <Unlock className="w-4 h-4 mr-2" />
                     Unlock
@@ -515,7 +533,7 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
       </Dialog>
 
       {/* Unlock Dialog */}
-      <Dialog open={isUnlockDialogOpen} onOpenChange={setIsUnlockDialogOpen}>
+      <Dialog open={isUnlockDialogOpen} onOpenChange={(open) => setIsUnlockDialogOpen(isAdmin ? open : false)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Unlock Tokens</DialogTitle>
@@ -571,7 +589,8 @@ export function FundingTab({ campaignTypeId, initialQuotas }: FundingTabProps) {
             </Button>
             <Button
               onClick={handleUnlock}
-              disabled={isUnlocking || !unlockAmount}
+              disabled={isUnlocking || !unlockAmount || !isAdmin}
+              title={!isAdmin ? "Only platform admins can unlock tokens" : undefined}
             >
               {isUnlocking ? (
                 <>

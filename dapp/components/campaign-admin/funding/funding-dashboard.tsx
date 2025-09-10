@@ -21,9 +21,11 @@ interface FundingStatus {
   token: string;
   tokenName: string;
   lockedAmount: bigint;
+  distributedAmount: bigint;
+  totalFunded: bigint; // locked + distributed
   requiredAmount: bigint;
   availableCompletions: number;
-  shortage: bigint;
+  shortage: bigint; // max(required - totalFunded, 0)
   status: "funded" | "underfunded" | "critical";
 }
 
@@ -42,104 +44,110 @@ export function FundingDashboard({
 }: FundingDashboardProps) {
   // Calculate funding requirements per UDT token
   const calculateFundingStatus = (): FundingStatus[] => {
-    const tokenRequirements = new Map<string, bigint>();
-    const tokenQuests = new Map<string, QuestDataLike[]>();
-    
-    // Aggregate UDT requirements across all quests
-    campaign.quests?.forEach((quest, index) => {
+    const tokenRequirements = new Map<string, bigint>()
+    const tokenQuests = new Map<string, QuestDataLike[]>()
+    const tokenDistributed = new Map<string, bigint>()
+
+    // Aggregate UDT requirements across all quests and reward lists
+    campaign.quests?.forEach((quest, qIndex) => {
+      const quota = ccc.numFrom(initialQuotas[qIndex] ?? 0)
+      if (quota <= 0n) return
       quest.rewards_on_completion?.forEach(reward => {
         reward.udt_assets?.forEach(asset => {
-          const script = ccc.Script.from(asset.udt_script);
-          const scriptHash = script.hash();
-          
-          const initialQuota = initialQuotas[index] ? initialQuotas[index] : 0n;
-          
-            // Limited completions - calculate exact requirement
-            tokenRequirements.set(
-              scriptHash,
-              BigInt((Number(asset.amount) * Number(initialQuota)))
-            );
+          const script = ccc.Script.from(asset.udt_script)
+          const scriptHash = script.hash()
+          const perCompletion = ccc.numFrom(asset.amount)
+          const addRequired = perCompletion * quota
+          const prev = tokenRequirements.get(scriptHash) || 0n
+          tokenRequirements.set(scriptHash, prev + addRequired)
 
-          
           // Track which quests use this token
-          const quests = tokenQuests.get(scriptHash) || [];
-          quests.push(quest);
-          tokenQuests.set(scriptHash, quests);
-        });
-      });
-    });
-    
+          const quests = tokenQuests.get(scriptHash) || []
+          quests.push(quest)
+          tokenQuests.set(scriptHash, quests)
+
+          // Distributed so far = perCompletion * completion_count
+          const completions = BigInt(Number(quest.completion_count || 0))
+          const addDistributed = perCompletion * completions
+          const prevDist = tokenDistributed.get(scriptHash) || 0n
+          tokenDistributed.set(scriptHash, prevDist + addDistributed)
+        })
+      })
+    })
+
     // Calculate status for each token
-    const statuses: FundingStatus[] = [];
-    
+    const statuses: FundingStatus[] = []
+
     tokenRequirements.forEach((required, scriptHash) => {
-      const locked = lockedUDTs.get(scriptHash) || 0n;
-      const tokenInfo = udtRegistry.getTokenByScriptHash(scriptHash);
-      
-      if (!tokenInfo) {
-        return; // Skip unknown tokens
-      }
-      
-      const shortage = required > locked ? required - locked : 0n;
-      const quests = tokenQuests.get(scriptHash) || [];
-      
-      // Calculate available completions for unlimited quests
-      let availableCompletions = 0;
+      const locked = lockedUDTs.get(scriptHash) || 0n
+      const distributed = tokenDistributed.get(scriptHash) || 0n
+      const totalFunded = locked + distributed
+      const tokenInfo = udtRegistry.getTokenByScriptHash(scriptHash)
+      if (!tokenInfo) return
+
+      const shortage = required > totalFunded ? required - totalFunded : 0n
+      const quests = tokenQuests.get(scriptHash) || []
+
+      // Calculate available completions when requirement is 0 (unlimited)
+      let availableCompletions = 0
       if (required === 0n) {
-        // Has unlimited quests - calculate based on locked amount
-        const avgRewardPerCompletion = quests.reduce((sum, quest) => {
-          const rewards = quest.rewards_on_completion?.[0]?.udt_assets || [];
-          const tokenReward = rewards.find(r => 
-            ccc.Script.from(r.udt_script).hash() === scriptHash
-          );
-          return sum + (BigInt(Number(tokenReward?.amount)) || 0n);
-        }, 0n) / BigInt(Math.max(quests.length, 1));
-        
+        const totalPerCompletion = quests.reduce((sum, quest) => {
+          const amt = (quest.rewards_on_completion || []).reduce((acc, r) => {
+            const found = (r.udt_assets || []).find(a => ccc.Script.from(a.udt_script).hash() === scriptHash)
+            return acc + (found ? ccc.numFrom(found.amount) : 0n)
+          }, 0n)
+          return sum + amt
+        }, 0n)
+        const avgRewardPerCompletion = quests.length > 0 ? totalPerCompletion / BigInt(quests.length) : 0n
         if (avgRewardPerCompletion > 0n) {
-          availableCompletions = Number(locked / avgRewardPerCompletion);
+          availableCompletions = Number(locked / avgRewardPerCompletion)
         }
       } else if (locked >= required) {
-        availableCompletions = -1; // Fully funded
+        availableCompletions = -1
       }
-      
-      const status: "funded" | "underfunded" | "critical" = 
-        shortage === 0n ? "funded" :
-        locked === 0n ? "critical" :
-        "underfunded";
-      
+
+      const status: "funded" | "underfunded" | "critical" =
+        shortage === 0n ? "funded" : totalFunded === 0n ? "critical" : "underfunded"
+
       statuses.push({
         token: tokenInfo.symbol,
         tokenName: tokenInfo.name,
         lockedAmount: locked,
+        distributedAmount: distributed,
+        totalFunded,
         requiredAmount: required,
         availableCompletions,
         shortage,
-        status
-      });
-    });
-    
-    return statuses;
-  };
+        status,
+      })
+    })
+
+    return statuses
+  }
   
   const fundingStatuses = calculateFundingStatus();
   const totalQuests = campaign.quests?.length || 0;
-  const fundedQuests = campaign.quests?.filter(quest => {
-    // Check if all UDT rewards for this quest are funded
-    const hasUDTRewards = quest.rewards_on_completion?.some(r => 
-      r.udt_assets && r.udt_assets.length > 0
-    );
-    
-    if (!hasUDTRewards) return true; // No UDT rewards = considered funded
-    
+  const fundedQuests = campaign.quests?.filter((quest, qIndex) => {
+    // If no UDT rewards, consider funded
+    const hasUDT = quest.rewards_on_completion?.some(r => r.udt_assets && r.udt_assets.length > 0)
+    if (!hasUDT) return true
+
+    const quota = ccc.numFrom(initialQuotas[qIndex] ?? 0)
+    // If quota is 0, treat as funded (nothing required)
+    if (quota === 0n) return true
+
+    // All UDT assets for this quest must be fully funded
     return quest.rewards_on_completion?.every(reward =>
-      reward.udt_assets?.every((asset, index) => {
-        const scriptHash = ccc.Script.from(asset.udt_script).hash();
-        const locked = lockedUDTs.get(scriptHash) || 0n;
-        const required = BigInt(Number(asset.amount) * Number(initialQuotas[index]));
-        return locked >= required;
+      (reward.udt_assets || []).every(asset => {
+        const scriptHash = ccc.Script.from(asset.udt_script).hash()
+        const locked = lockedUDTs.get(scriptHash) || 0n
+        const perCompletion = ccc.numFrom(asset.amount)
+        const distributed = perCompletion * BigInt(Number(quest.completion_count || 0))
+        const required = perCompletion * quota
+        return (locked + distributed) >= required
       })
-    );
-  }).length || 0;
+    )
+  }).length || 0
   
   const overallStatus = 
     fundedQuests === totalQuests ? "funded" :
@@ -247,11 +255,19 @@ export function FundingDashboard({
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <span className="text-muted-foreground">Locked:</span>
                       <div className="font-mono font-semibold">
                         {udtRegistry.formatAmount(status.lockedAmount, 
+                          udtRegistry.getTokenBySymbol(status.token)!
+                        )} {status.token}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Distributed:</span>
+                      <div className="font-mono font-semibold">
+                        {udtRegistry.formatAmount(status.distributedAmount, 
                           udtRegistry.getTokenBySymbol(status.token)!
                         )} {status.token}
                       </div>
@@ -275,12 +291,12 @@ export function FundingDashboard({
                         <span>Funding Progress</span>
                         <span>
                           {Math.min(100, Math.round(
-                            Number(status.lockedAmount * 100n / status.requiredAmount)
+                            Number(status.totalFunded * 100n / status.requiredAmount)
                           ))}%
                         </span>
                       </div>
                       <Progress 
-                        value={Math.min(100, Number(status.lockedAmount * 100n / status.requiredAmount))}
+                        value={Math.min(100, Number(status.totalFunded * 100n / status.requiredAmount))}
                         className="h-2"
                       />
                     </div>

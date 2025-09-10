@@ -78,6 +78,7 @@ export default function CampaignAdminPage() {
   const [isApproving, setIsApproving] = useState(false)
   const [localQuests, setLocalQuests] = useState<QuestDataLike[]>([])
   const [initialFunding, setInitialFunding] = useState<Map<string, bigint>>(new Map())
+  const [ckbInitialFunding, setCkbInitialFunding] = useState<bigint>(0n)
   
   // Campaign form data
   const [campaignData, setCampaignData] = useState<CampaignFormData>({
@@ -413,7 +414,8 @@ export default function CampaignAdminPage() {
           updatedCampaign,
           undefined, // no campaignTypeId for new campaigns
           undefined, // no existing transaction
-          udtFunding // pass the UDT funding array
+          udtFunding, // pass the UDT funding array
+          ckbInitialFunding // pass CKB funding (shannons)
         )
         debug.log("Campaign created with funding in single transaction, txHash:", txHash)
         
@@ -846,6 +848,7 @@ export default function CampaignAdminPage() {
                   quests={localQuests}
                   signer={signer}
                   onFundingChange={setInitialFunding}
+                  onCKBFundingChange={setCkbInitialFunding}
                   initialQuota={localQuests.map((q: QuestDataLike & { initial_quota?: number }) => q.initial_quota || 10)}
                 />
               </div>
