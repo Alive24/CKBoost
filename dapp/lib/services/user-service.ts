@@ -811,7 +811,9 @@ export class UserService {
   async updateTelegramVerification(
     telegramChatId: ccc.NumLike,
     telegramUsername: string,
-    protocolCell: ccc.Cell
+    protocolCell: ccc.Cell,
+    rawTelegramAuthData?: Record<string, unknown>,
+    serverSignature?: string
   ): Promise<ccc.Hex> {
     // Ensure deployment info is loaded
     await this.ensureDeploymentInfo();
@@ -882,6 +884,15 @@ export class UserService {
       verified_at: Math.floor(Date.now() / 1000),
       verification_method: "bot_auth"
     };
+    // Store the full Telegram login payload (including hash) for auditability/flexibility
+    if (rawTelegramAuthData && typeof rawTelegramAuthData === 'object') {
+      identityObject.telegram_login = rawTelegramAuthData;
+    }
+
+    // Include server-side signature if provided (authenticator attestation)
+    if (serverSignature) {
+      identityObject.telegram_server_signature = serverSignature;
+    }
 
     // Update verification flags to include Telegram (bit 0)
     const VERIFICATION_TELEGRAM = 1;
@@ -890,6 +901,7 @@ export class UserService {
     debug.log("Updated identity data with Telegram verification", {
       telegramUsername,
       chatId: chatIdBigInt.toString(),
+      hasRawLogin: !!rawTelegramAuthData,
       verificationFlags: identityObject.verification_flags
     });
 
@@ -956,6 +968,122 @@ export class UserService {
     });
 
     return txHash;
+  }
+
+  /**
+   * Prepare (but do not send) the transaction to update Telegram verification.
+   * Returns a TransactionLike JSON that can be sent to a server for attestation/signature.
+   */
+  async prepareTelegramVerificationTx(
+    telegramChatId: ccc.NumLike,
+    telegramUsername: string,
+    protocolCell: ccc.Cell,
+    rawTelegramAuthData?: Record<string, unknown>
+  ): Promise<any> {
+    await this.ensureDeploymentInfo();
+
+    const lockScript = (await this.signer.getRecommendedAddressObj()).script;
+    const lockHash = lockScript.hash();
+    const existingUserData = await this.getUserByLockHash(lockHash);
+    if (!existingUserData || !existingUserData.typeId) {
+      throw new Error("User must exist before updating verification. Please create user first.");
+    }
+
+    let chatIdBigInt: bigint;
+    if (typeof telegramChatId === 'bigint') chatIdBigInt = telegramChatId;
+    else if (typeof telegramChatId === 'number' || typeof telegramChatId === 'string') chatIdBigInt = BigInt(telegramChatId);
+    else chatIdBigInt = BigInt(ccc.hexFrom(telegramChatId));
+
+    const userCell = await fetchUserByTypeId(
+      existingUserData.typeId,
+      this.userTypeCodeHash,
+      this.signer,
+      this.protocolTypeHash
+    );
+    if (!userCell) throw new Error("User cell not found");
+
+    const currentUserData = parseUserData(userCell);
+    if (!currentUserData) throw new Error("Failed to parse user data");
+
+    let identityObject: any;
+    try {
+      identityObject = JSON.parse(Buffer.from(currentUserData.verification_data.identity_verification_data).toString('utf8'));
+    } catch {
+      identityObject = {};
+    }
+
+    identityObject.telegram = {
+      username: telegramUsername,
+      chat_id: chatIdBigInt.toString(),
+      verified_at: Math.floor(Date.now() / 1000),
+      verification_method: "bot_auth"
+    };
+    if (rawTelegramAuthData && typeof rawTelegramAuthData === 'object') {
+      identityObject.telegram_login = rawTelegramAuthData;
+    }
+    const VERIFICATION_TELEGRAM = 1;
+    identityObject.verification_flags = (identityObject.verification_flags || 0) | VERIFICATION_TELEGRAM;
+
+    const updatedVerificationData = {
+      telegram_personal_chat_id: chatIdBigInt,
+      identity_verification_data: ccc.bytesFrom(JSON.stringify(identityObject), "utf8")
+    };
+
+    const updatedUserData = {
+      verification_data: updatedVerificationData,
+      total_points_earned: currentUserData.total_points_earned,
+      last_activity_timestamp: BigInt(Date.now()),
+      submission_records: currentUserData.submission_records
+    };
+
+    const executorUrl = process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
+    const executor = new ssri.ExecutorJsonRpc(executorUrl);
+    const userInstanceWithScript = new ckboost.User(
+      this.userTypeCodeCell!,
+      ccc.Script.from({
+        codeHash: this.userTypeCodeHash,
+        hashType: "type",
+        args: userCell.cellOutput.type?.args || ""
+      }),
+      { executor }
+    );
+
+    const result = await userInstanceWithScript.submitQuest(
+      this.signer,
+      updatedUserData,
+      undefined
+    );
+
+    const updateTx = result.res;
+    updateTx.addCellDeps({ outPoint: protocolCell.outPoint, depType: "code" });
+    await updateTx.completeInputsByCapacity(this.signer);
+    await updateTx.completeFeeBy(this.signer);
+
+    // Serialize to TransactionLike JSON via stringify
+    try {
+      // @ts-ignore stringify exists in CCC core and is re-exported
+      // If not available, fallback to manual shape later
+      const json = (updateTx as any).stringify ? (updateTx as any).stringify() : JSON.stringify({
+        version: updateTx.version,
+        cellDeps: updateTx.cellDeps,
+        headerDeps: updateTx.headerDeps,
+        inputs: updateTx.inputs,
+        outputs: updateTx.outputs,
+        outputsData: updateTx.outputsData,
+        witnesses: updateTx.witnesses
+      });
+      return JSON.parse(json);
+    } catch {
+      return {
+        version: updateTx.version,
+        cellDeps: updateTx.cellDeps.map((d: any) => ({ outPoint: d.outPoint, depType: d.depType })),
+        headerDeps: updateTx.headerDeps,
+        inputs: updateTx.inputs.map((i: any) => ({ previousOutput: i.previousOutput, since: i.since })),
+        outputs: updateTx.outputs,
+        outputsData: updateTx.outputsData,
+        witnesses: updateTx.witnesses.map((w: any) => (typeof w === 'string' ? w : ccc.hexFrom(w)))
+      };
+    }
   }
 
   /**

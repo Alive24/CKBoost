@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { useVerification } from "@/lib/hooks/use-verification"
 import { ccc } from "@ckb-ccc/connector-react"
@@ -24,7 +25,9 @@ import {
   Twitter,
   MessageSquare,
 } from "lucide-react"
-import { LoginButton } from '@telegram-auth/react';
+import { StatusAlert } from "@/components/verify/StatusAlert"
+import { TelegramWidgetSection } from "@/components/verify/TelegramWidgetSection"
+import { VerificationMethodCard } from "@/components/verify/VerificationMethodCard"
 
 const VERIFICATION_METHODS = [
   {
@@ -106,6 +109,13 @@ export default function VerifyIdentity() {
   const [redditUsername, setRedditUsername] = useState("")
   const [manualApplication, setManualApplication] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [telegramRedirectData, setTelegramRedirectData] = useState<{
+    chatId: string
+    username: string
+    firstName: string
+    lastName?: string
+    authData: Record<string, unknown>
+  } | null>(null)
   const [justCompleted, setJustCompleted] = useState<string | null>(null)
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   
@@ -131,7 +141,10 @@ export default function VerifyIdentity() {
   }, [signer])
 
   // Use the verification hook for real verification management
-  const { verificationStatus, isLoading } = useVerification()
+  const { verificationStatus, isLoading, completeTelegramVerification, loadVerificationStatus, prepareTelegramVerificationTx } = useVerification()
+
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   // Map verification status to the UI format
   const currentUserStatus = verificationStatus ? {
@@ -246,6 +259,88 @@ export default function VerifyIdentity() {
     }
   }
 
+  // Parse Telegram redirect params (?source=telegram&...)
+  useEffect(() => {
+    const source = searchParams?.get("source")
+    if (source === "telegram") {
+      const id = searchParams.get("id")
+      const username = searchParams.get("username") || ""
+      const firstName = searchParams.get("first_name") || ""
+      const lastName = searchParams.get("last_name") || undefined
+      const photo_url = searchParams.get("photo_url") || undefined
+      const auth_date = searchParams.get("auth_date") || undefined
+      const hash = searchParams.get("hash") || undefined
+      // const hash = searchParams.get("hash") // Verification should be done server-side
+      if (id) {
+        setTelegramRedirectData({
+          chatId: id,
+          username,
+          firstName,
+          lastName,
+          authData: {
+            id,
+            username,
+            first_name: firstName,
+            last_name: lastName,
+            photo_url,
+            auth_date,
+            hash,
+          },
+        })
+        // Do not keep sensitive params in URL longer than needed
+        // Replace URL without query once we've captured data
+        const url = new URL(window.location.href)
+        url.search = ""
+        router.replace(url.pathname)
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
+  const bindTelegramToWallet = async () => {
+    if (!telegramRedirectData) return
+    try {
+      setIsSubmitting(true)
+      // Server-side validate Telegram payload before binding
+      // Prepare finalized tx for server attestation (optional)
+      const txLike = await prepareTelegramVerificationTx({
+        chatId: telegramRedirectData.chatId,
+        username: telegramRedirectData.username,
+        authData: telegramRedirectData.authData,
+      });
+      const resp = await fetch('/api/telegram/authenticate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegram: telegramRedirectData.authData, tx: txLike || undefined })
+      })
+      if (!resp.ok) {
+        console.error('Telegram validation failed at server')
+        return
+      }
+      const json = await resp.json()
+      if (!json.success) {
+        console.error('Telegram validation rejected:', json.error)
+        return
+      }
+      await completeTelegramVerification({
+        chatId: telegramRedirectData.chatId,
+        username: telegramRedirectData.username,
+        firstName: telegramRedirectData.firstName,
+        lastName: telegramRedirectData.lastName,
+        authData: telegramRedirectData.authData,
+        serverSignature: json.serverSignature,
+      })
+      setJustCompleted("telegram")
+      setSelectedMethod("telegram")
+      setTelegramRedirectData(null)
+      await loadVerificationStatus()
+    } catch (e) {
+      console.error("Failed to bind Telegram to wallet", e)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Navigation />
@@ -265,39 +360,23 @@ export default function VerifyIdentity() {
             </p>
 
             {/* Current Status */}
-            {(() => {
-              const verificationCount = Object.values(currentUserStatus).filter(Boolean).length
-              const totalVerifications = Object.values(currentUserStatus).length
-              
-              if (verificationCount === totalVerifications) {
-                return (
-                  <Alert className="bg-green-50 border-green-200">
-                    <CheckCircle className="h-4 w-4 text-green-600" />
-                    <AlertDescription className="text-green-800">
-                      All identity verifications complete! You can participate in all quests and campaigns.
-                    </AlertDescription>
-                  </Alert>
-                )
-              } else if (verificationCount > 0) {
-                return (
-                  <Alert className="bg-yellow-50 border-yellow-200">
-                    <Clock className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-800">
-                      You have completed {verificationCount} of {totalVerifications} verification methods. Complete more to access additional campaigns.
-                    </AlertDescription>
-                  </Alert>
-                )
-              } else {
-                return (
-                  <Alert className="bg-blue-50 border-blue-200">
-                    <Shield className="h-4 w-4 text-blue-600" />
-                    <AlertDescription className="text-blue-800">
-                      Complete identity verification to access all platform features and prevent reward farming.
-                    </AlertDescription>
-                  </Alert>
-                )
-              }
-            })()}
+            <StatusAlert currentUserStatus={currentUserStatus} />
+            {telegramRedirectData && (
+              <div className="mt-4">
+                <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                  <MessageCircle className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    Telegram login received for {telegramRedirectData.username ? `@${telegramRedirectData.username}` : telegramRedirectData.firstName}.
+                    Click below to bind it to your connected wallet.
+                    <div className="mt-3">
+                      <Button onClick={bindTelegramToWallet} disabled={isSubmitting} className="inline-flex">
+                        {isSubmitting ? "Binding..." : "Bind Telegram To Wallet"}
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              </div>
+            )}
           </div>
 
           {/* Why Verification Matters */}
@@ -345,270 +424,77 @@ export default function VerifyIdentity() {
                 Identity Verification
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {VERIFICATION_METHODS.filter(method => ["telegram", "kyc", "did", "manual"].includes(method.id)).map((method) => {
-                  const Icon = method.icon
+                {VERIFICATION_METHODS.filter((m) => ["telegram", "kyc", "did", "manual"].includes(m.id)).map((method) => {
                   const isSelected = selectedMethod === method.id || (isSubmitting && selectedMethod === method.id) || justCompleted === method.id
                   const isDisabled = method.status === "coming_soon"
                   const isCompleted = currentUserStatus[method.id as keyof typeof currentUserStatus]
-
                   return (
-                    <Card
+                    <VerificationMethodCard
                       key={method.id}
-                      className={`cursor-pointer transition-all ${
-                        isCompleted
-                          ? (() => {
-                              switch (method.id) {
-                                case "telegram":
-                                  return "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20";
-                                case "kyc":
-                                  return "ring-2 ring-purple-500 bg-purple-50 dark:bg-purple-900/20";
-                                case "did":
-                                  return "ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/20";
-                                case "manual":
-                                  return "ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20";
-                                default:
-                                  return "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20";
-                              }
-                            })()
-                          : isSelected
-                          ? (() => {
-                              switch (method.id) {
-                                case "telegram":
-                                  return "ring-2 ring-blue-500 border-blue-300";
-                                case "kyc":
-                                  return "ring-2 ring-purple-500 border-purple-300";
-                                case "did":
-                                  return "ring-2 ring-indigo-500 border-indigo-300";
-                                case "manual":
-                                  return "ring-2 ring-orange-500 border-orange-300";
-                                default:
-                                  return "ring-2 ring-purple-500 border-purple-300";
-                              }
-                            })()
-                          : "hover:shadow-md"
-                      } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() =>
-                        !isDisabled &&
-                        !isCompleted &&
-                        !isSubmitting &&
-                        justCompleted !== method.id &&
-                        setSelectedMethod(isSelected ? null : method.id)
-                      }
-                    >
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-5 h-5" />
-                            {method.name}
-                            {isCompleted && (
-                              <CheckCircle
-                                className={`w-4 h-4 ${(() => {
-                                  switch (method.id) {
-                                    case "telegram":
-                                      return "text-blue-600";
-                                    case "kyc":
-                                      return "text-purple-600";
-                                    case "did":
-                                      return "text-indigo-600";
-                                    case "manual":
-                                      return "text-orange-600";
-                                    default:
-                                      return "text-green-600";
-                                  }
-                                })()}`}
-                              />
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              className={getDifficultyColor(method.difficulty)}
-                            >
-                              {method.difficulty}
-                            </Badge>
-                            {isCompleted ? (
-                              <Badge
-                                className={(() => {
-                                  switch (method.id) {
-                                    case "telegram":
-                                      return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100";
-                                    case "kyc":
-                                      return "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100";
-                                    case "did":
-                                      return "bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100";
-                                    case "manual":
-                                      return "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100";
-                                    default:
-                                      return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100";
-                                  }
-                                })()}
-                              >
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Verified
-                              </Badge>
-                            ) : (
-                              <Badge className={getStatusColor(method.status)}>
-                                {method.status === "coming_soon"
-                                  ? "Coming Soon"
-                                  : "Available"}
-                              </Badge>
-                            )}
-                          </div>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">
-                          {method.description}
-                        </p>
-
-                        {/* Show verification details if completed and is Telegram */}
-                        {isCompleted &&
-                          method.id === "telegram" &&
-                          verificationStatus?.telegram_data && (
-                            <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                              <div className="text-sm space-y-1">
-                                <p className="font-medium text-blue-800 dark:text-blue-200">
-                                  ✅ Verification Details:
-                                </p>
-                                {verificationStatus.telegram_data.username && (
-                                  <p className="text-blue-700 dark:text-blue-300">
-                                    <strong>Username:</strong> @
-                                    {verificationStatus.telegram_data.username}
-                                  </p>
-                                )}
+                      method={method}
+                      isSelected={!!isSelected}
+                      isCompleted={!!isCompleted}
+                      isDisabled={!!isDisabled}
+                      isSubmitting={isSubmitting}
+                      justCompletedId={justCompleted}
+                      onToggle={() => setSelectedMethod(isSelected ? null : method.id)}
+                      completedDetails={
+                        method.id === "telegram" && verificationStatus?.telegram_data ? (
+                          <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                            <div className="text-sm space-y-1">
+                              <p className="font-medium text-blue-800 dark:text-blue-200">✅ Verification Details:</p>
+                              {verificationStatus.telegram_data.username && (
                                 <p className="text-blue-700 dark:text-blue-300">
-                                  <strong>Verified:</strong>{" "}
-                                  {new Date(
-                                    verificationStatus.telegram_data
-                                      .verified_at * 1000
-                                  ).toLocaleString()}
+                                  <strong>Username:</strong> @{verificationStatus.telegram_data.username}
                                 </p>
-                                <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
-                                  Your Telegram account is now linked to your
-                                  wallet
-                                </p>
-                              </div>
-                            </div>
-                          )}
-
-                        <div className="text-sm">
-                          <div className="font-medium mb-1">
-                            Time Estimate: {method.timeEstimate}
-                          </div>
-                          <div className="font-medium mb-2">Requirements:</div>
-                          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                            {method.requirements.map((req, index) => (
-                              <li key={index}>{req}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Method-specific forms */}
-                        {/* Show completion message immediately after binding */}
-                        {justCompleted === method.id && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <AlertDescription className="text-green-800 dark:text-green-200">
-                                ✅ {method.name} completed successfully! This
-                                verification is now active.
-                              </AlertDescription>
-                            </Alert>
-                          </div>
-                        )}
-
-                        {isSelected &&
-                          !isCompleted &&
-                          method.id === "telegram" && (
-                            <div className="space-y-4 pt-4 border-t">
-                              {!walletAddress && (
-                                <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800">
-                                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                                  <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-                                    Please connect your wallet first to start
-                                    verification
-                                  </AlertDescription>
-                                </Alert>
                               )}
-
-                              <Alert>
-                                <MessageCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                  Use the official Telegram Login widget below
-                                  to link your Telegram account. After login,
-                                  we’ll bind it to your wallet.
-                                </AlertDescription>
-                              </Alert>
-
-                              {walletAddress ? (
-                                <div className="flex justify-center">
-                                  <LoginButton
-                                    botUsername={"ckboost_bot"}
-                                    authCallbackUrl="https://feature-identity-verification--ckboost.netlify.app/verify?source=telegram"
-                                    buttonSize="large" // "large" | "medium" | "small"
-                                    cornerRadius={5} // 0 - 20
-                                    showAvatar={true} // true | false
-                                    lang="en"
-                                  />
-                                </div>
-                              ) : (
-                                <Button onClick={open} className="w-full">
-                                  Connect Wallet to Verify
-                                  <ExternalLink className="w-4 h-4 ml-2" />
-                                </Button>
-                              )}
+                              <p className="text-blue-700 dark:text-blue-300">
+                                <strong>Verified:</strong> {new Date(verificationStatus.telegram_data.verified_at * 1000).toLocaleString()}
+                              </p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Your Telegram account is now linked to your wallet</p>
                             </div>
-                          )}
-
-                        {isSelected && !isCompleted && method.id === "kyc" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert>
-                              <FileText className="h-4 w-4" />
-                              <AlertDescription>
-                                KYC verification will redirect you to our secure
-                                partner for document verification.
-                              </AlertDescription>
-                            </Alert>
-                            <Button className="w-full">
-                              Start KYC Verification
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </Button>
                           </div>
-                        )}
-
-                        {isSelected &&
-                          !isCompleted &&
-                          method.id === "manual" && (
-                            <div className="space-y-4 pt-4 border-t">
-                              <div>
-                                <Label htmlFor="application">
-                                  Verification Application
-                                </Label>
-                                <Textarea
-                                  id="application"
-                                  placeholder="Please explain why you should be verified. Include any relevant information about your identity, social media profiles, or community involvement..."
-                                  value={manualApplication}
-                                  onChange={(e) =>
-                                    setManualApplication(e.target.value)
-                                  }
-                                  rows={4}
-                                />
-                              </div>
-                              <Button
-                                onClick={handleManualSubmission}
-                                disabled={
-                                  !manualApplication.trim() || isSubmitting
-                                }
-                                className="w-full"
-                              >
-                                {isSubmitting
-                                  ? "Submitting..."
-                                  : "Submit for Manual Review"}
-                              </Button>
-                            </div>
-                          )}
-                      </CardContent>
-                    </Card>
-                  );
+                        ) : undefined
+                      }
+                      getDifficultyColor={getDifficultyColor}
+                      getStatusColor={getStatusColor}
+                    >
+                      {method.id === "telegram" && (
+                        <TelegramWidgetSection walletAddress={walletAddress} open={() => { void open() }} />
+                      )}
+                      {method.id === "kyc" && (
+                        <>
+                          <Alert>
+                            <FileText className="h-4 w-4" />
+                            <AlertDescription>
+                              KYC verification will redirect you to our secure partner for document verification.
+                            </AlertDescription>
+                          </Alert>
+                          <Button className="w-full">
+                            Start KYC Verification
+                            <ExternalLink className="w-4 h-4 ml-2" />
+                          </Button>
+                        </>
+                      )}
+                      {method.id === "manual" && (
+                        <>
+                          <div>
+                            <Label htmlFor="application">Verification Application</Label>
+                            <Textarea
+                              id="application"
+                              placeholder="Please explain why you should be verified. Include any relevant information about your identity, social media profiles, or community involvement..."
+                              value={manualApplication}
+                              onChange={(e) => setManualApplication(e.target.value)}
+                              rows={4}
+                            />
+                          </div>
+                          <Button onClick={handleManualSubmission} disabled={!manualApplication.trim() || isSubmitting} className="w-full">
+                            {isSubmitting ? "Submitting..." : "Submit for Manual Review"}
+                          </Button>
+                        </>
+                      )}
+                    </VerificationMethodCard>
+                  )
                 })}
               </div>
             </div>
@@ -620,174 +506,67 @@ export default function VerifyIdentity() {
                 Social Media Bindings
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {VERIFICATION_METHODS.filter(method => ["twitter", "discord", "reddit"].includes(method.id)).map((method) => {
-                  const Icon = method.icon
+                {VERIFICATION_METHODS.filter((m) => ["twitter", "discord", "reddit"].includes(m.id)).map((method) => {
                   const isSelected = selectedMethod === method.id || (isSubmitting && selectedMethod === method.id) || justCompleted === method.id
                   const isDisabled = method.status === "coming_soon"
                   const isCompleted = currentUserStatus[method.id as keyof typeof currentUserStatus]
-
                   return (
-                    <Card
+                    <VerificationMethodCard
                       key={method.id}
-                      className={`cursor-pointer transition-all ${
-                        isCompleted 
-                          ? (() => {
-                              switch (method.id) {
-                                case "twitter":
-                                  return "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                case "discord":
-                                  return "ring-2 ring-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"
-                                case "reddit":
-                                  return "ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/20"
-                                default:
-                                  return "ring-2 ring-green-500 bg-green-50 dark:bg-green-900/20"
-                              }
-                            })()
-                          : isSelected 
-                            ? (() => {
-                                switch (method.id) {
-                                  case "twitter":
-                                    return "ring-2 ring-blue-500 border-blue-300"
-                                  case "discord":
-                                    return "ring-2 ring-indigo-500 border-indigo-300"
-                                  case "reddit":
-                                    return "ring-2 ring-orange-500 border-orange-300"
-                                  default:
-                                    return "ring-2 ring-blue-500 border-blue-300"
-                                }
-                              })()
-                            : "hover:shadow-md"
-                      } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                      onClick={() => !isDisabled && !isCompleted && !isSubmitting && justCompleted !== method.id && setSelectedMethod(isSelected ? null : method.id)}
+                      method={method}
+                      isSelected={!!isSelected}
+                      isCompleted={!!isCompleted}
+                      isDisabled={!!isDisabled}
+                      isSubmitting={isSubmitting}
+                      justCompletedId={justCompleted}
+                      onToggle={() => setSelectedMethod(isSelected ? null : method.id)}
+                      completedDetails={undefined}
+                      getDifficultyColor={getDifficultyColor}
+                      getStatusColor={getStatusColor}
                     >
-                      <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Icon className="w-5 h-5" />
-                            {method.name}
-                            {isCompleted && <CheckCircle className={`w-4 h-4 ${(() => {
-                              switch (method.id) {
-                                case "twitter":
-                                  return "text-blue-600"
-                                case "discord":
-                                  return "text-indigo-600"
-                                case "reddit":
-                                  return "text-orange-600"
-                                default:
-                                  return "text-green-600"
-                              }
-                            })()}`} />}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge className={getDifficultyColor(method.difficulty)}>{method.difficulty}</Badge>
-                            {isCompleted ? (
-                              <Badge className={(() => {
-                                switch (method.id) {
-                                  case "twitter":
-                                    return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
-                                  case "discord":
-                                    return "bg-indigo-100 text-indigo-800 dark:bg-indigo-800 dark:text-indigo-100"
-                                  case "reddit":
-                                    return "bg-orange-100 text-orange-800 dark:bg-orange-800 dark:text-orange-100"
-                                  default:
-                                    return "bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100"
-                                }
-                              })()}>
-                                <CheckCircle className="w-3 h-3 mr-1" />
-                                Bound
-                              </Badge>
-                            ) : (
-                              <Badge className={getStatusColor(method.status)}>
-                                {method.status === "coming_soon" ? "Coming Soon" : "Available"}
-                              </Badge>
-                            )}
-                          </div>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <p className="text-sm text-muted-foreground">{method.description}</p>
-
-                        <div className="text-sm">
-                          <div className="font-medium mb-1">Time Estimate: {method.timeEstimate}</div>
-                          <div className="font-medium mb-2">Requirements:</div>
-                          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-                            {method.requirements.map((req, index) => (
-                              <li key={index}>{req}</li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Method-specific forms */}
-                        {/* Show completion message immediately after binding */}
-                        {justCompleted === method.id && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert className="bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800">
-                              <CheckCircle className="h-4 w-4 text-green-600" />
-                              <AlertDescription className="text-green-800 dark:text-green-200">
-                                ✅ {method.name} completed successfully! This binding is now active.
-                              </AlertDescription>
-                            </Alert>
-                          </div>
-                        )}
-
-                        {isSelected && !isCompleted && method.id === "twitter" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert>
-                              <Twitter className="h-4 w-4" />
-                              <AlertDescription>
-                                You'll be redirected to sign in to X (Twitter), then return here to sign a transaction that connects your account to your wallet.
-                              </AlertDescription>
-                            </Alert>
-                            <Button
-                              onClick={handleTwitterVerification}
-                              disabled={isSubmitting}
-                              className="w-full"
-                            >
-                              {isSubmitting ? "Connecting..." : "Connect X (Twitter) Account"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </Button>
-                          </div>
-                        )}
-
-                        {isSelected && !isCompleted && method.id === "discord" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert>
-                              <MessageSquare className="h-4 w-4" />
-                              <AlertDescription>
-                                You'll be redirected to sign in to Discord, then return here to sign a transaction that connects your account to your wallet.
-                              </AlertDescription>
-                            </Alert>
-                            <Button
-                              onClick={handleDiscordVerification}
-                              disabled={isSubmitting}
-                              className="w-full"
-                            >
-                              {isSubmitting ? "Connecting..." : "Connect Discord Account"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </Button>
-                          </div>
-                        )}
-
-                        {isSelected && !isCompleted && method.id === "reddit" && (
-                          <div className="space-y-4 pt-4 border-t">
-                            <Alert>
-                              <MessageCircle className="h-4 w-4" />
-                              <AlertDescription>
-                                You'll be redirected to sign in to Reddit, then return here to sign a transaction that connects your account to your wallet.
-                              </AlertDescription>
-                            </Alert>
-                            <Button
-                              onClick={handleRedditVerification}
-                              disabled={isSubmitting}
-                              className="w-full"
-                            >
-                              {isSubmitting ? "Connecting..." : "Connect Reddit Account"}
-                              <ExternalLink className="w-4 h-4 ml-2" />
-                            </Button>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                      {method.id === "twitter" && (
+                        <>
+                          <Alert>
+                            <Twitter className="h-4 w-4" />
+                            <AlertDescription>
+                              You'll be redirected to sign in to X (Twitter), then return here to sign a transaction that connects your account to your wallet.
+                            </AlertDescription>
+                          </Alert>
+                          <Button onClick={handleTwitterVerification} disabled={isSubmitting} className="w-full">
+                            {isSubmitting ? "Connecting..." : "Connect X (Twitter) Account"}
+                            <ExternalLink className="w-4 h-4 ml-2" />
+                          </Button>
+                        </>
+                      )}
+                      {method.id === "discord" && (
+                        <>
+                          <Alert>
+                            <MessageSquare className="h-4 w-4" />
+                            <AlertDescription>
+                              You'll be redirected to sign in to Discord, then return here to sign a transaction that connects your account to your wallet.
+                            </AlertDescription>
+                          </Alert>
+                          <Button onClick={handleDiscordVerification} disabled={isSubmitting} className="w-full">
+                            {isSubmitting ? "Connecting..." : "Connect Discord Account"}
+                            <ExternalLink className="w-4 h-4 ml-2" />
+                          </Button>
+                        </>
+                      )}
+                      {method.id === "reddit" && (
+                        <>
+                          <Alert>
+                            <MessageCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              You'll be redirected to sign in to Reddit, then return here to sign a transaction that connects your account to your wallet.
+                            </AlertDescription>
+                          </Alert>
+                          <Button onClick={handleRedditVerification} disabled={isSubmitting} className="w-full">
+                            {isSubmitting ? "Connecting..." : "Connect Reddit Account"}
+                            <ExternalLink className="w-4 h-4 ml-2" />
+                          </Button>
+                        </>
+                      )}
+                    </VerificationMethodCard>
                   )
                 })}
               </div>

@@ -27,6 +27,7 @@ export interface TelegramVerificationFlow {
   isPolling: boolean;
   error?: string;
 }
+export type TransactionLikeJson = any
 
 export const useVerification = () => {
   const { userService } = useUser();
@@ -124,6 +125,8 @@ export const useVerification = () => {
     username: string;
     firstName: string;
     lastName?: string;
+    authData?: Record<string, unknown>;
+    serverSignature?: string;
   }) => {
     if (!userService || !protocolCell) {
       throw new Error("Required services not available");
@@ -133,7 +136,9 @@ export const useVerification = () => {
       const txHash = await userService.updateTelegramVerification(
         BigInt(verificationData.chatId),
         verificationData.username,
-        protocolCell
+        protocolCell,
+        verificationData.authData,
+        verificationData.serverSignature
       );
 
       debug.log("Telegram verification completed on-chain", {
@@ -146,6 +151,20 @@ export const useVerification = () => {
       debug.error("Failed to complete Telegram verification on-chain", error);
       throw error;
     }
+  }, [userService, protocolCell]);
+
+  const prepareTelegramVerificationTx = useCallback(async (verificationData: {
+    chatId: string;
+    username: string;
+    authData?: Record<string, unknown>;
+  }): Promise<TransactionLikeJson | null> => {
+    if (!userService || !protocolCell) return null;
+    return await userService.prepareTelegramVerificationTx(
+      BigInt(verificationData.chatId),
+      verificationData.username,
+      protocolCell,
+      verificationData.authData
+    );
   }, [userService, protocolCell]);
 
   // Start polling for Telegram verification completion
@@ -229,6 +248,7 @@ export const useVerification = () => {
     initializeTelegramVerification,
     startTelegramPolling,
     completeTelegramVerification,
+    prepareTelegramVerificationTx,
     checkCampaignEligibility,
     clearTelegramError,
   };
