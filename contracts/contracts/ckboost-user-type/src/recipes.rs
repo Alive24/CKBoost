@@ -69,7 +69,7 @@ pub mod common {
 }
 
 
-pub mod update_user_verification {
+pub mod update_verification_data {
     use super::common;
     use alloc::{string::ToString, vec};
     use ckb_deterministic::{
@@ -82,22 +82,11 @@ pub mod update_user_verification {
             .with_arguments(1)
             // Protocol cells: at most 1 in (for checking endorser whitelist), 0 out
             .with_custom_cell(
-                "protocol",
-                CellCountConstraint::at_most(1),
-                CellCountConstraint::exactly(0),
-            )
-            // Campaign cells not allowed in user verification updates
-            .with_custom_cell(
-                "campaign",
-                CellCountConstraint::exactly(0),
-                CellCountConstraint::exactly(0),
+                "user",
+                CellCountConstraint::at_least(0),
+                CellCountConstraint::exactly(1),
             )
             // User cells: exactly 1 in, 1 out (update)
-            .with_custom_cell(
-                "user",
-                CellCountConstraint::exactly(1),
-                CellCountConstraint::exactly(1),
-            )
             .with_cell_relationship(
                 "script_immutability".to_string(),
                 "Script immutability must be maintained during user updates".to_string(),
@@ -115,17 +104,38 @@ pub mod update_user_verification {
     pub mod business_logic {
         use ckb_deterministic::cell_classifier::RuleBasedClassifier;
         use ckb_deterministic::errors::Error as DeterministicError;
+        use ckboost_shared::protocol_data::get_protocol_data;
         use ckboost_shared::transaction_context::TransactionContext;
+        use molecule::prelude::Entity;
 
         // **Verification update validation**: Ensure only authorized verification updates
         pub fn verification_update_validation(
-            _context: &TransactionContext<RuleBasedClassifier>,
+            context: &TransactionContext<RuleBasedClassifier>,
         ) -> Result<(), DeterministicError> {
-            // TODO: Implement verification update validation
-            // 1. Check if updater is in endorser whitelist (from protocol cell)
-            // 2. Validate new verification data
-            // 3. Ensure verification level transitions are valid
-            Ok(())
+            // Rule: There must be a simple CKB cell locked by admin.
+            let protocol_data = match get_protocol_data() {
+                Ok(pd) => pd,
+                Err(_) => return Err(DeterministicError::BusinessRuleViolation),
+            };
+            let admin_lock_hash_vec = protocol_data.protocol_config().admin_lock_hash_vec();
+            for ckb_cell in context.input_cells.simple_ckb_cells.iter() {
+                let mut matched = false;
+                for i in 0..admin_lock_hash_vec.len() {
+                    if let Some(hash) = admin_lock_hash_vec.get(i) {
+                        let mut admin_hash = [0u8; 32];
+                        admin_hash.copy_from_slice(hash.as_slice());
+                        if admin_hash == ckb_cell.lock_hash {
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+                if matched {
+                    return Ok(());
+                }
+            }
+
+            Err(DeterministicError::BusinessRuleViolation)
         }
     }
 }
@@ -193,7 +203,7 @@ pub mod submit_quest {
 /// Get all validation rules for user type
 pub fn get_all_rules() -> Vec<TransactionValidationRules<RuleBasedClassifier>> {
     vec![
-        update_user_verification::get_rules(),
+        update_verification_data::get_rules(),
         submit_quest::get_rules(),
     ]
 }

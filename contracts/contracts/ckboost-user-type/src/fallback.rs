@@ -28,13 +28,9 @@ pub fn fallback() -> Result<(), Error> {
             debug_trace!("Matched CKBoostUser.submit_quest - calling verify_submit_quest");
             CKBoostUserType::verify_submit_quest(&context)
         }
-        b"CKBoostUser.update_user_verification" => {
-            debug_trace!("Matched CKBoostUser.update_user_verification");
-            CKBoostUserType::verify_update_user_verification()
-        }
-        b"CKBoostUser.update_user" => {
-            debug_trace!("Matched CKBoostUser.update_user");
-            CKBoostUserType::verify_update_user(&context)
+        b"CKBoostUser.update_verification_data" => {
+            debug_trace!("Matched CKBoostUser.update_verification_data");
+            CKBoostUserType::verify_update_verification_data(&context)
         }
         _ => {
             debug_trace!("No matching validation rules found for method path");

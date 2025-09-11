@@ -132,6 +132,12 @@ pub enum Error {
     // Script argument validation errors
     TransactionStructureError,
     
+    // Verification errors
+    InvalidVerificationData,
+    VerificationMethodNotSupported,
+    VerificationAlreadyExists,
+    VerificationExpired,
+    
     // Points UDT specific errors
     InvalidProtocolReference,
     InvalidCampaignCell,

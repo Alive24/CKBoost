@@ -9,18 +9,16 @@ use ckb_std::ckb_types::packed::Transaction;
 
 /// CKBoost User SSRI trait for user management operations
 pub trait CKBoostUser {
-    /// Update user verification status
-    /// 
-    /// # Arguments
-    /// 
-    /// * `user_verification_data` - The user verification data including profile and proof
-    fn update_user_verification(
+    fn update_verification_data(
+        tx: Option<Transaction>,
         user_verification_data: UserVerificationData,
-    ) -> Result<(), Error>;
+    ) -> Result<Transaction, Error>;
     
-    /// Verify user verification update transaction in Type Script
+    /// Verify verification data update transaction in Type Script
     /// This method is called automatically by the type script to validate transactions
-    fn verify_update_user_verification() -> Result<(), Error>;
+    fn verify_update_verification_data(
+        context: &TransactionContext<RuleBasedClassifier>,
+    ) -> Result<(), Error>;
     
     /// Submit a quest completion
     /// 
@@ -40,27 +38,6 @@ pub trait CKBoostUser {
     /// Verify quest submission transaction in Type Script
     /// This method is called automatically by the type script to validate transactions
     fn verify_submit_quest(
-        context: &TransactionContext<RuleBasedClassifier>,
-    ) -> Result<(), Error>;
-    
-    /// Update user data (for future extensions)
-    /// 
-    /// # Arguments
-    /// 
-    /// * `tx` - Optional existing transaction to build upon
-    /// * `user_data` - The updated user data
-    /// 
-    /// # Returns
-    /// 
-    /// Returns a transaction with the user cell updated
-    fn update_user(
-        tx: Option<Transaction>,
-        user_data: UserData,
-    ) -> Result<Transaction, Error>;
-    
-    /// Verify user update transaction in Type Script
-    /// This method is called automatically by the type script to validate transactions
-    fn verify_update_user(
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error>;
 }
