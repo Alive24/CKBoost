@@ -3,7 +3,7 @@
  * Provides automatic retry with correct fees when minimum fee errors occur
  */
 
-import { ccc } from "@ckb-ccc/connector-react";
+import { ccc, KnownScript } from "@ckb-ccc/connector-react";
 
 /**
  * Parse the required fee from a PoolRejectedTransactionByMinFeeRate error message
@@ -78,17 +78,20 @@ export async function sendTransactionWithFeeRetry(
   while (attempts < maxAttempts) {
     attempts++;
     
+    await tx.addCellDepsOfKnownScripts(signer.client, KnownScript.Secp256k1Blake160 );
+
     try {
       console.log(`Transaction send attempt ${attempts}/${maxAttempts}`);
       
       // Try to send the transaction
+      console.log("JSON.stringify(tx)", ccc.stringify(tx));
       const txHash = await signer.sendTransaction(tx);
       console.log("Transaction sent successfully! TxHash:", txHash);
       return txHash;
       
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`Transaction send attempt ${attempts} failed:`, errorMessage);
+      console.error(`Transaction send attempt ${attempts} failed:`, errorMessage);  
       
       // Check if it's a minimum fee error
       if (errorMessage.includes("PoolRejectedTransactionByMinFeeRate")) {
