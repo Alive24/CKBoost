@@ -987,7 +987,7 @@ export class UserService {
       // currentIdentityVerificationDataArray = JSON.parse(
       //   currentIdentityVerificationDataString
       // );
-      currentIdentityVerificationDataArray = []
+      currentIdentityVerificationDataArray = [];
     } catch {
       // If parsing fails, start with empty object
       debug.log("No existing identity data found, creating new");
@@ -1003,34 +1003,45 @@ export class UserService {
       "utf8"
     );
     const updatedIdentityVerificationDataLike = {
-      telegram_personal_chat_id:
-        telegramVerificationData.id,
-      identity_verification_data:
-        updatedIdentityVerificationDataBytes,
+      telegram_personal_chat_id: telegramVerificationData.id,
+      identity_verification_data: updatedIdentityVerificationDataBytes,
     };
 
-    const authenticatorAddress = process.env.NEXT_PUBLIC_TELEGRAM_AUTHENTICATOR_ADDRESS;
+    const authenticatorAddress =
+      process.env.NEXT_PUBLIC_TELEGRAM_AUTHENTICATOR_ADDRESS;
 
     const authenticatorLock = await ccc.Address.fromString(
       authenticatorAddress as string,
       this.signer.client
     );
     const authenticatorLockScript = authenticatorLock.script;
-    const proxyAuthenticationCellCollector = await this.signer.client.findCellsByLock(
-      authenticatorLockScript,
-      null
-    );
+    const proxyAuthenticationCellCollector =
+      await this.signer.client.findCellsByLock(authenticatorLockScript, null);
 
-    const proxyAuthenticationCellResult = await proxyAuthenticationCellCollector.next();
+    const proxyAuthenticationCellResult =
+      await proxyAuthenticationCellCollector.next();
 
     if (!proxyAuthenticationCellResult) {
       throw new Error("Proxy authentication cell not found");
     }
-    const proxyAuthenticationCell = proxyAuthenticationCellResult.value as ccc.Cell;
+    const proxyAuthenticationCell =
+      proxyAuthenticationCellResult.value as ccc.Cell;
 
     // Get the base for draftTx from SSRI
     if (!this.userInstance) {
-      throw new Error("User instance not found");
+      const executorUrl =
+        process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
+      const executor = new ssri.ExecutorJsonRpc(executorUrl);
+      const userInstanceWithScript = new ckboost.User(
+        this.userTypeCodeCell!,
+        ccc.Script.from({
+          codeHash: this.userTypeCodeHash,
+          hashType: "type",
+          args: userCell.cellOutput.type?.args || "",
+        }),
+        { executor } // Pass the executor in config
+      );
+      this.userInstance = userInstanceWithScript;
     }
     const { res: baseDraftTx } = await this.userInstance.updateVerificationData(
       this.signer,
@@ -1050,7 +1061,6 @@ export class UserService {
     console.log("baseDraftTx", baseDraftTx);
     console.log("baseDraftTx in Hex", ccc.hexFrom(baseDraftTx.toBytes()));
     // Call netlify function with draftTx
-
 
     // const txHash = await this.updateVerificationData(
     //   updatedIdentityVerificationData,

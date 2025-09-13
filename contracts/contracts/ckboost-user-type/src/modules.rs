@@ -78,7 +78,13 @@ impl CKBoostUser for CKBoostUserType {
                 debug_trace!("connected_type_id: {:?}", connected_type_id);
 
                 // Try to find existing user cell with this type ID
-                let user_outpoint = find_out_point_by_type(current_script.clone())?;
+                let user_outpoint = match find_out_point_by_type(current_script.clone()) {
+                    Ok(outpoint) => outpoint,
+                    Err(e) => {
+                        debug_trace!("ERROR finding user cell: {:?}", e);
+                        return Err(e.into());
+                    }
+                };
 
                 // Add user cell as input
                 let user_input = CellInput::new_builder()

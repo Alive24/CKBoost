@@ -77,6 +77,27 @@ fn program_entry_wrap() -> Result<(), Error> {
             let result_tx = crate::modules::CKBoostUserType::submit_quest(tx, user_data)?;
             Ok(Cow::from(result_tx.as_bytes().to_vec()))
         },
+        "CKBoostUser.update_verification_data" => {
+            debug_trace!("Entered CKBoostUser.update_verification_data");
+            
+            // Parse optional transaction (argv[1])
+            let tx: Option<ckb_std::ckb_types::packed::Transaction> = if argv[1].is_empty() || argv[1].as_ref().to_str().map_err(|_| Error::Utf8Error)? == "" {
+                None
+            } else {
+                let parsed_tx = ckb_std::ckb_types::packed::Transaction::from_compatible_slice(&ckb_std::high_level::decode_hex(argv[1].as_ref())?)
+                    .map_err(|_| Error::InvalidBaseTransactionForSSRI)?;
+                Some(parsed_tx)
+            };
+            
+            // Parse user_data from molecule serialized bytes (argv[2])
+            let user_verification_data_bytes = ckb_std::high_level::decode_hex(argv[2].as_ref())?;
+            let user_verification_data = ckboost_shared::types::UserVerificationData::from_slice(&user_verification_data_bytes)
+                .map_err(|_| Error::InvalidUserData)?;
+            
+            // Call the update_verification_data method and return the transaction
+            let result_tx = crate::modules::CKBoostUserType::update_verification_data(tx, user_verification_data)?;
+            Ok(Cow::from(result_tx.as_bytes().to_vec()))
+        },
     )?;
     
     let pipe = pipe()?;
