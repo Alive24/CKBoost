@@ -1,17 +1,17 @@
 /* eslint-disable react/no-unescaped-entities */
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { Navigation } from "@/components/navigation"
-import { useVerification } from "@/lib/hooks/use-verification"
-import { ccc } from "@ckb-ccc/connector-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { Navigation } from "@/components/navigation";
+import { useVerification } from "@/lib/hooks/use-verification";
+import { ccc } from "@ckb-ccc/connector-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Shield,
   CheckCircle,
@@ -24,10 +24,12 @@ import {
   Fingerprint,
   Twitter,
   MessageSquare,
-} from "lucide-react"
-import { StatusAlert } from "@/components/verify/StatusAlert"
-import { TelegramWidgetSection } from "@/components/verify/TelegramWidgetSection"
-import { VerificationMethodCard } from "@/components/verify/VerificationMethodCard"
+} from "lucide-react";
+import { StatusAlert } from "@/components/verify/StatusAlert";
+import { TelegramWidgetSection } from "@/components/verify/TelegramWidgetSection";
+import { VerificationMethodCard } from "@/components/verify/VerificationMethodCard";
+import { TelegramVerificationData } from "@/lib/types/verify";
+import { useUser } from "@/lib/providers/user-provider";
 
 const VERIFICATION_METHODS = [
   {
@@ -77,17 +79,26 @@ const VERIFICATION_METHODS = [
     icon: FileText,
     difficulty: "Medium",
     timeEstimate: "10-30 minutes",
-    requirements: ["Government-issued ID", "Proof of address", "Selfie verification"],
+    requirements: [
+      "Government-issued ID",
+      "Proof of address",
+      "Selfie verification",
+    ],
     status: "available",
   },
   {
     id: "did",
     name: "DID Verification",
-    description: "Use Decentralized Identity for privacy-preserving verification",
+    description:
+      "Use Decentralized Identity for privacy-preserving verification",
     icon: Fingerprint,
     difficulty: "Advanced",
     timeEstimate: "5-15 minutes",
-    requirements: ["DID wallet", "Verifiable credentials", "Technical knowledge"],
+    requirements: [
+      "DID wallet",
+      "Verifiable credentials",
+      "Technical knowledge",
+    ],
     status: "coming_soon",
   },
   {
@@ -97,249 +108,245 @@ const VERIFICATION_METHODS = [
     icon: User,
     difficulty: "Variable",
     timeEstimate: "1-3 days",
-    requirements: ["Detailed application", "Supporting evidence", "Admin review"],
+    requirements: [
+      "Detailed application",
+      "Supporting evidence",
+      "Admin review",
+    ],
     status: "available",
   },
-]
+];
 
 export default function VerifyIdentity() {
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
-  const [twitterUsername, setTwitterUsername] = useState("")
-  const [discordUsername, setDiscordUsername] = useState("")
-  const [redditUsername, setRedditUsername] = useState("")
-  const [manualApplication, setManualApplication] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [telegramRedirectData, setTelegramRedirectData] = useState<{
-    chatId: string
-    username: string
-    firstName: string
-    lastName?: string
-    authData: Record<string, unknown>
-  } | null>(null)
-  const [justCompleted, setJustCompleted] = useState<string | null>(null)
-  const [walletAddress, setWalletAddress] = useState<string | null>(null)
-  
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [twitterUsername, setTwitterUsername] = useState("");
+  const [discordUsername, setDiscordUsername] = useState("");
+  const [redditUsername, setRedditUsername] = useState("");
+  const [manualApplication, setManualApplication] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [telegramRedirectData, setTelegramRedirectData] =
+    useState<TelegramVerificationData | null>(null);
+  const [justCompleted, setJustCompleted] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const { userService } = useUser();
+
   // Get wallet connection
-  const { open } = ccc.useCcc()
-  const signer = ccc.useSigner()
-  
+  const { open } = ccc.useCcc();
+  const signer = ccc.useSigner();
+
   // Get wallet address when signer is connected
   useEffect(() => {
     const getAddress = async () => {
       if (signer) {
         try {
-          const addr = await signer.getRecommendedAddress()
-          setWalletAddress(addr)
+          const addr = await signer.getRecommendedAddress();
+          setWalletAddress(addr);
         } catch (error) {
-          console.error("Failed to get wallet address:", error)
+          console.error("Failed to get wallet address:", error);
         }
       } else {
-        setWalletAddress(null)
+        setWalletAddress(null);
       }
-    }
-    getAddress()
-  }, [signer])
+    };
+    getAddress();
+  }, [signer]);
 
   // Use the verification hook for real verification management
-  const { verificationStatus, isLoading, completeTelegramVerification, loadVerificationStatus, prepareTelegramVerificationTx } = useVerification()
+  const {
+    verificationStatus,
+    isLoading,
+    loadVerificationStatus,
+  } = useVerification();
 
-  const searchParams = useSearchParams()
-  const router = useRouter()
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   // Map verification status to the UI format
-  const currentUserStatus = verificationStatus ? {
-    telegram: verificationStatus.telegram,
-    twitter: verificationStatus.twitter,
-    discord: verificationStatus.discord,
-    reddit: verificationStatus.reddit,
-    kyc: verificationStatus.kyc,
-    did: verificationStatus.did,
-    manualReview: verificationStatus.manual_review,
-  } : {
-    telegram: false,
-    twitter: false,
-    discord: false,
-    reddit: false,
-    kyc: false,
-    did: false,
-    manualReview: false,
-  }
+  const currentUserStatus = verificationStatus
+    ? {
+        telegram: verificationStatus.telegram,
+        twitter: verificationStatus.twitter,
+        discord: verificationStatus.discord,
+        reddit: verificationStatus.reddit,
+        kyc: verificationStatus.kyc,
+        did: verificationStatus.did,
+        manualReview: verificationStatus.manual_review,
+      }
+    : {
+        telegram: false,
+        twitter: false,
+        discord: false,
+        reddit: false,
+        kyc: false,
+        did: false,
+        manualReview: false,
+      };
 
   // Telegram verification: use Telegram Login widget (no code generation)
 
   const handleTwitterVerification = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     // Keep the card selected during the process
-    setSelectedMethod("twitter")
-    
+    setSelectedMethod("twitter");
+
     // Simulate OAuth flow and transaction signing
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     // This would normally update via the backend
-    setJustCompleted("twitter")
-    setIsSubmitting(false)
-    
+    setJustCompleted("twitter");
+    setIsSubmitting(false);
+
     // Keep the card selected to show success message
     // Auto-hide success message after 5 seconds
     setTimeout(() => {
-      setJustCompleted(null)
-      setSelectedMethod(null) // Clear selection after success message fades
-    }, 5000)
-  }
+      setJustCompleted(null);
+      setSelectedMethod(null); // Clear selection after success message fades
+    }, 5000);
+  };
 
   const handleDiscordVerification = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     // Keep the card selected during the process
-    setSelectedMethod("discord")
-    
+    setSelectedMethod("discord");
+
     // Simulate OAuth flow and transaction signing
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     // This would normally update via the backend
-    setJustCompleted("discord")
-    setIsSubmitting(false)
-    
+    setJustCompleted("discord");
+    setIsSubmitting(false);
+
     // Keep the card selected to show success message
     // Auto-hide success message after 5 seconds
     setTimeout(() => {
-      setJustCompleted(null)
-      setSelectedMethod(null) // Clear selection after success message fades
-    }, 5000)
-  }
+      setJustCompleted(null);
+      setSelectedMethod(null); // Clear selection after success message fades
+    }, 5000);
+  };
 
   const handleRedditVerification = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     // Keep the card selected during the process
-    setSelectedMethod("reddit")
-    
+    setSelectedMethod("reddit");
+
     // Simulate OAuth flow and transaction signing
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-    
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
     // This would normally update via the backend
-    setJustCompleted("reddit")
-    setIsSubmitting(false)
-    
+    setJustCompleted("reddit");
+    setIsSubmitting(false);
+
     // Keep the card selected to show success message
     // Auto-hide success message after 5 seconds
     setTimeout(() => {
-      setJustCompleted(null)
-      setSelectedMethod(null) // Clear selection after success message fades
-    }, 5000)
-  }
+      setJustCompleted(null);
+      setSelectedMethod(null); // Clear selection after success message fades
+    }, 5000);
+  };
 
   const handleManualSubmission = async () => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    setIsSubmitting(false)
-    console.log("Manual verification submitted:", manualApplication)
-  }
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSubmitting(false);
+    console.log("Manual verification submitted:", manualApplication);
+  };
 
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Easy":
-        return "bg-green-100 text-green-800"
+        return "bg-green-100 text-green-800";
       case "Medium":
-        return "bg-yellow-100 text-yellow-800"
+        return "bg-yellow-100 text-yellow-800";
       case "Advanced":
-        return "bg-red-100 text-red-800"
+        return "bg-red-100 text-red-800";
       default:
-        return "bg-gray-100 text-gray-800"
+        return "bg-gray-100 text-gray-800";
     }
-  }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "available":
-        return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100"
+        return "bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100";
       case "coming_soon":
-        return "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100"
+        return "bg-purple-100 text-purple-800 dark:bg-purple-800 dark:text-purple-100";
       default:
-        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100"
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100";
     }
-  }
+  };
 
   // Parse Telegram redirect params (?source=telegram&...)
   useEffect(() => {
-    const source = searchParams?.get("source")
+    const source = searchParams?.get("source");
     if (source === "telegram") {
-      const id = searchParams.get("id")
-      const username = searchParams.get("username") || ""
-      const firstName = searchParams.get("first_name") || ""
-      const lastName = searchParams.get("last_name") || undefined
-      const photo_url = searchParams.get("photo_url") || undefined
-      const auth_date = searchParams.get("auth_date") || undefined
-      const hash = searchParams.get("hash") || undefined
-      // const hash = searchParams.get("hash") // Verification should be done server-side
+      const id = searchParams.get("id");
+      const username = searchParams.get("username") || "";
+      const firstName = searchParams.get("first_name") || "";
+      const lastName = searchParams.get("last_name") || undefined;
+      const photo_url = searchParams.get("photo_url") || undefined;
+      const auth_date = searchParams.get("auth_date") || undefined;
+      const hash = searchParams.get("hash") || undefined;
       if (id) {
-        setTelegramRedirectData({
-          chatId: id,
+        const redirectData = {
+          id,
           username,
           firstName,
           lastName,
-          authData: {
-            id,
-            username,
-            first_name: firstName,
-            last_name: lastName,
-            photo_url,
-            auth_date,
-            hash,
-          },
-        })
+          photo_url,
+          auth_date,
+          hash,
+        } as unknown as TelegramVerificationData;
+        setTelegramRedirectData(redirectData);
         // Do not keep sensitive params in URL longer than needed
         // Replace URL without query once we've captured data
-        const url = new URL(window.location.href)
-        url.search = ""
-        router.replace(url.pathname)
+        const url = new URL(window.location.href);
+        url.search = "";
+        router.replace(url.pathname);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const bindTelegramToWallet = async () => {
-    if (!telegramRedirectData) return
+    if (!telegramRedirectData) return;
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
+
+      if (!userService) {
+        console.error("User service not found");
+        return;
+      }
+
       // Server-side validate Telegram payload before binding
-      // Prepare finalized tx for server attestation (optional)
-      const txLike = await prepareTelegramVerificationTx({
-        chatId: telegramRedirectData.chatId,
-        username: telegramRedirectData.username,
-        authData: telegramRedirectData.authData,
-      });
-      const resp = await fetch('/api/telegram/authenticate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ telegram: telegramRedirectData.authData, tx: txLike || undefined })
-      })
-      if (!resp.ok) {
-        console.error('Telegram validation failed at server')
-        return
-      }
-      const json = await resp.json()
-      if (!json.success) {
-        console.error('Telegram validation rejected:', json.error)
-        return
-      }
-      await completeTelegramVerification({
-        chatId: telegramRedirectData.chatId,
-        username: telegramRedirectData.username,
-        firstName: telegramRedirectData.firstName,
-        lastName: telegramRedirectData.lastName,
-        authData: telegramRedirectData.authData,
-        serverSignature: json.serverSignature,
-      })
-      setJustCompleted("telegram")
-      setSelectedMethod("telegram")
-      setTelegramRedirectData(null)
-      await loadVerificationStatus()
+      const txHash = await userService.updateTelegramVerification(telegramRedirectData);
+      // const resp = await fetch("/api/telegram/authenticate", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({
+      //     telegram: telegramRedirectData.authData,
+      //     tx: txLike || undefined,
+      //   }),
+      // });
+      // if (!resp.ok) {
+      //   console.error("Telegram validation failed at server");
+      //   return;
+      // }
+      // const json = await resp.json();
+      // if (!json.success) {
+      //   console.error("Telegram validation rejected:", json.error);
+      //   return;
+      // }
+      setJustCompleted("telegram");
+      setSelectedMethod("telegram");
+      setTelegramRedirectData(null);
+      await loadVerificationStatus();
     } catch (e) {
-      console.error("Failed to bind Telegram to wallet", e)
+      console.error("Failed to bind Telegram to wallet", e);
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-green-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -356,7 +363,8 @@ export default function VerifyIdentity() {
               </h1>
             </div>
             <p className="text-lg text-muted-foreground mb-6">
-              Verify your identity to prevent sybil attacks and ensure fair reward distribution
+              Verify your identity to prevent sybil attacks and ensure fair
+              reward distribution
             </p>
 
             {/* Current Status */}
@@ -366,11 +374,20 @@ export default function VerifyIdentity() {
                 <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
                   <MessageCircle className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-800 dark:text-blue-200">
-                    Telegram login received for {telegramRedirectData.username ? `@${telegramRedirectData.username}` : telegramRedirectData.firstName}.
-                    Click below to bind it to your connected wallet.
+                    Telegram login received for{" "}
+                    {telegramRedirectData.username
+                      ? `@${telegramRedirectData.username}`
+                      : telegramRedirectData.firstName}
+                    . Click below to bind it to your connected wallet.
                     <div className="mt-3">
-                      <Button onClick={bindTelegramToWallet} disabled={isSubmitting} className="inline-flex">
-                        {isSubmitting ? "Binding..." : "Bind Telegram To Wallet"}
+                      <Button
+                        onClick={bindTelegramToWallet}
+                        disabled={isSubmitting}
+                        className="inline-flex"
+                      >
+                        {isSubmitting
+                          ? "Binding..."
+                          : "Bind Telegram To Wallet"}
                       </Button>
                     </div>
                   </AlertDescription>
@@ -392,13 +409,17 @@ export default function VerifyIdentity() {
                 <div>
                   <h4 className="font-semibold mb-2">Prevents Sybil Attacks</h4>
                   <p className="text-sm text-muted-foreground">
-                    Stops users from creating multiple accounts to farm rewards unfairly
+                    Stops users from creating multiple accounts to farm rewards
+                    unfairly
                   </p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">Fair Reward Distribution</h4>
+                  <h4 className="font-semibold mb-2">
+                    Fair Reward Distribution
+                  </h4>
                   <p className="text-sm text-muted-foreground">
-                    Ensures legitimate users get their fair share of quest rewards
+                    Ensures legitimate users get their fair share of quest
+                    rewards
                   </p>
                 </div>
                 <div>
@@ -409,7 +430,9 @@ export default function VerifyIdentity() {
                 </div>
                 <div>
                   <h4 className="font-semibold mb-2">Enhanced Features</h4>
-                  <p className="text-sm text-muted-foreground">Access to higher-value quests and exclusive campaigns</p>
+                  <p className="text-sm text-muted-foreground">
+                    Access to higher-value quests and exclusive campaigns
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -424,10 +447,18 @@ export default function VerifyIdentity() {
                 Identity Verification
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {VERIFICATION_METHODS.filter((m) => ["telegram", "kyc", "did", "manual"].includes(m.id)).map((method) => {
-                  const isSelected = selectedMethod === method.id || (isSubmitting && selectedMethod === method.id) || justCompleted === method.id
-                  const isDisabled = method.status === "coming_soon"
-                  const isCompleted = currentUserStatus[method.id as keyof typeof currentUserStatus]
+                {VERIFICATION_METHODS.filter((m) =>
+                  ["telegram", "kyc", "did", "manual"].includes(m.id)
+                ).map((method) => {
+                  const isSelected =
+                    selectedMethod === method.id ||
+                    (isSubmitting && selectedMethod === method.id) ||
+                    justCompleted === method.id;
+                  const isDisabled = method.status === "coming_soon";
+                  const isCompleted =
+                    currentUserStatus[
+                      method.id as keyof typeof currentUserStatus
+                    ];
                   return (
                     <VerificationMethodCard
                       key={method.id}
@@ -437,21 +468,34 @@ export default function VerifyIdentity() {
                       isDisabled={!!isDisabled}
                       isSubmitting={isSubmitting}
                       justCompletedId={justCompleted}
-                      onToggle={() => setSelectedMethod(isSelected ? null : method.id)}
+                      onToggle={() =>
+                        setSelectedMethod(isSelected ? null : method.id)
+                      }
                       completedDetails={
-                        method.id === "telegram" && verificationStatus?.telegram_data ? (
+                        method.id === "telegram" &&
+                        verificationStatus?.telegram_data ? (
                           <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
                             <div className="text-sm space-y-1">
-                              <p className="font-medium text-blue-800 dark:text-blue-200">✅ Verification Details:</p>
+                              <p className="font-medium text-blue-800 dark:text-blue-200">
+                                ✅ Verification Details:
+                              </p>
                               {verificationStatus.telegram_data.username && (
                                 <p className="text-blue-700 dark:text-blue-300">
-                                  <strong>Username:</strong> @{verificationStatus.telegram_data.username}
+                                  <strong>Username:</strong> @
+                                  {verificationStatus.telegram_data.username}
                                 </p>
                               )}
                               <p className="text-blue-700 dark:text-blue-300">
-                                <strong>Verified:</strong> {new Date(verificationStatus.telegram_data.verified_at * 1000).toLocaleString()}
+                                <strong>Verified:</strong>{" "}
+                                {new Date(
+                                  verificationStatus.telegram_data.verified_at *
+                                    1000
+                                ).toLocaleString()}
                               </p>
-                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">Your Telegram account is now linked to your wallet</p>
+                              <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                                Your Telegram account is now linked to your
+                                wallet
+                              </p>
                             </div>
                           </div>
                         ) : undefined
@@ -460,14 +504,20 @@ export default function VerifyIdentity() {
                       getStatusColor={getStatusColor}
                     >
                       {method.id === "telegram" && (
-                        <TelegramWidgetSection walletAddress={walletAddress} open={() => { void open() }} />
+                        <TelegramWidgetSection
+                          walletAddress={walletAddress}
+                          open={() => {
+                            void open();
+                          }}
+                        />
                       )}
                       {method.id === "kyc" && (
                         <>
                           <Alert>
                             <FileText className="h-4 w-4" />
                             <AlertDescription>
-                              KYC verification will redirect you to our secure partner for document verification.
+                              KYC verification will redirect you to our secure
+                              partner for document verification.
                             </AlertDescription>
                           </Alert>
                           <Button className="w-full">
@@ -479,22 +529,32 @@ export default function VerifyIdentity() {
                       {method.id === "manual" && (
                         <>
                           <div>
-                            <Label htmlFor="application">Verification Application</Label>
+                            <Label htmlFor="application">
+                              Verification Application
+                            </Label>
                             <Textarea
                               id="application"
                               placeholder="Please explain why you should be verified. Include any relevant information about your identity, social media profiles, or community involvement..."
                               value={manualApplication}
-                              onChange={(e) => setManualApplication(e.target.value)}
+                              onChange={(e) =>
+                                setManualApplication(e.target.value)
+                              }
                               rows={4}
                             />
                           </div>
-                          <Button onClick={handleManualSubmission} disabled={!manualApplication.trim() || isSubmitting} className="w-full">
-                            {isSubmitting ? "Submitting..." : "Submit for Manual Review"}
+                          <Button
+                            onClick={handleManualSubmission}
+                            disabled={!manualApplication.trim() || isSubmitting}
+                            className="w-full"
+                          >
+                            {isSubmitting
+                              ? "Submitting..."
+                              : "Submit for Manual Review"}
                           </Button>
                         </>
                       )}
                     </VerificationMethodCard>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -506,10 +566,18 @@ export default function VerifyIdentity() {
                 Social Media Bindings
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {VERIFICATION_METHODS.filter((m) => ["twitter", "discord", "reddit"].includes(m.id)).map((method) => {
-                  const isSelected = selectedMethod === method.id || (isSubmitting && selectedMethod === method.id) || justCompleted === method.id
-                  const isDisabled = method.status === "coming_soon"
-                  const isCompleted = currentUserStatus[method.id as keyof typeof currentUserStatus]
+                {VERIFICATION_METHODS.filter((m) =>
+                  ["twitter", "discord", "reddit"].includes(m.id)
+                ).map((method) => {
+                  const isSelected =
+                    selectedMethod === method.id ||
+                    (isSubmitting && selectedMethod === method.id) ||
+                    justCompleted === method.id;
+                  const isDisabled = method.status === "coming_soon";
+                  const isCompleted =
+                    currentUserStatus[
+                      method.id as keyof typeof currentUserStatus
+                    ];
                   return (
                     <VerificationMethodCard
                       key={method.id}
@@ -519,7 +587,9 @@ export default function VerifyIdentity() {
                       isDisabled={!!isDisabled}
                       isSubmitting={isSubmitting}
                       justCompletedId={justCompleted}
-                      onToggle={() => setSelectedMethod(isSelected ? null : method.id)}
+                      onToggle={() =>
+                        setSelectedMethod(isSelected ? null : method.id)
+                      }
                       completedDetails={undefined}
                       getDifficultyColor={getDifficultyColor}
                       getStatusColor={getStatusColor}
@@ -529,11 +599,19 @@ export default function VerifyIdentity() {
                           <Alert>
                             <Twitter className="h-4 w-4" />
                             <AlertDescription>
-                              You'll be redirected to sign in to X (Twitter), then return here to sign a transaction that connects your account to your wallet.
+                              You'll be redirected to sign in to X (Twitter),
+                              then return here to sign a transaction that
+                              connects your account to your wallet.
                             </AlertDescription>
                           </Alert>
-                          <Button onClick={handleTwitterVerification} disabled={isSubmitting} className="w-full">
-                            {isSubmitting ? "Connecting..." : "Connect X (Twitter) Account"}
+                          <Button
+                            onClick={handleTwitterVerification}
+                            disabled={isSubmitting}
+                            className="w-full"
+                          >
+                            {isSubmitting
+                              ? "Connecting..."
+                              : "Connect X (Twitter) Account"}
                             <ExternalLink className="w-4 h-4 ml-2" />
                           </Button>
                         </>
@@ -543,11 +621,19 @@ export default function VerifyIdentity() {
                           <Alert>
                             <MessageSquare className="h-4 w-4" />
                             <AlertDescription>
-                              You'll be redirected to sign in to Discord, then return here to sign a transaction that connects your account to your wallet.
+                              You'll be redirected to sign in to Discord, then
+                              return here to sign a transaction that connects
+                              your account to your wallet.
                             </AlertDescription>
                           </Alert>
-                          <Button onClick={handleDiscordVerification} disabled={isSubmitting} className="w-full">
-                            {isSubmitting ? "Connecting..." : "Connect Discord Account"}
+                          <Button
+                            onClick={handleDiscordVerification}
+                            disabled={isSubmitting}
+                            className="w-full"
+                          >
+                            {isSubmitting
+                              ? "Connecting..."
+                              : "Connect Discord Account"}
                             <ExternalLink className="w-4 h-4 ml-2" />
                           </Button>
                         </>
@@ -557,17 +643,25 @@ export default function VerifyIdentity() {
                           <Alert>
                             <MessageCircle className="h-4 w-4" />
                             <AlertDescription>
-                              You'll be redirected to sign in to Reddit, then return here to sign a transaction that connects your account to your wallet.
+                              You'll be redirected to sign in to Reddit, then
+                              return here to sign a transaction that connects
+                              your account to your wallet.
                             </AlertDescription>
                           </Alert>
-                          <Button onClick={handleRedditVerification} disabled={isSubmitting} className="w-full">
-                            {isSubmitting ? "Connecting..." : "Connect Reddit Account"}
+                          <Button
+                            onClick={handleRedditVerification}
+                            disabled={isSubmitting}
+                            className="w-full"
+                          >
+                            {isSubmitting
+                              ? "Connecting..."
+                              : "Connect Reddit Account"}
                             <ExternalLink className="w-4 h-4 ml-2" />
                           </Button>
                         </>
                       )}
                     </VerificationMethodCard>
-                  )
+                  );
                 })}
               </div>
             </div>
@@ -585,7 +679,9 @@ export default function VerifyIdentity() {
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li>• Your verification data is encrypted and secure</li>
                     <li>• We only store necessary verification status</li>
-                    <li>• Personal documents are processed by trusted partners</li>
+                    <li>
+                      • Personal documents are processed by trusted partners
+                    </li>
                     <li>• You can request data deletion at any time</li>
                   </ul>
                 </div>
@@ -603,8 +699,9 @@ export default function VerifyIdentity() {
               <div className="pt-4 border-t">
                 <h4 className="font-semibold mb-2">Need Help?</h4>
                 <p className="text-sm text-muted-foreground">
-                  If you have questions about the verification process or encounter any issues, please contact our
-                  support team or join our community Discord for assistance.
+                  If you have questions about the verification process or
+                  encounter any issues, please contact our support team or join
+                  our community Discord for assistance.
                 </p>
               </div>
             </CardContent>
@@ -612,5 +709,5 @@ export default function VerifyIdentity() {
         </div>
       </main>
     </div>
-  )
+  );
 }

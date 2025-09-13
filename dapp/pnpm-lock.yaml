@@ -11,6 +11,9 @@ importers:
       '@ckb-ccc/connector-react':
         specifier: ^1.0.18
         version: 1.0.18(@types/react@19.1.8)(react@19.1.0)(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/shell':
+        specifier: ^1.1.19
+        version: 1.1.19(typescript@5.8.3)(zod@3.25.74)
       '@hookform/resolvers':
         specifier: ^3.9.1
         version: 3.10.0(react-hook-form@7.60.0(react@19.1.0))
@@ -113,6 +116,9 @@ importers:
       '@telegram-auth/react':
         specifier: ^1.0.4
         version: 1.0.4(react@19.1.0)
+      '@telegram-auth/server':
+        specifier: ^1.0.4
+        version: 1.0.4
       '@tinymce/tinymce-react':
         specifier: ^6.3.0
         version: 6.3.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(tinymce@8.0.2)
@@ -434,6 +440,9 @@ packages:
   '@ckb-ccc/core@1.11.4':
     resolution: {integrity: sha512-pcfvqsRqWpyxOldNZ8gOhil+8Xz7oYhXUBLiR29HkgU42H74PuU++AJpDooc0GWQuIbRgsqn69TYk3mit4m0SA==}
 
+  '@ckb-ccc/core@1.12.0':
+    resolution: {integrity: sha512-CPFHA4PLEVTsfQU5dqu0SBbxnEzBoAOO7hu9hahS0YB9yhJ+esvC4odx6dmkQHGZ6kO8f8oLuQKBYA1QwipGAA==}
+
   '@ckb-ccc/core@1.3.1':
     resolution: {integrity: sha512-av9d+bGsCauwr5CAckyKwmGofGeDMC7PAJPVz0weeHNYgkqIf0pbYyMMDya8NAFmwNgESptBN3skkVPo8HfdCg==}
 
@@ -458,6 +467,12 @@ packages:
   '@ckb-ccc/shell@1.1.10':
     resolution: {integrity: sha512-kiEv7fEjriyWEQRytzNMBC+dD4Qt/kggD30gZHNw+IITd5q5Sxncabb7JgNdWEqcnsoYkOgbhTsQ9pnep/QPqQ==}
 
+  '@ckb-ccc/shell@1.1.19':
+    resolution: {integrity: sha512-IV5KnYWBnvmtaWP/SUoJhAdtVARktzkM58VHaW9r2Hl10tPvFSffRvWYCPlBQccyu1MqYNPuljtQ2DZOnZRWTA==}
+
+  '@ckb-ccc/spore@1.5.11':
+    resolution: {integrity: sha512-ROqjmPQFqjNdFpZpeUTte/enl7BRxVqzHTweuOJxcEeNsGkqdktc4UOJk5FkjoTBb29UzgIxaU+yyPLxqehT8A==}
+
   '@ckb-ccc/spore@1.5.2':
     resolution: {integrity: sha512-QgZTPUbNaBj6y2wtZtSyE2nE7wM90SmEhNzFyq70V30c4DervbzzuxlEnnXnYn6Aan+ADq3pW3FgQ1wjd/w3NA==}
 
@@ -467,6 +482,9 @@ packages:
   '@ckb-ccc/ssri@0.2.15':
     resolution: {integrity: sha512-r9P/WAzps5drN6t+hl9Ma0xfX1jvNxhQEl28xe5AcOaFcBt/6QyKn7Dgv/nMfLpjg5kB5/oz970XQv8Xjtpt7Q==}
 
+  '@ckb-ccc/ssri@0.2.17':
+    resolution: {integrity: sha512-5ppbeVBqX3J7y6UX2kF96RqwS8AYUPEt7N1Qt74kc3ADvhfVfvJSNof8ikmbCENUohMrhR4NJW/FvsMlE6Kd0Q==}
+
   '@ckb-ccc/ssri@0.2.8':
     resolution: {integrity: sha512-FtbLzdT74ztDmmkzhXO5/2sCvCdpBWmW/XTRg3sK26kGB1k1WHoWHfC3UML7xd9sWWxGAlyjlnLbR8XqZaAlew==}
 
@@ -475,6 +493,9 @@ packages:
 
   '@ckb-ccc/udt@0.1.17':
     resolution: {integrity: sha512-zwRsvpFeDbzm2o5oJnyTYliF3vy2KjVY+5ks2x+fOF0n6rjd9XelEcfUj/dRBFA+E3G0QWGVasR6f1xHfTAh1Q==}
+
+  '@ckb-ccc/udt@0.1.19':
+    resolution: {integrity: sha512-1iVme26YgZAHKCy5ulxyfgybN1Xoxo0nEkgD2oUWo6+CY2A/McyHt5X9ZfMl/+nUM3gzB7hnlqpPQCZngBA5Rw==}
 
   '@ckb-ccc/uni-sat@1.0.18':
     resolution: {integrity: sha512-swMlWGIW9ms+BNHkYZ5rzwP8IPPA6u7NKeWphPB09gvMwmTgwaIj5t0356mxwaGd3LsYKGx3lDA2p95Mjvru+Q==}
@@ -1993,6 +2014,9 @@ packages:
     peerDependencies:
       react: '>=18'
 
+  '@telegram-auth/server@1.0.4':
+    resolution: {integrity: sha512-A0JysRmNhGnq8JZKoWx7KwEWTnHPI6GmSp7lzKWPanP//agFF/EBkOpnKcMhsvSlikYFRZKfNo+OvFX9zDEU4w==}
+
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
     engines: {node: '>=18'}
@@ -2436,6 +2460,9 @@ packages:
 
   axios@1.10.0:
     resolution: {integrity: sha512-/1xYAC4MP/HEG+3duIhFr4ZQXR4sQXOIe+o6sdqzeykGLx6Upp/1p8MHqhINOvGeP7xyNHe7tsiJByc4SSVUxw==}
+
+  axios@1.11.0:
+    resolution: {integrity: sha512-1Lx3WLFQWm3ooKDYZD1eXmoGO9fxYQjrycfHFC8P0sCfQVXyROp0p9PFWBehewBOdCwHc+f/b8I0fMto5eSfwA==}
 
   axobject-query@4.1.0:
     resolution: {integrity: sha512-qIj0G9wZbMGNLjLmg1PT6v2mE9AH2zlnADJD/2tC6E00hgmhUOfEB6greHPAfLRSufHqROIUTkw6E+M3lH0PTQ==}
@@ -3194,6 +3221,10 @@ packages:
 
   form-data@4.0.3:
     resolution: {integrity: sha512-qsITQPfmvMOSAdeyZ+12I1c+CKSstAFAwu+97zrnWAbIr5u8wfsExUzCesVLC8NgHuRUqNN4Zy6UPWUTRGslcA==}
+    engines: {node: '>= 6'}
+
+  form-data@4.0.4:
+    resolution: {integrity: sha512-KrGhL9Q4zjj0kiUt5OO4Mr/A/jlI2jDYs5eHBpYHPcBEVSiipAvn2Ko2HnPe20rmcuuvMHNdZFp+4IlGTMF0Ow==}
     engines: {node: '>= 6'}
 
   fraction.js@4.3.7:
@@ -5225,6 +5256,25 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/core@1.12.0(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
+      '@noble/ciphers': 0.5.3
+      '@noble/curves': 1.9.7
+      '@noble/hashes': 1.8.0
+      bech32: 2.0.0
+      bs58check: 4.0.0
+      buffer: 6.0.3
+      ethers: 6.15.0
+      isomorphic-ws: 5.0.0(ws@8.18.3)
+      ws: 8.18.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/core@1.3.1(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@joyid/ckb': 1.1.2(typescript@5.8.3)(zod@3.25.74)
@@ -5337,6 +5387,32 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/shell@1.1.19(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.12.0(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/spore': 1.5.11(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/ssri': 0.2.17(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/udt': 0.1.19(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/spore@1.5.11(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.12.0(typescript@5.8.3)(zod@3.25.74)
+      axios: 1.11.0
+    transitivePeerDependencies:
+      - bufferutil
+      - debug
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/spore@1.5.2(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
@@ -5369,6 +5445,16 @@ snapshots:
       - utf-8-validate
       - zod
 
+  '@ckb-ccc/ssri@0.2.17(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.12.0(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
   '@ckb-ccc/ssri@0.2.8(typescript@5.8.3)(zod@3.25.74)':
     dependencies:
       '@ckb-ccc/core': 1.9.0(typescript@5.8.3)(zod@3.25.74)
@@ -5394,6 +5480,17 @@ snapshots:
     dependencies:
       '@ckb-ccc/core': 1.11.4(typescript@5.8.3)(zod@3.25.74)
       '@ckb-ccc/ssri': 0.2.15(typescript@5.8.3)(zod@3.25.74)
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+      - zod
+
+  '@ckb-ccc/udt@0.1.19(typescript@5.8.3)(zod@3.25.74)':
+    dependencies:
+      '@ckb-ccc/core': 1.12.0(typescript@5.8.3)(zod@3.25.74)
+      '@ckb-ccc/ssri': 0.2.17(typescript@5.8.3)(zod@3.25.74)
     transitivePeerDependencies:
       - bufferutil
       - encoding
@@ -7035,6 +7132,8 @@ snapshots:
     dependencies:
       react: 19.1.0
 
+  '@telegram-auth/server@1.0.4': {}
+
   '@testing-library/dom@10.4.0':
     dependencies:
       '@babel/code-frame': 7.27.1
@@ -7513,6 +7612,14 @@ snapshots:
     dependencies:
       follow-redirects: 1.15.9
       form-data: 4.0.3
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
+
+  axios@1.11.0:
+    dependencies:
+      follow-redirects: 1.15.9
+      form-data: 4.0.4
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
       - debug
@@ -8481,6 +8588,14 @@ snapshots:
       signal-exit: 4.1.0
 
   form-data@4.0.3:
+    dependencies:
+      asynckit: 0.4.0
+      combined-stream: 1.0.8
+      es-set-tostringtag: 2.1.0
+      hasown: 2.0.2
+      mime-types: 2.1.35
+
+  form-data@4.0.4:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8

@@ -1,16 +1,36 @@
+[functions]
+  # Functions at root level, not in dapp
+  directory = "netlify/functions"
+
 [dev]
-  command = "next dev -p 3000"
-  targetPort = 3000
-  port = 8888
-  framework = "#custom"
+  # Development server configuration
+  command = "next dev --port 3100"
+  targetPort = 3100
+  port = 8000
+  publish = "dapp"
+  functionsPort = 9999
   autoLaunch = false
 
+[[plugins]]
+  # Essential plugin for deploying Next.js sites on Netlify.
+  # It automatically configures redirects, serverless functions, and more.
+  package = "@netlify/plugin-nextjs" 
 
+
+# API redirects for cleaner URLs
+[[redirects]]
+  from = "/api/telegram/authenticate"
+  to = "/.netlify/functions/telegram-authenticate"
+  status = 200
+
+[[redirects]]
+  from = "/api/verification/*"
+  to = "/.netlify/functions/verification-api/:splat"
+  status = 200
 
 # Environment variables (set in Netlify dashboard)
 # TELEGRAM_BOT_TOKEN=your_bot_token
 # TELEGRAM_BOT_USERNAME=your_bot_username  
-# TELEGRAM_WEBHOOK_URL=https://your-domain.netlify.app/api/telegram/webhook
 # NEXT_PUBLIC_CKB_RPC_URL=https://testnet.ckb.dev
 # NEXT_PUBLIC_CKB_INDEXER_URL=https://testnet.ckb.dev/indexer
 # NEXT_PUBLIC_SSRI_EXECUTOR_URL=http://localhost:9090

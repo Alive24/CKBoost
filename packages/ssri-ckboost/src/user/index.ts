@@ -3,7 +3,9 @@ import { ssri } from "@ckb-ccc/ssri";
 import { 
   UserData, 
   type UserDataLike,
-  UserSubmissionRecord
+  UserSubmissionRecord,
+  UserVerificationData,
+  UserVerificationDataLike
 } from "../generated";
 
 /**
@@ -89,6 +91,67 @@ export class User extends ssri.Trait {
       );
 
       // Parse the returned transaction
+      if (res) {
+        resTx = res.map((res) => ccc.Transaction.fromBytes(res));
+        // Add the user code cell as a dependency
+        resTx.res.addCellDeps({
+          outPoint: this.code,
+          depType: "code",
+        });
+      } else {
+        throw new Error("No result from SSRI executor");
+      }
+    } catch (error) {
+      console.error("SSRI execution error:", error);
+      throw error;
+    }
+
+    return resTx!;
+  }
+
+  async updateVerificationData(
+    signer: ccc.Signer,
+    userVerificationData: UserVerificationDataLike,
+    tx?: ccc.Transaction
+  ): Promise<ssri.ExecutorResponse<ccc.Transaction>> {
+    if (!this.executor) {
+      throw new Error("Executor required for SSRI operations");
+    }
+
+    let resTx;
+
+    const txReq = ccc.Transaction.from(tx ?? {});
+    // Ensure at least one input for the transaction (admin signer provides an input)
+    if (txReq.inputs.length === 0) {
+      await txReq.completeInputsAtLeastOne(signer);
+      await txReq.completeInputsByCapacity(signer);
+    }
+
+    // Serialize verification data
+    const verificationDataBytes = UserVerificationData.encode(userVerificationData);
+    const verificationDataHex = ccc.hexFrom(verificationDataBytes);
+    const txHex = ccc.hexFrom(txReq.toBytes());
+
+    console.log("Calling SSRI executor with:", {
+      codeOutpoint: this.code,
+      method: "CKBoostUser.update_verification_data",
+      scriptCodeHash: this.script.codeHash,
+      scriptHashType: this.script.hashType,
+      scriptArgs: this.script.args,
+    });
+
+    console.log("txHex", txHex);
+    console.log("verificationDataHex", verificationDataHex);
+
+    try {
+      const methodPath = "CKBoostUser.update_verification_data";
+      const res = await this.executor.runScript(
+        this.code,
+        methodPath,
+        [txHex, verificationDataHex],
+        { script: this.script }
+      );
+
       if (res) {
         resTx = res.map((res) => ccc.Transaction.fromBytes(res));
         // Add the user code cell as a dependency
