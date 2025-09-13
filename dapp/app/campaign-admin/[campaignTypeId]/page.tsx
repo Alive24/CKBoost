@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +31,12 @@ import { Campaign } from "ssri-ckboost"
 import { ssri } from "@ckb-ccc/connector-react"
 import { deploymentManager } from "@/lib/ckb/deployment-manager"
 import { SubmissionsTab } from "@/components/campaign-admin/tabs/submissions-tab"
+import {
+  loadCreateDraft,
+  saveCreateDraft,
+  clearCreateDraft,
+  type DraftFundingEntry,
+} from "@/lib/utils/campaign-draft-storage"
 import { FundingTab } from "@/components/campaign-admin/tabs/funding-tab"
 
 // Import new components
@@ -80,6 +86,41 @@ export default function CampaignAdminPage() {
   const [initialFunding, setInitialFunding] = useState<Map<string, bigint>>(new Map())
   const [ckbInitialFunding, setCkbInitialFunding] = useState<bigint>(0n)
   
+  // Autosave draft (create mode only)
+  // Load any saved draft for create mode on mount
+  useEffect(() => {
+    if (!isCreateMode) return;
+    try {
+      const saved = loadCreateDraft();
+      if (saved) {
+        // Restore campaignData (only known fields)
+        const cd = saved.campaignData; // Record<string, unknown>
+        setCampaignData((prev) => ({
+          title: typeof cd["title"] === "string" ? (cd["title"] as string) : prev.title,
+          shortDescription: typeof cd["shortDescription"] === "string" ? (cd["shortDescription"] as string) : prev.shortDescription,
+          longDescription: typeof cd["longDescription"] === "string" ? (cd["longDescription"] as string) : prev.longDescription,
+          categories: Array.isArray(cd["categories"]) ? (cd["categories"] as string[]) : prev.categories,
+          startDate: typeof cd["startDate"] === "string" ? (cd["startDate"] as string) : prev.startDate,
+          endDate: typeof cd["endDate"] === "string" ? (cd["endDate"] as string) : prev.endDate,
+          difficulty: typeof cd["difficulty"] === "number" ? (cd["difficulty"] as number) : prev.difficulty,
+          verificationLevel: typeof cd["verificationLevel"] === "string" ? (cd["verificationLevel"] as string) : prev.verificationLevel,
+          rules: Array.isArray(cd["rules"]) ? (cd["rules"] as string[]) : prev.rules,
+        }));
+        // Restore quests
+        setLocalQuests((saved.quests || []) as QuestDataLike[]);
+        // Restore funding
+        const entries = (saved.initialFunding || []) as DraftFundingEntry[];
+        const map = new Map<string, bigint>();
+        for (const e of entries) map.set(e.scriptHash, BigInt(e.amount));
+        setInitialFunding(map);
+        setCkbInitialFunding(BigInt(saved.ckbInitialFunding || "0"));
+      }
+    } catch (e) {
+      console.error("Failed to load saved campaign draft:", e);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCreateMode]);
+
   // Campaign form data
   const [campaignData, setCampaignData] = useState<CampaignFormData>({
     title: "",
@@ -92,6 +133,39 @@ export default function CampaignAdminPage() {
     verificationLevel: "none",
     rules: [""]
   })
+
+  // Keep latest values in refs for interval to read, without re-creating interval
+  const campaignDataRef = useRef(campaignData);
+  const questsRef = useRef(localQuests);
+  const fundingRef = useRef(initialFunding);
+  const ckbFundingRef = useRef(ckbInitialFunding);
+
+  useEffect(() => { campaignDataRef.current = campaignData; }, [campaignData]);
+  useEffect(() => { questsRef.current = localQuests; }, [localQuests]);
+  useEffect(() => { fundingRef.current = initialFunding; }, [initialFunding]);
+  useEffect(() => { ckbFundingRef.current = ckbInitialFunding; }, [ckbInitialFunding]);
+
+  // Autosave every 60s if there are changes (dedup handled in save util)
+  useEffect(() => {
+    if (!isCreateMode) return;
+    const id = setInterval(() => {
+      try {
+        const entries: DraftFundingEntry[] = Array.from(
+          fundingRef.current.entries()
+        ).map(([scriptHash, amount]) => ({ scriptHash, amount: amount.toString() }));
+
+        saveCreateDraft({
+          campaignData: campaignDataRef.current as unknown as Record<string, unknown>,
+          quests: questsRef.current as unknown as Array<Record<string, unknown>>,
+          initialFunding: entries,
+          ckbInitialFunding: ckbFundingRef.current.toString(),
+        });
+      } catch (e) {
+        console.error("Autosave draft failed:", e);
+      }
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [isCreateMode]);
 
   // Quest form management
   const [isAddingQuest, setIsAddingQuest] = useState(false)
@@ -418,6 +492,9 @@ export default function CampaignAdminPage() {
           ckbInitialFunding // pass CKB funding (shannons)
         )
         debug.log("Campaign created with funding in single transaction, txHash:", txHash)
+        
+        // Clear local draft after successful on-chain creation
+        try { clearCreateDraft() } catch {}
         
         // Show success message with funding info if applicable
         if (initialFunding.size > 0) {
