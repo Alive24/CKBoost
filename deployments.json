@@ -32,12 +32,12 @@
         "typeHash": "0x13705606186b868f80c8f0af5b05a1e9a43d3ea08dcd9d51d60cc7c70faf4f67"
       },
       "ckboostUserType": {
-        "transactionHash": "0xf4358e9e3c9b38b17f93b8455d252c76808646cf12cb8451cdcbe09d3a44b3fd",
+        "transactionHash": "0xfd97625f512631eb5f479b558d2443299695815f94366eda79b4748e28986c28",
         "index": 0,
-        "deployedAt": "2025-08-28T20:43:36.734Z",
+        "deployedAt": "2025-09-13T06:57:26.932Z",
         "contractName": "ckboost-user-type",
-        "tag": "v20250829-0443",
-        "dataHash": "0x757bde95011be402e536a6bbb3e9248128e0f6c441d56f2aeb861619993bf05f",
+        "tag": "v20250913-1457",
+        "dataHash": "0xe906f3c04f4d02444ec0e7123e5a9d1e2ca022c01407c127dcafc10a460d473e",
         "typeScript": {
           "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
           "hashType": "type",
@@ -3363,6 +3363,30 @@
         },
         "isTypeId": true,
         "typeHash": "0x82fe0732aba0da25121d0f76539d9781cfe82b3986965c7193e4f4ce0cd21e29"
+      },
+      {
+        "contractName": "ckboost-user-type",
+        "transactionHash": "0xfd97625f512631eb5f479b558d2443299695815f94366eda79b4748e28986c28",
+        "index": 0,
+        "deployedAt": "2025-09-13T06:57:26.932Z",
+        "deployerAddress": "ckt1qzda0cr08m85hc8jlnfp3zer7xulejywt49kt2rr0vthywaa50xwsq2jk6pyw9vlnfakx7vp4t5lxg0lzvvsp3c5adflu",
+        "dataHash": "0xe906f3c04f4d02444ec0e7123e5a9d1e2ca022c01407c127dcafc10a460d473e",
+        "contractSize": 310864,
+        "tag": "v20250913-1457",
+        "isUpgrade": true,
+        "previousDeployment": {
+          "transactionHash": "0xf4358e9e3c9b38b17f93b8455d252c76808646cf12cb8451cdcbe09d3a44b3fd",
+          "index": 0,
+          "deployedAt": "2025-08-28T20:43:36.734Z",
+          "tag": "v20250829-0443"
+        },
+        "typeScript": {
+          "codeHash": "0x00000000000000000000000000000000000000000000000000545950455f4944",
+          "hashType": "type",
+          "args": "0xf8d12b01729cce8e88c433b17e176fbc30931faec32568dc41a7e8a15dad6a2f"
+        },
+        "isTypeId": true,
+        "typeHash": "0xc09a4479184a36f50e482241225e18767b05ebba68fc49d6ec318b5c9c4eefd1"
       }
     ],
     "mainnet": []
