@@ -397,6 +397,24 @@ pub mod update_tipping {
                     let input_supporter_lock_hashes =
                         input_tipping_data.supporter_lock_hashes().to_entity();
                     let input_status = input_tipping_data.status().to_entity();
+                    let status_changed =
+                        input_status.as_slice() != output_status.as_slice();
+                    if status_changed {
+                        let has_admin_input = context
+                            .input_cells
+                            .get_simple_ckb()
+                            .iter()
+                            .any(|c| {
+                                admin_list
+                                    .clone()
+                                    .into_iter()
+                                    .any(|h| h.as_slice() == c.lock_hash.as_slice())
+                            });
+                        if !has_admin_input {
+                            debug_trace!("BusinessRuleViolation: Status changes require an admin input cell");
+                            return Err(DeterministicError::BusinessRuleViolation);
+                        }
+                    }
                     // 8. You should not be able to update a tipping that is already granted
                     if input_status.as_slice() == b"granted" {
                         debug_trace!("BusinessRuleViolation: Input tipping status is granted");

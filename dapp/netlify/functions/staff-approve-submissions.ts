@@ -3,13 +3,11 @@ import { ccc } from "@ckb-ccc/shell";
 import {
   CampaignData,
   ConnectedTypeID,
+  QuestDataLike,
   type CampaignDataLike,
   type ConnectedTypeIDLike,
 } from "ssri-ckboost/types";
-import {
-  deploymentManager,
-  type Network,
-} from "@/lib/ckb/deployment-manager";
+import { deploymentManager, type Network } from "@/lib/ckb/deployment-manager";
 import {
   ensureProxyAdminCellPair,
   ProxyAdminCellError,
@@ -235,6 +233,29 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    validateInteractionTimestamp({
+      campaignData: previousCampaignData,
+      questId,
+    });
+  } catch (error) {
+    return failWith(400, "invalid_timestamp", (error as Error).message, {
+      questId,
+    });
+  }
+
+  try {
+    ensureStaffInput({
+      campaignData: previousCampaignData,
+      tx,
+    });
+  } catch (error) {
+    return failWith(400, "staff_input_missing", (error as Error).message, {
+      questId,
+      staffConfigured: previousCampaignData.staff_lock_hash_vec?.length ?? 0,
+    });
+  }
+
+  try {
     validateQuestChanges({
       previousCampaignData,
       nextCampaignData,
@@ -244,16 +265,11 @@ export const handler: Handler = async (event) => {
   } catch (error) {
     const details =
       error instanceof QuestValidationError ? error.details : undefined;
-    return failWith(
-      400,
-      "quest_validation_failed",
-      (error as Error).message,
-      {
-        questId,
-        userCount: normalizedUserTypeIds.length,
-        ...(details ?? {}),
-      }
-    );
+    return failWith(400, "quest_validation_failed", (error as Error).message, {
+      questId,
+      userCount: normalizedUserTypeIds.length,
+      ...(details ?? {}),
+    });
   }
 
   const userLocks = new Map<string, ccc.Script>();
@@ -287,12 +303,10 @@ export const handler: Handler = async (event) => {
       protocolTypeHash,
     });
   } catch (error) {
-    return failWith(
-      400,
-      "reward_validation_failed",
-      (error as Error).message,
-      { questId, userCount: normalizedUserTypeIds.length }
-    );
+    return failWith(400, "reward_validation_failed", (error as Error).message, {
+      questId,
+      userCount: normalizedUserTypeIds.length,
+    });
   }
 
   try {
@@ -475,6 +489,62 @@ const decodeConnectedTypeId = (
   };
 };
 
+const validateInteractionTimestamp = ({
+  campaignData,
+  questId,
+}: {
+  campaignData: CampaignDataLike;
+  questId: number;
+}): void => {
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000));
+  const start = toBigInt(campaignData.starting_time);
+  if (start > 0n && nowSeconds < start) {
+    throw new Error("Campaign has not started yet.");
+  }
+  const end = toBigInt(campaignData.ending_time);
+  if (end > 0n && nowSeconds > end) {
+    throw new Error("Campaign has already ended.");
+  }
+
+  const quest = campaignData.quests.find(
+    (item) => Number(item.quest_id) === questId
+  );
+  if (!quest) {
+    throw new Error("Quest not found while validating timestamps.");
+  }
+  const deadline = toBigInt(quest.completion_deadline);
+  if (deadline > 0n && nowSeconds > deadline) {
+    throw new Error("Quest completion deadline has passed.");
+  }
+};
+
+const ensureStaffInput = ({
+  campaignData,
+  tx,
+}: {
+  campaignData: CampaignDataLike;
+  tx: ccc.Transaction;
+}): void => {
+  const staffLockHashes =
+    campaignData.staff_lock_hash_vec?.map((hash) => normalizeHex(hash)) ?? [];
+  if (staffLockHashes.length === 0) {
+    throw new Error("Campaign has no staff configured.");
+  }
+  const staffSet = new Set(staffLockHashes);
+
+  const hasStaffInput = tx.inputs.some((input) => {
+    const lock = input.cellOutput?.lock;
+    if (!lock) {
+      return false;
+    }
+    return staffSet.has(normalizeHex(lock.hash()));
+  });
+
+  if (!hasStaffInput) {
+    throw new Error("Transaction must include an input from campaign staff.");
+  }
+};
+
 const validateQuestChanges = ({
   previousCampaignData,
   nextCampaignData,
@@ -507,7 +577,11 @@ const validateQuestChanges = ({
   if (nextSet.size !== expectedSet.size) {
     throw new QuestValidationError(
       "Quest approvals include unexpected user type IDs or duplicates.",
-      { questId, expectedSet: Array.from(expectedSet), nextSet: Array.from(nextSet) }
+      {
+        questId,
+        expectedSet: Array.from(expectedSet),
+        nextSet: Array.from(nextSet),
+      }
     );
   }
 
@@ -544,9 +618,7 @@ const validateQuestChanges = ({
     );
   }
 
-  const prevTotalCompletions = toBigInt(
-    previousCampaignData.total_completions
-  );
+  const prevTotalCompletions = toBigInt(previousCampaignData.total_completions);
   const nextTotalCompletions = toBigInt(nextCampaignData.total_completions);
   if (nextTotalCompletions !== prevTotalCompletions + BigInt(addedCount)) {
     throw new QuestValidationError(
@@ -571,7 +643,10 @@ const validateQuestChanges = ({
       prevParticipants: previousParticipants.size,
       nextParticipants: nextParticipants.size,
       expectedParticipants: expectedParticipantSet.size,
-      expectedParticipantSample: Array.from(expectedParticipantSet).slice(0, 10),
+      expectedParticipantSample: Array.from(expectedParticipantSet).slice(
+        0,
+        10
+      ),
     });
   }
 
@@ -624,17 +699,13 @@ const validateQuestChanges = ({
   expectedQuest.accepted_submission_user_type_ids = orderedAccepted.map(
     (id) => id as ccc.HexLike
   );
-  expectedQuest.completion_count =
-    prevQuestCompletions + BigInt(addedCount);
+  expectedQuest.completion_count = prevQuestCompletions + BigInt(addedCount);
 
   expectedCampaign.total_completions =
     prevTotalCompletions + BigInt(addedCount);
   expectedCampaign.participants_count = expectedParticipantsCount;
 
-  const diffDetails = describeCampaignDiff(
-    expectedCampaign,
-    nextCampaignData
-  );
+  const diffDetails = describeCampaignDiff(expectedCampaign, nextCampaignData);
   if (diffDetails.length > 0) {
     throw new QuestValidationError(
       "Campaign data outside approved submissions was modified.",
@@ -643,9 +714,7 @@ const validateQuestChanges = ({
   }
 };
 
-const cloneCampaignData = (
-  data: CampaignDataLike
-): CampaignDataLike =>
+const cloneCampaignData = (data: CampaignDataLike): CampaignDataLike =>
   CampaignData.decode(CampaignData.encode(data)) as CampaignDataLike;
 
 const toBigInt = (value: ccc.NumLike | undefined): bigint =>
@@ -670,8 +739,7 @@ const describeCampaignDiff = (
     const normalizedExpected = normalizeForDiff(exp);
     const normalizedActual = normalizeForDiff(act);
     if (
-      JSON.stringify(normalizedExpected) !==
-      JSON.stringify(normalizedActual)
+      JSON.stringify(normalizedExpected) !== JSON.stringify(normalizedActual)
     ) {
       diffs.push({
         path,
@@ -681,16 +749,32 @@ const describeCampaignDiff = (
     }
   };
 
-  compare("endorser_lock_hash", expected.endorser_lock_hash, actual.endorser_lock_hash);
-  compare("staff_lock_hash_vec", expected.staff_lock_hash_vec, actual.staff_lock_hash_vec);
+  compare(
+    "endorser_lock_hash",
+    expected.endorser_lock_hash,
+    actual.endorser_lock_hash
+  );
+  compare(
+    "staff_lock_hash_vec",
+    expected.staff_lock_hash_vec,
+    actual.staff_lock_hash_vec
+  );
   compare("created_at", expected.created_at, actual.created_at);
   compare("starting_time", expected.starting_time, actual.starting_time);
   compare("ending_time", expected.ending_time, actual.ending_time);
   compare("rules", expected.rules, actual.rules);
   compare("metadata", expected.metadata, actual.metadata);
   compare("status", expected.status, actual.status);
-  compare("total_completions", expected.total_completions, actual.total_completions);
-  compare("participants_count", expected.participants_count, actual.participants_count);
+  compare(
+    "total_completions",
+    expected.total_completions,
+    actual.total_completions
+  );
+  compare(
+    "participants_count",
+    expected.participants_count,
+    actual.participants_count
+  );
 
   const expectedQuests = expected.quests || [];
   const actualQuests = actual.quests || [];
@@ -758,9 +842,7 @@ const normalizeForDiff = (value: unknown): unknown => {
     return value.map((item) => normalizeForDiff(item));
   }
   if (value && typeof value === "object") {
-    const normalizedEntries = Object.entries(
-      value as Record<string, unknown>
-    )
+    const normalizedEntries = Object.entries(value as Record<string, unknown>)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, val]) => [key, normalizeForDiff(val)]);
     return Object.fromEntries(normalizedEntries);
@@ -906,9 +988,7 @@ const validateRewardOutputs = ({
     }
 
     if (matchedRewardUsers.size !== normalizedUserTypeIds.length) {
-      throw new Error(
-        "UDT reward outputs do not match approved submissions."
-      );
+      throw new Error("UDT reward outputs do not match approved submissions.");
     }
   }
 };

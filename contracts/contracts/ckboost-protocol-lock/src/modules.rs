@@ -86,10 +86,10 @@ impl CKBoostCampaign for CKBoostProtocolLock {
                     .clone()
                     .into_iter()
                     .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
-                || staff_lock_hash_vec
-                    .clone()
-                    .into_iter()
-                    .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
+            // || staff_lock_hash_vec
+            //     .clone()
+            //     .into_iter()
+            //     .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
             {
                 return Ok(());
             }

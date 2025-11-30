@@ -18,6 +18,11 @@ import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
 import { TippingInfo } from "../providers/tipping-provider";
 import { udtRegistry } from "./udt-registry";
 import { createScopedLogger } from "ssri-ckboost";
+import { injectProxyAuthenticationCell } from "../utils/api";
+import type {
+  TippingReleaseRequestPayload,
+  TippingReleaseResponse,
+} from "@/netlify/lib/tipping-release";
 
 const log = createScopedLogger("TippingService");
 
@@ -167,14 +172,140 @@ export class TippingService {
         });
       }
 
-      const txHash = await sendTransactionWithFeeRetry(
+      const shouldReleaseViaProxy =
+        normalizedData.status?.toLowerCase?.() === "granted";
+      if (shouldReleaseViaProxy) {
+        return await this.releaseViaProxy(updateTippingTx.res);
+      }
+
+      return await sendTransactionWithFeeRetry(
         this.signer,
         updateTippingTx.res
       );
-      return txHash;
     } catch (error) {
       log.error("Failed to propose tipping", error);
       throw error;
+    }
+  }
+
+  private async releaseViaProxy(tx: ccc.Transaction): Promise<string> {
+    const signer = this.requireSigner();
+
+    await injectProxyAuthenticationCell(signer, tx);
+    await tx.completeInputsByCapacity(signer);
+    await tx.completeFeeBy(signer);
+
+    for (let i = 0; i < tx.inputs.length; i += 1) {
+      const inputCell = await signer.client.getCell(tx.inputs[i].previousOutput);
+      if (!inputCell) {
+        throw new Error(
+          "Input cell not found while preparing tipping release tx."
+        );
+      }
+      tx.inputs[i] = ccc.CellInput.from({
+        previousOutput: inputCell.outPoint,
+        since: tx.inputs[i].since ?? "0x0",
+        cellOutput: inputCell.cellOutput,
+        outputData: inputCell.outputData,
+      });
+    }
+
+    for (let i = 0; i < tx.outputs.length; i += 1) {
+      const out = tx.outputs[i];
+      if (out.type) {
+        tx.outputs[i] = ccc.CellOutput.from(
+          { lock: out.lock, type: out.type },
+          tx.outputsData[i] as ccc.HexLike
+        );
+      }
+    }
+
+    const tippingTypeId = this.extractTippingTypeIdFromTx(tx);
+
+    const requestBody: TippingReleaseRequestPayload = {
+      txHex: ccc.hexFrom(tx.toBytes()),
+      ...(tippingTypeId ? { tippingTypeId } : {}),
+    };
+
+    const response = await fetch("/api/tipping-release", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+    });
+
+    const payload = (await response.json()) as TippingReleaseResponse;
+    if (!payload.success) {
+      throw new Error(
+        payload.message ||
+          payload.error ||
+          "Tipping release validation failed on server."
+      );
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `Tipping release validation failed (status ${response.status}).`
+      );
+    }
+
+    const validatedTx = ccc.Transaction.fromBytes(payload.txHex as ccc.Hex);
+
+    for (let i = 0; i < validatedTx.inputs.length; i += 1) {
+      const inputCell = await signer.client.getCell(
+        validatedTx.inputs[i].previousOutput
+      );
+      if (!inputCell) {
+        throw new Error(
+          "Input cell not found while finalising tipping release tx."
+        );
+      }
+      validatedTx.inputs[i] = ccc.CellInput.from({
+        previousOutput: inputCell.outPoint,
+        since: validatedTx.inputs[i].since ?? "0x0",
+        cellOutput: inputCell.cellOutput,
+        outputData: inputCell.outputData,
+      });
+    }
+
+    for (let i = 0; i < validatedTx.outputs.length; i += 1) {
+      const out = validatedTx.outputs[i];
+      if (out.type) {
+        validatedTx.outputs[i] = ccc.CellOutput.from(
+          { lock: out.lock, type: out.type },
+          validatedTx.outputsData[i] as ccc.HexLike
+        );
+      }
+    }
+
+    const txHash = await signer.sendTransaction(validatedTx);
+    log.info("Tipping release submitted via proxy", {
+      txHash,
+      tippingTypeId: tippingTypeId ?? "unknown",
+    });
+
+    return txHash;
+  }
+
+  private extractTippingTypeIdFromTx(
+    tx: ccc.Transaction
+  ): ccc.Hex | undefined {
+    const tippingOutput = tx.outputs.find(
+      (output) => output.type?.codeHash === this.tippingTypeCodeHash
+    );
+    if (!tippingOutput?.type?.args) {
+      return undefined;
+    }
+
+    try {
+      const decoded = ConnectedTypeID.decode(
+        ccc.bytesFrom(tippingOutput.type.args)
+      );
+      return ccc.hexFrom(
+        (decoded as unknown as { type_id: ccc.HexLike }).type_id
+      ) as ccc.Hex;
+    } catch (error) {
+      log.warn("Failed to extract tipping type id from transaction", error);
+      return undefined;
     }
   }
 
