@@ -83,6 +83,62 @@ JWT_SECRET=your-super-secret-jwt-key
 OAUTH_STATE_ENCRYPTION_KEY=your-encryption-key
 ```
 
+### Portable Quest Claim Cells
+
+Portable quest claims are Testnet-only. The Netlify function reconstructs the
+approval and final Points claim transactions from CKB, then issues one
+`ckboost.quest.v1` Claim Cell for each verified completion.
+
+Configure these variables in the Netlify dashboard:
+
+```bash
+NEXT_PUBLIC_CKB_NETWORK=testnet
+NEXT_PUBLIC_CKB_RPC_URL=https://testnet.ckb.dev
+
+# Server-side function variables. Never expose the private key through a
+# NEXT_PUBLIC_ variable.
+CKB_RPC_URL=https://testnet.ckb.dev
+CKBOOST_ISSUER_EVM_PRIVATE_KEY=0x...
+CKBOOST_REWARD_CONFIRMATIONS=6
+```
+
+`CKBOOST_ISSUER_EVM_PRIVATE_KEY` must control the current controller of
+`did:ckb:tlitdhrdn7wdzmktk3kzhfua3ivpgiq2`. Its Testnet OmniLock cells fund
+the Claim Cell occupied capacity and transaction fee. Keep enough spendable
+CKB on that controller before enabling issuance. The function rejects a key
+that does not match the live issuer DID.
+
+Netlify Blobs stores coordination state in the site store
+`ckboost-vellum-quest-claims`. The issuer key remains only in Netlify's
+server-side environment and is never sent to the browser. Netlify supplies the
+store credentials to deployed functions. Use `netlify dev` when testing locally
+so the function also receives a Blobs context.
+
+#### Failure Handling
+
+- The participant's reward transaction is independent of Claim Cell issuance.
+  Once submitted, the browser persists a local retry item and waits for the
+  configured confirmation depth.
+- The function stores the complete signed Claim Cell transaction before it
+  broadcasts. A retry reuses those exact bytes and cannot prepare a second
+  transaction for the same campaign, quest, and CKBoost user Type ID.
+- HTTP `202` means confirmation or issuer coordination is still pending and is
+  retried automatically. A validation or DID-binding response is terminal for
+  that local queue item.
+- A rejected Claim Cell transaction is not automatically replaced. This is a
+  fail-closed condition because preparing another transaction without checking
+  the first one could duplicate issuance or conflict with issuer inputs.
+
+For operator recovery, locate the request by `rewardClaimTxHash` in the
+`vellum-quest-claim` function logs. Completion records use
+`completions/<sha256(campaign_type_id:quest_id:ckboost_user_type_id)>`; the
+global signer record is `coordination/issuer`. Query the stored transaction
+hash on Testnet first. If it committed, call the endpoint again with the
+original reward hash and subject DID to reconcile the confirmed outpoint. Only
+delete the completion and signer records after the transaction is definitively
+rejected, no Claim Cell output exists, and the rejection cause has been fixed.
+Never reset records for an unknown or pending transaction.
+
 ## Step 4: Configure Bot Domain (BotFather)
 
 Set your development/staging domain in BotFather so the Telegram Login widget accepts it:
