@@ -12,6 +12,7 @@ import { useState } from "react";
 import { StorageModalProvider } from "@/lib/providers/storage-modal-provider";
 import { TippingProvider } from "@/lib/providers/tipping-provider";
 import { PendingTransactionProvider } from "@/lib/providers/pending-transaction-provider";
+import { QuestClaimIssuanceProvider } from "@/lib/providers/quest-claim-issuance-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -36,19 +37,21 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
           <PendingTransactionProvider>
-            <NostrProvider>
-              <ProtocolProvider>
-                <CampaignProvider>
-                  <UserProvider>
-                    <CampaignAdminProvider>
-                      <StorageModalProvider>
-                        <TippingProvider>{children}</TippingProvider>
-                      </StorageModalProvider>
-                    </CampaignAdminProvider>
-                  </UserProvider>
-                </CampaignProvider>
-              </ProtocolProvider>
-            </NostrProvider>
+            <QuestClaimIssuanceProvider>
+              <NostrProvider>
+                <ProtocolProvider>
+                  <CampaignProvider>
+                    <UserProvider>
+                      <CampaignAdminProvider>
+                        <StorageModalProvider>
+                          <TippingProvider>{children}</TippingProvider>
+                        </StorageModalProvider>
+                      </CampaignAdminProvider>
+                    </UserProvider>
+                  </CampaignProvider>
+                </ProtocolProvider>
+              </NostrProvider>
+            </QuestClaimIssuanceProvider>
           </PendingTransactionProvider>
         </WalletProvider>
       </QueryClientProvider>

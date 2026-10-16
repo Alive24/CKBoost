@@ -31,6 +31,25 @@ import {
   withPointsBalanceCache,
 } from "@/lib/cache/query-cache";
 import { registerPendingTransaction } from "@/lib/pending-transactions";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { listControlledDids } from "@/lib/vellum/dids";
+import { registerQuestClaimIssuance } from "@/lib/vellum/quest-claim-queue";
 
 const log = createScopedLogger("PointsBalance");
 
@@ -52,6 +71,13 @@ export function PointsBalance() {
   const [claiming, setClaiming] = useState(false);
   const [minting, setMinting] = useState(false);
   const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [didDialogOpen, setDidDialogOpen] = useState(false);
+  const [didDiscoveryError, setDidDiscoveryError] = useState<string | null>(
+    null,
+  );
+  const [didLoading, setDidLoading] = useState(false);
+  const [controlledDids, setControlledDids] = useState<string[]>([]);
+  const [selectedDid, setSelectedDid] = useState("");
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -291,7 +317,7 @@ export function PointsBalance() {
     [protocolCell, signer],
   );
 
-  const handleClaim = useCallback(async () => {
+  const handleClaim = useCallback(async (subjectDid?: string) => {
     const bonusAmount = parseBonusAmount(bonus);
     const hasStreakClaim = Boolean(bonus?.eligible) && bonusAmount > 0n;
     const claimablePoolCells = claimablePool?.cells ?? [];
@@ -345,6 +371,9 @@ export function PointsBalance() {
             protocolTypeHash,
             pointsInputCell: chainedPointsInput,
           });
+          if (subjectDid) {
+            registerQuestClaimIssuance(poolTxHash, subjectDid);
+          }
         } catch (poolError) {
           if (streakTxHash) {
             toast({
@@ -396,6 +425,7 @@ export function PointsBalance() {
           streakTxHash,
           poolTxHash,
           udtTxHashes,
+          portableClaimQueued: Boolean(poolTxHash && subjectDid),
         }),
       });
       await loadBalances(true);
@@ -440,6 +470,49 @@ export function PointsBalance() {
     toast,
     userAddress,
   ]);
+
+  const beginClaim = useCallback(async () => {
+    const hasQuestPointsClaim = (claimablePool?.cells.length ?? 0) > 0;
+    if (!hasQuestPointsClaim || !signer) {
+      await handleClaim();
+      return;
+    }
+
+    setDidLoading(true);
+    setDidDiscoveryError(null);
+    try {
+      const address = await signer.getRecommendedAddressObj();
+      const dids = await listControlledDids({
+        codeHash: address.script.codeHash,
+        hashType: address.script.hashType,
+        args: address.script.args,
+      });
+      if (dids.length === 1) {
+        if (mountedRef.current) setDidLoading(false);
+        await handleClaim(dids[0]);
+        return;
+      }
+      setControlledDids(dids);
+      setSelectedDid(dids[0] ?? "");
+      setDidDialogOpen(true);
+    } catch (error) {
+      setControlledDids([]);
+      setSelectedDid("");
+      setDidDiscoveryError(
+        error instanceof Error
+          ? error.message
+          : "Controlled identities could not be loaded.",
+      );
+      setDidDialogOpen(true);
+    } finally {
+      if (mountedRef.current) setDidLoading(false);
+    }
+  }, [claimablePool, handleClaim, signer]);
+
+  const confirmDidClaim = useCallback(() => {
+    setDidDialogOpen(false);
+    void handleClaim(selectedDid || undefined);
+  }, [handleClaim, selectedDid]);
 
   const handleTestMint = useCallback(async () => {
     if (!isAdmin) {
@@ -615,6 +688,7 @@ export function PointsBalance() {
     isLoading ||
     bonusLoading ||
     claimablePoolLoading ||
+    didLoading ||
     minting ||
     !userAddress ||
     !protocolCell;
@@ -625,14 +699,14 @@ export function PointsBalance() {
     <div className="flex items-center gap-2">
       <button
         type="button"
-        onClick={handleClaim}
+        onClick={() => void beginClaim()}
         disabled={isDisabled}
         className={cn(
           "flex items-center gap-2 rounded-full px-3 py-1.5 h-10",
           "transition-all duration-200",
           "border-0",
           isDisabled ? "cursor-default opacity-80" : "cursor-pointer",
-          claiming ? "animate-pulse" : "",
+          claiming || didLoading ? "animate-pulse" : "",
         )}
         style={{
           backgroundColor: "#FF00FF",
@@ -665,7 +739,7 @@ export function PointsBalance() {
           </span>
         </div>
 
-        {claiming ? (
+        {claiming || didLoading ? (
           <span
             className="text-xs font-medium"
             style={{
@@ -673,7 +747,7 @@ export function PointsBalance() {
               textShadow: "0 0 4px rgba(255,255,255,0.6)",
             }}
           >
-            Claiming...
+            {didLoading ? "Finding identity..." : "Claiming..."}
           </span>
         ) : (
           claimableLabel && (
@@ -697,7 +771,12 @@ export function PointsBalance() {
         size="icon"
         onClick={handleRefresh}
         disabled={
-          isLoading || bonusLoading || claimablePoolLoading || claiming || minting
+          isLoading ||
+          bonusLoading ||
+          claimablePoolLoading ||
+          claiming ||
+          didLoading ||
+          minting
         }
         className={cn(
           "h-10 w-10 rounded-full",
@@ -731,6 +810,51 @@ export function PointsBalance() {
         />
         <span className="sr-only">Refresh points and claims</span>
       </Button>
+      <Dialog open={didDialogOpen} onOpenChange={setDidDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Portable quest claim</DialogTitle>
+            <DialogDescription>
+              {didDiscoveryError
+                ? didDiscoveryError
+                : controlledDids.length === 0
+                  ? "This wallet does not control an active did:ckb identity."
+                  : "Choose the identity that will receive the Claim Cell."}
+            </DialogDescription>
+          </DialogHeader>
+
+          {controlledDids.length > 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="quest-claim-did">Identity</Label>
+              <Select value={selectedDid} onValueChange={setSelectedDid}>
+                <SelectTrigger id="quest-claim-did">
+                  <SelectValue placeholder="Select an identity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {controlledDids.map((did) => (
+                    <SelectItem key={did} value={did}>
+                      {did}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <DialogClose asChild>
+              <Button variant="outline">Cancel</Button>
+            </DialogClose>
+            {controlledDids.length === 0 ? (
+              <Button onClick={confirmDidClaim}>Claim rewards only</Button>
+            ) : (
+              <Button onClick={confirmDidClaim} disabled={!selectedDid}>
+                Claim and issue
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -751,6 +875,7 @@ function formatClaimSubmissionDescription(params: {
   streakTxHash: ccc.Hex | null;
   poolTxHash: ccc.Hex | null;
   udtTxHashes: ccc.Hex[];
+  portableClaimQueued: boolean;
 }): string {
   const parts: string[] = [];
   if (params.streakTxHash) {
@@ -762,7 +887,10 @@ function formatClaimSubmissionDescription(params: {
   for (const txHash of params.udtTxHashes) {
     parts.push(`UDT ${formatTxHash(txHash)}`);
   }
-  return `${parts.join(" and ")} submitted.`;
+  const submitted = `${parts.join(" and ")} submitted.`;
+  return params.portableClaimQueued
+    ? `${submitted} The portable quest claim will follow confirmation.`
+    : submitted;
 }
 
 function formatClaimableLabel(
