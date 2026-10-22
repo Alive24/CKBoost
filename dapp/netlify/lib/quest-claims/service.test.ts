@@ -69,7 +69,7 @@ function request(
 }
 
 function fixture(store = new MemoryQuestClaimStore()) {
-  let transactionStatus: "committed" | "pending" | undefined;
+  let transactionStatus: "committed" | "pending" | "unknown" | undefined;
   let now = 2_000_000_100;
   const prepare = jest.fn(async () => PREPARED);
   const broadcast = jest.fn(
@@ -174,6 +174,7 @@ describe("issueQuestClaims", () => {
 
   test("retries the persisted transaction bytes after broadcast failure", async () => {
     const setup = fixture();
+    setup.setTransactionStatus("unknown");
     setup.broadcast.mockRejectedValueOnce(new Error("RPC unavailable"));
 
     await expect(

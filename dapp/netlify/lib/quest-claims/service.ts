@@ -345,6 +345,7 @@ async function refreshPreparedRecord(
       transaction = await dependencies.client.getTransaction(
         record.transactionHash,
       );
+      if (transaction?.status === "unknown") transaction = undefined;
       if (!transaction) throw error;
     }
 
