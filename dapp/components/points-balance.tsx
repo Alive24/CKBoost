@@ -487,11 +487,6 @@ export function PointsBalance() {
         hashType: address.script.hashType,
         args: address.script.args,
       });
-      if (dids.length === 1) {
-        if (mountedRef.current) setDidLoading(false);
-        await handleClaim(dids[0]);
-        return;
-      }
       setControlledDids(dids);
       setSelectedDid(dids[0] ?? "");
       setDidDialogOpen(true);
@@ -509,9 +504,15 @@ export function PointsBalance() {
     }
   }, [claimablePool, handleClaim, signer]);
 
-  const confirmDidClaim = useCallback(() => {
+  const claimRewardsOnly = useCallback(() => {
     setDidDialogOpen(false);
-    void handleClaim(selectedDid || undefined);
+    void handleClaim();
+  }, [handleClaim]);
+
+  const confirmDidClaim = useCallback(() => {
+    if (!selectedDid) return;
+    setDidDialogOpen(false);
+    void handleClaim(selectedDid);
   }, [handleClaim, selectedDid]);
 
   const handleTestMint = useCallback(async () => {
@@ -816,12 +817,24 @@ export function PointsBalance() {
             <DialogTitle>Portable quest claim</DialogTitle>
             <DialogDescription>
               {didDiscoveryError
-                ? didDiscoveryError
+                ? `${didDiscoveryError} You can still claim rewards without issuing a portable claim.`
                 : controlledDids.length === 0
-                  ? "This wallet does not control an active did:ckb identity."
-                  : "Choose the identity that will receive the Claim Cell."}
+                  ? "This wallet does not control an active did:ckb identity. You can still claim rewards without issuing a portable claim."
+                  : "Choose whether to claim rewards only or also issue a public portable Claim Cell to the selected identity."}
             </DialogDescription>
           </DialogHeader>
+
+          {controlledDids.length === 1 && (
+            <div className="space-y-2">
+              <Label htmlFor="quest-claim-did">Identity</Label>
+              <output
+                id="quest-claim-did"
+                className="block break-all rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm"
+              >
+                {selectedDid}
+              </output>
+            </div>
+          )}
 
           {controlledDids.length > 1 && (
             <div className="space-y-2">
@@ -841,15 +854,42 @@ export function PointsBalance() {
             </div>
           )}
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter
+            className={cn(
+              "gap-2 sm:space-x-0",
+              controlledDids.length > 0
+                ? "sm:grid sm:grid-cols-2 sm:gap-2"
+                : "sm:gap-2",
+            )}
+          >
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button
+                variant="outline"
+                className={cn(
+                  controlledDids.length > 0 &&
+                    "sm:col-start-1 sm:row-start-2",
+                )}
+              >
+                Cancel
+              </Button>
             </DialogClose>
-            {controlledDids.length === 0 ? (
-              <Button onClick={confirmDidClaim}>Claim rewards only</Button>
-            ) : (
-              <Button onClick={confirmDidClaim} disabled={!selectedDid}>
-                Claim and issue
+            <Button
+              variant={controlledDids.length > 0 ? "secondary" : "default"}
+              onClick={claimRewardsOnly}
+              className={cn(
+                controlledDids.length > 0 &&
+                  "sm:col-start-2 sm:row-start-2",
+              )}
+            >
+              Claim rewards only
+            </Button>
+            {controlledDids.length > 0 && (
+              <Button
+                onClick={confirmDidClaim}
+                disabled={!selectedDid}
+                className="sm:col-span-2 sm:row-start-1"
+              >
+                Claim rewards and issue portable claim
               </Button>
             )}
           </DialogFooter>
