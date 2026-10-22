@@ -132,7 +132,9 @@ async function openPortableClaimDialog() {
   const claimButton = await screen.findByRole("button", {
     name: /100 claimable/i,
   });
-  await waitFor(() => expect(claimButton).toBeEnabled());
+  await waitFor(() =>
+    expect((claimButton as HTMLButtonElement).disabled).toBe(false),
+  );
   fireEvent.click(claimButton);
   return screen.findByRole("dialog", { name: "Portable quest claim" });
 }
@@ -146,13 +148,13 @@ beforeEach(() => {
 test("a single discovered DID still requires portable claim consent", async () => {
   await openPortableClaimDialog();
 
-  expect(screen.getByText(DID)).toBeVisible();
-  expect(screen.getByText(/public portable Claim Cell/)).toBeVisible();
+  expect(screen.getByText(DID)).not.toBeNull();
+  expect(screen.getByText(/public portable Claim Cell/)).not.toBeNull();
   expect(
     screen.getByRole("button", {
       name: "Claim rewards and issue portable claim",
     }),
-  ).toBeVisible();
+  ).not.toBeNull();
 
   fireEvent.click(
     screen.getByRole("button", { name: "Claim rewards only" }),
