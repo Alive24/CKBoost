@@ -128,6 +128,10 @@ so the function also receives a Blobs context.
 - The function stores the complete signed Claim Cell transaction before it
   broadcasts. A retry reuses those exact bytes and cannot prepare a second
   transaction for the same campaign, quest, and CKBoost user Type ID.
+- The global issuer record points to that persisted completion. Any later
+  issuer request can reconcile or rebroadcast the same signed transaction, so
+  recovery does not depend on the participant keeping the original browser
+  session open.
 - HTTP `202` means confirmation or issuer coordination is still pending and is
   retried automatically. A validation or DID-binding response is terminal for
   that local queue item.
@@ -140,10 +144,11 @@ For operator recovery, locate the request by `rewardClaimTxHash` in the
 `completions/<sha256(campaign_type_id:quest_id:ckboost_user_type_id)>`; the
 global signer record is `coordination/issuer`. Query the stored transaction
 hash on Testnet first. If it committed, call the endpoint again with the
-original reward hash and subject DID to reconcile the confirmed outpoint. Only
-delete the completion and signer records after the transaction is definitively
-rejected, no Claim Cell output exists, and the rejection cause has been fixed.
-Never reset records for an unknown or pending transaction.
+original reward hash and subject DID to return the confirmed outpoint; any
+issuer request will already reconcile the stored completion. Only delete the
+completion and signer records after the transaction is definitively rejected,
+no Claim Cell output exists, and the rejection cause has been fixed. Never
+reset records for an unknown or pending transaction.
 
 ## Step 4: Configure Bot Domain (BotFather)
 

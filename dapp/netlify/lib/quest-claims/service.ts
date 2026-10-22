@@ -96,9 +96,28 @@ async function acquireIssuerLease(
   }
 
   if (current.value.transactionHash) {
-    const transaction = await dependencies.client.getTransaction(
+    let transaction = await dependencies.client.getTransaction(
       current.value.transactionHash,
     );
+    if (transaction?.status === "unknown") transaction = undefined;
+    if (
+      (!transaction || transaction.status === "committed") &&
+      current.value.completionKey
+    ) {
+      const stored = await dependencies.store.getClaim(
+        current.value.completionKey,
+      );
+      if (
+        !stored ||
+        stored.value.transactionHash !== current.value.transactionHash ||
+        !stored.value.signedTransaction
+      ) {
+        throw new Error(
+          "Issuer lease references an invalid persisted quest claim transaction.",
+        );
+      }
+      await refreshPreparedRecord(dependencies, stored, now);
+    }
     if (
       !transaction ||
       !["committed", "rejected"].includes(transaction.status)
@@ -131,15 +150,24 @@ async function expireLease(
 async function bindTransactionToLease(
   dependencies: QuestClaimServiceDependencies,
   lease: StoredValue<IssuerLeaseRecord>,
+  completionKey: string,
   transactionHash: string,
   now: number,
 ): Promise<StoredValue<IssuerLeaseRecord> | undefined> {
   if (lease.value.transactionHash) {
-    return lease.value.transactionHash === transactionHash ? lease : undefined;
+    if (
+      lease.value.transactionHash !== transactionHash ||
+      (lease.value.completionKey &&
+        lease.value.completionKey !== completionKey)
+    ) {
+      return undefined;
+    }
+    if (lease.value.completionKey === completionKey) return lease;
   }
 
   const bound: IssuerLeaseRecord = {
     ...lease.value,
+    completionKey,
     expiresAt: now + SUBMITTED_LEASE_SECONDS,
     transactionHash,
     updatedAt: now,
@@ -147,6 +175,7 @@ async function bindTransactionToLease(
   if (await dependencies.store.updateLease(lease.etag, bound)) {
     const updated = await dependencies.store.getLease();
     return updated?.value.token === lease.value.token &&
+      updated.value.completionKey === completionKey &&
       updated.value.transactionHash === transactionHash
       ? updated
       : undefined;
@@ -154,6 +183,7 @@ async function bindTransactionToLease(
 
   const current = await dependencies.store.getLease();
   return current?.value.token === lease.value.token &&
+    current.value.completionKey === completionKey &&
     current.value.transactionHash === transactionHash
     ? current
     : undefined;
@@ -171,12 +201,21 @@ async function attachPreparedLease(
 
   const currentLease = await dependencies.store.getLease();
   if (currentLease?.value.transactionHash === transactionHash) {
-    return stored;
+    return (await bindTransactionToLease(
+      dependencies,
+      currentLease,
+      stored.value.completionKey,
+      transactionHash,
+      now,
+    ))
+      ? stored
+      : undefined;
   }
   if (currentLease?.value.token === stored.value.leaseToken) {
     return (await bindTransactionToLease(
       dependencies,
       currentLease,
+      stored.value.completionKey,
       transactionHash,
       now,
     ))
@@ -209,7 +248,13 @@ async function attachPreparedLease(
     throw new Error("Prepared quest claim transaction could not be read.");
   }
   if (
-    !(await bindTransactionToLease(dependencies, lease, transactionHash, now))
+    !(await bindTransactionToLease(
+      dependencies,
+      lease,
+      stored.value.completionKey,
+      transactionHash,
+      now,
+    ))
   ) {
     return undefined;
   }
@@ -370,6 +415,7 @@ async function beginPreparation(
       !(await bindTransactionToLease(
         dependencies,
         lease,
+        evidence.key,
         prepared.transactionHash,
         now,
       ))

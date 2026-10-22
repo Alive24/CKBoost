@@ -11,6 +11,7 @@ import { MemoryQuestClaimStore } from "./memory-store";
 import type { IssuerLeaseRecord } from "./store";
 
 const TX_HASH = `0x${"44".repeat(32)}`;
+const UNRELATED_TX_HASH = `0x${"aa".repeat(32)}`;
 const CLAIM_TX_HASH = `0x${"55".repeat(32)}`;
 const SUBJECT = "did:ckb:tlitdhrdn7wdzmktk3kzhfua3ivpgiq2";
 const OTHER_SUBJECT = "did:ckb:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -49,8 +50,22 @@ const SECOND_PREPARED: PreparedQuestClaim = {
   transactionHash: `0x${"99".repeat(32)}` as ccc.Hex,
 };
 
-function request(subjectDid = SUBJECT): QuestClaimRequest {
-  return { rewardClaimTxHash: TX_HASH, subjectDid };
+const UNRELATED_COMPLETION: QuestCompletionEvidence = {
+  key: `${`0x${"bb".repeat(32)}`}:8:${`0x${"cc".repeat(32)}`}`,
+  payload: {
+    ...COMPLETION.payload,
+    campaign_type_id: `0x${"bb".repeat(32)}`,
+    quest_id: 8,
+    ckboost_user_type_id: `0x${"cc".repeat(32)}`,
+    reward_claim_tx_hash: UNRELATED_TX_HASH,
+  },
+};
+
+function request(
+  subjectDid = SUBJECT,
+  rewardClaimTxHash = TX_HASH,
+): QuestClaimRequest {
+  return { rewardClaimTxHash, subjectDid };
 }
 
 function fixture(store = new MemoryQuestClaimStore()) {
@@ -67,6 +82,7 @@ function fixture(store = new MemoryQuestClaimStore()) {
       const lease = await store.getLease();
       expect(["prepared", "submitted"]).toContain(claim?.value.status);
       expect(claim?.value.signedTransaction).toBe(PREPARED.signedTransaction);
+      expect(lease?.value.completionKey).toBe(COMPLETION.key);
       expect(lease?.value.transactionHash).toBe(CLAIM_TX_HASH);
       return CLAIM_TX_HASH as ccc.Hex;
     },
@@ -173,6 +189,41 @@ describe("issueQuestClaims", () => {
     });
     expect(setup.prepare).toHaveBeenCalledTimes(1);
     expect(setup.broadcast).toHaveBeenCalledTimes(2);
+  });
+
+  test("lets an unrelated request recover a missing bound transaction", async () => {
+    const setup = fixture();
+    setup.broadcast.mockRejectedValueOnce(new Error("RPC unavailable"));
+    setup.dependencies.reconstruct = jest.fn(async (_client, claimRequest) =>
+      claimRequest.rewardClaimTxHash === UNRELATED_TX_HASH
+        ? [UNRELATED_COMPLETION]
+        : [COMPLETION],
+    );
+
+    await expect(
+      issueQuestClaims(request(), {}, setup.dependencies),
+    ).rejects.toThrow("RPC unavailable");
+    expect(setup.prepare).toHaveBeenCalledTimes(1);
+    expect((await setup.store.getLease())?.value).toMatchObject({
+      completionKey: COMPLETION.key,
+      transactionHash: CLAIM_TX_HASH,
+    });
+
+    setup.advance(60 * 60);
+    await expect(
+      issueQuestClaims(
+        request(SUBJECT, UNRELATED_TX_HASH),
+        {},
+        setup.dependencies,
+      ),
+    ).resolves.toMatchObject({ complete: false, status: "pending" });
+
+    expect(setup.prepare).toHaveBeenCalledTimes(1);
+    expect(setup.broadcast).toHaveBeenCalledTimes(2);
+    expect(setup.broadcast.mock.calls[1]?.[1]).toBe(
+      PREPARED.signedTransaction,
+    );
+    expect(await setup.store.getClaim(UNRELATED_COMPLETION.key)).toBeNull();
   });
 
   test("rebroadcasts the same submitted transaction after it remains unavailable", async () => {

@@ -20,6 +20,7 @@ export type ClaimIssuanceRecord = {
 };
 
 export type IssuerLeaseRecord = {
+  completionKey?: string;
   expiresAt: number;
   token: string;
   transactionHash?: string;
