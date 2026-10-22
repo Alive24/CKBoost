@@ -394,7 +394,9 @@ export async function reconstructQuestCompletions(
   client: ccc.Client,
   request: QuestClaimRequest,
   requiredConfirmations: number,
+  trustedProtocolTypeHash: ccc.HexLike,
 ): Promise<QuestCompletionEvidence[]> {
+  const expectedProtocolTypeHash = normalizeHex(trustedProtocolTypeHash);
   const subject = await resolveDidCkb({ client, did: request.subjectDid });
   if (!subject) {
     throw new QuestClaimError(
@@ -550,6 +552,13 @@ export async function reconstructQuestCompletions(
       approval.transaction,
       approvalInputs,
     );
+    if (transition.protocolTypeHash !== expectedProtocolTypeHash) {
+      throw new QuestClaimError(
+        "approval_provenance_invalid",
+        400,
+        "Approval campaign does not belong to the configured CKBoost protocol.",
+      );
+    }
     const pointsScript = ccc.Script.from({
       codeHash: CKBOOST_POINTS_UDT_CODE_HASH,
       hashType: "type",

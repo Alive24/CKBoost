@@ -47,11 +47,25 @@ export const claimScripts = {
 export type QuestClaimEnvironment = {
   CKB_RPC_URL?: string;
   CKBOOST_ISSUER_EVM_PRIVATE_KEY?: string;
+  CKBOOST_PROTOCOL_TYPE_HASH?: string;
   CKBOOST_REWARD_CONFIRMATIONS?: string;
   [key: string]: string | undefined;
 };
 
 const DEFAULT_CKB_RPC_URL = "https://testnet.ckb.dev";
+const CODE_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+
+export function trustedProtocolTypeHash(
+  environment: QuestClaimEnvironment,
+): ccc.Hex {
+  const value = environment.CKBOOST_PROTOCOL_TYPE_HASH?.trim();
+  if (!value || !CODE_HASH_PATTERN.test(value)) {
+    throw new Error(
+      "The trusted CKBoost protocol Type Script hash is invalid.",
+    );
+  }
+  return value.toLowerCase() as ccc.Hex;
+}
 
 export function rpcUrl(environment: QuestClaimEnvironment): string {
   const value = environment.CKB_RPC_URL ?? DEFAULT_CKB_RPC_URL;

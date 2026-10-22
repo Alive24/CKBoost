@@ -99,6 +99,7 @@ NEXT_PUBLIC_CKB_RPC_URL=https://testnet.ckb.dev
 # NEXT_PUBLIC_ variable.
 CKB_RPC_URL=https://testnet.ckb.dev
 CKBOOST_ISSUER_EVM_PRIVATE_KEY=0x...
+CKBOOST_PROTOCOL_TYPE_HASH=0x42d9ecee38e8f260d68fa90762048c6d07be12200a9e81e8521a904da2a96908
 CKBOOST_REWARD_CONFIRMATIONS=6
 ```
 
@@ -107,6 +108,11 @@ CKBOOST_REWARD_CONFIRMATIONS=6
 the Claim Cell occupied capacity and transaction fee. Keep enough spendable
 CKB on that controller before enabling issuance. The function rejects a key
 that does not match the live issuer DID.
+
+`CKBOOST_PROTOCOL_TYPE_HASH` is the full Type Script hash of the CKBoost
+protocol instance operated by this deployment. The function rejects campaigns,
+users, and Points records connected to any other protocol instance, even when
+they use the same contract code.
 
 Netlify Blobs stores coordination state in the site store
 `ckboost-vellum-quest-claims`. The issuer key remains only in Netlify's

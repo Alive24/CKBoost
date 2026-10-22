@@ -1,4 +1,10 @@
-import { requiredRewardConfirmations, rpcUrl } from "./config";
+import {
+  requiredRewardConfirmations,
+  rpcUrl,
+  trustedProtocolTypeHash,
+} from "./config";
+
+const PROTOCOL_TYPE_HASH = `0x${"11".repeat(32)}`;
 
 describe("quest claim configuration", () => {
   test("uses the Testnet RPC and six confirmations by default", () => {
@@ -30,4 +36,25 @@ describe("quest claim configuration", () => {
       ).toThrow("between 1 and 100");
     },
   );
+
+  test("loads the trusted protocol instance hash", () => {
+    expect(
+      trustedProtocolTypeHash({
+        CKBOOST_PROTOCOL_TYPE_HASH: PROTOCOL_TYPE_HASH.toUpperCase().replace(
+          "0X",
+          "0x",
+        ),
+      }),
+    ).toBe(PROTOCOL_TYPE_HASH);
+  });
+
+  test.each([
+    {},
+    { CKBOOST_PROTOCOL_TYPE_HASH: "0x1234" },
+    { CKBOOST_PROTOCOL_TYPE_HASH: `0x${"gg".repeat(32)}` },
+  ])("rejects an invalid protocol Type Script: %#", (environment) => {
+    expect(() => trustedProtocolTypeHash(environment)).toThrow(
+      "protocol Type Script hash is invalid",
+    );
+  });
 });
