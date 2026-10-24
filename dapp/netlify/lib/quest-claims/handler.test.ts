@@ -4,13 +4,6 @@ import vellumQuestClaim from "@/netlify/functions/vellum-quest-claim";
 import { QuestClaimError } from "./errors";
 import { issueQuestClaimsFromEnvironment } from "./runtime";
 
-jest.mock("@/netlify/lib/log", () => ({
-  createLogger: () => ({
-    error: jest.fn(),
-    info: jest.fn(),
-    warn: jest.fn(),
-  }),
-}));
 jest.mock("./runtime", () => ({ issueQuestClaimsFromEnvironment: jest.fn() }));
 
 const TX_HASH = `0x${"44".repeat(32)}`;
@@ -25,8 +18,18 @@ function request(method: string, body?: string): Request {
 }
 
 describe("vellum quest claim handler", () => {
+  beforeAll(() => {
+    jest.spyOn(console, "info").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+    jest.spyOn(console, "error").mockImplementation(() => {});
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    jest.restoreAllMocks();
   });
 
   test("passes a validated request to the issuance service", async () => {

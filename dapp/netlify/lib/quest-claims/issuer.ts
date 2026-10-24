@@ -1,10 +1,5 @@
 import { ccc } from "@ckb-ccc/core";
-import { resolveDidCkb } from "@ckb-ccc/did-ckb";
-import {
-  writeClaim,
-  type WriteClaimProps,
-  type WriteClaimResult,
-} from "@usevellum/sdk";
+import type { WriteClaimProps, WriteClaimResult } from "@usevellum/sdk";
 import { Wallet } from "ethers";
 
 import {
@@ -71,6 +66,7 @@ export async function createIssuerSigner(
     timeout: 10_000,
   });
   const signer = new EvmPrivateKeySigner(client, issuerCredential(environment));
+  const { resolveDidCkb } = await import("@ckb-ccc/did-ckb");
   const issuer = await resolveDidCkb({ client, did: CKBOOST_ISSUER_DID });
   if (!issuer) {
     throw new Error("The CKBoost issuer DID is not active on CKB Testnet.");
@@ -94,7 +90,10 @@ export type QuestClaimIssuerDependencies = {
 
 const defaultDependencies: QuestClaimIssuerDependencies = {
   createSigner: createIssuerSigner,
-  writeClaim,
+  writeClaim: async (props) => {
+    const { writeClaim } = await import("@usevellum/sdk");
+    return writeClaim(props);
+  },
 };
 
 export async function prepareQuestClaim(

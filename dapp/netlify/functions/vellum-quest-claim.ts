@@ -5,9 +5,8 @@ import {
 } from "@/lib/vellum/quest-claims";
 import { QuestClaimError } from "@/netlify/lib/quest-claims/errors";
 import { issueQuestClaimsFromEnvironment } from "@/netlify/lib/quest-claims/runtime";
-import { createLogger } from "@/netlify/lib/log";
 
-const logger = createLogger("vellum-quest-claim");
+const logPrefix = "[vellum-quest-claim]";
 
 function response(statusCode: number, body: QuestClaimResponse): Response {
   const retryAfterSeconds = body.retryAfterSeconds;
@@ -53,7 +52,7 @@ async function vellumQuestClaim(incomingRequest: Request): Promise<Response> {
 
   try {
     const result = await issueQuestClaimsFromEnvironment(claimRequest);
-    logger.info("quest_claim_processed", {
+    console.info(logPrefix, "quest_claim_processed", {
       complete: result.complete,
       claimCount: result.claims.length,
       rewardClaimTxHash: claimRequest.rewardClaimTxHash,
@@ -61,7 +60,7 @@ async function vellumQuestClaim(incomingRequest: Request): Promise<Response> {
     return response(result.complete ? 200 : 202, result);
   } catch (error) {
     if (error instanceof QuestClaimError) {
-      logger.warn("quest_claim_rejected", {
+      console.warn(logPrefix, "quest_claim_rejected", {
         code: error.code,
         rewardClaimTxHash: claimRequest.rewardClaimTxHash,
       });
@@ -73,7 +72,7 @@ async function vellumQuestClaim(incomingRequest: Request): Promise<Response> {
       });
     }
 
-    logger.error("quest_claim_failed", {
+    console.error(logPrefix, "quest_claim_failed", {
       errorType: error instanceof Error ? error.name : "UnknownError",
       rewardClaimTxHash: claimRequest.rewardClaimTxHash,
     });

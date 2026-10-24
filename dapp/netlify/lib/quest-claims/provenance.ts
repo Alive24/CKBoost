@@ -1,6 +1,7 @@
 import { ccc } from "@ckb-ccc/core";
-import { resolveDidCkb } from "@ckb-ccc/did-ckb";
-import { decodeClaimablePoolData } from "ckb-claimable-pool-lock";
+import {
+  decodeClaimablePoolData,
+} from "../../../../contracts/contracts/claimable-pool-lock/ts/src/index";
 import {
   CampaignData,
   ConnectedTypeID,
@@ -397,6 +398,7 @@ export async function reconstructQuestCompletions(
   trustedProtocolTypeHash: ccc.HexLike,
 ): Promise<QuestCompletionEvidence[]> {
   const expectedProtocolTypeHash = normalizeHex(trustedProtocolTypeHash);
+  const { resolveDidCkb } = await import("@ckb-ccc/did-ckb");
   const subject = await resolveDidCkb({ client, did: request.subjectDid });
   if (!subject) {
     throw new QuestClaimError(
