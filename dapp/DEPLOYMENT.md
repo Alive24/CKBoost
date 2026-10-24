@@ -94,25 +94,28 @@ Configure these variables in the Netlify dashboard:
 ```bash
 NEXT_PUBLIC_CKB_NETWORK=testnet
 NEXT_PUBLIC_CKB_RPC_URL=https://testnet.ckb.dev
+NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH=0x53769be2ed1d09a9da7c1d71488347449bb76f1212068f7e366939d0d5fd59fa
+NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE=type
+NEXT_PUBLIC_PROTOCOL_TYPE_ARGS=0x87539ca8578870addf52ba06937d0fc418eff542400a6a163c684acda54fe972
 
 # Server-side function variables. Never expose the private key through a
 # NEXT_PUBLIC_ variable.
-CKB_RPC_URL=https://testnet.ckb.dev
-CKBOOST_ISSUER_EVM_PRIVATE_KEY=0x...
-CKBOOST_PROTOCOL_TYPE_HASH=0x42d9ecee38e8f260d68fa90762048c6d07be12200a9e81e8521a904da2a96908
-CKBOOST_REWARD_CONFIRMATIONS=6
+CKBOOST_VELLUM_ISSUER_EVM_PRIVATE_KEY=0x...
+CKBOOST_VELLUM_MIN_CONFIRMATIONS=6
 ```
 
-`CKBOOST_ISSUER_EVM_PRIVATE_KEY` must control the current controller of
+`CKBOOST_VELLUM_ISSUER_EVM_PRIVATE_KEY` must control the current controller of
 `did:ckb:tlitdhrdn7wdzmktk3kzhfua3ivpgiq2`. Its Testnet OmniLock cells fund
 the Claim Cell occupied capacity and transaction fee. Keep enough spendable
 CKB on that controller before enabling issuance. The function rejects a key
 that does not match the live issuer DID.
 
-`CKBOOST_PROTOCOL_TYPE_HASH` is the full Type Script hash of the CKBoost
-protocol instance operated by this deployment. The function rejects campaigns,
-users, and Points records connected to any other protocol instance, even when
-they use the same contract code.
+The function derives the trusted CKBoost protocol Type Script hash from the
+existing `NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH`,
+`NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE`, and `NEXT_PUBLIC_PROTOCOL_TYPE_ARGS`
+values for the active deploy context. It rejects campaigns, users, and Points
+records connected to any other protocol instance, even when they use the same
+contract code.
 
 Netlify Blobs stores coordination state in the site store
 `ckboost-vellum-quest-claims`. The issuer key remains only in Netlify's

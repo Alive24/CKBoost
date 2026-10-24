@@ -1,4 +1,4 @@
-import type { ccc } from "@ckb-ccc/core";
+import { ccc } from "@ckb-ccc/core";
 import type { ClaimScriptConfigLike } from "@usevellum/sdk";
 
 export const CKBOOST_QUEST_CLAIM_SCHEMA_ID = "ckboost.quest.v1";
@@ -45,30 +45,57 @@ export const claimScripts = {
 } satisfies ClaimScriptConfigLike;
 
 export type QuestClaimEnvironment = {
-  CKB_RPC_URL?: string;
-  CKBOOST_ISSUER_EVM_PRIVATE_KEY?: string;
-  CKBOOST_PROTOCOL_TYPE_HASH?: string;
-  CKBOOST_REWARD_CONFIRMATIONS?: string;
+  CKBOOST_VELLUM_MIN_CONFIRMATIONS?: string;
+  CKBOOST_VELLUM_ISSUER_EVM_PRIVATE_KEY?: string;
+  NEXT_PUBLIC_CKB_RPC_URL?: string;
+  NEXT_PUBLIC_PROTOCOL_TYPE_ARGS?: string;
+  NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?: string;
+  NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE?: string;
   [key: string]: string | undefined;
 };
 
 const DEFAULT_CKB_RPC_URL = "https://testnet.ckb.dev";
 const CODE_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+const SCRIPT_ARGS_PATTERN = /^0x(?:[0-9a-fA-F]{2})*$/;
+const HASH_TYPES = new Set<ccc.HashType>([
+  "data",
+  "data1",
+  "data2",
+  "type",
+]);
+
+function isHashType(value: string): value is ccc.HashType {
+  return HASH_TYPES.has(value as ccc.HashType);
+}
 
 export function trustedProtocolTypeHash(
   environment: QuestClaimEnvironment,
 ): ccc.Hex {
-  const value = environment.CKBOOST_PROTOCOL_TYPE_HASH?.trim();
-  if (!value || !CODE_HASH_PATTERN.test(value)) {
+  const codeHash = environment.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
+  const hashType = environment.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE?.trim();
+  const args = environment.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS?.trim();
+  if (
+    !codeHash ||
+    !CODE_HASH_PATTERN.test(codeHash) ||
+    !hashType ||
+    !isHashType(hashType) ||
+    !args ||
+    !SCRIPT_ARGS_PATTERN.test(args)
+  ) {
     throw new Error(
-      "The trusted CKBoost protocol Type Script hash is invalid.",
+      "The trusted CKBoost protocol Type Script configuration is invalid.",
     );
   }
-  return value.toLowerCase() as ccc.Hex;
+  return ccc.Script.from({
+    args,
+    codeHash,
+    hashType,
+  }).hash();
 }
 
 export function rpcUrl(environment: QuestClaimEnvironment): string {
-  const value = environment.CKB_RPC_URL ?? DEFAULT_CKB_RPC_URL;
+  const value =
+    environment.NEXT_PUBLIC_CKB_RPC_URL ?? DEFAULT_CKB_RPC_URL;
   let url: URL;
   try {
     url = new URL(value);
@@ -88,9 +115,11 @@ export function rpcUrl(environment: QuestClaimEnvironment): string {
 export function requiredRewardConfirmations(
   environment: QuestClaimEnvironment,
 ): number {
-  const value = Number(environment.CKBOOST_REWARD_CONFIRMATIONS ?? 6);
+  const value = Number(environment.CKBOOST_VELLUM_MIN_CONFIRMATIONS ?? 6);
   if (!Number.isInteger(value) || value < 1 || value > 100) {
-    throw new Error("CKBOOST_REWARD_CONFIRMATIONS must be between 1 and 100.");
+    throw new Error(
+      "CKBOOST_VELLUM_MIN_CONFIRMATIONS must be between 1 and 100.",
+    );
   }
   return value;
 }

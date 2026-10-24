@@ -55,7 +55,7 @@ export class EvmPrivateKeySigner extends ccc.SignerEvm {
 }
 
 export function issuerCredential(environment: QuestClaimEnvironment): ccc.Hex {
-  const value = environment.CKBOOST_ISSUER_EVM_PRIVATE_KEY;
+  const value = environment.CKBOOST_VELLUM_ISSUER_EVM_PRIVATE_KEY;
   if (!value || !PRIVATE_KEY_PATTERN.test(value)) {
     throw new Error("The CKBoost issuer credential is not configured.");
   }
