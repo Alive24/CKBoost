@@ -4,6 +4,7 @@ import { PointsBalance } from "./points-balance";
 
 const DID = "did:ckb:tlitp7j8exampleidentity";
 const SECOND_DID = "did:ckb:tlitp7j8secondidentity";
+const DISPLAY_NAME = "Vellum Builder";
 const PROTOCOL_TYPE_HASH = `0x${"11".repeat(32)}`;
 const LOCK_HASH = `0x${"22".repeat(32)}`;
 const REWARD_TX_HASH = `0x${"33".repeat(32)}`;
@@ -24,6 +25,7 @@ const mockSigner = {
   getRecommendedAddressObj: jest.fn(async () => ({ script: mockLockScript })),
 };
 const mockClient = {};
+const originalScrollIntoView = Element.prototype.scrollIntoView;
 
 jest.mock("@ckb-ccc/connector-react", () => ({
   ccc: {
@@ -139,16 +141,28 @@ async function openPortableClaimDialog() {
   return screen.findByRole("dialog", { name: "Portable quest claim" });
 }
 
+beforeAll(() => {
+  Element.prototype.scrollIntoView = jest.fn();
+});
+
+afterAll(() => {
+  Element.prototype.scrollIntoView = originalScrollIntoView;
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockClaimPointsBatch.mockResolvedValue(REWARD_TX_HASH);
-  mockListControlledDids.mockResolvedValue([DID]);
+  mockListControlledDids.mockResolvedValue([
+    { did: DID, displayName: DISPLAY_NAME },
+  ]);
 });
 
 test("a single discovered DID still requires portable claim consent", async () => {
   await openPortableClaimDialog();
 
-  expect(screen.getByText(DID)).not.toBeNull();
+  expect(screen.getByText(DISPLAY_NAME)).not.toBeNull();
+  expect(screen.getByText("did:ckb:tlitp7j8…entity")).not.toBeNull();
+  expect(screen.getByLabelText(DID).getAttribute("title")).toBe(DID);
   expect(screen.getByText(/public portable Claim Cell/)).not.toBeNull();
   expect(
     screen.getByRole("button", {
@@ -182,7 +196,10 @@ test("portable claim issuance starts only after the explicit issue action", asyn
 });
 
 test("multiple discovered DIDs still allow a rewards-only claim", async () => {
-  mockListControlledDids.mockResolvedValue([DID, SECOND_DID]);
+  mockListControlledDids.mockResolvedValue([
+    { did: DID, displayName: DISPLAY_NAME },
+    { did: SECOND_DID, displayName: "Second Builder" },
+  ]);
   await openPortableClaimDialog();
 
   fireEvent.click(
@@ -191,4 +208,38 @@ test("multiple discovered DIDs still allow a rewards-only claim", async () => {
 
   await waitFor(() => expect(mockClaimPointsBatch).toHaveBeenCalledTimes(1));
   expect(mockRegisterQuestClaimIssuance).not.toHaveBeenCalled();
+});
+
+test("selecting a named identity submits its full DID", async () => {
+  mockListControlledDids.mockResolvedValue([
+    { did: DID, displayName: DISPLAY_NAME },
+    { did: SECOND_DID, displayName: "Second Builder" },
+  ]);
+  await openPortableClaimDialog();
+
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
+  fireEvent.click(
+    await screen.findByRole("option", { name: new RegExp(SECOND_DID) }),
+  );
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Claim rewards and issue portable claim",
+    }),
+  );
+
+  await waitFor(() =>
+    expect(mockRegisterQuestClaimIssuance).toHaveBeenCalledWith(
+      REWARD_TX_HASH,
+      SECOND_DID,
+    ),
+  );
+});
+
+test("an identity without a profile name falls back to its DID", async () => {
+  mockListControlledDids.mockResolvedValue([{ did: DID }]);
+  await openPortableClaimDialog();
+
+  expect(screen.getByText("did:ckb:tlitp7j8…entity")).not.toBeNull();
+  expect(screen.getByLabelText(DID).getAttribute("title")).toBe(DID);
+  expect(screen.queryByText(DISPLAY_NAME)).toBeNull();
 });

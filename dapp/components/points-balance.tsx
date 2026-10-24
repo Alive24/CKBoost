@@ -48,7 +48,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { listControlledDids } from "@/lib/vellum/dids";
+import {
+  listControlledDids,
+  type ControlledDid,
+} from "@/lib/vellum/dids";
 import { registerQuestClaimIssuance } from "@/lib/vellum/quest-claim-queue";
 
 const log = createScopedLogger("PointsBalance");
@@ -76,7 +79,7 @@ export function PointsBalance() {
     null,
   );
   const [didLoading, setDidLoading] = useState(false);
-  const [controlledDids, setControlledDids] = useState<string[]>([]);
+  const [controlledDids, setControlledDids] = useState<ControlledDid[]>([]);
   const [selectedDid, setSelectedDid] = useState("");
   const mountedRef = useRef(true);
 
@@ -488,7 +491,7 @@ export function PointsBalance() {
         args: address.script.args,
       });
       setControlledDids(dids);
-      setSelectedDid(dids[0] ?? "");
+      setSelectedDid(dids[0]?.did ?? "");
       setDidDialogOpen(true);
     } catch (error) {
       setControlledDids([]);
@@ -514,6 +517,10 @@ export function PointsBalance() {
     setDidDialogOpen(false);
     void handleClaim(selectedDid);
   }, [handleClaim, selectedDid]);
+
+  const selectedIdentity = controlledDids.find(
+    ({ did }) => did === selectedDid,
+  );
 
   const handleTestMint = useCallback(async () => {
     if (!isAdmin) {
@@ -829,9 +836,11 @@ export function PointsBalance() {
               <Label htmlFor="quest-claim-did">Identity</Label>
               <output
                 id="quest-claim-did"
-                className="block break-all rounded-md border bg-muted/50 px-3 py-2 font-mono text-sm"
+                className="block rounded-md border bg-muted/50 px-3 py-2.5"
               >
-                {selectedDid}
+                {selectedIdentity && (
+                  <DidIdentityLabel identity={selectedIdentity} />
+                )}
               </output>
             </div>
           )}
@@ -840,13 +849,27 @@ export function PointsBalance() {
             <div className="space-y-2">
               <Label htmlFor="quest-claim-did">Identity</Label>
               <Select value={selectedDid} onValueChange={setSelectedDid}>
-                <SelectTrigger id="quest-claim-did">
-                  <SelectValue placeholder="Select an identity" />
+                <SelectTrigger
+                  id="quest-claim-did"
+                  className="h-auto min-h-14 py-2 [&>span]:line-clamp-none"
+                >
+                  <SelectValue
+                    className="min-w-0 flex-1"
+                    placeholder="Select an identity"
+                  >
+                    {selectedIdentity && (
+                      <DidIdentityLabel identity={selectedIdentity} />
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {controlledDids.map((did) => (
-                    <SelectItem key={did} value={did}>
-                      {did}
+                  {controlledDids.map((identity) => (
+                    <SelectItem
+                      key={identity.did}
+                      value={identity.did}
+                      className="py-2.5"
+                    >
+                      <DidIdentityLabel identity={identity} />
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -897,6 +920,36 @@ export function PointsBalance() {
       </Dialog>
     </div>
   );
+}
+
+function DidIdentityLabel({ identity }: { identity: ControlledDid }) {
+  return (
+    <span className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left leading-tight">
+      {identity.displayName && (
+        <span className="max-w-full truncate font-medium text-foreground">
+          {identity.displayName}
+        </span>
+      )}
+      <span
+        className={cn(
+          "max-w-full truncate font-mono text-xs",
+          identity.displayName ? "text-muted-foreground" : "text-foreground",
+        )}
+        title={identity.did}
+        aria-label={identity.did}
+      >
+        {formatDid(identity.did)}
+      </span>
+    </span>
+  );
+}
+
+function formatDid(did: string): string {
+  const prefix = "did:ckb:";
+  const identifier = did.startsWith(prefix) ? did.slice(prefix.length) : did;
+  if (identifier.length <= 18) return did;
+  const visiblePrefix = did.startsWith(prefix) ? prefix : "";
+  return `${visiblePrefix}${identifier.slice(0, 8)}…${identifier.slice(-6)}`;
 }
 
 function parseBonusAmount(bonus: BonusStreakCalculation | null): bigint {

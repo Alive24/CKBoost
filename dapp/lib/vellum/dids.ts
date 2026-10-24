@@ -7,9 +7,34 @@ export type ControllerLock = {
   hashType: "data" | "data1" | "data2" | "type";
 };
 
+export type ControlledDid = {
+  did: string;
+  displayName?: string;
+};
+
+function displayNameFromDocument(document: unknown): string | undefined {
+  if (!document || typeof document !== "object" || Array.isArray(document)) {
+    return undefined;
+  }
+  const services = (document as Record<string, unknown>).services;
+  if (!services || typeof services !== "object" || Array.isArray(services)) {
+    return undefined;
+  }
+  const profile = (services as Record<string, unknown>).profile;
+  if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
+    return undefined;
+  }
+  const entry = profile as Record<string, unknown>;
+  if (entry.type !== "VellumProfile" || typeof entry.displayName !== "string") {
+    return undefined;
+  }
+  const displayName = entry.displayName.trim();
+  return displayName || undefined;
+}
+
 export async function listControlledDids(
   lock: ControllerLock,
-): Promise<string[]> {
+): Promise<ControlledDid[]> {
   const network = process.env.NEXT_PUBLIC_CKB_NETWORK ?? "testnet";
   if (network !== "testnet") {
     throw new Error("Portable quest claims are available on CKB Testnet only.");
@@ -23,5 +48,10 @@ export async function listControlledDids(
     client,
     lock: ccc.Script.from(lock),
   });
-  return records.map(({ did }) => did).sort();
+  return records
+    .map(({ data, did }) => ({
+      did,
+      displayName: displayNameFromDocument(data.value.document),
+    }))
+    .sort((left, right) => left.did.localeCompare(right.did));
 }
