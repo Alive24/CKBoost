@@ -13,6 +13,11 @@ const config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^ckb-claimable-pool-lock$':
+      '<rootDir>/../contracts/contracts/claimable-pool-lock/ts/src/index.ts',
+    '^ssri-ckboost/types$': '<rootDir>/../packages/ssri-ckboost/src/generated/index.ts',
+    '^uncrypto$': '<rootDir>/test/mocks/uncrypto.ts',
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testPathIgnorePatterns: [
     '<rootDir>/.next/',

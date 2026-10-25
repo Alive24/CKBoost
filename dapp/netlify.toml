@@ -54,6 +54,11 @@ to = "/.netlify/functions/staff-approve-submissions"
 status = 200
 
 [[redirects]]
+from = "/api/vellum-quest-claim"
+to = "/.netlify/functions/vellum-quest-claim"
+status = 200
+
+[[redirects]]
 from = "/api/social-interactions"
 to = "/.netlify/functions/social-interactions"
 status = 200
