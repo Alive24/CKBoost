@@ -12,7 +12,6 @@ import {
 import { CardWithIndents } from "@/components/ui/card-with-indents";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -97,7 +96,9 @@ const decodeHexUtf8 = (value: string): string | null => {
 
   try {
     // Some chain strings are persisted as hex bytes; normalize to utf-8 text.
-    return new TextDecoder().decode(ccc.bytesFrom(value)).replace(/\u0000+$/g, "");
+    return new TextDecoder()
+      .decode(ccc.bytesFrom(value))
+      .replace(/\u0000+$/g, "");
   } catch (error) {
     log.warn("Failed to decode hex utf-8 string", error);
     return null;
@@ -624,6 +625,16 @@ export default function CampaignDetailPage() {
     checkSubmissionStatuses();
   }, [currentUserTypeId, campaign, campaignTypeId, hasUserSubmittedQuest]);
 
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const interval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const ckbRewardStats = useMemo(() => {
     let totalPerCompletion = 0n;
     let totalDistributed = 0n;
@@ -668,7 +679,7 @@ export default function CampaignDetailPage() {
   }, [campaign?.quests]);
 
   // Show loading state while waiting for campaign data or protocol context
-  if (isLoading || !protocolReady || (!client && !campaign)) {
+  if (isLoading || !protocolReady || (!client && !campaign) || !now) {
     return (
       <PageLoading
         title="Loading Campaign"
@@ -791,8 +802,19 @@ export default function CampaignDetailPage() {
     protocolDataExists: !!protocolData,
   });
 
+  const formatExactTime = (date: Date) => {
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZoneName: "short",
+    });
+  };
+
   // Calculate campaign status based on dates and approval
-  const now = new Date();
   const startDate = new Date(startTimestamp);
   const endDate = new Date(endTimestamp);
   const status = !isApproved
@@ -932,7 +954,7 @@ export default function CampaignDetailPage() {
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Event ended</AlertTitle>
               <AlertDescription>
-                Submissions closed on {formatDateConsistent(endDate)}. You can
+                Submissions closed on {formatExactTime(endDate)}. You can
                 still review the quests and past rewards below.
               </AlertDescription>
             </Alert>
@@ -945,7 +967,7 @@ export default function CampaignDetailPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-4">
                     <Avatar className="w-16 h-16">
-                      <AvatarFallback className="bg-gradient-to-br from-purple-200 to-blue-200 text-lg font-bold">
+                      <AvatarFallback className="bg-linear-to-br from-purple-200 to-blue-200 text-lg font-bold">
                         {campaign.metadata?.title
                           ?.substring(0, 2)
                           .toUpperCase() || "C"}
@@ -1044,8 +1066,8 @@ export default function CampaignDetailPage() {
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-600 dark:text-muted-foreground">
-                    <span>Started: {formatDateConsistent(startDate)}</span>
-                    <span>Ends: {formatDateConsistent(endDate)}</span>
+                    <span>Started: {formatExactTime(startDate)}</span>
+                    <span>Ends: {formatExactTime(endDate)}</span>
                   </div>
                 </div>
               ) : (
@@ -1176,7 +1198,7 @@ export default function CampaignDetailPage() {
                     </p>
                   ) : resolvedDescription ? (
                     <div
-                      className="!max-w-full prose prose-sm sm:prose dark:prose-invert"
+                      className="max-w-full! prose prose-sm sm:prose dark:prose-invert"
                       dangerouslySetInnerHTML={{ __html: resolvedDescription }}
                     />
                   ) : (
@@ -1462,7 +1484,7 @@ export default function CampaignDetailPage() {
                                               key={subIndex}
                                               className="flex items-start gap-3 p-2 bg-gray-50 dark:bg-gray-800 rounded"
                                             >
-                                              <div className="flex-shrink-0 mt-0.5">
+                                              <div className="shrink-0 mt-0.5">
                                                 <div className="w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
                                                   <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
                                                     {Number(subtask.id) ||
@@ -1872,7 +1894,7 @@ export default function CampaignDetailPage() {
                               <AlertDescription>
                                 This quest is part of an expired event.
                                 Submissions ended on{" "}
-                                {formatDateConsistent(endDate)}.
+                                {formatExactTime(endDate)}.
                               </AlertDescription>
                             </Alert>
                           )}
