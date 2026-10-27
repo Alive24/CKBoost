@@ -12,7 +12,7 @@ jest.mock("@ckb-ccc/did-ckb", () => ({
     mockListDidCkbsByLock(...args),
 }));
 
-import { listControlledDids } from "./dids";
+import { formatDid, listControlledDids } from "./dids";
 
 const lock = {
   args: "0x01",
@@ -72,4 +72,10 @@ test("ignores display names outside the Vellum profile service", async () => {
   await expect(listControlledDids(lock)).resolves.toEqual([
     { did: "did:ckb:example", displayName: undefined },
   ]);
+});
+
+test("formats a DID without hiding its method", () => {
+  expect(formatDid("did:ckb:omdrzidnxy3lrdrwc6bo4sll6zljhuar")).toBe(
+    "did:ckb:omdrzidn…ljhuar",
+  );
 });

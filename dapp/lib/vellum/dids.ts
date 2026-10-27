@@ -12,7 +12,7 @@ export type ControlledDid = {
   displayName?: string;
 };
 
-function displayNameFromDocument(document: unknown): string | undefined {
+export function displayNameFromDocument(document: unknown): string | undefined {
   if (!document || typeof document !== "object" || Array.isArray(document)) {
     return undefined;
   }
@@ -54,4 +54,11 @@ export async function listControlledDids(
       displayName: displayNameFromDocument(data.value.document),
     }))
     .sort((left, right) => left.did.localeCompare(right.did));
+}
+
+export function formatDid(did: string): string {
+  const prefix = "did:ckb:";
+  const identifier = did.startsWith(prefix) ? did.slice(prefix.length) : did;
+  if (identifier.length <= 18) return did;
+  return `${did.startsWith(prefix) ? prefix : ""}${identifier.slice(0, 8)}…${identifier.slice(-6)}`;
 }

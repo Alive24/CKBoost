@@ -4,6 +4,7 @@ import { PointsBalance } from "./points-balance";
 
 const DID = "did:ckb:tlitp7j8exampleidentity";
 const SECOND_DID = "did:ckb:tlitp7j8secondidentity";
+const PREFERRED_DID = "did:ckb:omdrzidnxy3lrdrwc6bo4sll6zljhuar";
 const DISPLAY_NAME = "Vellum Builder";
 const PROTOCOL_TYPE_HASH = `0x${"11".repeat(32)}`;
 const LOCK_HASH = `0x${"22".repeat(32)}`;
@@ -13,6 +14,7 @@ const mockClaimPointsBatch = jest.fn();
 const mockListControlledDids = jest.fn();
 const mockRegisterQuestClaimIssuance = jest.fn();
 const mockToast = jest.fn();
+let mockCurrentUserData: unknown = null;
 
 const mockLockScript = {
   args: "0x01",
@@ -59,6 +61,10 @@ jest.mock("@/lib/providers/protocol-provider", () => ({
       cellOutput: { type: { hash: () => PROTOCOL_TYPE_HASH } },
     },
   }),
+}));
+
+jest.mock("@/lib/providers/user-provider", () => ({
+  useUser: () => ({ currentUserData: mockCurrentUserData }),
 }));
 
 jest.mock("@/lib/ckb/points-balance", () => ({
@@ -122,6 +128,7 @@ jest.mock("@/lib/pending-transactions", () => ({
 jest.mock("@/lib/vellum/dids", () => ({
   listControlledDids: (...args: unknown[]) =>
     mockListControlledDids(...args),
+  formatDid: (did: string) => `${did.slice(0, 16)}…${did.slice(-6)}`,
 }));
 
 jest.mock("@/lib/vellum/quest-claim-queue", () => ({
@@ -151,6 +158,7 @@ afterAll(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCurrentUserData = null;
   mockClaimPointsBatch.mockResolvedValue(REWARD_TX_HASH);
   mockListControlledDids.mockResolvedValue([
     { did: DID, displayName: DISPLAY_NAME },
@@ -231,6 +239,37 @@ test("selecting a named identity submits its full DID", async () => {
     expect(mockRegisterQuestClaimIssuance).toHaveBeenCalledWith(
       REWARD_TX_HASH,
       SECOND_DID,
+    ),
+  );
+});
+
+test("preselects the preferred DID stored on the CKBoost user", async () => {
+  mockCurrentUserData = {
+    verification_data: {
+      identity_verification_data: JSON.stringify([
+        {
+          source: "did",
+          data: { did: PREFERRED_DID, displayName: "Preferred Builder" },
+        },
+      ]),
+    },
+  };
+  mockListControlledDids.mockResolvedValue([
+    { did: DID, displayName: DISPLAY_NAME },
+    { did: PREFERRED_DID, displayName: "Preferred Builder" },
+  ]);
+  await openPortableClaimDialog();
+
+  fireEvent.click(
+    screen.getByRole("button", {
+      name: "Claim rewards and issue portable claim",
+    }),
+  );
+
+  await waitFor(() =>
+    expect(mockRegisterQuestClaimIssuance).toHaveBeenCalledWith(
+      REWARD_TX_HASH,
+      PREFERRED_DID,
     ),
   );
 });

@@ -3,9 +3,17 @@ import { AuthDataValidator } from "@telegram-auth/server";
 import type { TelegramUserData } from "@telegram-auth/server";
 import { urlStrToAuthDataMap } from "@telegram-auth/server/utils";
 import { ccc } from "@ckb-ccc/shell";
+import { ccc as didCcc } from "@ckb-ccc/core";
 import { deploymentManager } from "@/lib/ckb/deployment-manager";
-import { VerificationDataEntries } from "@/lib/types/identity";
-import { TelegramVerificationData } from "../../lib/types/identity";
+import type {
+  DidVerificationData,
+  TelegramVerificationData,
+  VerificationDataEntries,
+} from "@/lib/types/identity";
+import {
+  hasMatchingVerificationEntry,
+  isTelegramBindingConsistent,
+} from "@/lib/identity/verification-data";
 import { bytesFrom } from "../../../../ccc/packages/core/src/bytes/index";
 import { stringify } from "../../../../ccc/packages/core/src/utils/index";
 import { createLogger } from "@/netlify/lib/log";
@@ -20,6 +28,7 @@ import {
   normalizeUserData,
 } from "@/netlify/lib/user-data";
 import { ensureFieldRestrictions } from "@/netlify/lib/utils";
+import { validateDidVerification } from "@/netlify/lib/did-verification";
 
 const validatorLogger = createLogger("telegram-authenticate:validate");
 
@@ -52,12 +61,6 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
-    if (!botToken) {
-      logger.error("config_error", { botTokenPresent: !!botToken });
-      return { statusCode: 500, body: "Missing TELEGRAM_BOT_TOKEN" };
-    }
-
     let tx;
     try {
       tx = ccc.Transaction.fromBytes(event.body as ccc.Hex);
@@ -92,6 +95,11 @@ export const handler: Handler = async (event) => {
       };
     }
     const client = new ccc.ClientPublicTestnet({ url: rpcUrl });
+    const didClient = new didCcc.ClientPublicTestnet({
+      url: rpcUrl,
+      fallbacks: [],
+      timeout: 10_000,
+    });
     const serverSigner = new ccc.SignerCkbPrivateKey(
       client,
       serverKey as ccc.Hex
@@ -152,7 +160,11 @@ export const handler: Handler = async (event) => {
       if (!s || !s.trim()) {
         userVerificationDataArray = [];
       } else {
-        userVerificationDataArray = JSON.parse(s) as VerificationDataEntries[];
+        const parsed = JSON.parse(s) as unknown;
+        if (!Array.isArray(parsed)) {
+          throw new Error("Identity verification data must be an array");
+        }
+        userVerificationDataArray = parsed as VerificationDataEntries[];
       }
       logger.log(
         "user_verification_data_array",
@@ -178,10 +190,13 @@ export const handler: Handler = async (event) => {
       userTypeCodeHash: userCellCodeHash,
       expectedLockHash: expectedUserLockHash,
     });
+    let previousIdentityData: unknown;
 
     if (userCellInput) {
       try {
         const previousUserData = decodeUserData(userCellInput.outputData);
+        previousIdentityData =
+          previousUserData.verification_data.identity_verification_data;
         const normalizedPrevious = normalizeUserData(previousUserData);
         const normalizedNext = normalizeUserData(userData);
         ensureFieldRestrictions({
@@ -214,17 +229,58 @@ export const handler: Handler = async (event) => {
 
     let invalidated = false;
     try {
+      if (
+        !isTelegramBindingConsistent(
+          userVerificationDataArray,
+          userData.verification_data.telegram_personal_chat_id
+        )
+      ) {
+        throw new Error(
+          "Telegram verification does not match the bound chat ID"
+        );
+      }
+      const seenSources = new Set<string>();
       for (const verificationData of userVerificationDataArray) {
+        if (
+          !verificationData ||
+          typeof verificationData.source !== "string" ||
+          !verificationData.data ||
+          typeof verificationData.data !== "object"
+        ) {
+          throw new Error("Malformed identity verification entry");
+        }
+        if (seenSources.has(verificationData.source)) {
+          throw new Error(
+            `Duplicate verification source: ${verificationData.source}`
+          );
+        }
+        seenSources.add(verificationData.source);
         logger.info("validating verification data", {
           source: verificationData.source,
-          data: verificationData.data,
         });
         switch (verificationData.source) {
-          case "telegram":
+          case "telegram": {
+            if (
+              previousIdentityData &&
+              hasMatchingVerificationEntry(
+                previousIdentityData,
+                verificationData
+              )
+            ) {
+              break;
+            }
             const telegramVerificationData =
               verificationData.data as TelegramVerificationData;
             const url = `https://feature-identity-verification--ckboost.netlify.app/identity?id=${telegramVerificationData.id}&first_name=${telegramVerificationData.first_name}&username=${telegramVerificationData.username}&photo_url=${telegramVerificationData.photo_url}&auth_date=${telegramVerificationData.auth_date}&hash=${telegramVerificationData.hash}`;
             await validateTelegramAuth(url);
+            break;
+          }
+          case "did":
+            await validateDidVerification({
+              client: didClient,
+              userLock: userCellOutput.cellOutput.lock,
+              data: verificationData.data as DidVerificationData,
+            });
             break;
           default:
             throw new Error(
@@ -324,8 +380,12 @@ export const handler: Handler = async (event) => {
 };
 
 async function validateTelegramAuth(url: string) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (!botToken) {
+    throw new Error("Missing TELEGRAM_BOT_TOKEN");
+  }
   const validator = new AuthDataValidator({
-    botToken: process.env.TELEGRAM_BOT_TOKEN as string,
+    botToken,
     // inValidateDataAfter: ttl,
   });
   let user: TelegramUserData & { auth_date?: number | string };

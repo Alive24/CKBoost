@@ -53,11 +53,15 @@ import {
   type ControlledDid,
 } from "@/lib/vellum/dids";
 import { registerQuestClaimIssuance } from "@/lib/vellum/quest-claim-queue";
+import { useUser } from "@/lib/providers/user-provider";
+import { getDidVerificationData } from "@/lib/identity/verification-data";
+import { DidIdentityLabel } from "@/components/identity/DidIdentityLabel";
 
 const log = createScopedLogger("PointsBalance");
 
 export function PointsBalance() {
   const { protocolCell, isAdmin } = useProtocol();
+  const { currentUserData } = useUser();
   const signer = ccc.useSigner();
   const { client } = ccc.useCcc();
   const { toast } = useToast();
@@ -82,6 +86,9 @@ export function PointsBalance() {
   const [controlledDids, setControlledDids] = useState<ControlledDid[]>([]);
   const [selectedDid, setSelectedDid] = useState("");
   const mountedRef = useRef(true);
+  const preferredDid = getDidVerificationData(
+    currentUserData?.verification_data?.identity_verification_data,
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -491,7 +498,11 @@ export function PointsBalance() {
         args: address.script.args,
       });
       setControlledDids(dids);
-      setSelectedDid(dids[0]?.did ?? "");
+      setSelectedDid(
+        dids.find(({ did }) => did === preferredDid?.did)?.did ??
+          dids[0]?.did ??
+          "",
+      );
       setDidDialogOpen(true);
     } catch (error) {
       setControlledDids([]);
@@ -505,7 +516,7 @@ export function PointsBalance() {
     } finally {
       if (mountedRef.current) setDidLoading(false);
     }
-  }, [claimablePool, handleClaim, signer]);
+  }, [claimablePool, handleClaim, preferredDid?.did, signer]);
 
   const claimRewardsOnly = useCallback(() => {
     setDidDialogOpen(false);
@@ -920,36 +931,6 @@ export function PointsBalance() {
       </Dialog>
     </div>
   );
-}
-
-function DidIdentityLabel({ identity }: { identity: ControlledDid }) {
-  return (
-    <span className="flex w-full min-w-0 flex-col items-start gap-0.5 text-left leading-tight">
-      {identity.displayName && (
-        <span className="max-w-full truncate font-medium text-foreground">
-          {identity.displayName}
-        </span>
-      )}
-      <span
-        className={cn(
-          "max-w-full truncate font-mono text-xs",
-          identity.displayName ? "text-muted-foreground" : "text-foreground",
-        )}
-        title={identity.did}
-        aria-label={identity.did}
-      >
-        {formatDid(identity.did)}
-      </span>
-    </span>
-  );
-}
-
-function formatDid(did: string): string {
-  const prefix = "did:ckb:";
-  const identifier = did.startsWith(prefix) ? did.slice(prefix.length) : did;
-  if (identifier.length <= 18) return did;
-  const visiblePrefix = did.startsWith(prefix) ? prefix : "";
-  return `${visiblePrefix}${identifier.slice(0, 8)}…${identifier.slice(-6)}`;
 }
 
 function parseBonusAmount(bonus: BonusStreakCalculation | null): bigint {

@@ -59,6 +59,7 @@ export interface KycVerificationData {
 // DID
 export interface DidVerificationData {
   did: string;
+  displayName?: string;
   credentialJWT?: string;
   issuer?: string;
   verifiedAt?: number; // epoch seconds
@@ -79,3 +80,20 @@ export type VerificationData =
   | KycVerificationData
   | DidVerificationData
   | ManualVerificationData;
+
+export interface VerificationStatus {
+  telegram: boolean;
+  twitter: boolean;
+  discord: boolean;
+  reddit: boolean;
+  kyc: boolean;
+  did: boolean;
+  manual_review: boolean;
+  verification_flags: number;
+  telegram_data?: {
+    username: string;
+    chat_id: string;
+    verified_at: number;
+  };
+  did_data?: DidVerificationData;
+}

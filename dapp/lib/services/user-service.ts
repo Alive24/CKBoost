@@ -17,7 +17,12 @@ import {
 import { deploymentManager } from "../ckb/deployment-manager";
 import { UserData, UserDataLike } from "ssri-ckboost/types";
 import { fetchProtocolCell } from "../ckb/protocol-cells";
-import { TelegramVerificationData } from "../types/identity";
+import type {
+  DidVerificationData,
+  TelegramVerificationData,
+  VerificationDataEntries,
+  VerificationStatus,
+} from "../types/identity";
 import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
 import { injectProxyAuthenticationCell } from "../utils/api";
 import { createScopedLogger } from "ssri-ckboost";
@@ -28,8 +33,28 @@ import {
   removeQuestSubmissionRecords,
   submissionRecordMatchesQuest,
 } from "../user-submission-records";
+import {
+  decodeVerificationEntries,
+  deriveVerificationFlags,
+  getDidVerificationData,
+  getTelegramVerificationData,
+  normalizeDidVerificationData,
+  upsertVerificationEntry,
+} from "../identity/verification-data";
+import { listControlledDids } from "../vellum/dids";
 
 const log = createScopedLogger("UserService");
+
+const emptyVerificationStatus = (): VerificationStatus => ({
+  telegram: false,
+  twitter: false,
+  discord: false,
+  reddit: false,
+  kyc: false,
+  did: false,
+  manual_review: false,
+  verification_flags: 0,
+});
 
 export type ClaimPointsOptions = {
   pointsInputCell?: ccc.Cell;
@@ -138,13 +163,8 @@ export class UserService {
     return null;
   }
 
-  /**
-   * Send a transaction with signature for proxy authentication. Use this here instead of sendTransactionWithFeeRetry.
-   * At the moment we only support telegram.
-   * @param baseDraftTx - The base transaction to request signature for
-   * @returns The authenticated transaction hash
-   */
-  private async sendTransactionWithSignatureForProxyAuthentication(
+  /** Request the CKBoost identity attestation before the wallet signs. */
+  private async sendTransactionWithIdentityAttestation(
     signer: ccc.Signer,
     baseDraftTx: ccc.Transaction
   ): Promise<ccc.Hex> {
@@ -192,8 +212,17 @@ export class UserService {
       body: ccc.hexFrom(baseDraftTx.toBytes()),
     });
     if (!resp.ok) {
-      log.error("Telegram validation failed at server");
-      throw new Error("Telegram validation failed at server");
+      let message = "CKBoost rejected the identity update.";
+      try {
+        const errorResponse = (await resp.json()) as { message?: unknown };
+        if (typeof errorResponse.message === "string") {
+          message = errorResponse.message;
+        }
+      } catch {
+        // Keep the stable message when the function did not return JSON.
+      }
+      log.error("Identity validation failed at server", { message });
+      throw new Error(message);
     }
     const responseJson = await resp.json();
     log.info("response from telegram-authenticate", responseJson);
@@ -229,7 +258,7 @@ export class UserService {
     log.log("authenticatedTx after signing", ccc.stringify(authenticatedTx));
     const txHash = await signer.sendTransaction(authenticatedTx);
     registerPendingTransaction(txHash, {
-      label: "Proxy authenticated update",
+      label: "Identity update",
       context: "UserService",
     });
     return txHash;
@@ -1148,7 +1177,7 @@ export class UserService {
     });
 
     const txHash =
-      await this.sendTransactionWithSignatureForProxyAuthentication(
+      await this.sendTransactionWithIdentityAttestation(
         this.signer,
         createTx
       );
@@ -1294,7 +1323,7 @@ export class UserService {
     updateTx.addCellDeps({ outPoint: protocolCell.outPoint, depType: "code" });
 
     const txHash =
-      await this.sendTransactionWithSignatureForProxyAuthentication(
+      await this.sendTransactionWithIdentityAttestation(
         this.signer,
         updateTx
       );
@@ -1673,7 +1702,7 @@ export class UserService {
     updateTx.addCellDeps({ outPoint: protocolCell.outPoint, depType: "code" });
 
     const txHash =
-      await this.sendTransactionWithSignatureForProxyAuthentication(
+      await this.sendTransactionWithIdentityAttestation(
         this.signer,
         updateTx
       );
@@ -1686,170 +1715,108 @@ export class UserService {
     return txHash;
   }
 
+  private async upsertIdentityVerificationEntry(
+    entry: VerificationDataEntries,
+    telegramPersonalChatId?: string | number
+  ): Promise<ccc.Hex> {
+    await this.ensureDeploymentInfo();
+
+    const lockScript = (await this.signer.getRecommendedAddressObj()).script;
+    const existingUser = await this.getUserByLockHash(lockScript.hash());
+    if (!existingUser?.typeId) {
+      return this.createUserWithVerification({
+        telegram_personal_chat_id: telegramPersonalChatId ?? 0n,
+        identity_verification_data: ccc.bytesFrom(
+          JSON.stringify([entry]),
+          "utf8"
+        ),
+      });
+    }
+
+    const userCell = await fetchUserByTypeId(
+      existingUser.typeId,
+      this.userTypeCodeHash,
+      this.signer,
+      this.protocolTypeHash
+    );
+    if (!userCell) {
+      throw new Error("User cell not found");
+    }
+
+    const currentUserData = parseUserData(userCell);
+    if (!currentUserData) {
+      throw new Error("Failed to parse user data");
+    }
+
+    const entries = upsertVerificationEntry(
+      decodeVerificationEntries(
+        currentUserData.verification_data.identity_verification_data
+      ),
+      entry
+    );
+    return this.updateVerificationData({
+      telegram_personal_chat_id:
+        telegramPersonalChatId ??
+        currentUserData.verification_data.telegram_personal_chat_id,
+      identity_verification_data: ccc.bytesFrom(
+        JSON.stringify(entries),
+        "utf8"
+      ),
+    });
+  }
+
   /**
    * Update user verification data (Telegram)
    */
   async updateTelegramVerification(
     telegramVerificationData: TelegramVerificationData
   ): Promise<ccc.Hex> {
-    // Ensure deployment info is loaded
-    await this.ensureDeploymentInfo();
-
-    // Get current user
-    const lockScript = (await this.signer.getRecommendedAddressObj()).script;
-    const lockHash = lockScript.hash();
-    const existingUserData = await this.getUserByLockHash(lockHash);
-
-    if (!existingUserData || !existingUserData.typeId) {
-      const identity_verification_data = [
-        {
-          source: "telegram",
-          data: telegramVerificationData,
-        },
-      ];
-      log.log("No user found for Telegram verification, creating one");
-      return this.createUserWithVerification({
-        telegram_personal_chat_id: telegramVerificationData.id,
-        identity_verification_data: ccc.bytesFrom(
-          JSON.stringify(identity_verification_data),
-          "utf8"
-        ),
-      });
-    }
-
-    // Fetch current user cell
-    const userCell = await fetchUserByTypeId(
-      existingUserData.typeId,
-      this.userTypeCodeHash,
-      this.signer,
-      this.protocolTypeHash
+    return this.upsertIdentityVerificationEntry(
+      { source: "telegram", data: telegramVerificationData },
+      telegramVerificationData.id
     );
+  }
 
-    if (!userCell) {
-      throw new Error("User cell not found");
+  async updateDidVerification(
+    didVerificationData: DidVerificationData
+  ): Promise<ccc.Hex> {
+    const requested = normalizeDidVerificationData(didVerificationData);
+    if (!requested) {
+      throw new Error("Select a valid did:ckb identity");
     }
 
-    // Parse current user data
-    const currentUserData = parseUserData(userCell);
-    if (!currentUserData) {
-      throw new Error("Failed to parse user data");
-    }
-
-    // Create updated identity verification JSON
-    const currentIdentityVerificationData =
-      currentUserData.verification_data.identity_verification_data;
-    const currentIdentityVerificationDataString = ccc.bytesTo(
-      currentIdentityVerificationData,
-      "utf8"
-    );
-    log.log("Current identity verification data string", {
-      currentIdentityVerificationDataString,
+    const lock = (await this.signer.getRecommendedAddressObj()).script;
+    const controlledDids = await listControlledDids({
+      codeHash: lock.codeHash,
+      hashType: lock.hashType,
+      args: lock.args,
     });
-
-    let currentIdentityVerificationDataArray;
-    try {
-      // Try to parse existing identity data as JSON
-      currentIdentityVerificationDataArray = JSON.parse(
-        currentIdentityVerificationDataString
+    const controlled = controlledDids.find(({ did }) => did === requested.did);
+    if (!controlled) {
+      throw new Error(
+        "The selected did:ckb identity is not controlled by this wallet"
       );
-      log.log("Existing identity data parsed", {
-        currentIdentityVerificationDataArray,
-      });
-      if (!Array.isArray(currentIdentityVerificationDataArray)) {
-        log.log("Existing identity data is not an array, creating new");
-        currentIdentityVerificationDataArray = [];
-      }
-    } catch {
-      // If parsing fails, start with empty object
-      log.log("No existing identity data found, creating new");
-      currentIdentityVerificationDataArray = [];
     }
 
-    // Deduplicate by source: remove any existing entries with the same source
-    const sourceToUpdate = "telegram";
-    currentIdentityVerificationDataArray =
-      currentIdentityVerificationDataArray.filter(
-        (entry: { source: string }) => entry.source !== sourceToUpdate
-      );
-    log.log("Removed existing entries for source", {
-      source: sourceToUpdate,
-      remainingEntries: currentIdentityVerificationDataArray.length,
+    return this.upsertIdentityVerificationEntry({
+      source: "did",
+      data: controlled,
     });
-
-    // Add the new verification data
-    currentIdentityVerificationDataArray.push({
-      source: sourceToUpdate,
-      data: telegramVerificationData,
-    });
-
-    // Create updated identity verification JSON
-    const updatedIdentityVerificationDataArrayBytes = ccc.bytesFrom(
-      JSON.stringify(currentIdentityVerificationDataArray),
-      "utf8"
-    );
-    const updatedIdentityVerificationDataLike = {
-      telegram_personal_chat_id: telegramVerificationData.id,
-      identity_verification_data: updatedIdentityVerificationDataArrayBytes,
-    };
-
-    // Get the base for draftTx from SSRI
-    if (!this.userInstance) {
-      const executorUrl =
-        process.env.NEXT_PUBLIC_SSRI_EXECUTOR_URL || "http://localhost:9090";
-      const executor = new ssri.ExecutorJsonRpc(executorUrl);
-      const userInstanceWithScript = new ckboost.User(
-        this.userTypeCodeCell!,
-        ccc.Script.from({
-          codeHash: this.userTypeCodeHash,
-          hashType: "type",
-          args: userCell.cellOutput.type?.args || "",
-        }),
-        { executor } // Pass the executor in config
-      );
-      this.userInstance = userInstanceWithScript;
-    }
-    const txHash = await this.updateVerificationData(
-      updatedIdentityVerificationDataLike
-    );
-
-    return txHash;
   }
 
   /**
    * Get user verification status
    */
-  async getUserVerificationStatus(userTypeId?: ccc.Hex | null): Promise<{
-    telegram: boolean;
-    twitter: boolean;
-    discord: boolean;
-    reddit: boolean;
-    kyc: boolean;
-    did: boolean;
-    manual_review: boolean;
-    verification_flags: number;
-    telegram_data?: {
-      username: string;
-      chat_id: string;
-      verified_at: number;
-    };
-  }> {
+  async getUserVerificationStatus(
+    userTypeId?: ccc.Hex | null
+  ): Promise<VerificationStatus> {
     let targetTypeId = userTypeId;
 
     if (!targetTypeId) {
       // Get current user's type ID
       targetTypeId = await this.getCurrentUserTypeId();
       if (!targetTypeId) {
-        // Return empty verification status if user doesn't exist
-        return {
-          telegram: false,
-          twitter: false,
-          discord: false,
-          reddit: false,
-          kyc: false,
-          did: false,
-          manual_review: false,
-          verification_flags: 0,
-        };
+        return emptyVerificationStatus();
       }
     }
 
@@ -1861,43 +1828,18 @@ export class UserService {
     );
 
     if (!userCell) {
-      return {
-        telegram: false,
-        twitter: false,
-        discord: false,
-        reddit: false,
-        kyc: false,
-        did: false,
-        manual_review: false,
-        verification_flags: 0,
-      };
+      return emptyVerificationStatus();
     }
 
     const userData = parseUserData(userCell);
     if (!userData) {
-      return {
-        telegram: false,
-        twitter: false,
-        discord: false,
-        reddit: false,
-        kyc: false,
-        did: false,
-        manual_review: false,
-        verification_flags: 0,
-      };
+      return emptyVerificationStatus();
     }
 
-    // Parse identity verification data
-    let identityData;
-    try {
-      const identityString = Buffer.from(
-        userData.verification_data.identity_verification_data
-      ).toString("utf8");
-      identityData = JSON.parse(identityString);
-    } catch {
-      log.log("Failed to parse identity verification data");
-      identityData = {};
-    }
+    const identityData =
+      userData.verification_data.identity_verification_data;
+    const storedDid = getDidVerificationData(identityData);
+    const telegramData = getTelegramVerificationData(identityData);
 
     // Determine Telegram binding strictly from telegram_personal_chat_id
     const chatId = userData.verification_data
@@ -1907,8 +1849,7 @@ export class UserService {
         ? (chatId as bigint) > 0n
         : !!chatId && Number(chatId) > 0;
 
-    // Start from stored flags (if any), but force-sync telegram bit with chat_id presence
-    let verificationFlags = identityData.verification_flags || 0;
+    let verificationFlags = deriveVerificationFlags(identityData);
     const VERIFICATION_TELEGRAM = 1;
     if (telegramBound) {
       verificationFlags = verificationFlags | VERIFICATION_TELEGRAM;
@@ -1924,26 +1865,47 @@ export class UserService {
     const VERIFICATION_DISCORD = 32;
     const VERIFICATION_REDDIT = 64;
 
-    const status = {
+    let didControlled = false;
+    let currentDid = storedDid;
+    if (storedDid) {
+      try {
+        const controlledDids = await listControlledDids({
+          codeHash: userCell.cellOutput.lock.codeHash,
+          hashType: userCell.cellOutput.lock.hashType,
+          args: userCell.cellOutput.lock.args,
+        });
+        const controlled = controlledDids.find(
+          ({ did }) => did === storedDid.did
+        );
+        if (controlled) {
+          didControlled = true;
+          currentDid = controlled;
+        }
+      } catch (error) {
+        log.warn("Failed to confirm preferred DID control", error);
+      }
+    }
+    if (!didControlled) {
+      verificationFlags = verificationFlags & ~VERIFICATION_DID;
+    }
+
+    const status: VerificationStatus = {
       telegram: telegramBound,
       twitter: (verificationFlags & VERIFICATION_TWITTER) !== 0,
       discord: (verificationFlags & VERIFICATION_DISCORD) !== 0,
       reddit: (verificationFlags & VERIFICATION_REDDIT) !== 0,
       kyc: (verificationFlags & VERIFICATION_KYC) !== 0,
-      did: (verificationFlags & VERIFICATION_DID) !== 0,
+      did: didControlled,
       manual_review: (verificationFlags & VERIFICATION_MANUAL) !== 0,
       verification_flags: verificationFlags,
+      did_data: currentDid,
     };
 
-    // Add Telegram-specific data if available
-    if (status.telegram && identityData.telegram) {
-      return {
-        ...status,
-        telegram_data: {
-          username: identityData.telegram.username,
-          chat_id: identityData.telegram.chat_id,
-          verified_at: identityData.telegram.verified_at,
-        },
+    if (status.telegram && telegramData) {
+      status.telegram_data = {
+        username: telegramData.username ?? "",
+        chat_id: String(telegramData.id),
+        verified_at: Number(telegramData.auth_date ?? 0),
       };
     }
 
