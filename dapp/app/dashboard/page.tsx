@@ -46,6 +46,8 @@ import { udtRegistry } from "@/lib/services/udt-registry";
 import { extractIdentityDisplayName } from "@/lib/utils/identity";
 import { getLatestDisplayName } from "@/lib/profile/profile-data";
 import { PageLoading } from "@/components/ui/page-loading";
+import { getDidVerificationData } from "@/lib/identity/verification-data";
+import { formatDid } from "@/lib/vellum/dids";
 
 const log = createScopedLogger("DashboardPage");
 
@@ -234,6 +236,15 @@ export default function Dashboard() {
   const [tokenBalancesLoading, setTokenBalancesLoading] = useState(false);
 
   const displayName = useMemo(() => {
+    const preferredDid = getDidVerificationData(
+      currentUserData?.verification_data?.identity_verification_data,
+    );
+    if (preferredDid?.displayName) {
+      return preferredDid.displayName;
+    }
+    if (preferredDid?.did) {
+      return formatDid(preferredDid.did);
+    }
     const profileName = getLatestDisplayName(currentUserData?.profile_data);
     if (profileName) {
       return profileName;

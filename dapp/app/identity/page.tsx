@@ -2,7 +2,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";import { useVerification } from "@/lib/hooks/use-verification";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useVerification } from "@/lib/hooks/use-verification";
 import { ccc } from "@ckb-ccc/connector-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +27,7 @@ import {
 import { StatusAlert } from "@/components/identity/StatusAlert";
 import { TelegramWidgetSection } from "@/components/identity/TelegramWidgetSection";
 import { VerificationMethodCard } from "@/components/identity/VerificationMethodCard";
+import { DidBindingCard } from "@/components/identity/DidBindingCard";
 import { TelegramVerificationData } from "@/lib/types/identity";
 import { useUser } from "@/lib/providers/user-provider";
 import { createScopedLogger } from "ssri-ckboost";
@@ -89,18 +91,13 @@ const VERIFICATION_METHODS = [
   },
   {
     id: "did",
-    name: "DID Verification",
-    description:
-      "Use Decentralized Identity for privacy-preserving verification",
+    name: "Vellum DID",
+    description: "Connect a preferred did:ckb identity to your CKBoost profile",
     icon: Fingerprint,
-    difficulty: "Advanced",
-    timeEstimate: "5-15 minutes",
-    requirements: [
-      "DID wallet",
-      "Verifiable credentials",
-      "Technical knowledge",
-    ],
-    status: "coming_soon",
+    difficulty: "Easy",
+    timeEstimate: "2-5 minutes",
+    requirements: ["Active Vellum DID", "Controller wallet"],
+    status: "available",
   },
   {
     id: "manual",
@@ -428,6 +425,17 @@ export default function VerifyIdentity() {
                 {VERIFICATION_METHODS.filter((m) =>
                   ["telegram", "kyc", "did", "manual"].includes(m.id)
                 ).map((method) => {
+                  if (method.id === "did") {
+                    return (
+                      <DidBindingCard
+                        key={method.id}
+                        currentDid={verificationStatus?.did_data}
+                        isVerified={verificationStatus?.did ?? false}
+                        isStatusLoading={isLoading}
+                        onUpdated={loadVerificationStatus}
+                      />
+                    );
+                  }
                   const isSelected =
                     selectedMethod === method.id ||
                     (isSubmitting && selectedMethod === method.id) ||

@@ -47,6 +47,8 @@ import { useProtocol } from "@/lib/providers/protocol-provider";
 import { deploymentManager } from "@/lib/ckb/deployment-manager";
 import { fetchTippingByTypeId } from "@/lib/ckb/tipping-cells";
 import { getLatestDisplayName } from "@/lib/profile/profile-data";
+import { getDidVerificationData } from "@/lib/identity/verification-data";
+import { formatDid } from "@/lib/vellum/dids";
 
 const log = createScopedLogger("ProfileContent");
 
@@ -449,11 +451,6 @@ export function ProfileContent({
   const [pendingDisplayName, setPendingDisplayName] = useState("");
   const [isSavingDisplayName, setIsSavingDisplayName] = useState(false);
   const [displayNameError, setDisplayNameError] = useState<string | null>(null);
-  const canEditDisplayName =
-    context === "self" &&
-    typeof onDisplayNameChange === "function" &&
-    !!userData;
-
   const campaignMap = useMemo(() => {
     const map = new Map<
       string,
@@ -557,7 +554,27 @@ export function ProfileContent({
     [userData?.profile_data],
   );
 
+  const preferredDid = useMemo(
+    () =>
+      getDidVerificationData(
+        userData?.verification_data?.identity_verification_data,
+      ),
+    [userData?.verification_data?.identity_verification_data],
+  );
+
+  const canEditDisplayName =
+    context === "self" &&
+    typeof onDisplayNameChange === "function" &&
+    !!userData &&
+    !preferredDid;
+
   const displayName = useMemo(() => {
+    if (preferredDid?.displayName) {
+      return preferredDid.displayName;
+    }
+    if (preferredDid?.did) {
+      return formatDid(preferredDid.did);
+    }
     if (profileDisplayName) {
       return profileDisplayName;
     }
@@ -574,17 +591,24 @@ export function ProfileContent({
       return userTypeId;
     }
     return "Unknown user";
-  }, [profileDisplayName, normalizedFallbackAddress, userData, userTypeId]);
+  }, [
+    preferredDid,
+    profileDisplayName,
+    normalizedFallbackAddress,
+    userData,
+    userTypeId,
+  ]);
 
   const secondaryIdentifier = useMemo(() => {
     const candidate =
-      normalizedFallbackAddress && normalizedFallbackAddress.trim().length > 0
+      preferredDid?.did ??
+      (normalizedFallbackAddress && normalizedFallbackAddress.trim().length > 0
         ? normalizedFallbackAddress
-        : (userTypeId ?? null);
+        : (userTypeId ?? null));
     if (!candidate) return null;
     if (candidate === displayName) return null;
     return candidate;
-  }, [displayName, normalizedFallbackAddress, userTypeId]);
+  }, [displayName, normalizedFallbackAddress, preferredDid?.did, userTypeId]);
 
   useEffect(() => {
     if (!canEditDisplayName || isEditDialogOpen) {

@@ -3,22 +3,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useUser } from "../providers/user-provider";
 import { useProtocol } from "../providers/protocol-provider";
 import { createScopedLogger } from "ssri-ckboost";
+import type { VerificationStatus } from "../types/identity";
 
-export interface VerificationStatus {
-  telegram: boolean;
-  twitter: boolean;
-  discord: boolean;
-  reddit: boolean;
-  kyc: boolean;
-  did: boolean;
-  manual_review: boolean;
-  verification_flags: number;
-  telegram_data?: {
-    username: string;
-    chat_id: string;
-    verified_at: number;
-  };
-}
+export type { VerificationStatus } from "../types/identity";
 
 
 const log = createScopedLogger("useVerification");
