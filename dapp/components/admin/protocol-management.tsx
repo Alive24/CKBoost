@@ -321,6 +321,8 @@ export function ProtocolManagement() {
     useState<ProtocolChanges | null>(null);
   const [previewLockHash, setPreviewLockHash] = useState<string>("");
   const [showConfirmationDialog, setShowConfirmationDialog] = useState(false);
+  const updateInFlight = useRef(false);
+  const [isSubmittingUpdate, setIsSubmittingUpdate] = useState(false);
 
   // State for manual outpoint loading
   const [showOutpointDialog, setShowOutpointDialog] = useState(false);
@@ -1085,6 +1087,7 @@ export function ProtocolManagement() {
   };
 
   const onUpdate = () => {
+    if (updateInFlight.current) return;
     log.info("onUpdate called", {
       isWalletConnected,
       protocolChanges: !!protocolChanges,
@@ -1134,6 +1137,11 @@ export function ProtocolManagement() {
   };
 
   const confirmUpdate = async () => {
+    // Set the ref before the first await: React state alone does not prevent
+    // two confirmations dispatched before the next render.
+    if (updateInFlight.current) return;
+    updateInFlight.current = true;
+    setIsSubmittingUpdate(true);
     try {
       if (!protocolData) {
         throw new Error("Protocol data not loaded");
@@ -1141,7 +1149,7 @@ export function ProtocolManagement() {
 
       const updatedData = {
         ...protocolData,
-        last_updated: BigInt(Date.now()),
+        last_updated: BigInt(Math.floor(Date.now() / 1000)),
         // Override with properly formatted changes
       } as unknown as ProtocolDataLike;
 
@@ -1218,8 +1226,20 @@ export function ProtocolManagement() {
       setShowConfirmationDialog(false);
     } catch (error) {
       log.error("Failed to batch update protocol:", error);
-      alert("Failed to update protocol: " + (error as Error).message);
+      const message = error instanceof Error ? error.message : String(error);
+      if (/RBFRejected|PoolRejectedRBF|replace old txs/i.test(message)) {
+        alert(
+          "This update conflicted with an existing transaction (RBF rejection). " +
+            "Refresh protocol data and check the earlier transaction before signing again. " +
+            "The earlier update may already have been submitted or confirmed."
+        );
+      } else {
+        alert("Failed to update protocol: " + message);
+      }
       setShowConfirmationDialog(false);
+    } finally {
+      updateInFlight.current = false;
+      setIsSubmittingUpdate(false);
     }
   };
 
@@ -1514,7 +1534,7 @@ export function ProtocolManagement() {
       const deploymentParams: ProtocolDataLike = {
         campaigns_approved: [],
         tippings_approved: [],
-        last_updated: ccc.numFrom(Date.now()),
+        last_updated: ccc.numFrom(Math.floor(Date.now() / 1000)),
         tipping_config: tippingConfigValues,
         endorsers_whitelist: pendingEndorserChanges.toAdd.map((endorser) => ({
           endorser_lock_hash: endorser.endorser_lock_hash,
@@ -1664,17 +1684,18 @@ export function ProtocolManagement() {
               <Button
                 onClick={onUpdate}
                 disabled={
-                  !pendingChanges.admins &&
-                  !pendingChanges.scriptCodeHashes &&
-                  !pendingChanges.tippingConfig &&
-                  !pendingChanges.streakConfig &&
-                  !pendingChanges.endorsers &&
-                  !pendingChanges.achievements
+                  isSubmittingUpdate ||
+                  (!pendingChanges.admins &&
+                    !pendingChanges.scriptCodeHashes &&
+                    !pendingChanges.tippingConfig &&
+                    !pendingChanges.streakConfig &&
+                    !pendingChanges.endorsers &&
+                    !pendingChanges.achievements)
                 }
                 className="bg-green-600 hover:bg-green-700"
               >
                 <Save className="h-4 w-4 mr-2" />
-                Save All Changes
+                {isSubmittingUpdate ? "Updating Protocol..." : "Save All Changes"}
               </Button>
               <Button onClick={refreshProtocolData} disabled={isLoading}>
                 <Activity className="h-4 w-4 mr-2" />
@@ -2029,6 +2050,7 @@ export function ProtocolManagement() {
         pendingAdminChanges={pendingAdminChanges}
         pendingEndorserChanges={pendingEndorserChanges}
         onConfirm={confirmUpdate}
+        isSubmitting={isSubmittingUpdate}
       />
     </div>
   );

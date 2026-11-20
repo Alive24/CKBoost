@@ -1,6 +1,6 @@
 import { ccc } from "@ckb-ccc/connector-react";
 import type { EndorserInfoLike } from "ssri-ckboost/types";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 
 const log = createScopedLogger("EndorserResolver");
 

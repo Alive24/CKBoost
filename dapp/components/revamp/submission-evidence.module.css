@@ -1,0 +1,20 @@
+.card { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; padding: 16px; border: 1px solid var(--ckb-border-subtle); border-radius: 8px; background: var(--ckb-background-canvas); color: var(--ckb-text-primary); }
+.card h3 { margin: 0; font-size: 16px; line-height: 24px; font-weight: 700; }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field h4 { margin: 0; font-size: 12px; line-height: 16px; font-weight: 500; }
+.answer { display: block; min-height: 40px; padding: 8px 16px; border: 1px solid var(--ckb-border-subtle); border-radius: 8px; background: var(--ckb-background-subtle); color: var(--ckb-text-secondary); font-size: 14px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.longAnswer { min-height: 60px; }
+.answer a, .event a { color: var(--ckb-text-link); text-decoration: underline; }
+.image { display: block; max-width: 100%; max-height: 320px; object-fit: contain; margin-top: 12px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.muted { color: var(--ckb-text-muted); font-size: 12px; line-height: 16px; margin: 0; }
+.event { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 16px; }
+.event code { font-family: 'CKBoost Mono', monospace; overflow-wrap: anywhere; color: var(--ckb-text-secondary); }
+.eventControls { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.eventControls .reference { flex: 1; min-width: 0; height: 40px; padding: 9px 16px; border: 1px solid var(--ckb-border-subtle); border-radius: 8px; background: var(--ckb-background-subtle); color: var(--ckb-text-muted); font: inherit; font-size: 14px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eventControls a { text-decoration: none; color: inherit; }
+.eventControls .copyButton { width: 48px; flex: 0 0 48px; }
+.eventControls .explorerLink { width: 192px; justify-content: space-between; flex: 0 0 auto; padding-right: 8px; }
+.copyIcon { display: block; width: 16px; height: 16px; background: currentColor; mask: url('/assets/revamp/creation-copy.svg') center / 16px 16px no-repeat; }
+.error { margin: 0; color: var(--ckb-status-error-text); font-size: 14px; line-height: 20px; }
+@media (max-width: 799px) { .eventControls { flex-wrap: wrap; } .eventControls .reference { flex-basis: calc(100% - 56px); } .eventControls .explorerLink { max-width: 100%; } }

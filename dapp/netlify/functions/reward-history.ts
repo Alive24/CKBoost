@@ -3,6 +3,7 @@ import { ccc } from "@ckb-ccc/shell";
 import { deploymentManager } from "@/lib/ckb/deployment-manager";
 import { readUdtAmount } from "@/netlify/lib/streak-bonus";
 import { createLogger } from "@/netlify/lib/log";
+import { getIsolatedProtocolScope } from "@/netlify/lib/isolated-protocol-scope";
 
 type JsonResponse = {
   address: string;
@@ -101,13 +102,14 @@ export const handler: Handler = async (event) => {
   const userLockScript = addressObj.script;
 
   // Determine protocol type hash (args for points UDT)
+  const isolated = getIsolatedProtocolScope();
   const protocolTypeCodeHash =
-    process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
+    isolated?.codeHash ?? process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
   const protocolTypeHashType =
-    (process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE?.trim() ||
+    isolated?.hashType ?? (process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE?.trim() ||
       "type") as ccc.HashType;
   const protocolTypeArgs =
-    process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS?.trim() || "";
+    isolated?.args ?? (process.env.NEXT_PUBLIC_PROTOCOL_TYPE_ARGS?.trim() || "");
 
   if (!protocolTypeCodeHash || !protocolTypeArgs) {
     return {

@@ -5,7 +5,7 @@ import { ccc } from "@ckb-ccc/connector-react";
 import { cccA } from "@ckb-ccc/connector-react/advanced";
 import type { ConnectedTypeIDLike } from "ssri-ckboost/types";
 import { ConnectedTypeID } from "ssri-ckboost/types";
-import { createScopedLogger, createTimer } from "ssri-ckboost";
+import { createScopedLogger, createTimer } from "ssri-ckboost/logging";
 
 const log = createScopedLogger("CampaignCells");
 const timer = createTimer(log);

@@ -18,6 +18,7 @@ import {
   ProxyAdminCellError,
 } from "@/netlify/lib/proxy-admin";
 import { ensureFieldRestrictions } from "@/netlify/lib/utils";
+import { getIsolatedProtocolScope } from "@/netlify/lib/isolated-protocol-scope";
 
 const MAX_RESULTS = 100;
 const DEFAULT_RESULTS = 20;
@@ -297,6 +298,12 @@ const createClient = (network: Network, url: string): ccc.Client => {
 const resolveProtocolTypeScriptFromEnv = ():
   | { script: ccc.Script }
   | { error: string } => {
+  try {
+    const isolated = getIsolatedProtocolScope();
+    if (isolated) return { script: ccc.Script.from(isolated) };
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
   const protocolTypeCodeHash =
     process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
   const protocolTypeHashType =

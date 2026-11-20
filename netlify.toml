@@ -1,6 +1,15 @@
 # Netlify configuration file
 
+# This revamp is under local QA review. Enable previews only after giving them
+# a separate protocol and a reachable SSRI executor, rather than inheriting
+# the existing site's chain configuration. Netlify ignore: exit 0 skips a build.
+[context.deploy-preview]
+  ignore = "exit 0"
+
+[context."codex/ckboost-revamp"]
+  ignore = "exit 0"
+
 [[plugins]]
   # Essential plugin for deploying Next.js sites on Netlify.
   # It automatically configures redirects, serverless functions, and more.
-  package = "@netlify/plugin-nextjs" 
+  package = "@netlify/plugin-nextjs"

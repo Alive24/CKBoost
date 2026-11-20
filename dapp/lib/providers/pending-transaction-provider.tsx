@@ -5,7 +5,7 @@ import {
   PendingTransactionMetadata,
   setPendingTransactionRegistrar,
 } from "@/lib/pending-transactions";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 
 const STORAGE_KEY = "ckboost:pending-transactions";
 const DEFAULT_RPC_URL =

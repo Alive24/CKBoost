@@ -6,6 +6,7 @@ import {
 import claimablePoolDeployments from "../../../contracts/contracts/claimable-pool-lock/deployments.json";
 import { createScopedLogger } from "ssri-ckboost";
 import { deploymentManager, type Network } from "./deployment-manager";
+import { getIsolatedRuntime } from "./isolated-runtime.mjs";
 import { sendTransactionWithFeeRetry } from "./transaction-wrapper";
 import { udtRegistry } from "../services/udt-registry";
 
@@ -64,6 +65,11 @@ export function emptyClaimablePointsSummary(
 export function getClaimablePoolLockDeployment(
   network: Network = deploymentManager.getCurrentNetwork()
 ): ClaimablePoolDeployment | null {
+  const isolated = getIsolatedRuntime();
+  if (isolated) {
+    if (network !== "testnet") throw new Error("Isolated QA cannot read mainnet pool deployments.");
+    return isolated.claimablePool as unknown as ClaimablePoolDeployment;
+  }
   return (
     (claimablePoolDeployments as unknown as {
       current?: Record<string, { claimablePoolLock?: ClaimablePoolDeployment }>;

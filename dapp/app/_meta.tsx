@@ -2,6 +2,9 @@ import { Home, MessageSquare, Target, Trophy } from "lucide-react";
 import React from "react";
 
 export default {
+  revamp: {
+    display: "hidden",
+  },
   index: {
     type: "page",
     display: "hidden",

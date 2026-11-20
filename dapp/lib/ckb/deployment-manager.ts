@@ -3,7 +3,9 @@
 
 import deploymentsData from "../../../deployments.json";
 import { ccc } from "@ckb-ccc/connector-react";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
+import { bindCurrentDeploymentData } from "./current-deployment";
+import { getIsolatedRuntime } from "./isolated-runtime.mjs";
 
 const log = createScopedLogger("DeploymentManager");
 
@@ -79,7 +81,10 @@ export class DeploymentManager {
 
   constructor() {
     // Load deployment data from JSON file
-    this.data = deploymentsData as unknown as DeploymentHistory;
+    const isolated = getIsolatedRuntime();
+    this.data = isolated ? {current:isolated.current,history:{testnet:[],mainnet:[]}} as unknown as DeploymentHistory
+      : deploymentsData as unknown as DeploymentHistory;
+    bindCurrentDeploymentData(this.data.current);
   }
 
   /**
@@ -89,6 +94,7 @@ export class DeploymentManager {
     network: Network,
     contractType: ContractType
   ): DeploymentRecord | null {
+    if (getIsolatedRuntime() && network !== "testnet") throw new Error("Isolated QA cannot read mainnet deployments.");
     const networkData = this.data.current[network];
     return networkData[contractType] || null;
   }
@@ -163,6 +169,7 @@ export class DeploymentManager {
     contractType: "ckboostProtocolType",
     deployment: DeploymentRecord
   ): void {
+    if (getIsolatedRuntime()) throw new Error("The isolated QA registry is immutable. Export a new public profile instead.");
     // Update current deployment
     this.data.current[network][contractType] = deployment;
 
@@ -185,6 +192,7 @@ export class DeploymentManager {
    * Get the current network based on environment
    */
   getCurrentNetwork(): Network {
+    if (getIsolatedRuntime()) return "testnet";
     // You can determine this from environment variables or CKB client
     const isMainnet = process.env.NEXT_PUBLIC_CKB_NETWORK === "mainnet";
     return isMainnet ? "mainnet" : "testnet";

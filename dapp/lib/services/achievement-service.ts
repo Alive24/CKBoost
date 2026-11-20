@@ -143,7 +143,8 @@ export class AchievementService {
       ccc.hexFrom(
         protocol_data.protocol_config.script_code_hashes
           .ckb_boost_user_type_code_hash
-      )
+      ),
+      protocolTypeHash
     );
 
     if (!userCell || !userCell.cellOutput.type) {
@@ -215,7 +216,8 @@ export class AchievementService {
     const userCell = await getLatestUserCellByAddress(
       userAddress,
       this.client,
-      userTypeCodeHash
+      userTypeCodeHash,
+      protocolTypeHash
     );
     if (!userCell || !userCell.cellOutput.type) {
       throw new Error("User cell not found");

@@ -1,4 +1,4 @@
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 
 export type PendingTransactionMetadata = {
   /**

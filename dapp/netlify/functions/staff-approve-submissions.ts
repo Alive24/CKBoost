@@ -4,6 +4,7 @@ import {
   CampaignData,
   ConnectedTypeID,
   type CampaignDataLike,
+  type QuestDataLike,
   type ConnectedTypeIDLike,
 } from "ssri-ckboost/types";
 import {
@@ -15,7 +16,11 @@ import {
   ProxyAdminCellError,
 } from "@/netlify/lib/proxy-admin";
 import { createLogger } from "@/netlify/lib/log";
-import { readUdtAmount } from "@/netlify/lib/streak-bonus";
+import claimablePoolDeployments from "../../../contracts/contracts/claimable-pool-lock/deployments.json";
+import { getIsolatedRuntime } from "@/lib/ckb/isolated-runtime.mjs";
+import { validateStaffClaimableRewardOutputs } from "@/netlify/lib/staff-claimable-rewards";
+import { getProtocolTypeScript } from "@/netlify/lib/utils";
+import { assertCanonicalProxySigningScope, authorizeStaffProxyTransaction } from "@/netlify/lib/staff-authorization";
 import type {
   StaffApprovalRequestPayload,
   StaffApprovalResponse,
@@ -234,6 +239,23 @@ export const handler: Handler = async (event) => {
     );
   }
 
+  let approvalActorLockHashes: string[] = [];
+  try {
+    const proxyLockHash = (await signer.getRecommendedAddressObj()).script.hash();
+    const authority = await authorizeStaffProxyTransaction({
+      client,
+      tx,
+      campaignCell: campaignInput,
+      protocolTypeHash,
+      protocolTypeScript: getProtocolTypeScript(),
+      proxyLockHash,
+    });
+    approvalActorLockHashes = authority.actorLockHashes;
+    await assertCanonicalProxySigningScope(signer, tx, proxyLockHash);
+  } catch (error) {
+    return failWith(403, "reviewer_authorization_failed", (error as Error).message);
+  }
+
   try {
     validateQuestChanges({
       previousCampaignData,
@@ -276,8 +298,14 @@ export const handler: Handler = async (event) => {
     );
   }
 
+  const claimablePoolLockCodeHash = getIsolatedRuntime()?.claimablePool.typeHash ?? (claimablePoolDeployments as unknown as {
+    current?: Record<string, {claimablePoolLock?: {typeHash?: string}}>;
+  }).current?.[network]?.claimablePoolLock?.typeHash;
+  if (!claimablePoolLockCodeHash) {
+    return failWith(500, "missing_claimable_pool_code", "Claimable pool lock is not configured.");
+  }
   try {
-    validateRewardOutputs({
+    validateStaffClaimableRewardOutputs({
       tx,
       nextCampaignData,
       questId,
@@ -285,6 +313,8 @@ export const handler: Handler = async (event) => {
       userLocks,
       pointsCodeHash,
       protocolTypeHash,
+      claimablePoolLockCodeHash,
+      recyclerLockHashes: approvalActorLockHashes,
     });
   } catch (error) {
     return failWith(
@@ -391,15 +421,9 @@ const hydrateTransaction = async (
     });
   }
 
-  for (let i = 0; i < tx.outputs.length; i += 1) {
-    const output = tx.outputs[i];
-    if (output.type) {
-      tx.outputs[i] = ccc.CellOutput.from(
-        { lock: output.lock, type: output.type },
-        tx.outputsData[i] as ccc.HexLike
-      );
-    }
-  }
+  // Keep the proposed outputs intact. Rebuilding typed outputs here used to
+  // erase capacity floors and silently normalize malformed reward pools before
+  // validation. The caller's exact outputs must pass validation as supplied.
 };
 
 const findCampaignCells = ({
@@ -807,108 +831,4 @@ const getUserLockScript = async ({
   }
 
   throw new Error(`User cell not found for user type ID ${userTypeId}.`);
-};
-
-const scriptsEqual = (a?: ccc.Script, b?: ccc.Script): boolean => {
-  if (!a || !b) {
-    return false;
-  }
-  return (
-    normalizeHex(a.codeHash) === normalizeHex(b.codeHash) &&
-    a.hashType === b.hashType &&
-    normalizeHex(a.args ?? "0x") === normalizeHex(b.args ?? "0x")
-  );
-};
-
-const validateRewardOutputs = ({
-  tx,
-  nextCampaignData,
-  questId,
-  normalizedUserTypeIds,
-  userLocks,
-  pointsCodeHash,
-  protocolTypeHash,
-}: {
-  tx: ccc.Transaction;
-  nextCampaignData: CampaignDataLike;
-  questId: number;
-  normalizedUserTypeIds: string[];
-  userLocks: Map<string, ccc.Script>;
-  pointsCodeHash: string;
-  protocolTypeHash: ccc.HexLike;
-}): void => {
-  const quest = nextCampaignData.quests.find(
-    (q) => Number(q.quest_id) === questId
-  );
-  if (!quest) {
-    throw new Error("Quest not found while validating rewards.");
-  }
-
-  const expectedPointsAmount = BigInt(ccc.numFrom(quest.points ?? "0x0"));
-  const pointsScript = ccc.Script.from({
-    codeHash: pointsCodeHash,
-    hashType: "type",
-    args: protocolTypeHash,
-  });
-
-  const matchedPointsUsers = new Set<string>();
-  for (let i = 0; i < tx.outputs.length; i += 1) {
-    const output = tx.outputs[i];
-    if (!scriptsEqual(output.type, pointsScript)) {
-      continue;
-    }
-    const outputData = tx.outputsData[i];
-    const amount = readUdtAmount(outputData);
-    for (const [userTypeId, lock] of userLocks.entries()) {
-      if (
-        !matchedPointsUsers.has(userTypeId) &&
-        output.lock.eq(lock) &&
-        amount === expectedPointsAmount
-      ) {
-        matchedPointsUsers.add(userTypeId);
-        break;
-      }
-    }
-  }
-
-  if (matchedPointsUsers.size !== normalizedUserTypeIds.length) {
-    throw new Error("Points outputs do not match approved submissions.");
-  }
-
-  const udtRewards =
-    quest.rewards_on_completion?.[0]?.udt_assets?.map((asset) => ({
-      script: ccc.Script.from(asset.udt_script),
-      amount: BigInt(ccc.numFrom(asset.amount ?? "0x0")),
-    })) ?? [];
-
-  for (const reward of udtRewards) {
-    if (reward.amount === 0n) {
-      continue;
-    }
-    const matchedRewardUsers = new Set<string>();
-    for (let i = 0; i < tx.outputs.length; i += 1) {
-      const output = tx.outputs[i];
-      if (!scriptsEqual(output.type, reward.script)) {
-        continue;
-      }
-      const outputData = tx.outputsData[i];
-      const amount = readUdtAmount(outputData);
-      for (const [userTypeId, lock] of userLocks.entries()) {
-        if (
-          !matchedRewardUsers.has(userTypeId) &&
-          output.lock.eq(lock) &&
-          amount === reward.amount
-        ) {
-          matchedRewardUsers.add(userTypeId);
-          break;
-        }
-      }
-    }
-
-    if (matchedRewardUsers.size !== normalizedUserTypeIds.length) {
-      throw new Error(
-        "UDT reward outputs do not match approved submissions."
-      );
-    }
-  }
 };

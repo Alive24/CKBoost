@@ -1,0 +1,83 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 532px;
+  isolation: isolate;
+}
+
+/* Nine-slice preserves the supplied pixel corners when live content grows.
+ * The original SVG has a decorative half-pixel outline and lower-right shadow.
+ */
+.frame {
+  position: absolute;
+  z-index: -1;
+  inset: -.5px -2.5px -2.5px -.5px;
+  border: 16px solid transparent;
+  border-image: url('/assets/revamp/card-frame.svg') 16 fill / 16px / 0 stretch;
+  pointer-events: none;
+}
+
+.surface {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--ckb-background-surface);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, calc(100% - 14px) 16px, 100% 16px, 100% calc(100% - 16px), calc(100% - 14px) calc(100% - 16px), calc(100% - 14px) 100%, 14px 100%, 14px calc(100% - 16px), 0 calc(100% - 16px), 0 16px, 14px 16px);
+}
+
+:global([data-theme='light']) .frame {
+  border: 0;
+  border-image: none;
+  background: var(--ckb-border-strong);
+  clip-path: polygon(14px 0, calc(100% - 14px) 0, calc(100% - 14px) 16px, 100% 16px, 100% calc(100% - 16px), calc(100% - 14px) calc(100% - 16px), calc(100% - 14px) 100%, 14px 100%, 14px calc(100% - 16px), 0 calc(100% - 16px), 0 16px, 14px 16px);
+}
+
+.cover {
+  position: relative;
+  flex-shrink: 0;
+  height: 160px;
+  overflow: hidden;
+  background: var(--ckb-brand-subtle);
+}
+
+.artwork { position: absolute; inset: 0; overflow: hidden; }
+.defaultCover { position: absolute; top: 0; left: 50%; max-width: none; transform: translateX(-50%); }
+.customCover { display: block; width: 100%; height: 160px; object-fit: cover; }
+.coverLoading { position: absolute; inset: 0; background: var(--ckb-background-subtle); opacity: .65; }
+.status { position: absolute; left: 16px; top: 16px; height: 26px; }
+
+.content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  min-width: 0;
+  padding: 24px;
+}
+
+.summary { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.title { color: var(--ckb-text-primary); font-size: 20px; line-height: 28px; font-weight: 700; overflow-wrap: anywhere; }
+.description { display: -webkit-box; height: 40px; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: var(--ckb-text-secondary); font-size: 14px; line-height: 20px; font-weight: 400; overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; align-items: flex-start; min-height: 24px; gap: 8px; }
+.topicTag { max-width: 100%; height: auto; min-height: 24px; white-space: normal; overflow-wrap: anywhere; }
+.progress { display: flex; flex-direction: column; gap: 4px; }
+.progressLabels { display: flex; justify-content: space-between; gap: 8px; color: var(--ckb-text-muted); font-size: 12px; line-height: 16px; }
+.progressTrack { height: 8px; overflow: hidden; border-radius: 4px; background: var(--ckb-background-subtle); }
+.progressFill { display: block; height: 8px; border-radius: 4px; background: var(--ckb-brand-text); }
+.details { display: flex; flex-direction: column; gap: 12px; }
+.detail { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.label { color: var(--ckb-text-muted); font-size: 12px; line-height: 16px; }
+.schedule { display: block; min-height: 20px; color: var(--ckb-text-primary); font-size: 14px; line-height: 20px; font-weight: 700; overflow-wrap: anywhere; }
+.rewards { display: flex; flex-wrap: wrap; align-items: flex-start; min-height: 24px; gap: 8px 16px; }
+.reward { display: inline-flex; align-items: flex-start; gap: 4px; max-width: 100%; min-width: 0; color: var(--ckb-accent-text); font-size: 16px; line-height: 24px; font-weight: 700; overflow-wrap: anywhere; }
+.rewardIcon { display: inline-block; flex-shrink: 0; width: 16px; height: 16px; margin-top: 4px; color: var(--ckb-tag-amber-text); }
+.noRewards { color: var(--ckb-text-muted); font-size: 14px; line-height: 24px; }
+.action { align-self: flex-start; width: fit-content; max-width: 100%; margin-top: auto; }
+
+@media (max-width: 479px) {
+  .content { padding: 24px; }
+}

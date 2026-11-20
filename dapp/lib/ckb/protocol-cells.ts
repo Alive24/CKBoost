@@ -4,13 +4,16 @@
 import { ccc } from "@ckb-ccc/connector-react";
 import { ProtocolTransaction } from "../types/protocol";
 import { deploymentManager } from "./deployment-manager";
-import { createScopedLogger } from "ssri-ckboost";
+import { getIsolatedRuntime } from "./isolated-runtime.mjs";
+import { createScopedLogger } from "ssri-ckboost/logging";
 
 const log = createScopedLogger("ProtocolCells");
 
 // Import type definitions from our types file (currently unused but may be needed for future Molecule parsing)
 // Get protocol type script from deployments.json
 export const getProtocolTypeScript = () => {
+  const isolated = getIsolatedRuntime();
+  if (isolated) return isolated.protocol.typeScript as {codeHash:ccc.Hex;hashType:"type";args:ccc.Hex};
   const network = deploymentManager.getCurrentNetwork();
   const deployment = deploymentManager.getCurrentDeployment(
     network,

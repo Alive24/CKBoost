@@ -1,4 +1,5 @@
 import { deploymentManager } from "@/lib/ckb/deployment-manager";
+import { getIsolatedRuntime } from "@/lib/ckb/isolated-runtime.mjs";
 import { ccc } from "@ckb-ccc/shell";
 import {
   AchievementDataVec,
@@ -223,6 +224,8 @@ const findAchievementCell = async (
 };
 
 export const getProtocolTypeScript = () => {
+  const isolated = getIsolatedRuntime();
+  if (isolated) return isolated.protocol.typeScript as {codeHash:ccc.Hex;hashType:"type";args:ccc.Hex};
   const network = deploymentManager.getCurrentNetwork();
   const deployment = deploymentManager.getCurrentDeployment(
     network,

@@ -1,5 +1,5 @@
 import { ccc } from "@ckb-ccc/connector-react";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 import { fetchUDTCellsByType, calculateUDTBalance } from "../ckb/udt-cells";
 
 const log = createScopedLogger("UdtRegistry");

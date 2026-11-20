@@ -19,10 +19,10 @@ export async function injectProxyAuthenticationCell(
   for await (const cell of signer.client.findCellsByLock(
     authenticatorLockScript,
     null,
-    false
+    true
   )) {
     // Setting type to null won't filter out the cell, so we need to check manually
-    if (!cell.cellOutput.type) {
+    if (!cell.cellOutput.type && ccc.hexFrom(cell.outputData) === "0x") {
       proxyAuthenticationCell = cell;
       break;
     }

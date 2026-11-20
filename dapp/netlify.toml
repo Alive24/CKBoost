@@ -1,3 +1,11 @@
+[context.deploy-preview]
+# Review this revamp locally until an independent hosted QA protocol/executor
+# is configured. Keep the same guard if Netlify selects this package's config.
+ignore = "exit 0"
+
+[context."codex/ckboost-revamp"]
+ignore = "exit 0"
+
 [functions]
 # Functions at root level, not in dapp
 directory = "netlify/functions"

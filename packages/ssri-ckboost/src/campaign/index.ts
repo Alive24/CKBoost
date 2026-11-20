@@ -7,6 +7,9 @@ import {
 } from "../generated";
 import { encodeClaimablePoolData } from "ckb-claimable-pool-lock";
 import { createScopedLogger } from "../logging/index.js";
+import { assertCampaignSettingsAuthority, assertCampaignReviewAuthority } from "./authorization";
+import {retainOutputCapacityFloor} from "./actor-proof";
+export {assertActorNetCapacitySpend,guardPrivilegedActorSigner,retainOutputCapacityFloor} from "./actor-proof";
 
 const log = createScopedLogger("Campaign");
 
@@ -79,6 +82,16 @@ export class Campaign extends ssri.Trait {
     const connectedTypeId = ConnectedTypeID.decode(this.script.args);
       isNewCampaign = connectedTypeId.type_id === "0x" + "00".repeat(32);
     }
+    let existingCampaignCell: ccc.Cell | undefined;
+    if (!isNewCampaign) {
+      for await (const cell of signer.client.findCellsByType(this.script)) {
+        if (existingCampaignCell) throw new Error("More than one campaign cell matches this type script.");
+        existingCampaignCell = cell;
+      }
+      if (!existingCampaignCell) throw new Error("Campaign not found. Reload before editing.");
+    }
+    const signerLockHash = (await signer.getRecommendedAddressObj()).script.hash();
+    const authority = assertCampaignSettingsAuthority({protocolCell: this.connectedProtocolCell, campaignScript: this.script, signerLockHash, campaignData, existingCampaignCell});
     if (txReq.inputs.length === 0 && isNewCampaign) {
       await txReq.completeInputsAtLeastOne(signer);
       await txReq.completeInputsByCapacity(signer);
@@ -279,12 +292,19 @@ export class Campaign extends ssri.Trait {
           resTx.res.outputs[campaignCellOutputIndex].type.args =
             connectedTypeIdHex;
         }
+        if (isNewCampaign) resTx.res.outputs[campaignCellOutputIndex].lock = authority.protocolLock;
+        retainOutputCapacityFloor(resTx.res,campaignCellOutputIndex,existingCampaignCell?.cellOutput.capacity??0);
+        const campaignOutput=resTx.res.outputs[campaignCellOutputIndex];
+        const minimum=ccc.CellOutput.from({lock:campaignOutput.lock,type:campaignOutput.type},resTx.res.outputsData[campaignCellOutputIndex]);
+        const capacity=existingCampaignCell?.cellOutput.capacity??minimum.capacity;
+        campaignOutput.capacity=capacity>minimum.capacity?capacity:minimum.capacity;
 
         // Add the protocol cell as a dependency
         resTx.res.addCellDeps({
           outPoint: this.connectedProtocolCell.outPoint,
           depType: "code",
         });
+        if ((await signer.getRecommendedAddressObj()).script.hash() !== signerLockHash) throw new Error("Wallet changed while building campaign settings. Review again before signing.");
         return resTx;
       } else {
         throw new Error("Failed to update campaign");
@@ -480,6 +500,32 @@ export class Campaign extends ssri.Trait {
     if (!this.executor) {
       throw new Error("Executor required for SSRI operations");
     }
+    const approvalQuest = campaignData.quests.find(quest => ccc.numFrom(quest.quest_id) === BigInt(questId));
+    if (approvalQuest?.rewards_on_completion.some(reward => reward.nft_assets.length > 0)) throw new Error("NFT reward approval is unavailable. Approval currently supports Points, CKB and UDT rewards only.");
+
+    // Resolve authority from the actual current input cell, not a caller's
+    // proposed staff/endorser data or a retained global protocol snapshot.
+    const protocolType = this.connectedProtocolCell.cellOutput.type;
+    if (!protocolType) throw new Error("A typed protocol cell is required for submission review.");
+    let currentProtocol: ccc.Cell | undefined, inputCampaign: ccc.Cell | undefined;
+    for await (const cell of signer.client.findCellsByType(protocolType)) {
+      if (currentProtocol) throw new Error("More than one current protocol cell matches this type.");
+      currentProtocol = cell;
+    }
+    if (!currentProtocol || !currentProtocol.cellOutput.type?.eq(protocolType)
+      || currentProtocol.outPoint.txHash !== this.connectedProtocolCell.outPoint.txHash
+      || currentProtocol.outPoint.index !== this.connectedProtocolCell.outPoint.index
+      || !currentProtocol.cellOutput.lock.eq(this.connectedProtocolCell.cellOutput.lock)
+      || currentProtocol.cellOutput.capacity !== this.connectedProtocolCell.cellOutput.capacity
+      || currentProtocol.outputData !== this.connectedProtocolCell.outputData) throw new Error("Protocol changed. Recreate the campaign instance with current protocol data before reviewing.");
+    for await (const cell of signer.client.findCellsByType(this.script)) {
+      if (inputCampaign) throw new Error("More than one current campaign cell matches this type.");
+      inputCampaign = cell;
+    }
+    if (!inputCampaign) throw new Error("Campaign not found. Reload before reviewing.");
+    const reviewerLockHash = (await signer.getRecommendedAddressObj()).script.hash();
+    assertCampaignReviewAuthority({protocolCell: currentProtocol, campaignScript: this.script, signerLockHash: reviewerLockHash, campaignCell: inputCampaign});
+    if (ccc.hexFrom(CampaignData.encode(campaignData)) !== inputCampaign.outputData) throw new Error("Campaign review data changed. Reload the latest input before approving.");
 
     let resTx: ssri.ExecutorResponse<ccc.Transaction>;
 
@@ -589,11 +635,10 @@ export class Campaign extends ssri.Trait {
           hashType: "type",
           args: this.script.args,
         });
-        for await (const cell of signer.client.findCellsByType({
-          codeHash: this.script.codeHash,
-          hashType: "type",
-          args: this.script.args, // Empty args to match any args
-        })) {
+        // Preserve the exact INPUT whose ownership and assignments authorized
+        // this operation; a later lookup must not substitute another snapshot.
+        {
+          const cell = inputCampaign;
           log.info("Found campaign cell:", cell.outPoint);
           // Check if the cell is in the inputs of the transaction. If none, add it as an input.
           if (

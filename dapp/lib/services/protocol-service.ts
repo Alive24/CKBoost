@@ -15,6 +15,7 @@ import {
   fetchProtocolCellByOutPoint,
 } from "../ckb/protocol-cells";
 import { Protocol } from "ssri-ckboost";
+import {guardPrivilegedActorSigner,retainOutputCapacityFloor} from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
 import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
 import { createScopedLogger } from "ssri-ckboost";
@@ -85,6 +86,9 @@ export class ProtocolService {
       );
     }
 
+    const actorLock=(await this.signer.getRecommendedAddressObj()).script;
+    const previous=await fetchProtocolCell(this.client);
+    const preserved=new Set<number>();
     // Create the transaction using the SDK
     const { res: tx } = await this.protocol.updateProtocol(
       this.signer,
@@ -109,6 +113,8 @@ export class ProtocolService {
               { lock: out.lock, type: out.type },
               tx.outputsData[i] as ccc.HexLike
             );
+            retainOutputCapacityFloor(tx,i,previous?.cellOutput.capacity??0);
+            preserved.add(i);
           }
         }
       }
@@ -138,7 +144,7 @@ export class ProtocolService {
     }
 
     // Complete fees and send transaction with automatic retry
-    const txHash = await sendTransactionWithFeeRetry(this.signer, tx);
+    const txHash = await sendTransactionWithFeeRetry(guardPrivilegedActorSigner(this.signer,actorLock.hash()), tx,{preserveOutputCapacityIndices:preserved});
 
     log.info("Protocol updated, tx:", txHash);
     return txHash;

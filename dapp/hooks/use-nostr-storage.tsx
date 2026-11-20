@@ -10,7 +10,7 @@ import {
   getPublicKey,
   getEventHash,
 } from "nostr-tools";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 import {
   CKBOOST_EVENT_KIND,
   DEFAULT_RELAY_QUORUM,

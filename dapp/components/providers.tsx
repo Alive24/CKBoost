@@ -2,19 +2,23 @@
 
 import { WalletProvider } from "@/components/wallet-provider";
 import { ThemeProvider } from "@/components/theme-provider";
-import { CampaignProvider } from "@/lib";
-import { ProtocolProvider } from "@/lib/providers/protocol-provider";
-import { UserProvider } from "@/lib/providers/user-provider";
 import { NostrProvider } from "@/lib/providers/nostr-provider";
-import { CampaignAdminProvider } from "@/lib/providers/campaign-admin-provider";
+import dynamic from "next/dynamic";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { StorageModalProvider } from "@/lib/providers/storage-modal-provider";
-import { TippingProvider } from "@/lib/providers/tipping-provider";
+import { usePathname } from "next/navigation";
+import { DiscoveryProvider } from "@/lib/revamp/discovery-provider";
 import { PendingTransactionProvider } from "@/lib/providers/pending-transaction-provider";
-import { QuestClaimIssuanceProvider } from "@/lib/providers/quest-claim-issuance-provider";
+
+const LegacyBusinessProviders = dynamic(() => import("./legacy-business-providers"));
+const RevampBusinessProviders = dynamic(() => import("./revamp/business-providers"));
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isDiscovery = pathname === "/revamp";
+  const isDesignSystem = pathname === "/revamp/design-system" || pathname.startsWith("/revamp/design-system/");
+  const isTestnetSetup = pathname === "/revamp/testnet-setup" || pathname.startsWith("/revamp/testnet-setup/");
+  const isRevampBusiness = pathname.startsWith("/revamp/") && !isDesignSystem && !isTestnetSetup;
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -37,21 +41,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <WalletProvider>
           <PendingTransactionProvider>
-            <QuestClaimIssuanceProvider>
-              <NostrProvider>
-                <ProtocolProvider>
-                  <CampaignProvider>
-                    <UserProvider>
-                      <CampaignAdminProvider>
-                        <StorageModalProvider>
-                          <TippingProvider>{children}</TippingProvider>
-                        </StorageModalProvider>
-                      </CampaignAdminProvider>
-                    </UserProvider>
-                  </CampaignProvider>
-                </ProtocolProvider>
-              </NostrProvider>
-            </QuestClaimIssuanceProvider>
+            {isDiscovery ? (
+              <NostrProvider><DiscoveryProvider>{children}</DiscoveryProvider></NostrProvider>
+            ) : isDesignSystem || isTestnetSetup ? children : isRevampBusiness ? (
+              <RevampBusinessProviders>{children}</RevampBusinessProviders>
+            ) : (
+              <LegacyBusinessProviders>{children}</LegacyBusinessProviders>
+            )}
           </PendingTransactionProvider>
         </WalletProvider>
       </QueryClientProvider>

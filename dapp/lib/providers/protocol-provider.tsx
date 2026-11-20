@@ -6,6 +6,7 @@ import React, {
   useState,
   useEffect,
   useMemo,
+  useRef,
   ReactNode,
 } from "react";
 import { ccc } from "@ckb-ccc/connector-react";
@@ -81,7 +82,7 @@ const ProtocolContext = createContext<ProtocolContextType | undefined>(
 );
 
 // Provider component
-export function ProtocolProvider({ children }: { children: ReactNode }) {
+export function ProtocolProvider({ children, readMode = "full" }: { children: ReactNode; readMode?: "full" | "current" }) {
   // Protocol data state
   const [protocolData, setProtocolData] = useState<ReturnType<
     typeof ProtocolData.decode
@@ -108,6 +109,9 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
 
   // Wallet connection state
   const isWalletConnected = !!signer;
+  const currentReadVersion = useRef(0);
+  const currentScope = useRef({client, signer, readMode});
+  currentScope.current = {client, signer, readMode};
 
   const endorserResolver = useMemo(
     () => createEndorserResolver(protocolData?.endorsers_whitelist ?? []),
@@ -116,6 +120,50 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
 
   // Initialize protocol data
   useEffect(() => {
+    if (readMode === "current") {
+      const version = ++currentReadVersion.current;
+      let cancelled = false;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      setProtocolData(null);
+      setProtocolCell(null);
+      setMetrics(null);
+      setTransactions([]);
+      setIsLoading(true);
+      setError(null);
+      setProtocolService(null);
+      setIsAdmin(false);
+      setIsEndorser(false);
+      if (!client) {
+        setError("Client not initialized");
+        setIsLoading(false);
+        return;
+      }
+      // Campaign pages need the current protocol cell, not its transaction
+      // history. Keep the original full-loading path below for legacy routes.
+      const read = async () => {
+        const service = new ProtocolService(signer || client);
+        setProtocolService(service);
+        const cell = await service.getProtocolCell();
+        return {cell, data: await service.getProtocolData(cell)};
+      };
+      const timed = new Promise<never>((_, reject) => {
+        deadline = setTimeout(() => reject(new Error("Protocol request timed out. Please retry.")), 12_000);
+      });
+      Promise.race([read(), timed]).then(({cell, data}) => {
+        if (!cancelled && version === currentReadVersion.current) {
+          setProtocolCell(cell);
+          setProtocolData(data);
+        }
+      }).catch(failure => {
+        if (!cancelled && version === currentReadVersion.current) {
+          setError(failure instanceof Error ? failure.message : "Failed to load protocol data");
+        }
+      }).finally(() => {
+        clearTimeout(deadline);
+        if (!cancelled && version === currentReadVersion.current) setIsLoading(false);
+      });
+      return () => {cancelled = true; clearTimeout(deadline);};
+    }
     const initializeProtocol = async () => {
       // Use client for read operations, signer for write operations
       if (!client) {
@@ -190,7 +238,7 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
     };
 
     initializeProtocol();
-  }, [signer, client]);
+  }, [signer, client, readMode]);
 
   // Update user info when wallet connects
   useEffect(() => {
@@ -266,6 +314,43 @@ export function ProtocolProvider({ children }: { children: ReactNode }) {
 
   // Protocol operations
   const refreshProtocolData = async (): Promise<void> => {
+    if (readMode === "current") {
+      if (currentScope.current.client !== client || currentScope.current.signer !== signer || currentScope.current.readMode !== readMode) {
+        throw new Error("The wallet or network changed. Retry from the current page.");
+      }
+      const version = ++currentReadVersion.current;
+      let deadline: ReturnType<typeof setTimeout> | undefined;
+      setIsLoading(true);
+      setError(null);
+      try {
+        if (!client) throw new Error("Client not initialized");
+        const service = new ProtocolService(signer || client);
+        setProtocolService(service);
+        const read = async () => {
+          const cell = await service.getProtocolCell();
+          return {cell, data: await service.getProtocolData(cell)};
+        };
+        const timed = new Promise<never>((_, reject) => {
+          deadline = setTimeout(() => reject(new Error("Protocol request timed out. Please retry.")), 12_000);
+        });
+        const {cell, data} = await Promise.race([read(), timed]);
+        if (version === currentReadVersion.current) {
+          setProtocolCell(cell);
+          setProtocolData(data);
+        }
+      } catch (failure) {
+        if (version === currentReadVersion.current) {
+          setError(failure instanceof Error ? failure.message : "Failed to refresh protocol data");
+          setProtocolCell(null);
+          setProtocolData(null);
+        }
+        throw failure;
+      } finally {
+        clearTimeout(deadline);
+        if (version === currentReadVersion.current) setIsLoading(false);
+      }
+      return;
+    }
     try {
       if (!protocolService) {
         throw new Error("Protocol service not initialized");

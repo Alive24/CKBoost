@@ -11,6 +11,7 @@ import {
   type EndorserInfoLike,
 } from "../types";
 import { createScopedLogger } from "../logging/index.js";
+import {retainOutputCapacityFloor} from "../campaign/actor-proof";
 
 const log = createScopedLogger("Protocol");
 
@@ -92,6 +93,8 @@ export class Protocol extends ssri.Trait {
     }
 
     let resTx;
+    const initialSignerHash=(await signer.getRecommendedAddressObj()).script.hash();
+    let previousProtocolCell:ccc.Cell|undefined;
 
     const txReq = ccc.Transaction.from(tx ?? {});
     // Ensure at least one input for protocol creation transactions.
@@ -99,6 +102,18 @@ export class Protocol extends ssri.Trait {
     const isNewProtocol =
       argsBytes.length === 0 ||
       (argsBytes.length === 32 && argsBytes.every((byte) => byte === 0));
+    if (!isNewProtocol) {
+      let current: ccc.Cell | undefined;
+      for await (const cell of signer.client.findCellsByType(this.script)) {
+        if (current) throw new Error("More than one protocol cell matches this type script.");
+        current = cell;
+      }
+      if (!current) throw new Error("Current protocol not found. Reload before changing authorization.");
+      previousProtocolCell=current;
+      const previous = ProtocolData.decode(current.outputData);
+      const hash = (await signer.getRecommendedAddressObj()).script.hash().toLowerCase();
+      if (!previous.protocol_config.admin_lock_hash_vec.some(value => ccc.hexFrom(value).toLowerCase() === hash)) throw new Error("Only an existing platform admin can change Organizer grants and protocol settings.");
+    }
     if (txReq.inputs.length === 0 && isNewProtocol) {
       await txReq.completeInputsAtLeastOne(signer);
       await txReq.completeInputsByCapacity(signer);
@@ -139,6 +154,10 @@ export class Protocol extends ssri.Trait {
           outPoint: this.code,
           depType: "code",
         });
+        const protocolOutput=resTx.res.outputs.findIndex(output=>output.type?.codeHash===this.script.codeHash);
+        if(protocolOutput<0)throw new Error("Protocol output missing from update.");
+        retainOutputCapacityFloor(resTx.res,protocolOutput,previousProtocolCell?.cellOutput.capacity??0);
+        if((await signer.getRecommendedAddressObj()).script.hash()!==initialSignerHash)throw new Error("Wallet changed while building protocol settings. Review again before signing.");
 
         return resTx;
       } else {

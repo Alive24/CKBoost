@@ -1,0 +1,19 @@
+[package]
+name = "ckboost-auth-tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# Standalone runner for the actual registered campaign recipe. It avoids the
+# unrelated legacy VM test suite's permissive placeholder assertions.
+[workspace]
+
+[dependencies]
+ckboost-shared = { path = "../libs/ckboost-shared" }
+ckb_deterministic = { path = "../../../ckb_deterministic/ckb_deterministic" }
+ckb-std = { version = "0.16.4", default-features = false, features = ["allocator", "ckb-types", "dummy-atomic"] }
+molecule = { version = "0.8.0", default-features = false }
+ckb-testtool = { version = "0.15.0", optional = true }
+
+[features]
+vm-tests = ["dep:ckb-testtool"]

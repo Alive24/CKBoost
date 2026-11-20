@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { DEFAULT_NOSTR_RELAYS, useNostr } from "@/lib/providers/nostr-provider";
 import { NostrEvent, NostrFilter } from "@nostrify/types";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 import { Comment } from "@/components/social-interactions";
 import { NPool } from "@nostrify/nostrify";
 import {

@@ -31,70 +31,11 @@ impl CKBoostCampaign for CKBoostProtocolLock {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
         debug_trace!("CKBoostProtocolLock::verify_update_campaign - Starting validation");
-        let args = load_script()?.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
-            .map_err(|e| Error::InvalidConnectedTypeId)?;
-        let connected_key = connected_type_id.connected_key();
-        let mut connected_key_u832 = [0u8; 32];
-        connected_key_u832.copy_from_slice(&connected_key.raw_data());
-        let output_campaign_cell_vec = context
-            .output_cells
-            .get_custom("campaign")
-            .ok_or(Error::CellCountViolation)?;
-        if output_campaign_cell_vec.len() != 1 {
-            return Err(Error::CellCountViolation);
-        }
-        let output_campaign_cell = &output_campaign_cell_vec[0];
-
-        let input_campaign_cell_vec = context
-            .input_cells
-            .get_custom("campaign")
-            .ok_or(Error::CellCountViolation)?;
-        if input_campaign_cell_vec.len() == 1 {
-            let input_campaign_cell = &input_campaign_cell_vec[0];
-            if input_campaign_cell.type_hash != output_campaign_cell.type_hash {
-                return Err(Error::ProtocolCellNotFound);
-            }
-        } else if input_campaign_cell_vec.len() > 1 {
-            return Err(Error::CellCountViolation);
-        }
-        let protocol_data = get_protocol_data().map_err(|e| Error::InvalidProtocolData)?;
-        let campaign_data = CampaignData::from_slice(&output_campaign_cell.data)
-            .map_err(|e| Error::InvalidCampaignData)?;
-        let admin_lock_hash_vec = protocol_data.protocol_config().admin_lock_hash_vec();
-        let staff_lock_hash_vec = campaign_data.staff_lock_hash_vec();
-        let output_campaign_cell_connected_type_id =
-            ConnectedTypeID::from_slice(&output_campaign_cell.lock.args().raw_data())
-                .map_err(|e| Error::InvalidConnectedTypeId)?;
-        if output_campaign_cell_connected_type_id
-            .connected_key()
-            .as_slice()
-            != connected_key_u832.as_slice()
-        {
-            debug_trace!(
-                "Output campaign cell connected type id mismatch: {:?}",
-                output_campaign_cell_connected_type_id
-            );
-            debug_trace!("Connected key: {:?}", connected_key_u832);
-            return Err(Error::InvalidConnectedTypeId);
-        }
-        let proxy_ckb_cells = context.input_cells.get_simple_ckb();
-        // If any proxy ckb cell is the connectedTypeId.type_id or in the admin_lock_hash_vec, return Ok
-        for proxy_ckb_cell in proxy_ckb_cells {
-            if proxy_ckb_cell.lock_hash == connected_key_u832
-                || admin_lock_hash_vec
-                    .clone()
-                    .into_iter()
-                    .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
-                || staff_lock_hash_vec
-                    .clone()
-                    .into_iter()
-                    .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
-            {
-                return Ok(());
-            }
-        }
-        return Err(Error::InvalidConnectedTypeId);
+        let current_lock = load_script()?;
+        let input = context.input_cells.get_custom("campaign").and_then(|cells| cells.first()).ok_or(Error::CampaignCellNotFound)?;
+        if input.lock_hash.as_slice() != current_lock.calc_script_hash().as_slice() { return Err(Error::UnauthorizedOperation); }
+        ckboost_shared::campaign_authorization::validate_campaign_settings(context)?;
+        ckboost_shared::campaign_authorization::require_campaign_settings_actor_spend(context)
     }
 
     fn approve_completion(
@@ -116,6 +57,8 @@ impl CKBoostCampaign for CKBoostProtocolLock {
 
         // For lock script, we validate that an approved user is claiming rewards
         // This checks the approval proof in the transaction
+        ckboost_shared::campaign_authorization::validate_campaign_review(context)?;
+        ckboost_shared::campaign_authorization::require_campaign_review_actor_spend(context)?;
         recipes::approve_completion::validate_approve_completion(context).map_err(|e| e.into())
     }
 }
@@ -133,52 +76,8 @@ impl CKBoostProtocol for CKBoostProtocolLock {
         context: &TransactionContext<RuleBasedClassifier>,
     ) -> Result<(), Error> {
         debug_trace!("CKBoostProtocolLock::verify_update_protocol - Starting validation");
-        let args = load_script()?.args();
-        let connected_type_id = ConnectedTypeID::from_slice(&args.raw_data())
-            .map_err(|e| Error::InvalidConnectedTypeId)?;
-        let connected_key = connected_type_id.connected_key();
-        let mut connected_key_u832 = [0u8; 32];
-        connected_key_u832.copy_from_slice(&connected_key.raw_data());
-        let output_protocol_cell_vec = context
-            .output_cells
-            .get_custom("protocol")
-            .ok_or(Error::CellCountViolation)?;
-        if output_protocol_cell_vec.len() != 1 {
-            return Err(Error::CellCountViolation);
-        }
-        let output_protocol_cell = &output_protocol_cell_vec[0];
-
-        let input_protocol_cell_vec = context
-            .input_cells
-            .get_custom("protocol")
-            .ok_or(Error::CellCountViolation)?;
-        if input_protocol_cell_vec.len() == 1 {
-            let input_protocol_cell = &input_protocol_cell_vec[0];
-            if input_protocol_cell.type_hash != output_protocol_cell.type_hash {
-                return Err(Error::ProtocolCellNotFound);
-            }
-        } else if input_protocol_cell_vec.len() > 1 {
-            return Err(Error::CellCountViolation);
-        }
-        let protocol_data = ProtocolData::from_slice(&output_protocol_cell.data)
-            .map_err(|e| Error::InvalidProtocolData)?;
-        let admin_lock_hash_vec = protocol_data.protocol_config().admin_lock_hash_vec();
-        if output_protocol_cell.type_hash != Some(connected_key_u832) {
-            return Err(Error::InvalidConnectedTypeId);
-        }
-        let proxy_ckb_cells = context.input_cells.get_simple_ckb();
-        // If any proxy ckb cell is the connectedTypeId.type_id or in the admin_lock_hash_vec, return Ok
-        for proxy_ckb_cell in proxy_ckb_cells {
-            if proxy_ckb_cell.lock_hash == connected_key_u832
-                || admin_lock_hash_vec
-                    .clone()
-                    .into_iter()
-                    .any(|h| h.as_slice() == proxy_ckb_cell.lock_hash.as_slice())
-            {
-                return Ok(());
-            }
-        }
-        return Err(Error::InvalidConnectedTypeId);
+        ckboost_shared::campaign_authorization::validate_protocol_settings(context, &load_script()?)?;
+        ckboost_shared::campaign_authorization::require_protocol_actor_spend(context)
     }
 }
 

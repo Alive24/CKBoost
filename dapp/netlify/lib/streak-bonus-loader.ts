@@ -8,6 +8,7 @@ import {
   type RewardTransaction,
 } from "@/netlify/lib/streak-bonus";
 import { UserData } from "ssri-ckboost/types";
+import { getIsolatedProtocolScope } from "@/netlify/lib/isolated-protocol-scope";
 
 const log = createLogger("streak-bonus-loader");
 
@@ -216,6 +217,12 @@ const fetchRewardTransactions = async ({
 export const resolveProtocolTypeScriptFromEnv = ():
   | { script: ccc.Script }
   | { error: string } => {
+  try {
+    const isolated = getIsolatedProtocolScope();
+    if (isolated) return { script: ccc.Script.from(isolated) };
+  } catch (error) {
+    return { error: (error as Error).message };
+  }
   const protocolTypeCodeHash =
     process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
   const protocolTypeHashType =

@@ -1,0 +1,58 @@
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+.header { display: flex; align-items: center; gap: 72px; height: 56px; padding: 4px max(32px, calc((100% - 1376px) / 2)); background: var(--ckb-background-surface); }
+.brand { display: flex; align-items: center; justify-content: center; flex: 0 0 80px; height: 48px; }
+.wordmark { display: block; position: relative; width: 76px; height: 44px; }
+.wordmark img { position: absolute; left: 0; max-width: none; }
+.blue { top: -1px; }
+.magenta { top: 1px; }
+.ink { position: absolute; left: 0; top: 0; width: 69px; height: 40px; background: var(--ckb-text-primary); mask: url('/assets/revamp/logo-ink.svg') center / 69px 40px no-repeat; }
+.navigation { display: flex; align-items: center; gap: 8px; }
+.navigation a { display: flex; align-items: center; justify-content: center; gap: 4px; height: 40px; padding: 8px 16px; border-bottom: 1px solid transparent; border-radius: 8px; color: var(--ckb-text-muted); font-size: 14px; line-height: 20px; font-weight: 700; white-space: nowrap; }
+.navFlag { display: block; flex-shrink: 0; width: 18px; height: 18px; background: currentColor; mask: url('/assets/revamp/nav-flag.svg') center / 18px 18px no-repeat; }
+.navTrophy { display: inline-flex; flex-shrink: 0; color: var(--ckb-text-primary); }
+.header .navigation a[aria-current='page'] { color: var(--ckb-brand-text); border-color: var(--ckb-action-primary-border); border-radius: 0; }
+.header .navigation a:hover { color: var(--ckb-text-primary); background: var(--ckb-background-hover); }
+.actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+.wallet { position: relative; width: fit-content; flex-shrink: 0; }
+.walletAddress { display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 0; }
+.walletSpacer { width: 18px; height: 1px; flex-shrink: 0; }
+.header .connectedWallet { width: auto; gap: 0; padding: 0; border: 0; background: var(--ckb-background-raised); color: var(--ckb-text-primary); }
+.connectedWallet .walletAddress { height: 40px; padding-inline: 16px; gap: 4px; }
+.connectedWallet .walletLabel { width: 76px; text-align: left; font-size: 16px; font-weight: 400; white-space: nowrap; }
+.walletPoints { display: flex; align-items: center; gap: 4px; height: 40px; padding-inline: 16px; border-radius: 8px 0 0 8px; background: var(--ckb-accent-subtle); color: var(--ckb-accent-text); font-size: 14px; line-height: 20px; }
+.walletPoints > svg { color: var(--ckb-tag-amber-text); flex-shrink: 0; }
+.walletPoints > span { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pixelIcon { display: block; flex-shrink: 0; width: 24px; height: 24px; background: currentColor; mask: var(--pixel-icon) center / contain no-repeat; }
+.pixelIcon[data-icon='wallet'] { width: 18px; height: 18px; }
+.header .actions .theme, .header .actions .notifications { background: var(--ckb-background-raised); color: var(--ckb-text-primary); border: 0; }
+.header .actions .theme { border-radius: 4px; }
+.header .actions .theme:hover { background: var(--ckb-background-hover); }
+.header .actions .notifications:disabled { opacity: 1; background: var(--ckb-background-raised); color: var(--ckb-text-primary); }
+.pending { position: absolute; right: -4px; top: -4px; min-width: 18px; height: 18px; padding-inline: 4px; border-radius: 24px; background: var(--ckb-tag-amber-surface); color: var(--ckb-tag-amber-text); font-size: 12px; line-height: 18px; }
+.footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 64px; padding: 24px max(72px, calc((100% - 1296px) / 2)); margin-top: auto; background: var(--ckb-background-surface); color: var(--ckb-text-muted); font-size: 12px; line-height: 16px; }
+.footer div { white-space: pre; color: var(--ckb-text-secondary); }
+.footer a:hover { color: var(--ckb-text-link); text-decoration: underline; }
+.skip { position: fixed; top: -100px; left: 16px; z-index: 100; padding: 8px 16px; background: var(--ckb-background-raised); border-radius: 8px; }
+.skip:focus { top: 8px; }
+@media (max-width: 1199px) {
+  .header { gap: 24px; padding-inline: 24px; }
+  .navigation a { padding-inline: 12px; }
+  .actions { gap: 8px; }
+  .footer { padding-inline: 32px; }
+}
+@media (max-width: 899px) {
+  .header { flex-wrap: wrap; height: auto; gap: 0 16px; padding: 4px 16px 0; }
+  .brand { order: 1; }
+  .actions { order: 2; }
+  .navigation { order: 3; width: 100%; overflow-x: auto; padding-block: 4px; }
+  .navigation a { flex: 1 0 auto; padding-inline: 12px; }
+}
+@media (max-width: 479px) {
+  .header .wallet { width: 40px; padding: 0; }
+  .walletSpacer { display: none; }
+  .walletPoints { display: none; }
+  .connectedWallet .walletAddress { padding: 0; }
+  .walletLabel { display: none; }
+  .footer { padding-inline: 16px; flex-wrap: wrap; }
+  .navigation a { padding-inline: 8px; }
+}

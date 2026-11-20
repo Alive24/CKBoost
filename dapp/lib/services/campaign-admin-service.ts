@@ -13,6 +13,7 @@ import {
 } from "@/lib/ckb/user-cells";
 import { fetchCampaignByTypeId as fetchCampaignCell } from "@/lib/ckb/campaign-cells";
 import { Campaign } from "ssri-ckboost";
+import {assertActorNetCapacitySpend,guardPrivilegedActorSigner,retainOutputCapacityFloor} from "ssri-ckboost";
 import { deploymentManager } from "../ckb/deployment-manager";
 import { udtRegistry } from "@/lib/services/udt-registry";
 import { sendTransactionWithFeeRetry } from "../ckb/transaction-wrapper";
@@ -203,7 +204,8 @@ export class CampaignAdminService {
       const cell = await this.signer.client.getCell(input.previousOutput);
       if (
         !cell?.cellOutput.type &&
-        cell?.cellOutput.lock.hash() === signerLockHash
+        cell?.cellOutput.lock.hash() === signerLockHash &&
+        ccc.hexFrom(cell.outputData) === "0x"
       ) {
         log.info("Campaign update already has signer plain CKB input", {
           outPoint: input.previousOutput,
@@ -248,7 +250,7 @@ export class CampaignAdminService {
     }
 
     throw new Error(
-      "No plain CKB cell found for the current signer. Campaign updates require one simple CKB input for admin authorization."
+      "No plain CKB cell found for the current signer. A plain CKB input is required to authorize campaign settings or submission review."
     );
   }
 
@@ -630,6 +632,7 @@ export class CampaignAdminService {
             endorser_lock_hash: inputCampaignData.endorser_lock_hash,
           })
         );
+        retainOutputCapacityFloor(updateTx,campaignCellOutputIndex,inputCampaignCell.cellOutput.capacity);
       }
 
       await this.ensureSignerPlainCkbInput(updateTx, currentUserLock);
@@ -680,7 +683,7 @@ export class CampaignAdminService {
       log.info("Transaction Size:", txBytes.length, "bytes");
       log.info("=== END TRANSACTION BYTES ===");
 
-      const txHash = await sendTransactionWithFeeRetry(this.signer, updateTx);
+      const txHash = await sendTransactionWithFeeRetry(guardPrivilegedActorSigner(this.signer,currentUserLock.hash()), updateTx,{preserveOutputCapacityIndices:new Set([campaignCellOutputIndex])});
 
       log.info("Campaign updated:", { campaignTypeId, txHash });
       return txHash;
@@ -869,7 +872,7 @@ export class CampaignAdminService {
       const campaignData = CampaignData.decode(campaignCell.outputData);
 
       // Find the quest
-      const quest = campaignData.quests.find((q) => q.quest_id === questId);
+      const quest = campaignData.quests.find((q) => Number(q.quest_id) === questId);
       if (!quest) {
         throw new Error(
           `Quest with ID ${questId} not found in campaign ${campaignTypeId}. ` +
@@ -1017,6 +1020,9 @@ export class CampaignAdminService {
         }
       }
 
+      const campaignOutputIndex=tx.outputs.findIndex(output=>output.type?.hash()===campaignCell.cellOutput.type?.hash());
+      if(campaignOutputIndex<0)throw new Error("Campaign output missing from approval transaction.");
+      retainOutputCapacityFloor(tx,campaignOutputIndex,campaignCell.cellOutput.capacity);
       return tx;
     } catch (error) {
       log.error("Failed to approve quest completions:", error);
@@ -1037,13 +1043,16 @@ export class CampaignAdminService {
     questId: number,
     userTypeIds: ccc.Hex[]
   ): Promise<string> {
+    const actorLock=(await this.signer.getRecommendedAddressObj()).script;
     const tx = await this.buildApproveCompletionTransaction(
       campaignTypeId,
       questId,
       userTypeIds
     );
 
-    const txHash = await sendTransactionWithFeeRetry(this.signer, tx);
+    await this.ensureSignerPlainCkbInput(tx,actorLock);
+    const preserved=new Set(tx.outputs.flatMap((output,index)=>output.type?.codeHash===this.campaignTypeCodeHash?[index]:[]));
+    const txHash = await sendTransactionWithFeeRetry(guardPrivilegedActorSigner(this.signer,actorLock.hash()), tx,{preserveOutputCapacityIndices:preserved});
 
     log.info("Quest completions approved with Points minting:", {
       campaignTypeId,
@@ -1065,10 +1074,19 @@ export class CampaignAdminService {
       throw new Error("Signer is required to approve quest completions");
     }
 
+    const actorLock=(await this.signer.getRecommendedAddressObj()).script;
     const tx = await this.buildApproveCompletionTransaction(
       campaignTypeId,
       questId,
       userTypeIds
+    );
+
+    // The proxy administrator is a co-signer, not proof of the requester's
+    // assignment. Keep a real staff wallet input bound into the signed tx even
+    // when no extra capacity would otherwise be collected.
+    await this.ensureSignerPlainCkbInput(
+      tx,
+      actorLock
     );
 
     await injectProxyAuthenticationCell(this.signer, tx);
@@ -1099,7 +1117,12 @@ export class CampaignAdminService {
       }
     }
 
+    const inputCampaignCell=await this.findInputCampaignCell(tx);
+    if(!inputCampaignCell)throw new Error("Campaign input missing before staff approval.");
+    const outputCampaignIndex=tx.outputs.findIndex(output=>output.type?.hash()===inputCampaignCell.cellOutput.type?.hash());
+    retainOutputCapacityFloor(tx,outputCampaignIndex,inputCampaignCell.cellOutput.capacity);
     await tx.completeFeeBy(this.signer);
+    await assertActorNetCapacitySpend(this.signer,tx,actorLock.hash());
 
     const response = await fetch("/api/staff-approve-submissions", {
       method: "POST",
@@ -1128,6 +1151,7 @@ export class CampaignAdminService {
     }
 
     const validatedTx = ccc.Transaction.fromBytes(payload.txHex as ccc.Hex);
+    const signedRawHash=validatedTx.hash();
 
     for (let i = 0; i < validatedTx.inputs.length; i += 1) {
       const inputCell = await this.signer.client.getCell(
@@ -1144,17 +1168,10 @@ export class CampaignAdminService {
       });
     }
 
-    for (let i = 0; i < validatedTx.outputs.length; i += 1) {
-      const out = validatedTx.outputs[i];
-      if (out.type) {
-        validatedTx.outputs[i] = this.rebuildApprovalTypedOutput(
-          out,
-          validatedTx.outputsData[i] as ccc.HexLike
-        );
-      }
-    }
-
-    const txHash = await this.signer.sendTransaction(validatedTx);
+    // Only the local input cache may be hydrated after proxy signing. Raw
+    // fields (especially typed-output capacities) must remain byte-identical.
+    if(validatedTx.hash()!==signedRawHash)throw new Error("Proxy-signed transaction changed during input hydration.");
+    const txHash = await guardPrivilegedActorSigner(this.signer,actorLock.hash(),signedRawHash).sendTransaction(validatedTx);
     log.info("Quest completions approved via proxy:", {
       campaignTypeId,
       questId,

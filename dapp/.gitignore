@@ -1,3 +1,7 @@
+# Next.js build output, including per-profile local QA builds
+/.next/
+/.next-isolated-*/
+
 # Local Netlify folder
 .netlify
 tsconfig.tsbuildinfo

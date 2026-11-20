@@ -4,6 +4,7 @@
 extern crate alloc;
 
 pub mod cell_collector;
+pub mod campaign_authorization;
 pub mod error;
 pub mod generated;
 pub mod known_script;

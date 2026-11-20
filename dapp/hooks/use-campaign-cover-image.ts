@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useNostrFetch } from "@/hooks/use-nostr-fetch";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 
 const log = createScopedLogger("useCampaignCoverImage");
 

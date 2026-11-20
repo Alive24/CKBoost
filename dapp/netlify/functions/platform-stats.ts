@@ -2,8 +2,9 @@ import type { Handler } from "@netlify/functions";
 import { ccc } from "@ckb-ccc/shell";
 import { deploymentManager } from "@/lib/ckb/deployment-manager";
 import { createLogger } from "@/netlify/lib/log";
-import { ckboost } from "ssri-ckboost";
+import { ConnectedTypeID, UserData } from "ssri-ckboost/types";
 import { readUdtAmount } from "@/netlify/lib/streak-bonus";
+import { getIsolatedProtocolScope } from "@/netlify/lib/isolated-protocol-scope";
 
 type StatsWindowKey = "1d" | "7d" | "30d" | "90d" | "365d" | "total";
 
@@ -25,7 +26,16 @@ type TimestampRecord = {
 
 const logger = createLogger("platform-stats");
 
-let cachedStats: { expiresAt: number; data: StatsResponse } | null = null;
+let cachedStats: { scopeKey: string; expiresAt: number; data: StatsResponse } | null = null;
+
+type StatsScope = {
+  network: ReturnType<typeof deploymentManager.getCurrentNetwork>;
+  protocolTypeScript: ccc.Script;
+  protocolTypeHash: string;
+  userTypeCodeHash: string;
+  pointsTypeScript: ccc.Script;
+  scopeKey: string;
+};
 
 const WINDOWS: Array<{ key: StatsWindowKey; ms?: number }> = [
   { key: "1d", ms: 24 * 60 * 60 * 1000 },
@@ -36,8 +46,16 @@ const WINDOWS: Array<{ key: StatsWindowKey; ms?: number }> = [
   { key: "total" },
 ];
 
-const getClient = () => {
-  const network = deploymentManager.getCurrentNetwork();
+// Older records use Unix seconds; the SDK records Date.now() milliseconds.
+// Identify their distinct magnitudes before applying the common window logic.
+const submissionTimestampMs = (value: bigint): number | null => {
+  const milliseconds = value >= 1_000_000_000_000n ? value : value * 1000n;
+  return milliseconds > 0n && milliseconds <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Number(milliseconds)
+    : null;
+};
+
+const getClient = (network: StatsScope["network"]) => {
   const rpcUrl =
     process.env.NEXT_PUBLIC_CKB_RPC_URL ||
     process.env.CKB_RPC_URL ||
@@ -51,7 +69,11 @@ const getClient = () => {
   return new ccc.ClientPublicTestnet({ url: rpcUrl });
 };
 
-const resolveProtocolTypeHash = (): string => {
+const resolveProtocolTypeScript = (): ccc.Script => {
+  const isolated = getIsolatedProtocolScope();
+  if (isolated) {
+    return ccc.Script.from(isolated);
+  }
   const codeHash = process.env.NEXT_PUBLIC_PROTOCOL_TYPE_CODE_HASH?.trim();
   const hashType =
     (process.env.NEXT_PUBLIC_PROTOCOL_TYPE_HASH_TYPE?.trim() || "type") as ccc.HashType;
@@ -64,7 +86,34 @@ const resolveProtocolTypeHash = (): string => {
   }
 
   const script = ccc.Script.from({ codeHash, hashType, args });
-  return script.hash().toLowerCase();
+  return script;
+};
+
+// Capture the complete identity once per request, before checking the cache.
+// Neither a changed protocol nor a changed contract deployment may reuse a
+// response collected for another scope in this warm function process.
+const resolveStatsScope = (): StatsScope => {
+  const network = deploymentManager.getCurrentNetwork();
+  const pointsCodeHash = deploymentManager.getContractCodeHash(network, "ckboostPointsUdt");
+  const userTypeCodeHash = deploymentManager.getContractCodeHash(network, "ckboostUserType");
+  if (!pointsCodeHash || !userTypeCodeHash) {
+    throw new Error("Required contract code hashes not configured");
+  }
+  const protocolTypeScript = resolveProtocolTypeScript();
+  const protocolTypeHash = protocolTypeScript.hash().toLowerCase();
+  const pointsTypeScript = ccc.Script.from({
+    codeHash: pointsCodeHash,
+    hashType: "type",
+    args: protocolTypeHash,
+  });
+  const scopeKey = JSON.stringify([
+    network,
+    ccc.hexFrom(protocolTypeScript.toBytes()),
+    userTypeCodeHash.toLowerCase(),
+    "type",
+    ccc.hexFrom(pointsTypeScript.toBytes()),
+  ]);
+  return { network, protocolTypeScript, protocolTypeHash, userTypeCodeHash, pointsTypeScript, scopeKey };
 };
 
 const getBlockTimestamp = async (
@@ -160,27 +209,8 @@ const aggregateCountRecords = (
   return totals;
 };
 
-const collectPlatformStats = async (client: ccc.Client): Promise<StatsResponse> => {
-  const network = deploymentManager.getCurrentNetwork();
-  const pointsCodeHash = deploymentManager.getContractCodeHash(
-    network,
-    "ckboostPointsUdt"
-  );
-  const userTypeCodeHash = deploymentManager.getContractCodeHash(
-    network,
-    "ckboostUserType"
-  );
-
-  if (!pointsCodeHash || !userTypeCodeHash) {
-    throw new Error("Required contract code hashes not configured");
-  }
-
-  const protocolTypeHash = resolveProtocolTypeHash();
-  const pointsTypeScript = ccc.Script.from({
-    codeHash: pointsCodeHash,
-    hashType: "type" as const,
-    args: protocolTypeHash,
-  });
+const collectPlatformStats = async (client: ccc.Client, scope: StatsScope): Promise<StatsResponse> => {
+  const { userTypeCodeHash, protocolTypeHash, pointsTypeScript } = scope;
   const pointsTypeHash = pointsTypeScript.hash();
 
   const mintedRecords: MintRecord[] = [];
@@ -270,6 +300,19 @@ const collectPlatformStats = async (client: ccc.Client): Promise<StatsResponse> 
       continue;
     }
 
+    // A UserType deployment is shared by protocols. Filter the authoritative
+    // complete script before grouping by wallet, in both normal and QA mode.
+    try {
+      const type = cell.cellOutput.type;
+      if (!type || type.hashType !== "type" ||
+        type.codeHash.toLowerCase() !== userTypeCodeHash.toLowerCase()) continue;
+      const connection = ConnectedTypeID.decode(type.args);
+      if (ccc.hexFrom(ConnectedTypeID.encode(connection)) !== type.args.toLowerCase() ||
+        connection.connected_key.toLowerCase() !== protocolTypeHash) continue;
+    } catch {
+      continue;
+    }
+
     let blockNumber: bigint | null = null;
     try {
       const txInfo = await client.getTransaction(cell.outPoint.txHash);
@@ -307,13 +350,10 @@ const collectPlatformStats = async (client: ccc.Client): Promise<StatsResponse> 
 
   for (const entry of latestByLock.values()) {
     try {
-      const userData = ckboost.types.UserData.decode(entry.cell.outputData);
+      const userData = UserData.decode(entry.cell.outputData);
       const submissions = userData.submission_records || [];
       submissions.forEach((record) => {
-        const timestampRaw = record.submission_timestamp
-          ? Number(ccc.numFrom(record.submission_timestamp))
-          : 0;
-        const timestamp = timestampRaw > 0 ? timestampRaw * 1000 : null;
+        const timestamp = submissionTimestampMs(ccc.numFrom(record.submission_timestamp));
         if (timestamp) {
           questSubmissionEvents.push({ timestamp });
         }
@@ -357,18 +397,19 @@ export const handler: Handler = async (event) => {
   }
 
   const now = Date.now();
-  if (cachedStats && cachedStats.expiresAt > now) {
-    return {
-      statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cachedStats.data),
-    };
-  }
-
   try {
-    const client = getClient();
-    const data = await collectPlatformStats(client);
+    const scope = resolveStatsScope();
+    if (cachedStats && cachedStats.scopeKey === scope.scopeKey && cachedStats.expiresAt > now) {
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cachedStats.data),
+      };
+    }
+    const client = getClient(scope.network);
+    const data = await collectPlatformStats(client, scope);
     cachedStats = {
+      scopeKey: scope.scopeKey,
       expiresAt: now + 24 * 60 * 60 * 1000,
       data,
     };

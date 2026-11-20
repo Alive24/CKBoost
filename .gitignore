@@ -38,7 +38,8 @@ CKBoost.code-workspace
 .bmad*/
 .claude/
 .cursor/
-*/*.tsbuildinfo
+# TypeScript incremental build caches
+*.tsbuildinfo
 scripts/debugger/raw_tx.json
 scripts/debugger/tx.json
 dapp/tsconfig.tsbuildinfo

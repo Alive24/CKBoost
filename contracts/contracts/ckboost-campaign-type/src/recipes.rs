@@ -161,6 +161,14 @@ pub mod update_campaign {
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
         let udt_identifiers = ckboost_shared::cell_collector::get_all_udt_identifiers().unwrap();
+        get_rules_for_udts(udt_identifiers)
+    }
+
+    // The exact registered recipe, also executable with pre-collected contexts
+    // in native tests; only the VM dependency loading is outside this function.
+    pub fn get_rules_for_udts(
+        udt_identifiers: alloc::vec::Vec<alloc::string::String>,
+    ) -> TransactionValidationRules<RuleBasedClassifier> {
         let mut rules =
             TransactionValidationRules::new(b"CKBoostCampaign.update_campaign".to_vec())
                 .with_arguments(1)
@@ -181,6 +189,24 @@ pub mod update_campaign {
                     "user",
                     CellCountConstraint::exactly(0), // No user inputs
                     CellCountConstraint::exactly(0), // No user outputs
+                )
+                .with_cell_relationship(
+                    "script_immutability".to_string(),
+                    "Campaign settings preserve the owner lock and campaign type".to_string(),
+                    vec!["campaign".to_string()],
+                    super::common::script_immutability,
+                )
+                .with_business_rule(
+                    "campaign_settings_authorization".to_string(),
+                    "Only an admin or the currently authorized organizer owner may change campaign settings".to_string(),
+                    vec!["campaign".to_string()],
+                    business_logic::campaign_settings_authorization,
+                )
+                .with_business_rule(
+                    "settings_actor_capacity_spend".to_string(),
+                    "The settings actor must strictly spend CKB, preventing unsigned ACP deposits from authorizing settings".to_string(),
+                    vec!["campaign".to_string()],
+                    business_logic::settings_actor_capacity_spend,
                 )
                 .with_cell_relationship(
                     "reference_to_protocol".to_string(),
@@ -270,11 +296,23 @@ pub mod update_campaign {
                 return Err(DeterministicError::CellRelationshipRuleViolation);
             };
 
-            // Find and validate protocol cell
-            crate::recipes::helper::find_protocol_cell_in_deps(
-                &protocol_type_hash,
-                type_script.code_hash().as_slice(),
-            )
+            let deps = context
+                .cell_deps
+                .get_custom("protocol")
+                .ok_or(DeterministicError::CellRelationshipRuleViolation)?;
+            for cell in deps {
+                if cell.type_hash.as_ref().map(|hash| hash.as_slice())
+                    == Some(protocol_type_hash.as_slice())
+                    && crate::recipes::helper::validate_protocol_cell(
+                        &cell.data,
+                        type_script.code_hash().as_slice(),
+                    )
+                    .is_ok()
+                {
+                    return Ok(());
+                }
+            }
+            Err(DeterministicError::CellRelationshipRuleViolation)
         }
     }
 
@@ -286,6 +324,17 @@ pub mod update_campaign {
         use ckboost_shared::generated::ckboost::CampaignData;
         use ckboost_shared::transaction_context::TransactionContext;
         use molecule::prelude::*;
+
+        pub fn campaign_settings_authorization(
+            context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            ckboost_shared::campaign_authorization::validate_campaign_settings(context)
+                .map_err(|_| DeterministicError::BusinessRuleViolation)
+        }
+
+        pub fn settings_actor_capacity_spend(context: &TransactionContext<RuleBasedClassifier>) -> Result<(), DeterministicError> {
+            ckboost_shared::campaign_authorization::require_campaign_settings_actor_spend(context).map_err(|_| DeterministicError::BusinessRuleViolation)
+        }
 
         // **Campaign update validation**: Ensure campaign data is valid and creator has permission
         pub fn campaign_update_validation(
@@ -437,45 +486,65 @@ pub mod approve_completion {
 
     pub fn get_rules() -> TransactionValidationRules<RuleBasedClassifier> {
         let udt_identifiers = ckboost_shared::cell_collector::get_all_udt_identifiers().unwrap();
-        let mut rules =
-            TransactionValidationRules::new(b"CKBoostCampaign.approve_completion".to_vec())
-                .with_arguments(3) // campaign_data, quest_id and user_type_ids
-                // Protocol cells in deps for Points UDT validation
-                .with_custom_cell(
-                    "protocol",
-                    CellCountConstraint::exactly(0), // No input protocol cell
-                    CellCountConstraint::exactly(0), // No output protocol cell
-                )
-                // Campaign cells: exactly 1 in, 1 out (to update accepted submissions)
-                .with_custom_cell(
-                    "campaign",
-                    CellCountConstraint::exactly(1),
-                    CellCountConstraint::exactly(1),
-                )
-                // User cells: 0 or more for Points minting (handled by Points UDT)
-                .with_custom_cell(
-                    "user",
-                    CellCountConstraint::at_least(0),
-                    CellCountConstraint::at_least(0),
-                )
-                // Points UDT cells: allowed for minting points rewards
-                .with_custom_cell(
-                    "points",
-                    CellCountConstraint::at_least(0), // May have points inputs for minting
-                    CellCountConstraint::at_least(0), // May have points outputs as rewards
-                )
-                .with_cell_relationship(
-                    "script_immutability".to_string(),
-                    "Script immutability must be maintained during approval".to_string(),
-                    vec!["campaign".to_string()],
-                    common::script_immutability,
-                )
+        get_rules_for_udts(udt_identifiers)
+    }
+
+    pub fn get_rules_for_udts(
+        udt_identifiers: alloc::vec::Vec<alloc::string::String>,
+    ) -> TransactionValidationRules<RuleBasedClassifier> {
+        let mut rules = TransactionValidationRules::new(
+            b"CKBoostCampaign.approve_completion".to_vec(),
+        )
+        .with_arguments(3) // campaign_data, quest_id and user_type_ids
+        // Protocol cells in deps for Points UDT validation
+        .with_custom_cell(
+            "protocol",
+            CellCountConstraint::exactly(0), // No input protocol cell
+            CellCountConstraint::exactly(0), // No output protocol cell
+        )
+        // Campaign cells: exactly 1 in, 1 out (to update accepted submissions)
+        .with_custom_cell(
+            "campaign",
+            CellCountConstraint::exactly(1),
+            CellCountConstraint::exactly(1),
+        )
+        // User cells: 0 or more for Points minting (handled by Points UDT)
+        .with_custom_cell(
+            "user",
+            CellCountConstraint::at_least(0),
+            CellCountConstraint::at_least(0),
+        )
+        // Points UDT cells: allowed for minting points rewards
+        .with_custom_cell(
+            "points",
+            CellCountConstraint::at_least(0), // May have points inputs for minting
+            CellCountConstraint::at_least(0), // May have points outputs as rewards
+        )
+        .with_cell_relationship(
+            "script_immutability".to_string(),
+            "Script immutability must be maintained during approval".to_string(),
+            vec!["campaign".to_string()],
+            common::script_immutability,
+        )
+        .with_business_rule(
+            "reviewer_authorization".to_string(),
+            "Only input campaign assigned reviewers or protocol admins may approve submissions"
+                .to_string(),
+            vec!["campaign".to_string()],
+            business_logic::reviewer_authorization,
+        )
                 .with_business_rule(
-                    "approval_validation".to_string(),
-                    "Validate quest approval and update accepted submissions".to_string(),
+                    "reviewer_capacity_spend".to_string(),
+                    "The approving actor must strictly spend CKB, preventing unsigned ACP deposits from authorizing review".to_string(),
                     vec!["campaign".to_string()],
-                    business_logic::approval_validation,
-                );
+                    business_logic::reviewer_capacity_spend,
+                )
+        .with_business_rule(
+            "approval_validation".to_string(),
+            "Validate quest approval and update accepted submissions".to_string(),
+            vec!["campaign".to_string()],
+            business_logic::approval_validation,
+        );
         for udt_identifier in udt_identifiers {
             rules = rules.with_custom_cell(
                 udt_identifier,
@@ -504,6 +573,17 @@ pub mod approve_completion {
         use ckb_std::high_level::{load_cell_capacity, load_cell_lock_hash};
         use ckboost_shared::generated::ckboost::{Byte32Vec as SharedByte32Vec, CampaignData};
         use ckboost_shared::transaction_context::TransactionContext;
+
+        pub fn reviewer_authorization(
+            context: &TransactionContext<RuleBasedClassifier>,
+        ) -> Result<(), DeterministicError> {
+            ckboost_shared::campaign_authorization::validate_campaign_review(context)
+                .map_err(|_| DeterministicError::BusinessRuleViolation)
+        }
+
+        pub fn reviewer_capacity_spend(context: &TransactionContext<RuleBasedClassifier>) -> Result<(), DeterministicError> {
+            ckboost_shared::campaign_authorization::require_campaign_review_actor_spend(context).map_err(|_| DeterministicError::BusinessRuleViolation)
+        }
 
         fn read_u128(bytes: &[u8]) -> Result<u128, DeterministicError> {
             if bytes.len() != 16 {

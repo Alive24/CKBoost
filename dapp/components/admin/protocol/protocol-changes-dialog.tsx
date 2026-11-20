@@ -41,6 +41,7 @@ interface ProtocolChangesDialogProps {
   pendingAdminChanges: PendingAdminChanges;
   pendingEndorserChanges: PendingEndorserChanges;
   onConfirm: () => void;
+  isSubmitting?: boolean;
 }
 
 export function ProtocolChangesDialog({
@@ -51,6 +52,7 @@ export function ProtocolChangesDialog({
   pendingAdminChanges,
   pendingEndorserChanges,
   onConfirm,
+  isSubmitting = false,
 }: ProtocolChangesDialogProps) {
   const hasAnyChanges = 
     pendingChanges.admins ||
@@ -61,7 +63,12 @@ export function ProtocolChangesDialog({
     pendingChanges.achievements;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!isSubmitting) onOpenChange(nextOpen);
+      }}
+    >
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Confirm Protocol Changes</DialogTitle>
@@ -290,16 +297,17 @@ export function ProtocolChangesDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
           >
             Cancel
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={!hasAnyChanges}
+            disabled={!hasAnyChanges || isSubmitting}
             className="bg-green-600 hover:bg-green-700"
           >
             <Save className="h-4 w-4 mr-2" />
-            Confirm & Update Protocol
+            {isSubmitting ? "Updating Protocol..." : "Confirm & Update Protocol"}
           </Button>
         </DialogFooter>
       </DialogContent>

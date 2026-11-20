@@ -4,7 +4,7 @@
 import { ccc } from "@ckb-ccc/connector-react";
 import type { CampaignDataLike, ConnectedTypeIDLike } from "ssri-ckboost/types";
 import { CampaignData, ConnectedTypeID } from "ssri-ckboost/types";
-import { createScopedLogger } from "ssri-ckboost";
+import { createScopedLogger } from "ssri-ckboost/logging";
 import type { EndorserResolver, ResolvedEndorser } from "./endorser-resolver";
 import { normalizeEndorserLockHash } from "./endorser-resolver";
 
